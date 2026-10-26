@@ -88,6 +88,7 @@ function Card:Tabs(names, cfg)
     end
     local layout = Util.list(holder, 4, Enum.FillDirection.Horizontal)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    local self_card = self
     local sections, buttons, current = {}, {}, nil
     local selector = {}
     local function render()
@@ -102,7 +103,7 @@ function Card:Tabs(names, cfg)
         if not sections[name] then return end
         current = name
         render()
-        if cfg.Callback then task.spawn(cfg.Callback, name) end
+        if cfg.Callback then self_card.window:_safe("Tabs", cfg.Callback, name) end
     end
     function selector:Get() return current end
     for index, name in ipairs(names) do

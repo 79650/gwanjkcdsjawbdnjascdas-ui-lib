@@ -643,7 +643,7 @@ function Window:_updateLocation()
     if not tab then self.locationLabel.Text = "" return end
     local page = tab.current
     self.locationLabel.Text = (page and #tab.Pages > 1) and (tab.Title .. " › " .. page.Name) or tab.Title
-    self.locationLabel.Visible = wide and not self.headerTabs.Visible
+    self.locationLabel.Visible = self.width >= 360 and not self.headerTabs.Visible
     -- leave room for the header stats in the middle
     self.locationLabel.Size = UDim2.new(self.monitorMode == "Header" and 0.25 or 0.45, 0, 0, 20)
 end

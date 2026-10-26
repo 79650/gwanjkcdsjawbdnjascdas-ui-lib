@@ -223,7 +223,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("range default", type(F.hpBand) == "table" and F.hpBand[1] == 0 and F.hpBand[2] == 100)
     local rTrack, rHit = findIn("Health filter", "Track"), findIn("Health filter", "Hit")
     local rp, rs = rTrack.AbsolutePosition, rTrack.AbsoluteSize
-    MOCK.mouseLocation = Vector2.new(rp.X + rs.X * 0.3, rp.Y)
+    MOCK.mouseLocation = Vector2.new(rp.X + 5 + (rs.X - 10) * 0.3, rp.Y)
     MOCK.fire(rHit, "InputBegan", mouseInput(Enum.UserInputType.MouseButton1))
     uis.InputEnded:Fire(mouseInput(Enum.UserInputType.MouseButton1), false)
     check("range drag moves nearer handle", F.hpBand[1] == 30 and F.hpBand[2] == 100)

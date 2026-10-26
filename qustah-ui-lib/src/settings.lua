@@ -44,7 +44,7 @@ return function(window, cfg)
     window._menuListeners = window._menuListeners or {}
     table.insert(window._menuListeners, function(key) if menuKey.Value ~= key then menuKey:Set(key, true) end end)
     menu:Button({
-        Title = "Reset window", Desc = "Size and position",
+        Title = "Reset window size / position",
         Callback = function()
             window.width, window.height, window.topLeft = defaultSize.X, defaultSize.Y, nil
             window.memory.window = nil
@@ -175,12 +175,13 @@ return function(window, cfg)
                 end, "Overwrite")
             end)
         end
-        smallButton(buttons, autoload and "Autoload off" or "Autoload", 3).Activated:Connect(function()
-            if autoload then store:ClearAutoLoad() say("Autoload off")
-            elseif locked then store:ClearAutoLoad() say("Default needs no autoload - autoload off")
-            else store:SetAutoLoad(name) say("\"" .. name .. "\" loads on start") end
-            refresh()
-        end)
+        if not locked then -- Default is what you get when no profile autoloads
+            smallButton(buttons, autoload and "Autoload off" or "Autoload", 3).Activated:Connect(function()
+                if autoload then store:ClearAutoLoad() say("Autoload off")
+                else store:SetAutoLoad(name) say("\"" .. name .. "\" loads on start") end
+                refresh()
+            end)
+        end
         if not locked then
             smallButton(buttons, "Delete", 6, "Danger").Activated:Connect(function()
                 window:Confirm("Delete \"" .. name .. "\"?", "This cannot be undone.", function()
@@ -232,11 +233,7 @@ return function(window, cfg)
             if locked then
                 if store:Exists(new) then ok, err = false, "A profile with that name exists"
                 else
-                    -- write the default values as a normal profile
-                    local current = store:Snapshot()
-                    store:Apply(defaults)
-                    ok, err = store:Save(new)
-                    store:Apply(current)
+                    ok, err = store:SaveFlags(new, defaults) -- the default values as a normal profile
                 end
             else
                 ok, err = store:Copy(name, new)
@@ -252,9 +249,13 @@ return function(window, cfg)
         local auto = store:GetAutoLoad()
         local meta = store:ReadMeta()
         profileRow("Default", 1, true, auto == nil, nil)
-        for index, name in ipairs(store:List()) do profileRow(name, index + 1, false, auto == name, meta[name]) end
+        for index, name in ipairs(store:List()) do
+            if name:lower() ~= "default" then profileRow(name, index + 1, false, auto == name, meta[name]) end
+        end
     end
     refresh()
+    -- files may change outside the menu (another script, Config:Save) - re-read when the page is shown
+    profiles.frame:GetPropertyChangedSignal("Visible"):Connect(function() if profiles.frame.Visible then refresh() end end)
 
     ------------------------------------------------------------ info
     local about = infoPage:Card({ Title = "About", Side = "Left" })

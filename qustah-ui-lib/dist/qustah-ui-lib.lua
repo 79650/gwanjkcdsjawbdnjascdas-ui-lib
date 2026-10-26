@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.1.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.1.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -103,6 +103,7 @@ function Card:Tabs(names, cfg)
     end
     local layout = Util.list(holder, 4, Enum.FillDirection.Horizontal)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    local self_card = self
     local sections, buttons, current = {}, {}, nil
     local selector = {}
     local function render()
@@ -117,7 +118,7 @@ function Card:Tabs(names, cfg)
         if not sections[name] then return end
         current = name
         render()
-        if cfg.Callback then task.spawn(cfg.Callback, name) end
+        if cfg.Callback then self_card.window:_safe("Tabs", cfg.Callback, name) end
     end
     function selector:Get() return current end
     for index, name in ipairs(names) do
@@ -195,6 +196,17 @@ function Config:Save(name)
         if ok and value ~= nil then data.flags[flag] = value end
     end
     local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode(data))
+    if not ok then return false, tostring(err) end
+    return true
+end
+
+-- Writes a profile from a flag table (Snapshot format) without touching the current values.
+function Config:SaveFlags(name, flags)
+    name = cleanName(name)
+    if name == "" then return false, "Empty config name" end
+    if not can("writefile") then return false, "writefile is not available" end
+    self:_ensure()
+    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {} }))
     if not ok then return false, tostring(err) end
     return true
 end
@@ -1008,14 +1020,17 @@ return function(card, cfg)
         local viewport = Util.viewport()
         local listHeight = math.min(#options, MAX_VISIBLE) * ITEM + 8
         local total = 25 + listHeight
-        local width = math.max(size.X, 120)
+        -- the popup lives outside the scaled window, so it gets the window's scale itself
+        local scale = window.scale and window.scale.Scale or 1
+        local width = math.max(size.X / scale, 120)
         local roomBelow, roomAbove = viewport.Y - 8 - position.Y, position.Y + size.Y - 8
-        local below = roomBelow >= total or roomBelow >= roomAbove
+        local below = roomBelow >= total * scale or roomBelow >= roomAbove
         popup = create("Frame", {
             Name = "DropdownList", BorderSizePixel = 0, ZIndex = 260,
-            Position = UDim2.fromOffset(math.clamp(position.X, 8, math.max(8, viewport.X - width - 8)), below and position.Y or position.Y + size.Y - total),
+            Position = UDim2.fromOffset(math.clamp(position.X, 8, math.max(8, viewport.X - width * scale - 8)), below and position.Y or position.Y + size.Y - total * scale),
             Size = UDim2.fromOffset(width, total), Parent = window.gui,
         })
+        create("UIScale", { Scale = scale, Parent = popup })
         Theme.bind(popup, "BackgroundColor3", "input")
         corner(popup, 6)
         Theme.bind(stroke(popup), "Color", "buttonEdge")
@@ -1405,7 +1420,13 @@ return function(card, cfg)
     local element = Base.element(card, "Keybind", cfg, row, title, desc)
     local function show(text)
         badge.Text = text
-        badge.Size = UDim2.fromOffset(math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18), 22)
+        local width = math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18)
+        badge.Size = UDim2.fromOffset(width, 22)
+        -- title / description use the room the badge leaves
+        local reserve = math.max(width, 60) + 12
+        if cfg.Help then reserve = (chordMode and 130 or 100) + 16 end
+        title.Size = UDim2.new(1, -reserve, 0, title.Size.Y.Offset)
+        if desc then desc.Size = UDim2.new(1, -reserve, 0, desc.Size.Y.Offset) end
     end
     local function chordName(chord)
         if not chord or not chord[2] then return "None" end
@@ -1616,7 +1637,9 @@ return function(card, cfg)
         empty.Visible = shown == 0
         local selected = 0
         for _ in pairs(chosen) do selected = selected + 1 end
-        count.Text = selected > 0 and (selected .. " selected") or (#Players:GetPlayers() .. " players")
+        local total = 0
+        for _ in pairs(rows) do total = total + 1 end
+        count.Text = selected > 0 and (selected .. " selected") or (total .. (total == 1 and " player" or " players"))
     end
     local function commit()
         element.Value = multi and valueList() or valueList()[1]
@@ -1625,7 +1648,7 @@ return function(card, cfg)
         element:_fire(element.Value)
     end
     local function addRow(player)
-        if rows[player] or (player == Players.LocalPlayer and not cfg.IncludeSelf) then return end
+        if rows[player] or not holder.Parent or (player == Players.LocalPlayer and not cfg.IncludeSelf) then return end
         local button = create("TextButton", {
             Name = player.Name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, ROW), Parent = inner,
@@ -1718,24 +1741,26 @@ return function(card, cfg)
     local suffix = cfg.Suffix and (" " .. tostring(cfg.Suffix)) or ""
     local decimals = Util.decimals(step)
     local top = cfg.Desc and 38 or 22
-    local row, title, desc = Base.row(card, cfg, top + 18, { right = 120, titleHeight = 22, helpRight = 116, helpY = 11 })
+    local row, title, desc = Base.row(card, cfg, top + 18, { right = 150, titleHeight = 22, helpRight = 146, helpY = 11 })
 
     -- "low – high suffix": two small boxes
-    local boxes = create("Frame", { Name = "Values", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 1), Size = UDim2.fromOffset(116, 20), Parent = row })
-    local function box(name, x)
+    local boxes = create("Frame", { Name = "Values", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 1), Size = UDim2.fromOffset(150, 20), Parent = row })
+    local function box(name, x, align)
         local object = create("TextBox", {
-            Name = name, Position = UDim2.fromOffset(x, 0), Size = UDim2.fromOffset(52, 20), BackgroundTransparency = 0.7, BorderSizePixel = 0,
-            Text = "", TextSize = 10, Font = Enum.Font.GothamMedium, ClearTextOnFocus = false, Parent = boxes,
+            Name = name, Position = UDim2.fromOffset(x, 0), Size = UDim2.fromOffset(52, 20), BackgroundTransparency = 1, BorderSizePixel = 0,
+            Text = "", TextSize = 10, Font = Enum.Font.GothamMedium, ClearTextOnFocus = false, TextXAlignment = align, Parent = boxes,
         })
+
         Theme.bind(object, "BackgroundColor3", "base")
         Theme.bind(object, "TextColor3", "text")
         corner(object, 6)
         return object
     end
-    local lowBox, highBox = box("Low", 0), box("High", 64)
-    local dash = Util.label(boxes, "–", 10, { Position = UDim2.fromOffset(52, 0), Size = UDim2.fromOffset(12, 20), TextXAlignment = Enum.TextXAlignment.Center })
+    local lowBox, highBox = box("Low", 0, Enum.TextXAlignment.Right), box("High", 64, Enum.TextXAlignment.Right)
+    local dash = Util.label(boxes, "–", 10, { Name = "Dash", Position = UDim2.fromOffset(52, 0), Size = UDim2.fromOffset(14, 20), TextXAlignment = Enum.TextXAlignment.Center })
     Theme.bind(dash, "TextColor3", "muted")
 
+    if desc then desc.Size = UDim2.new(1, 0, 0, 14) end -- the values sit on the title line only
     local track = create("Frame", { Name = "Track", Position = UDim2.new(0, 0, 0, top + 8), Size = UDim2.new(1, 0, 0, 2), BorderSizePixel = 0, Parent = row })
     Theme.bind(track, "BackgroundColor3", "buttonEdge")
     corner(track, 1)
@@ -1763,12 +1788,20 @@ return function(card, cfg)
     local function ratio(value) return max > min and (value - min) / (max - min) or 0 end
     local function render()
         local low, high = element.Value[1], element.Value[2]
-        lowKnob.Position = UDim2.fromScale(ratio(low), 0.5)
-        highKnob.Position = UDim2.fromScale(ratio(high), 0.5)
-        fill.Position = UDim2.fromScale(ratio(low), 0)
-        fill.Size = UDim2.fromScale(ratio(high) - ratio(low), 1)
-        if not focused.low then lowBox.Text = format(low) .. (suffix ~= "" and suffix:sub(1, 3) or "") end
-        if not focused.high then highBox.Text = format(high) .. (suffix ~= "" and suffix:sub(1, 3) or "") end
+        local a, b = ratio(low), ratio(high)
+        lowKnob.Position = UDim2.new(a, 5 - 10 * a, 0.5, 0)
+        highKnob.Position = UDim2.new(b, 5 - 10 * b, 0.5, 0)
+        fill.Position = UDim2.new(a, 5 - 10 * a, 0, 0)
+        fill.Size = UDim2.new(b - a, -10 * (b - a), 1, 0)
+        if not focused.low then lowBox.Text = format(low) .. suffix end
+        if not focused.high then highBox.Text = format(high) .. suffix end
+        -- "low – high" packed against the right edge (boxes as wide as their text)
+        local function width(object) return math.max(18, Util.textWidth(object.Text, 10, Enum.Font.GothamMedium) + (focused[object == lowBox and "low" or "high"] and 14 or 2)) end
+        local highWidth, lowWidth = width(highBox), width(lowBox)
+        highBox.Position, highBox.Size = UDim2.new(1, -highWidth, 0, 0), UDim2.fromOffset(highWidth, 20)
+        dash.Position = UDim2.new(1, -highWidth - 14, 0, 0)
+        lowBox.Position, lowBox.Size = UDim2.new(1, -highWidth - 14 - lowWidth, 0, 0), UDim2.fromOffset(lowWidth, 20)
+        if not cfg.Help then title.Size = UDim2.new(1, -(highWidth + 14 + lowWidth + 10), 0, title.Size.Y.Offset) end
     end
     function element:Set(value, silent)
         if type(value) ~= "table" then return end
@@ -1789,7 +1822,8 @@ return function(card, cfg)
     local function fromPoint(point)
         local width = track.AbsoluteSize.X
         if width <= 0 then return end
-        local value = min + math.clamp((point.X - track.AbsolutePosition.X) / width, 0, 1) * (max - min)
+        local inset = 5 * (window.scale and window.scale.Scale or 1)
+        local value = min + math.clamp((point.X - track.AbsolutePosition.X - inset) / math.max(1, width - inset * 2), 0, 1) * (max - min)
         if not dragging then
             -- grab the nearer handle (the high one when both sit on the same spot at the top end)
             local low, high = element.Value[1], element.Value[2]
@@ -1807,9 +1841,10 @@ return function(card, cfg)
         window:_beginDrag(input, fromPoint, function() dragging = nil end)
     end)
     for key, object in pairs({ low = lowBox, high = highBox }) do
-        object.Focused:Connect(function() focused[key] = true end)
+        object.Focused:Connect(function() focused[key] = true object.BackgroundTransparency = 0.2 render() end)
         object.FocusLost:Connect(function()
             focused[key] = false
+            object.BackgroundTransparency = 1
             local number = tonumber((object.Text:gsub("[^%d%.%-]", "")))
             if number then
                 local next = { element.Value[1], element.Value[2] }
@@ -1919,11 +1954,16 @@ return function(card, cfg)
     local top = cfg.Desc and 38 or 22
     local row, title, desc = Base.row(card, cfg, top + 18, { right = 90, titleHeight = 22, helpRight = 84, helpY = 11 })
 
+    if desc then desc.Size = UDim2.new(1, 0, 0, 14) end -- the value sits on the title line only
     local box = create("TextBox", {
         Name = "Value", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 1), Size = UDim2.fromOffset(78, 20),
-        BackgroundTransparency = 0.7, BorderSizePixel = 0, Text = "", TextSize = 10, Font = Enum.Font.GothamMedium,
-        TextXAlignment = Enum.TextXAlignment.Center, ClearTextOnFocus = false, Parent = row,
+        BackgroundTransparency = 1, BorderSizePixel = 0, Text = "", TextSize = 10, Font = Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Right, ClearTextOnFocus = false, Parent = row,
     })
+    -- value sits flush right like the other controls; while typing it gets a small field
+    local boxPad = Util.padding(box, 0, 0, 0, 0)
+    box.Focused:Connect(function() box.BackgroundTransparency = 0.2 boxPad.PaddingRight = UDim.new(0, 6) boxPad.PaddingLeft = UDim.new(0, 6) end)
+    box.FocusLost:Connect(function() box.BackgroundTransparency = 1 boxPad.PaddingRight = UDim.new(0, 0) boxPad.PaddingLeft = UDim.new(0, 0) end)
     Theme.bind(box, "TextColor3", "text")
     Theme.bind(box, "BackgroundColor3", "base")
     corner(box, 6)
@@ -1946,8 +1986,8 @@ return function(card, cfg)
     end
     local function render()
         local ratio = max > min and (element.Value - min) / (max - min) or 0
-        fill.Size = UDim2.fromScale(ratio, 1)
-        knob.Position = UDim2.fromScale(ratio, 0.5)
+        fill.Size = UDim2.new(ratio, 5 - 10 * ratio, 1, 0)
+        knob.Position = UDim2.new(ratio, 5 - 10 * ratio, 0.5, 0)
         if not focused then box.Text = format(element.Value) end
     end
     function element:Set(value, silent)
@@ -1969,7 +2009,8 @@ return function(card, cfg)
     local function fromPoint(point)
         local width = track.AbsoluteSize.X
         if width <= 0 then return end
-        element:Set(min + math.clamp((point.X - track.AbsolutePosition.X) / width, 0, 1) * (max - min))
+        local inset = 5 * (window.scale and window.scale.Scale or 1)
+        element:Set(min + math.clamp((point.X - track.AbsolutePosition.X - inset) / math.max(1, width - inset * 2), 0, 1) * (max - min))
     end
     hit.InputBegan:Connect(function(input)
         if not Util.isPress(input) or element.Locked then return end
@@ -2076,6 +2117,11 @@ return function(card, cfg)
     function element:Set(name, silent)
         if typeof(name) == "Color3" then -- pick the preset with this colour
             for _, entry in ipairs(entries) do if entry.color == name then name = entry.name break end end
+        end
+        if typeof(name) == "Color3" then -- a custom colour: no preset is selected
+            self.Value, self.Color = nil, name
+            render()
+            return
         end
         local entry = byName[tostring(name)]
         if not entry then return end
@@ -2381,14 +2427,16 @@ return function(Window)
                 return rows[index]
             end
             local function refresh()
-                local entries = { { title = "Menu", key = Util.keyName(self.key), on = true } }
+                local entries = { { title = "Menu", key = Util.keyName(self.key), on = true, menu = true } }
                 for element, bound in pairs(self.binds) do
-                    if bound and element.Row and element.Row.Parent and element.Title then
+                    -- the settings menu-key row is the "Menu" entry already
+                    if bound and element.Row and element.Row.Parent and element.Title and element.Flag ~= "__ui_menu_key" then
                         local on = element.Type == "Toggle" and element.Value == true or element.Type ~= "Toggle"
                         entries[#entries + 1] = { title = tostring(element.Title), key = chordText(element), on = on, toggle = element.Type == "Toggle" }
                     end
                 end
                 table.sort(entries, function(a, b)
+                    if a.menu ~= b.menu then return a.menu == true end
                     if a.on ~= b.on then return a.on end
                     return a.title < b.title
                 end)
@@ -2502,7 +2550,7 @@ require("dialog")(Window)
 require("hud")(Window)
 
 local Lib = {
-    Version = "1.1.0",
+    Version = "1.1.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -2641,7 +2689,7 @@ return function(window, cfg)
     window._menuListeners = window._menuListeners or {}
     table.insert(window._menuListeners, function(key) if menuKey.Value ~= key then menuKey:Set(key, true) end end)
     menu:Button({
-        Title = "Reset window", Desc = "Size and position",
+        Title = "Reset window size / position",
         Callback = function()
             window.width, window.height, window.topLeft = defaultSize.X, defaultSize.Y, nil
             window.memory.window = nil
@@ -2772,12 +2820,13 @@ return function(window, cfg)
                 end, "Overwrite")
             end)
         end
-        smallButton(buttons, autoload and "Autoload off" or "Autoload", 3).Activated:Connect(function()
-            if autoload then store:ClearAutoLoad() say("Autoload off")
-            elseif locked then store:ClearAutoLoad() say("Default needs no autoload - autoload off")
-            else store:SetAutoLoad(name) say("\"" .. name .. "\" loads on start") end
-            refresh()
-        end)
+        if not locked then -- Default is what you get when no profile autoloads
+            smallButton(buttons, autoload and "Autoload off" or "Autoload", 3).Activated:Connect(function()
+                if autoload then store:ClearAutoLoad() say("Autoload off")
+                else store:SetAutoLoad(name) say("\"" .. name .. "\" loads on start") end
+                refresh()
+            end)
+        end
         if not locked then
             smallButton(buttons, "Delete", 6, "Danger").Activated:Connect(function()
                 window:Confirm("Delete \"" .. name .. "\"?", "This cannot be undone.", function()
@@ -2829,11 +2878,7 @@ return function(window, cfg)
             if locked then
                 if store:Exists(new) then ok, err = false, "A profile with that name exists"
                 else
-                    -- write the default values as a normal profile
-                    local current = store:Snapshot()
-                    store:Apply(defaults)
-                    ok, err = store:Save(new)
-                    store:Apply(current)
+                    ok, err = store:SaveFlags(new, defaults) -- the default values as a normal profile
                 end
             else
                 ok, err = store:Copy(name, new)
@@ -2849,9 +2894,13 @@ return function(window, cfg)
         local auto = store:GetAutoLoad()
         local meta = store:ReadMeta()
         profileRow("Default", 1, true, auto == nil, nil)
-        for index, name in ipairs(store:List()) do profileRow(name, index + 1, false, auto == name, meta[name]) end
+        for index, name in ipairs(store:List()) do
+            if name:lower() ~= "default" then profileRow(name, index + 1, false, auto == name, meta[name]) end
+        end
     end
     refresh()
+    -- files may change outside the menu (another script, Config:Save) - re-read when the page is shown
+    profiles.frame:GetPropertyChangedSignal("Visible"):Connect(function() if profiles.frame.Visible then refresh() end end)
 
     ------------------------------------------------------------ info
     local about = infoPage:Card({ Title = "About", Side = "Left" })
@@ -4011,7 +4060,7 @@ function Window:_updateLocation()
     if not tab then self.locationLabel.Text = "" return end
     local page = tab.current
     self.locationLabel.Text = (page and #tab.Pages > 1) and (tab.Title .. " › " .. page.Name) or tab.Title
-    self.locationLabel.Visible = wide and not self.headerTabs.Visible
+    self.locationLabel.Visible = self.width >= 360 and not self.headerTabs.Visible
     -- leave room for the header stats in the middle
     self.locationLabel.Size = UDim2.new(self.monitorMode == "Header" and 0.25 or 0.45, 0, 0, 20)
 end

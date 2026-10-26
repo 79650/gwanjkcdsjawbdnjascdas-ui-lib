@@ -10,7 +10,7 @@ require("dialog")(Window)
 require("hud")(Window)
 
 local Lib = {
-    Version = "1.1.0",
+    Version = "1.1.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

@@ -27,7 +27,13 @@ return function(card, cfg)
     local element = Base.element(card, "Keybind", cfg, row, title, desc)
     local function show(text)
         badge.Text = text
-        badge.Size = UDim2.fromOffset(math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18), 22)
+        local width = math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18)
+        badge.Size = UDim2.fromOffset(width, 22)
+        -- title / description use the room the badge leaves
+        local reserve = math.max(width, 60) + 12
+        if cfg.Help then reserve = (chordMode and 130 or 100) + 16 end
+        title.Size = UDim2.new(1, -reserve, 0, title.Size.Y.Offset)
+        if desc then desc.Size = UDim2.new(1, -reserve, 0, desc.Size.Y.Offset) end
     end
     local function chordName(chord)
         if not chord or not chord[2] then return "None" end

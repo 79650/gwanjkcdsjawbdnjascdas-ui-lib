@@ -16,11 +16,16 @@ return function(card, cfg)
     local top = cfg.Desc and 38 or 22
     local row, title, desc = Base.row(card, cfg, top + 18, { right = 90, titleHeight = 22, helpRight = 84, helpY = 11 })
 
+    if desc then desc.Size = UDim2.new(1, 0, 0, 14) end -- the value sits on the title line only
     local box = create("TextBox", {
         Name = "Value", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 1), Size = UDim2.fromOffset(78, 20),
-        BackgroundTransparency = 0.7, BorderSizePixel = 0, Text = "", TextSize = 10, Font = Enum.Font.GothamMedium,
-        TextXAlignment = Enum.TextXAlignment.Center, ClearTextOnFocus = false, Parent = row,
+        BackgroundTransparency = 1, BorderSizePixel = 0, Text = "", TextSize = 10, Font = Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Right, ClearTextOnFocus = false, Parent = row,
     })
+    -- value sits flush right like the other controls; while typing it gets a small field
+    local boxPad = Util.padding(box, 0, 0, 0, 0)
+    box.Focused:Connect(function() box.BackgroundTransparency = 0.2 boxPad.PaddingRight = UDim.new(0, 6) boxPad.PaddingLeft = UDim.new(0, 6) end)
+    box.FocusLost:Connect(function() box.BackgroundTransparency = 1 boxPad.PaddingRight = UDim.new(0, 0) boxPad.PaddingLeft = UDim.new(0, 0) end)
     Theme.bind(box, "TextColor3", "text")
     Theme.bind(box, "BackgroundColor3", "base")
     corner(box, 6)
@@ -43,8 +48,8 @@ return function(card, cfg)
     end
     local function render()
         local ratio = max > min and (element.Value - min) / (max - min) or 0
-        fill.Size = UDim2.fromScale(ratio, 1)
-        knob.Position = UDim2.fromScale(ratio, 0.5)
+        fill.Size = UDim2.new(ratio, 5 - 10 * ratio, 1, 0)
+        knob.Position = UDim2.new(ratio, 5 - 10 * ratio, 0.5, 0)
         if not focused then box.Text = format(element.Value) end
     end
     function element:Set(value, silent)
@@ -66,7 +71,8 @@ return function(card, cfg)
     local function fromPoint(point)
         local width = track.AbsoluteSize.X
         if width <= 0 then return end
-        element:Set(min + math.clamp((point.X - track.AbsolutePosition.X) / width, 0, 1) * (max - min))
+        local inset = 5 * (window.scale and window.scale.Scale or 1)
+        element:Set(min + math.clamp((point.X - track.AbsolutePosition.X - inset) / math.max(1, width - inset * 2), 0, 1) * (max - min))
     end
     hit.InputBegan:Connect(function(input)
         if not Util.isPress(input) or element.Locked then return end

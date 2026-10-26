@@ -69,14 +69,17 @@ return function(card, cfg)
         local viewport = Util.viewport()
         local listHeight = math.min(#options, MAX_VISIBLE) * ITEM + 8
         local total = 25 + listHeight
-        local width = math.max(size.X, 120)
+        -- the popup lives outside the scaled window, so it gets the window's scale itself
+        local scale = window.scale and window.scale.Scale or 1
+        local width = math.max(size.X / scale, 120)
         local roomBelow, roomAbove = viewport.Y - 8 - position.Y, position.Y + size.Y - 8
-        local below = roomBelow >= total or roomBelow >= roomAbove
+        local below = roomBelow >= total * scale or roomBelow >= roomAbove
         popup = create("Frame", {
             Name = "DropdownList", BorderSizePixel = 0, ZIndex = 260,
-            Position = UDim2.fromOffset(math.clamp(position.X, 8, math.max(8, viewport.X - width - 8)), below and position.Y or position.Y + size.Y - total),
+            Position = UDim2.fromOffset(math.clamp(position.X, 8, math.max(8, viewport.X - width * scale - 8)), below and position.Y or position.Y + size.Y - total * scale),
             Size = UDim2.fromOffset(width, total), Parent = window.gui,
         })
+        create("UIScale", { Scale = scale, Parent = popup })
         Theme.bind(popup, "BackgroundColor3", "input")
         corner(popup, 6)
         Theme.bind(stroke(popup), "Color", "buttonEdge")

@@ -79,7 +79,9 @@ return function(card, cfg)
         empty.Visible = shown == 0
         local selected = 0
         for _ in pairs(chosen) do selected = selected + 1 end
-        count.Text = selected > 0 and (selected .. " selected") or (#Players:GetPlayers() .. " players")
+        local total = 0
+        for _ in pairs(rows) do total = total + 1 end
+        count.Text = selected > 0 and (selected .. " selected") or (total .. (total == 1 and " player" or " players"))
     end
     local function commit()
         element.Value = multi and valueList() or valueList()[1]
@@ -88,7 +90,7 @@ return function(card, cfg)
         element:_fire(element.Value)
     end
     local function addRow(player)
-        if rows[player] or (player == Players.LocalPlayer and not cfg.IncludeSelf) then return end
+        if rows[player] or not holder.Parent or (player == Players.LocalPlayer and not cfg.IncludeSelf) then return end
         local button = create("TextButton", {
             Name = player.Name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, ROW), Parent = inner,

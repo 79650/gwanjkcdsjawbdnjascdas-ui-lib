@@ -77,14 +77,16 @@ return function(Window)
                 return rows[index]
             end
             local function refresh()
-                local entries = { { title = "Menu", key = Util.keyName(self.key), on = true } }
+                local entries = { { title = "Menu", key = Util.keyName(self.key), on = true, menu = true } }
                 for element, bound in pairs(self.binds) do
-                    if bound and element.Row and element.Row.Parent and element.Title then
+                    -- the settings menu-key row is the "Menu" entry already
+                    if bound and element.Row and element.Row.Parent and element.Title and element.Flag ~= "__ui_menu_key" then
                         local on = element.Type == "Toggle" and element.Value == true or element.Type ~= "Toggle"
                         entries[#entries + 1] = { title = tostring(element.Title), key = chordText(element), on = on, toggle = element.Type == "Toggle" }
                     end
                 end
                 table.sort(entries, function(a, b)
+                    if a.menu ~= b.menu then return a.menu == true end
                     if a.on ~= b.on then return a.on end
                     return a.title < b.title
                 end)

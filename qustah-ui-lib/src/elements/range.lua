@@ -15,24 +15,26 @@ return function(card, cfg)
     local suffix = cfg.Suffix and (" " .. tostring(cfg.Suffix)) or ""
     local decimals = Util.decimals(step)
     local top = cfg.Desc and 38 or 22
-    local row, title, desc = Base.row(card, cfg, top + 18, { right = 120, titleHeight = 22, helpRight = 116, helpY = 11 })
+    local row, title, desc = Base.row(card, cfg, top + 18, { right = 150, titleHeight = 22, helpRight = 146, helpY = 11 })
 
     -- "low – high suffix": two small boxes
-    local boxes = create("Frame", { Name = "Values", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 1), Size = UDim2.fromOffset(116, 20), Parent = row })
-    local function box(name, x)
+    local boxes = create("Frame", { Name = "Values", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 1), Size = UDim2.fromOffset(150, 20), Parent = row })
+    local function box(name, x, align)
         local object = create("TextBox", {
-            Name = name, Position = UDim2.fromOffset(x, 0), Size = UDim2.fromOffset(52, 20), BackgroundTransparency = 0.7, BorderSizePixel = 0,
-            Text = "", TextSize = 10, Font = Enum.Font.GothamMedium, ClearTextOnFocus = false, Parent = boxes,
+            Name = name, Position = UDim2.fromOffset(x, 0), Size = UDim2.fromOffset(52, 20), BackgroundTransparency = 1, BorderSizePixel = 0,
+            Text = "", TextSize = 10, Font = Enum.Font.GothamMedium, ClearTextOnFocus = false, TextXAlignment = align, Parent = boxes,
         })
+
         Theme.bind(object, "BackgroundColor3", "base")
         Theme.bind(object, "TextColor3", "text")
         corner(object, 6)
         return object
     end
-    local lowBox, highBox = box("Low", 0), box("High", 64)
-    local dash = Util.label(boxes, "–", 10, { Position = UDim2.fromOffset(52, 0), Size = UDim2.fromOffset(12, 20), TextXAlignment = Enum.TextXAlignment.Center })
+    local lowBox, highBox = box("Low", 0, Enum.TextXAlignment.Right), box("High", 64, Enum.TextXAlignment.Right)
+    local dash = Util.label(boxes, "–", 10, { Name = "Dash", Position = UDim2.fromOffset(52, 0), Size = UDim2.fromOffset(14, 20), TextXAlignment = Enum.TextXAlignment.Center })
     Theme.bind(dash, "TextColor3", "muted")
 
+    if desc then desc.Size = UDim2.new(1, 0, 0, 14) end -- the values sit on the title line only
     local track = create("Frame", { Name = "Track", Position = UDim2.new(0, 0, 0, top + 8), Size = UDim2.new(1, 0, 0, 2), BorderSizePixel = 0, Parent = row })
     Theme.bind(track, "BackgroundColor3", "buttonEdge")
     corner(track, 1)
@@ -60,12 +62,20 @@ return function(card, cfg)
     local function ratio(value) return max > min and (value - min) / (max - min) or 0 end
     local function render()
         local low, high = element.Value[1], element.Value[2]
-        lowKnob.Position = UDim2.fromScale(ratio(low), 0.5)
-        highKnob.Position = UDim2.fromScale(ratio(high), 0.5)
-        fill.Position = UDim2.fromScale(ratio(low), 0)
-        fill.Size = UDim2.fromScale(ratio(high) - ratio(low), 1)
-        if not focused.low then lowBox.Text = format(low) .. (suffix ~= "" and suffix:sub(1, 3) or "") end
-        if not focused.high then highBox.Text = format(high) .. (suffix ~= "" and suffix:sub(1, 3) or "") end
+        local a, b = ratio(low), ratio(high)
+        lowKnob.Position = UDim2.new(a, 5 - 10 * a, 0.5, 0)
+        highKnob.Position = UDim2.new(b, 5 - 10 * b, 0.5, 0)
+        fill.Position = UDim2.new(a, 5 - 10 * a, 0, 0)
+        fill.Size = UDim2.new(b - a, -10 * (b - a), 1, 0)
+        if not focused.low then lowBox.Text = format(low) .. suffix end
+        if not focused.high then highBox.Text = format(high) .. suffix end
+        -- "low – high" packed against the right edge (boxes as wide as their text)
+        local function width(object) return math.max(18, Util.textWidth(object.Text, 10, Enum.Font.GothamMedium) + (focused[object == lowBox and "low" or "high"] and 14 or 2)) end
+        local highWidth, lowWidth = width(highBox), width(lowBox)
+        highBox.Position, highBox.Size = UDim2.new(1, -highWidth, 0, 0), UDim2.fromOffset(highWidth, 20)
+        dash.Position = UDim2.new(1, -highWidth - 14, 0, 0)
+        lowBox.Position, lowBox.Size = UDim2.new(1, -highWidth - 14 - lowWidth, 0, 0), UDim2.fromOffset(lowWidth, 20)
+        if not cfg.Help then title.Size = UDim2.new(1, -(highWidth + 14 + lowWidth + 10), 0, title.Size.Y.Offset) end
     end
     function element:Set(value, silent)
         if type(value) ~= "table" then return end
@@ -86,7 +96,8 @@ return function(card, cfg)
     local function fromPoint(point)
         local width = track.AbsoluteSize.X
         if width <= 0 then return end
-        local value = min + math.clamp((point.X - track.AbsolutePosition.X) / width, 0, 1) * (max - min)
+        local inset = 5 * (window.scale and window.scale.Scale or 1)
+        local value = min + math.clamp((point.X - track.AbsolutePosition.X - inset) / math.max(1, width - inset * 2), 0, 1) * (max - min)
         if not dragging then
             -- grab the nearer handle (the high one when both sit on the same spot at the top end)
             local low, high = element.Value[1], element.Value[2]
@@ -104,9 +115,10 @@ return function(card, cfg)
         window:_beginDrag(input, fromPoint, function() dragging = nil end)
     end)
     for key, object in pairs({ low = lowBox, high = highBox }) do
-        object.Focused:Connect(function() focused[key] = true end)
+        object.Focused:Connect(function() focused[key] = true object.BackgroundTransparency = 0.2 render() end)
         object.FocusLost:Connect(function()
             focused[key] = false
+            object.BackgroundTransparency = 1
             local number = tonumber((object.Text:gsub("[^%d%.%-]", "")))
             if number then
                 local next = { element.Value[1], element.Value[2] }

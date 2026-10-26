@@ -52,6 +52,17 @@ function Config:Save(name)
     return true
 end
 
+-- Writes a profile from a flag table (Snapshot format) without touching the current values.
+function Config:SaveFlags(name, flags)
+    name = cleanName(name)
+    if name == "" then return false, "Empty config name" end
+    if not can("writefile") then return false, "writefile is not available" end
+    self:_ensure()
+    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {} }))
+    if not ok then return false, tostring(err) end
+    return true
+end
+
 function Config:Load(name)
     name = cleanName(name)
     if not can("readfile", "isfile") then return false, "readfile is not available" end

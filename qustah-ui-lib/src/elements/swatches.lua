@@ -83,6 +83,11 @@ return function(card, cfg)
         if typeof(name) == "Color3" then -- pick the preset with this colour
             for _, entry in ipairs(entries) do if entry.color == name then name = entry.name break end end
         end
+        if typeof(name) == "Color3" then -- a custom colour: no preset is selected
+            self.Value, self.Color = nil, name
+            render()
+            return
+        end
         local entry = byName[tostring(name)]
         if not entry then return end
         local changed = entry.name ~= self.Value
