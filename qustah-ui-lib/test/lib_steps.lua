@@ -526,6 +526,131 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("icons: toast icon", find("ToastIcon", Lib._notifyHolder) ~= nil)
     check("icons: bad name falls back", Lib.Windows[1]:Tab({ Title = "Zz", Icon = "nope-nope" }).iconProperty == "TextColor3")
 
+    -- v1.4: pending config values / custom data
+    local store2 = window.Config
+    store2:Apply({ lateFlag = true, espRange = 2000 })
+    check("pending kept for unknown flag", store2.pending.lateFlag == true and F.espRange == 2000)
+    check("snapshot keeps pending", store2:Snapshot().lateFlag == true)
+    local lateCard = tabNamed("Misc").Pages[1]:Card({ Title = "Late" })
+    local late = lateCard:Toggle({ Title = "Late toggle", Flag = "lateFlag" })
+    wait(0.1)
+    check("pending applied on create", late.Value == true and store2.pending.lateFlag == nil)
+    check("default recorded before pending", store2.Defaults.lateFlag == false)
+    check("defaults keep start value", store2.Defaults.espRange == 1500)
+    store2:SetData("waypoints", { { "Spawn", 1, 2, 3 } })
+    store2:Save("custom1")
+    store2:SetData("waypoints", nil)
+    local gotData
+    store2:OnDataLoaded(function(data) gotData = data end)
+    store2:Load("custom1")
+    check("custom data round trip", gotData and gotData.waypoints and gotData.waypoints[1][1] == "Spawn" and store2:GetData("waypoints")[1][2] == 1)
+    local _, _, sharedCustom = store2:Decode(store2:Export("custom1"))
+    check("custom data in share code", sharedCustom and sharedCustom.waypoints ~= nil)
+    store2:Delete("custom1")
+    W.espRange:Set(1500)
+
+    -- debug toasts / notification buttons
+    W.__ui_debug:Set(true)
+    window:ReportError("Test", "debug boom") wait(0.1)
+    local debugToast
+    for _, t in ipairs(Lib._notifyHolder:GetChildren()) do if t.Name == "Toast" and t:FindFirstChild("Copy", true) then debugToast = t end end
+    check("debug toast with copy button", debugToast ~= nil)
+    W.__ui_debug:Set(false)
+    window:ClearErrors()
+    local pressed = false
+    local toast = window:Notify({ Title = "Undo?", Content = "Deleted", Buttons = { { Title = "Undo", Callback = function() pressed = true end } } })
+    check("toast buttons", toast:FindFirstChild("Undo", true) ~= nil and toast:FindFirstChild("Close") ~= nil)
+    MOCK.click(toast:FindFirstChild("Undo", true)) wait(0.4)
+    check("toast button runs + closes", pressed and toast.Parent == nil)
+    local toast2 = window:Notify({ Title = "Close me" })
+    MOCK.click(toast2:FindFirstChild("Close")) wait(0.4)
+    check("toast close button", toast2.Parent == nil)
+    check("toast CanClose = false", window:Notify({ Title = "x", CanClose = false }):FindFirstChild("Close") == nil)
+
+    -- dropdown: option tables, AllowNone, locked, search
+    tabNamed("Silent"):Select() wait(0.1)
+    local priority = W.priority
+    check("dropdown table options", F.priority == "Closest" and priority.Options[4] == "Highest bounty")
+    MOCK.click(priority.Row:FindFirstChild("Select")) wait(0.1)
+    local list = find("DropdownList")
+    check("dropdown option desc + icon", list and list:FindFirstChild("Crosshair", true):FindFirstChild("Icon") ~= nil)
+    MOCK.click(list:FindFirstChild("Highest bounty", true)) wait(0.1)
+    check("locked option ignored", F.priority == "Closest")
+    MOCK.click(list:FindFirstChild("Closest", true)) wait(0.1)
+    check("AllowNone clears", F.priority == nil)
+    local many = {}
+    for i = 1, 12 do many[i] = "Option " .. i end
+    local big = tabNamed("Silent").Pages[1]:Card({ Title = "Big" }):Dropdown({ Title = "Big list", Options = many })
+    MOCK.click(big.Row:FindFirstChild("Select")) wait(0.1)
+    local search = find("DropdownList"):FindFirstChild("Search", true)
+    check("search box above 8 options", search ~= nil)
+    search.Text = "1" wait(0.1)
+    local shown = 0
+    for _, item in ipairs(find("DropdownList"):FindFirstChild("Options"):GetChildren()) do if item:IsA("TextButton") and item.Visible then shown = shown + 1 end end
+    check("search filters", shown == 4) -- 1, 10, 11, 12
+    window:_closePopup()
+
+    -- slider icons + bubble
+    tabNamed("Visuals"):Select() visuals.Pages[2]:Select() wait(0.1)
+    local fillSlider = W.fill
+    local before = fillSlider.Value
+    MOCK.click(fillSlider.Row:FindFirstChild("ToIcon"):FindFirstChildWhichIsA("TextButton")) wait(0.1)
+    check("slider end icon steps", fillSlider.Value == before + 10)
+    MOCK.click(fillSlider.Row:FindFirstChild("FromIcon"):FindFirstChildWhichIsA("TextButton")) wait(0.1)
+    check("slider start icon steps", fillSlider.Value == before)
+    local fhit = fillSlider.Row:FindFirstChild("Hit")
+    MOCK.fire(fhit, "InputBegan", mouseInput(Enum.UserInputType.MouseButton1))
+    check("bubble while dragging", fillSlider.Row:FindFirstChild("Bubble", true).Visible == true)
+    uis.InputEnded:Fire(mouseInput(Enum.UserInputType.MouseButton1), false)
+    check("bubble hides", fillSlider.Row:FindFirstChild("Bubble", true).Visible == false)
+
+    -- new elements
+    tabNamed("Misc"):Select() wait(0.1)
+    local farmValue = findIn("Auto farm", "Value")
+    check("progress text", farmValue and farmValue.Text == "3 / 10 quests")
+    check("progress finished after delay", findIn("Loading assets", "Value").Text == "100%")
+    local spin = tabNamed("Misc").Pages[1]:Card({ Title = "Spin" }):Progress({ Title = "Spinner", Indeterminate = true })
+    check("progress indeterminate", findIn("Spinner", "Value").Text == "Working...")
+    spin:SetIndeterminate(false) spin:Set(50)
+    check("progress percent", findIn("Spinner", "Value").Text == "50%")
+    MOCK.click(find("Row"):FindFirstChild("Start"):FindFirstChild("Button")) wait(0.1)
+    check("row button works", farmValue.Text == "4 / 10 quests")
+    local rowFrame = find("Row")
+    check("row equal widths", rowFrame and rowFrame:FindFirstChild("Start").Size.X.Scale == 0.5 and rowFrame:FindFirstChild("Stop").Size.X.Scale == 0.5)
+    local advancedBody = find("Section_Advanced"):FindFirstChild("Body")
+    check("section starts closed", advancedBody.Visible == false)
+    MOCK.click(find("Section_Advanced"):FindFirstChild("Header")) wait(0.1)
+    check("section opens", advancedBody.Visible == true and W.delay ~= nil)
+    check("group", find("Group_Server") ~= nil and find("Group_Server"):FindFirstChild("Region") ~= nil)
+    local codeText = find("loader.lua"):FindFirstChild("Code", true)
+    check("code highlighted", codeText.Text:find("<font") ~= nil and codeText.Text:find("loadstring") ~= nil)
+    MOCK.clipboard = nil
+    MOCK.click(find("loader.lua"):FindFirstChild("Copy", true)) wait(0.1)
+    check("code copy", MOCK.clipboard and MOCK.clipboard:find("HttpGet") ~= nil)
+    check("viewport", find("Viewport") ~= nil and find("Viewport"):FindFirstChild("View") ~= nil)
+    local img = tabNamed("Misc").Pages[1]:Card({ Title = "Pics" }):Image({ Image = "rbxassetid://123", Caption = "logo" })
+    check("image element", find("Picture", img.Row).Image == "rbxassetid://123" and findIn("Pics", "Caption").Text == "logo")
+
+    -- window extras
+    check("header button", find("Rejoin", window.main) ~= nil or find("Rejoin") ~= nil)
+    check("bell moved left of fullscreen", window.inboxButton.Position.X.Offset < find("Fullscreen", window.main).Position.X.Offset)
+    local w0, h0 = window.width, window.height
+    window:ToggleFullscreen() wait(0.1)
+    check("fullscreen grows", window.fullscreen and window.width > w0)
+    window:ToggleFullscreen() wait(0.1)
+    check("fullscreen restores", window.width == w0 and window.height == h0)
+    window:SetBackgroundImage("rbxassetid://55", 0.8)
+    check("background image", window._background.Visible and window._background.Image == "rbxassetid://55")
+    window:SetBackgroundImage(nil)
+    check("background off", window._background.Visible == false)
+    W.__ui_transparency:Set(30)
+    check("window transparency", math.abs(window.main.BackgroundTransparency - 0.3) < 0.01)
+    W.__ui_transparency:Set(0)
+    MOCK.click(find("Profile", window.dock)) wait(0.1)
+    check("anonymous via dock", window.anonymous == true and F.__ui_anon == true and find("DisplayName").Text == "Anonymous")
+    window:SetAnonymous(false) wait(0.1)
+    check("anonymous off", find("DisplayName").Text ~= "Anonymous" and F.__ui_anon == false)
+
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
     check("old window destroyed on re-run", window.alive == false and gui.Parent == nil)

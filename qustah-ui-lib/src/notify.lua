@@ -36,7 +36,10 @@ function Notify.show(Lib, cfg)
     Lib._toastOrder = (Lib._toastOrder or 0) + 1
     local duration = tonumber(cfg.Duration) or 3
     local hasContent = cfg.Content ~= nil and cfg.Content ~= ""
-    local height = hasContent and 50 or 34
+    local buttons = type(cfg.Buttons) == "table" and #cfg.Buttons > 0 and cfg.Buttons or nil
+    if buttons and not cfg.Duration then duration = 6 end
+    local textHeight = hasContent and 50 or 34
+    local height = textHeight + (buttons and 32 or 0)
     local toast = create("CanvasGroup", {
         Name = "Toast", Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, GroupTransparency = 1,
         LayoutOrder = Lib._toastOrder, Parent = holder,
@@ -44,7 +47,7 @@ function Notify.show(Lib, cfg)
     Theme.bind(toast, "BackgroundColor3", "card")
     corner(toast, 8)
     Theme.bind(stroke(toast), "Color", "line")
-    local marker = create("Frame", { Position = UDim2.fromOffset(12, 10), Size = UDim2.new(0, 3, 1, -20), BorderSizePixel = 0, Parent = toast })
+    local marker = create("Frame", { Position = UDim2.fromOffset(12, 10), Size = UDim2.new(0, 3, 0, textHeight - 20), BorderSizePixel = 0, Parent = toast })
     corner(marker, 2)
     local progress = create("Frame", { Position = UDim2.new(0, 0, 1, -2), Size = UDim2.new(1, 0, 0, 2), BorderSizePixel = 0, Parent = toast })
     if typeof(cfg.Color) == "Color3" then
@@ -59,24 +62,68 @@ function Notify.show(Lib, cfg)
     if icon then
         marker.Visible = false
         icon.AnchorPoint = Vector2.new(0, 0.5)
-        icon.Position = UDim2.new(0, 12, 0.5, 0)
+        icon.Position = UDim2.new(0, 12, 0, textHeight / 2)
         if typeof(cfg.Color) == "Color3" then icon.ImageColor3 = cfg.Color else Theme.bind(icon, "ImageColor3", "accent") end
         icon.Parent = toast
         textX = 36
     end
-    local title = label(toast, tostring(cfg.Title or ""), 11, { Position = UDim2.fromOffset(textX, hasContent and 8 or 0), Size = UDim2.new(1, -textX - 9, 0, hasContent and 17 or height), Font = Enum.Font.GothamBold })
+    local closeRoom = cfg.CanClose ~= false and 22 or 0
+    local title = label(toast, tostring(cfg.Title or ""), 11, { Position = UDim2.fromOffset(textX, hasContent and 8 or 0), Size = UDim2.new(1, -textX - 9 - closeRoom, 0, hasContent and 17 or textHeight), Font = Enum.Font.GothamBold })
     Theme.bind(title, "TextColor3", "heading")
     if hasContent then
-        local content = label(toast, tostring(cfg.Content), 10, { Position = UDim2.fromOffset(textX, 25), Size = UDim2.new(1, -textX - 9, 0, 16) })
+        local content = label(toast, tostring(cfg.Content), 10, { Position = UDim2.fromOffset(textX, 25), Size = UDim2.new(1, -textX - 9 - closeRoom, 0, 16) })
         Theme.bind(content, "TextColor3", "muted")
+    end
+    local closed = false
+    local function dismiss()
+        if closed or not toast.Parent then return end
+        closed = true
+        tween(toast, 0.25, { GroupTransparency = 1 })
+        task.delay(0.27, function() if toast.Parent then toast:Destroy() end end)
+    end
+    -- CanClose (default true): a small x in the corner
+    if cfg.CanClose ~= false then
+        local close = create("TextButton", {
+            Name = "Close", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -6, 0, 6), Size = UDim2.fromOffset(18, 18), Parent = toast,
+        })
+        for _, rotation in ipairs({ 45, -45 }) do
+            local bar = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(9, 1.5), Rotation = rotation, BorderSizePixel = 0, Parent = close })
+            Theme.bind(bar, "BackgroundColor3", "muted")
+        end
+        close.Activated:Connect(dismiss)
+    end
+    -- Buttons = { { Title = "Undo", Callback = fn, Style = "Primary" } }: a row under the text; a click closes the toast
+    if buttons then
+        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Position = UDim2.new(0, textX, 0, textHeight - 4), Size = UDim2.new(1, -textX - 10, 0, 24), Parent = toast })
+        Util.list(row, 6, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+        for index, spec in ipairs(buttons) do
+            local text = tostring(spec.Title or "OK")
+            local button = create("TextButton", {
+                Name = text, Text = text, TextSize = 9, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
+                Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + 20, 22), LayoutOrder = index, Parent = row,
+            })
+            corner(button, 6)
+            local outline = stroke(button)
+            if spec.Style == "Primary" or index == 1 then
+                Theme.bind(button, "BackgroundColor3", "accentDeep")
+                Theme.bind(button, "TextColor3", "accent")
+                Theme.bind(outline, "Color", "accent")
+                outline.Transparency = 0.5
+            else
+                Theme.bind(button, "BackgroundColor3", "input")
+                Theme.bind(button, "TextColor3", "text")
+                Theme.bind(outline, "Color", "buttonEdge")
+            end
+            button.Activated:Connect(function()
+                Util.safe(spec.Callback)
+                if spec.Close ~= false then dismiss() end
+            end)
+        end
     end
     tween(toast, 0.2, { GroupTransparency = 0 })
     tween(progress, duration, { Size = UDim2.new(0, 0, 0, 2) }, Enum.EasingStyle.Linear)
-    task.delay(duration, function()
-        if not toast.Parent then return end
-        tween(toast, 0.3, { GroupTransparency = 1 })
-        task.delay(0.32, function() if toast.Parent then toast:Destroy() end end)
-    end)
+    task.delay(duration, dismiss)
     return toast
 end
 

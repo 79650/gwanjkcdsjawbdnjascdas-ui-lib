@@ -84,6 +84,21 @@ return function(window, cfg)
         end,
     })
 
+    local look2 = interface:Card({ Title = "Window", Side = "Left" })
+    look2:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "user-round", Flag = "__ui_anon", Default = window.anonymous == true,
+        Callback = function(on) window:SetAnonymous(on) end })
+    if window.OnAnonymousChanged then
+        window:OnAnonymousChanged(function(on) local t = window.flags.__ui_anon if t and t.Value ~= on then t:Set(on, true) end end)
+    end
+    look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
+        Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
+    local bgAlpha
+    look2:Input({ Title = "Background", Placeholder = "image id or url", Flag = "__ui_bg",
+        Callback = function(text) window:SetBackgroundImage(text ~= "" and text or nil, bgAlpha and (1 - bgAlpha.Value / 100) or 0.85) end })
+    bgAlpha = look2:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
+        Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
+    look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
+
     local overlays = interface:Card({ Title = "Overlays", Side = "Right" })
     overlays:Toggle({ Title = "Watermark", Desc = "Name · FPS · ping · clock", Flag = "__ui_hud_watermark", Callback = function(on) window:Watermark(on) end })
     overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
@@ -94,8 +109,8 @@ return function(window, cfg)
     })
 
     ------------------------------------------------------------ profiles
-    local defaults = window.Config:Snapshot() -- values every flag had before any profile was loaded
-    Profiles(window, profiles, defaults)
+    -- Default profile = each element's starting value (recorded as elements are created, any order)
+    Profiles(window, profiles, window.Config.Defaults)
 
     ------------------------------------------------------------ info
     local about = infoPage:Card({ Title = "About", Side = "Left" })
@@ -110,6 +125,10 @@ return function(window, cfg)
     local noModules = modulesCard:Label("No modules reported")
 
     local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right" })
+    errorsCard:Toggle({
+        Title = "Debug mode", Desc = "A notification for every new error", Flag = "__ui_debug", Default = window.cfg.Debug == true,
+        Callback = function(on) window.debug = on end,
+    })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
     local errorText = errorsCard:Paragraph({ Content = "No errors" })
     errorsCard:Button({

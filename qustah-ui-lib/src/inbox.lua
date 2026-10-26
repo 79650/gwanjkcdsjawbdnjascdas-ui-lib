@@ -12,7 +12,7 @@ return function(Window)
     function Window:_buildInbox()
         if self.cfg.NotificationHistory == false then return end
         local Lib = self.Lib
-        local button = self._windowButton("Inbox", -108, false, true)
+        local button = self._windowButton("Inbox", self:_headerSlot(), false, true)
         -- bell drawn from frames: dome, rim, clapper (no glyphs / images needed)
         local parts = {}
         local function part(props, radius)

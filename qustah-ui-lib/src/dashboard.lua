@@ -40,16 +40,26 @@ return function(window, cfg)
     Theme.bind(uptime, "TextColor3", "accent")
     Glow.add(display, { Base = "heading", Phase = 0.1 })
     Glow.add(uptime, { Base = "accent", Phase = 0.45 })
+    local avatarImage = ""
     task.spawn(function()
         local ok, image = pcall(function()
             return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
         end)
-        if ok and avatar.Parent then avatar.Image = image end
+        if ok then avatarImage = image if avatar.Parent and not window.anonymous then avatar.Image = image end end
     end)
+    -- anonymous mode (dock profile button): no name, no id, no avatar
+    if window.OnAnonymousChanged then
+        window:OnAnonymousChanged(function(on)
+            display.Text = on and "Anonymous" or player.DisplayName
+            username.Text = on and "hidden" or ("@" .. player.Name .. " · #" .. player.UserId)
+            avatar.Image = on and "" or avatarImage
+        end)
+    end
 
     ------------------------------------------------------------ session / info / server
     local session = page:Card({ Title = "Session", Side = "Left" })
-    session:Info({ Title = "User ID", Value = "#" .. player.UserId, Copy = function() return tostring(player.UserId) end })
+    local userId = session:Info({ Title = "User ID", Value = "#" .. player.UserId, Copy = function() return tostring(player.UserId) end })
+    if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on) userId:Set(on and "hidden" or ("#" .. player.UserId)) end) end
     session:Info({ Title = "Account created", Value = os.date("%d %b %Y", os.time() - player.AccountAge * 86400) })
     local executor = "Unknown"
     pcall(function()

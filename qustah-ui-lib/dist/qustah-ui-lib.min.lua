@@ -1,0 +1,5822 @@
+-- qustah-ui-lib v1.4.0 (minified build of dist/qustah-ui-lib.lua)
+local __modules,__loaded={},{}
+local function require(name)
+local loaded=__loaded[name]
+if loaded==nil then
+local module=__modules[name]
+if not module then error("[qustah-ui-lib] missing module: "..tostring(name),2)end
+loaded=module()
+__loaded[name]=loaded
+end
+return loaded
+end
+__modules["card"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local Card={}
+Card.Elements={
+Toggle=require("elements/toggle"),
+Slider=require("elements/slider"),
+Dropdown=require("elements/dropdown"),
+Keybind=require("elements/keybind"),
+ColorPicker=require("elements/colorpicker"),
+Input=require("elements/input"),
+Button=require("elements/button"),
+Label=require("elements/label"),
+Paragraph=require("elements/paragraph"),
+Divider=require("elements/divider"),
+Segment=require("elements/segment"),
+Info=require("elements/info"),
+Range=require("elements/range"),
+PlayerList=require("elements/playerlist"),
+ImagePicker=require("elements/imagepicker"),
+Swatches=require("elements/swatches"),
+Graph=require("elements/graph"),
+Gradient=require("elements/gradient"),
+Progress=require("elements/progress"),
+Code=require("elements/code"),
+Image=require("elements/image"),
+Viewport=require("elements/viewport"),
+ActionInput=require("elements/actioninput"),
+}
+Card.__index=function(_,key)
+local method=rawget(Card,key)
+if method~=nil then return method end
+local constructor=Card.Elements[key]
+if constructor then
+return function(self,cfg)
+if type(cfg)=="string"then cfg={Title=cfg}end
+return constructor(self,cfg or{})
+end
+end
+return nil
+end
+function Card.new(page,column,cfg,order)
+local self=setmetatable({page=page,window=page.window,order=0},Card)
+local frame=create("Frame",{
+Name=cfg.Title or"Card",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
+BorderSizePixel=0,LayoutOrder=order or 0,Parent=column,
+})
+Theme.bind(frame,"BackgroundColor3","card")
+corner(frame,8)
+Theme.bind(stroke(frame),"Color","line")
+Util.padding(frame,14,14,8,10)
+Util.list(frame,4)
+if cfg.Title then
+local head=create("Frame",{Name="Heading",BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=0,Parent=frame})
+local icon=cfg.Icon and Icons.themed(head,cfg.Icon,13,"accent",{Name="CardIcon",Position=UDim2.fromOffset(-1,3)})
+for ring=3,(icon and 4 or 0),-1 do
+local dot=create("Frame",{
+Name=ring==0 and"Dot"or"Glow",Position=UDim2.fromOffset(-ring,7-ring),Size=UDim2.fromOffset(6+ring*2,6+ring*2),
+BorderSizePixel=0,BackgroundTransparency=ring==0 and 0 or 0.91,Parent=head,
+})
+Theme.bind(dot,"BackgroundColor3","accent")
+corner(dot,ring==0 and 3 or 6)
+end
+local title=label(head,tostring(cfg.Title),10,{Position=UDim2.fromOffset(icon and 18 or 13,0),Size=UDim2.new(1,icon and-18 or-13,1,0),Font=Enum.Font.GothamMedium})
+Theme.bind(title,"TextColor3","heading")
+self.titleLabel=title
+end
+self.frame,self.body=frame,frame
+return self
+end
+function Card:_order()
+self.order=self.order+2
+return self.order
+end
+function Card:Tabs(names,cfg)
+cfg=cfg or{}
+local holder
+if self.titleLabel then
+holder=create("Frame",{Name="Tabs",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,1),Size=UDim2.new(0.6,0,0,18),Parent=self.titleLabel.Parent})
+self.titleLabel.Size=UDim2.new(0.4,-13,1,0)
+else
+holder=create("Frame",{Name="Tabs",BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=self:_order(),Parent=self.body})
+end
+local layout=Util.list(holder,4,Enum.FillDirection.Horizontal)
+layout.HorizontalAlignment=Enum.HorizontalAlignment.Right
+local self_card=self
+local sections,buttons,current={},{},nil
+local selector={}
+local function render()
+for name,button in pairs(buttons)do
+local on=name==current
+Theme.tweenTo(button,"BackgroundColor3",on and"selected"or"input",0.1)
+Theme.tweenTo(button,"TextColor3",on and"heading"or"muted",0.1)
+sections[name].body.Visible=on
+end
+end
+function selector:Select(name)
+if not sections[name]then return end
+current=name
+render()
+if cfg.Callback then self_card.window:_safe("Tabs",cfg.Callback,name)end
+end
+function selector:Get()return current end
+for index,name in ipairs(names)do
+name=tostring(name)
+local button=create("TextButton",{
+Name=name,AutoButtonColor=false,BorderSizePixel=0,Text=name,TextSize=9,Font=Enum.Font.GothamMedium,
+Size=UDim2.fromOffset(Util.textWidth(name,9,Enum.Font.GothamMedium)+16,18),LayoutOrder=index,Parent=holder,
+})
+corner(button,9)
+buttons[name]=button
+local body=create("Frame",{Name="Section_"..name,BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=self:_order(),Visible=false,Parent=self.body})
+Util.list(body,4)
+sections[name]=setmetatable({page=self.page,window=self.window,order=0,body=body,frame=self.frame},Card)
+button.Activated:Connect(function()selector:Select(name)end)
+end
+current=tostring(cfg.Default or names[1])
+render()
+return sections,selector
+end
+local function sub(card,body)
+return setmetatable({page=card.page,window=card.window,order=0,body=body,frame=card.frame},Card)
+end
+function Card:Section(cfg)
+if type(cfg)=="string"then cfg={Title=cfg}end
+cfg=cfg or{}
+local holder=create("Frame",{Name="Section_"..tostring(cfg.Title or""),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=self:_order(),Parent=self.body})
+Util.list(holder,4)
+local head=create("TextButton",{Name="Header",Text="",AutoButtonColor=false,BackgroundTransparency=1,Size=UDim2.new(1,0,0,cfg.Desc and 34 or 24),LayoutOrder=1,Parent=holder})
+local line=create("Frame",{Name="Line",AnchorPoint=Vector2.new(0,1),Position=UDim2.new(0,0,1,0),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,Parent=head})
+Theme.bind(line,"BackgroundColor3","line")
+local x=0
+local icon=cfg.Icon and Icons.themed(head,cfg.Icon,13,"accent",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,11)})
+if icon then x=20 end
+local title=label(head,tostring(cfg.Title or""),11,{Name="Title",Position=UDim2.fromOffset(x,1),Size=UDim2.new(1,-x-24,0,20),Font=Enum.Font.GothamMedium})
+Theme.bind(title,"TextColor3","heading")
+if cfg.Desc then
+local desc=label(head,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(x,18),Size=UDim2.new(1,-x-24,0,12)})
+Theme.bind(desc,"TextColor3","muted")
+end
+local chevron=create("Frame",{Name="Chevron",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-4,0,11),Size=UDim2.fromOffset(10,10),Parent=head})
+for index,rotation in ipairs({45,-45})do
+local bar=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromOffset(index==1 and 3 or 7,5),Size=UDim2.fromOffset(6,1.5),Rotation=rotation,BorderSizePixel=0,Parent=chevron})
+Theme.bind(bar,"BackgroundColor3","muted")
+end
+local body=create("Frame",{Name="Body",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=2,Parent=holder})
+Util.list(body,4)
+Util.padding(body,0,0,2,4)
+local section=sub(self,body)
+function section:SetOpen(open)
+self.Opened=open~=false
+body.Visible=self.Opened
+Util.tween(chevron,0.15,{Rotation=self.Opened and 0 or-90})
+end
+function section:ToggleOpen()self:SetOpen(not self.Opened)end
+section.Header=head
+head.Activated:Connect(function()section:SetOpen(not section.Opened)end)
+section:SetOpen(cfg.Opened~=false)
+return section
+end
+function Card:Row(cfg)
+cfg=cfg or{}
+local gap=tonumber(cfg.Gap)or 6
+local holder=create("Frame",{Name="Row",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=self:_order(),Parent=self.body})
+Util.list(holder,gap,Enum.FillDirection.Horizontal)
+local function share()
+local children={}
+for _,child in ipairs(holder:GetChildren())do if child:IsA("GuiObject")and child.Visible then children[#children+1]=child end end
+local n=#children
+for _,child in ipairs(children)do
+child.Size=UDim2.new(1/n,-gap*(n-1)/n,child.Size.Y.Scale,child.Size.Y.Offset)
+end
+end
+holder.ChildAdded:Connect(function()task.defer(share)end)
+holder.ChildRemoved:Connect(function()task.defer(share)end)
+return sub(self,holder)
+end
+function Card:Group(cfg)
+if type(cfg)=="string"then cfg={Title=cfg}end
+cfg=cfg or{}
+local box=create("Frame",{Name="Group_"..tostring(cfg.Title or""),Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BorderSizePixel=0,LayoutOrder=self:_order(),Parent=self.body})
+Theme.bind(box,"BackgroundColor3","base")
+box.BackgroundTransparency=0.35
+corner(box,7)
+Theme.bind(stroke(box),"Color","line")
+Util.padding(box,10,10,6,8)
+Util.list(box,4)
+if cfg.Title then
+local title=label(box,tostring(cfg.Title):upper(),8,{Name="Title",Size=UDim2.new(1,0,0,14),Font=Enum.Font.GothamMedium,LayoutOrder=0})
+Theme.bind(title,"TextColor3","muted")
+end
+return sub(self,box)
+end
+function Card:SetTitle(text)if self.titleLabel then self.titleLabel.Text=tostring(text)end end
+function Card:SetVisible(visible)self.frame.Visible=visible~=false end
+return Card
+end
+__modules["config"]=function()
+local Util=require("util")
+local HttpService=Util.Services.HttpService
+local Config={}
+Config.__index=Config
+local function can(...)
+local available={
+isfolder=isfolder,makefolder=makefolder,writefile=writefile,readfile=readfile,
+isfile=isfile,delfile=delfile,listfiles=listfiles,
+}
+for _,name in ipairs({...})do
+if type(available[name])~="function"then return false end
+end
+return true
+end
+local function cleanName(name)
+name=tostring(name or""):gsub("[^%w_%- ]",""):gsub("^%s+",""):gsub("%s+$","")
+return name
+end
+function Config.new(window,folder)
+local self=setmetatable({window=window,folder=cleanName(folder)~=""and cleanName(folder)or"QustahUI"},Config)
+self.path=self.folder.."/configs"
+self.pending={}
+self.Defaults={}
+self.Custom={}
+return self
+end
+function Config:_elementReady(flag,element)
+if self.Defaults[flag]==nil then
+local ok,value=pcall(element._save,element)
+if ok and value~=nil then self.Defaults[flag]=value end
+end
+local value=self.pending[flag]
+if value~=nil then
+self.pending[flag]=nil
+pcall(element._load,element,value)
+end
+end
+function Config:SetData(key,value)self.Custom[tostring(key)]=value end
+function Config:GetData(key)return self.Custom[tostring(key)]end
+function Config:OnDataLoaded(callback)
+self._dataListeners=self._dataListeners or{}
+table.insert(self._dataListeners,callback)
+end
+function Config:_setCustom(custom)
+self.Custom=type(custom)=="table"and custom or{}
+for _,listener in ipairs(self._dataListeners or{})do Util.safe(listener,self.Custom)end
+end
+function Config:_ensure()
+if not can("isfolder","makefolder")then return false end
+if not isfolder(self.folder)then makefolder(self.folder)end
+if not isfolder(self.path)then makefolder(self.path)end
+return true
+end
+function Config:Save(name)
+name=cleanName(name)
+if name==""then return false,"Empty config name"end
+if not can("writefile")then return false,"writefile is not available"end
+self:_ensure()
+local data={version=1,flags=self:Snapshot(),custom=self.Custom}
+local ok,err=pcall(writefile,self.path.."/"..name..".json",HttpService:JSONEncode(data))
+if not ok then return false,tostring(err)end
+self:_setActive(name,data.flags)
+return true
+end
+function Config:SaveFlags(name,flags,custom)
+name=cleanName(name)
+if name==""then return false,"Empty config name"end
+if not can("writefile")then return false,"writefile is not available"end
+self:_ensure()
+local ok,err=pcall(writefile,self.path.."/"..name..".json",HttpService:JSONEncode({version=1,flags=flags or{},custom=custom}))
+if not ok then return false,tostring(err)end
+return true
+end
+function Config:Load(name)
+name=cleanName(name)
+if not can("readfile","isfile")then return false,"readfile is not available"end
+local file=self.path.."/"..name..".json"
+if not isfile(file)then return false,"Config not found"end
+local ok,data=pcall(function()return HttpService:JSONDecode(readfile(file))end)
+if not ok or type(data)~="table"or type(data.flags)~="table"then return false,"Config file is damaged"end
+local failed=self:Apply(data.flags)
+self:_setCustom(data.custom)
+self:_setActive(name,data.flags)
+if failed>0 then return true,failed.." setting(s) could not be applied"end
+return true
+end
+function Config:Read(name)
+name=cleanName(name)
+if not can("readfile","isfile")then return nil,"readfile is not available"end
+local file=self.path.."/"..name..".json"
+if not isfile(file)then return nil,"Config not found"end
+local ok,data=pcall(function()return HttpService:JSONDecode(readfile(file))end)
+if not ok or type(data)~="table"or type(data.flags)~="table"then return nil,"Config file is damaged"end
+return data.flags,data.custom
+end
+function Config:_setActive(name,flags)
+self.Active,self.ActiveFlags=name,flags
+for _,listener in ipairs(self._activeListeners or{})do Util.safe(listener,name)end
+end
+function Config:OnActiveChanged(callback)
+self._activeListeners=self._activeListeners or{}
+table.insert(self._activeListeners,callback)
+end
+local function same(a,b)
+if type(a)=="number"and type(b)=="number"then return math.abs(a-b)<1e-6 end
+if type(a)~="table"or type(b)~="table"then return a==b end
+for key,value in pairs(a)do if not same(value,b[key])then return false end end
+for key in pairs(b)do if a[key]==nil then return false end end
+return true
+end
+Config.same=same
+function Config:Changes(flags)
+flags=flags or self.ActiveFlags or self.DefaultFlags or{}
+local count,names=0,{}
+for flag,value in pairs(self:Snapshot())do
+if flags[flag]~=nil and not same(value,flags[flag])then
+count=count+1
+names[#names+1]=flag
+end
+end
+return count,names
+end
+function Config:Export(name)
+local flags,custom
+if name then flags,custom=self:Read(name)else flags,custom=self:Snapshot(),self.Custom end
+if not flags then return nil,"Config not found"end
+local data={n=name or"Shared",f=flags}
+if type(custom)=="table"and next(custom)~=nil then data.c=custom end
+return"QUSTAH1:"..Util.base64encode(HttpService:JSONEncode(data))
+end
+function Config:Decode(code)
+code=tostring(code or""):gsub("%s","")
+local body=code:match("^QUSTAH1:(.+)$")
+if not body then return nil,"Not a profile code"end
+local json=Util.base64decode(body)
+local ok,data=pcall(function()return HttpService:JSONDecode(json)end)
+if not ok or type(data)~="table"or type(data.f)~="table"then return nil,"The code is damaged or cut off"end
+return cleanName(data.n)~=""and cleanName(data.n)or"Imported",data.f,data.c
+end
+function Config:FreeName(name)
+name=cleanName(name)
+if name==""or name:lower()=="default"then name="Profile"end
+if not self:Exists(name)then return name end
+local index=2
+while self:Exists(name.." "..index)do index=index+1 end
+return name.." "..index
+end
+function Config:Delete(name)
+name=cleanName(name)
+if self.Active==name then self:_setActive(nil,nil)end
+if not can("delfile","isfile")then return false,"delfile is not available"end
+local file=self.path.."/"..name..".json"
+if not isfile(file)then return false,"Config not found"end
+local ok,err=pcall(delfile,file)
+return ok,not ok and tostring(err)or nil
+end
+function Config:List()
+local names={}
+if not can("listfiles","isfolder")or not isfolder(self.path)then return names end
+local ok,files=pcall(listfiles,self.path)
+if not ok or type(files)~="table"then return names end
+for _,file in ipairs(files)do
+local name=tostring(file):gsub("\\","/"):match("([^/]+)%.json$")
+if name then names[#names+1]=name end
+end
+table.sort(names)
+return names
+end
+function Config:SetAutoLoad(name)
+if not can("writefile")then return false end
+self:_ensure()
+return pcall(writefile,self.folder.."/autoload.txt",cleanName(name))
+end
+function Config:GetAutoLoad()
+if not can("readfile","isfile")or not isfile(self.folder.."/autoload.txt")then return nil end
+local ok,name=pcall(readfile,self.folder.."/autoload.txt")
+name=ok and cleanName(name)or""
+return name~=""and name or nil
+end
+function Config:LoadAutoLoad()
+local name=self:GetAutoLoad()
+if name and self:Exists(name)then return self:Load(name)end
+return false,"No autoload config"
+end
+function Config:ReadMemory()
+if not can("readfile","isfile")or not isfile(self.folder.."/window.json")then return{}end
+local ok,data=pcall(function()return HttpService:JSONDecode(readfile(self.folder.."/window.json"))end)
+return ok and type(data)=="table"and data or{}
+end
+function Config:WriteMemory(data)
+if not can("writefile")then return false end
+self:_ensure()
+return pcall(writefile,self.folder.."/window.json",HttpService:JSONEncode(data))
+end
+function Config:ReadMeta()
+if not can("readfile","isfile")or not isfile(self.folder.."/profiles.json")then return{}end
+local ok,data=pcall(function()return HttpService:JSONDecode(readfile(self.folder.."/profiles.json"))end)
+return ok and type(data)=="table"and data or{}
+end
+function Config:WriteMeta(data)
+if not can("writefile")then return false end
+self:_ensure()
+return pcall(writefile,self.folder.."/profiles.json",HttpService:JSONEncode(data))
+end
+function Config:Snapshot()
+local data={}
+for flag,value in pairs(self.pending)do data[flag]=value end
+for flag,element in pairs(self.window.flags)do
+local ok,value=pcall(element._save,element)
+if ok and value~=nil then data[flag]=value end
+end
+return data
+end
+function Config:Apply(flags)
+local failed=0
+for flag,value in pairs(flags or{})do
+local element=self.window.flags[flag]
+if element and self.Defaults[flag]==nil then
+local ok,current=pcall(element._save,element)
+if ok and current~=nil then self.Defaults[flag]=current end
+end
+if not element then
+self.pending[flag]=value
+elseif not pcall(element._load,element,value)then
+failed=failed+1
+end
+end
+return failed
+end
+function Config:Exists(name)
+name=cleanName(name)
+return can("isfile")and name~=""and isfile(self.path.."/"..name..".json")or false
+end
+function Config:Rename(old,new)
+old,new=cleanName(old),cleanName(new)
+if new==""then return false,"Empty name"end
+if self:Exists(new)then return false,"A profile with that name exists"end
+if not can("readfile","writefile","delfile","isfile")then return false,"File functions are not available"end
+local ok,text=pcall(readfile,self.path.."/"..old..".json")
+if not ok then return false,"Profile not found"end
+pcall(writefile,self.path.."/"..new..".json",text)
+pcall(delfile,self.path.."/"..old..".json")
+if self:GetAutoLoad()==old then self:SetAutoLoad(new)end
+if self.Active==old then self:_setActive(new,self.ActiveFlags)end
+return true
+end
+function Config:Copy(name,new)
+name,new=cleanName(name),cleanName(new)
+if self:Exists(new)then return false,"A profile with that name exists"end
+if not can("readfile","writefile")then return false,"File functions are not available"end
+local ok,text=pcall(readfile,self.path.."/"..name..".json")
+if not ok then return false,"Profile not found"end
+return pcall(writefile,self.path.."/"..new..".json",text)
+end
+function Config:ClearAutoLoad()
+if can("delfile","isfile")and isfile(self.folder.."/autoload.txt")then pcall(delfile,self.folder.."/autoload.txt")end
+end
+return Config
+end
+__modules["dashboard"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Glow=require("glow")
+local Services=Util.Services
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+return function(window,cfg)
+cfg=cfg or{}
+local Players=Services.Players
+local player=Players.LocalPlayer
+local tab=window:Tab({Title=cfg.Title or"Dashboard",Icon=cfg.Icon or"layout-dashboard",Header=cfg.Header~=false})
+window._dividerNext=true
+local page=tab:Page(tab.Title)
+local started=os.clock()
+local profile=page:Card({Wide=true})
+local body=create("Frame",{Name="Profile",BackgroundTransparency=1,Size=UDim2.new(1,0,0,68),LayoutOrder=profile:_order(),Parent=profile.body})
+local ring=create("Frame",{Name="Ring",Position=UDim2.fromOffset(0,2),Size=UDim2.fromOffset(62,62),BorderSizePixel=0,BackgroundTransparency=0.85,Parent=body})
+Theme.bind(ring,"BackgroundColor3","accent")
+corner(ring,31)
+local avatar=create("ImageLabel",{Name="Avatar",Position=UDim2.fromOffset(3,5),Size=UDim2.fromOffset(56,56),BorderSizePixel=0,Parent=body})
+Theme.bind(avatar,"BackgroundColor3","input")
+corner(avatar,28)
+local online=create("Frame",{Name="Online",Position=UDim2.fromOffset(47,49),Size=UDim2.fromOffset(10,10),BorderSizePixel=0,BackgroundColor3=Color3.fromRGB(70,205,105),Parent=body})
+corner(online,5)
+Theme.bind(stroke(online,nil,0,2),"Color","card")
+local display=label(body,player.DisplayName,15,{Name="DisplayName",Position=UDim2.fromOffset(76,10),Size=UDim2.new(1,-250,0,20)})
+pcall(function()display.FontFace=Font.new(Font.fromEnum(Enum.Font.Gotham).Family,Enum.FontWeight.SemiBold)end)
+Theme.bind(display,"TextColor3","heading")
+local username=label(body,"@"..player.Name.." · #"..player.UserId,10,{Name="Username",Position=UDim2.fromOffset(76,32),Size=UDim2.new(1,-250,0,15)})
+Theme.bind(username,"TextColor3","muted")
+local caption=label(body,"SESSION",8,{Name="SessionCaption",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,12),Size=UDim2.fromOffset(150,12),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(caption,"TextColor3","muted")
+local uptime=label(body,"00:00:00",18,{Name="Uptime",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,28),Size=UDim2.fromOffset(150,24),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(uptime,"TextColor3","accent")
+Glow.add(display,{Base="heading",Phase=0.1})
+Glow.add(uptime,{Base="accent",Phase=0.45})
+local avatarImage=""
+task.spawn(function()
+local ok,image=pcall(function()
+return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size150x150)
+end)
+if ok then avatarImage=image if avatar.Parent and not window.anonymous then avatar.Image=image end end
+end)
+if window.OnAnonymousChanged then
+window:OnAnonymousChanged(function(on)
+display.Text=on and"Anonymous"or player.DisplayName
+username.Text=on and"hidden"or("@"..player.Name.." · #"..player.UserId)
+avatar.Image=on and""or avatarImage
+end)
+end
+local session=page:Card({Title="Session",Side="Left"})
+local userId=session:Info({Title="User ID",Value="#"..player.UserId,Copy=function()return tostring(player.UserId)end})
+if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on)userId:Set(on and"hidden"or("#"..player.UserId))end)end
+session:Info({Title="Account created",Value=os.date("%d %b %Y",os.time()-player.AccountAge*86400)})
+local executor="Unknown"
+pcall(function()
+if type(identifyexecutor)=="function"then executor=table.concat({identifyexecutor()}," ")
+elseif type(getexecutorname)=="function"then executor=tostring(getexecutorname())end
+end)
+session:Info({Title="Executor",Value=executor})
+session:Divider()
+session:Info({Title="Game ID",Value="#"..game.GameId,Copy=function()return tostring(game.GameId)end})
+session:Info({Title="Place ID",Value="#"..game.PlaceId,Copy=function()return tostring(game.PlaceId)end})
+local info=page:Card({Title="Info",Side="Right"})
+if window.Version~=""then info:Info({Title="GUI version",Value=window.Version})end
+for _,entry in ipairs(cfg.Info or{})do info:Info({Title=entry[1],Value=entry[2],Copy=entry.Copy})end
+local playerCount=info:Info({Title="Players",Value="--"})
+local ping=info:Info({Title="Ping",Value="--"})
+if cfg.Server~=false then
+local server=page:Card({Title="Server",Side="Right"})
+local busy=false
+local function teleport(hop)
+if busy then window:Notify({Title="Server",Content="Teleport already pending"})return end
+local TeleportService=Services.TeleportService
+busy=true
+task.delay(12,function()busy=false end)
+window:Notify({Title=hop and"Server hop"or"Rejoin",Content=hop and"Finding a server..."or"Rejoining..."})
+task.spawn(function()
+local ok,err=pcall(function()
+if not hop then
+if game.JobId~=""and#Players:GetPlayers()>1 then
+TeleportService:TeleportToPlaceInstance(game.PlaceId,game.JobId,player)
+else
+TeleportService:Teleport(game.PlaceId,player)
+end
+return
+end
+local url=("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+local data=Services.HttpService:JSONDecode(game:HttpGet(url))
+local list={}
+for _,item in ipairs(data.data or{})do
+if item.id~=game.JobId and item.playing and item.maxPlayers and item.playing<item.maxPlayers then list[#list+1]=item end
+end
+assert(#list>0,"No other public server found")
+TeleportService:TeleportToPlaceInstance(game.PlaceId,list[math.random(1,#list)].id,player)
+end)
+if not ok then busy=false window:Notify({Title="Teleport failed",Content=tostring(err),Color=Color3.fromRGB(215,130,130)})end
+end)
+end
+server:Button({Title="Rejoin",Callback=function()teleport(false)end})
+server:Button({Title="Server hop",Confirm=true,Callback=function()teleport(true)end})
+server:Info({Title="Job ID",Value=game.JobId~=""and(game.JobId:sub(1,8).."...")or"studio",Copy=function()return game.JobId end})
+end
+if cfg.Modules~=false then
+local modulesCard=page:Card({Title="Modules",Side="Left"})
+local empty=modulesCard:Label("Modules report here with Window:SetModule(name, state)")
+local rows={}
+local COLORS={On=Color3.fromRGB(110,200,130),Limited=Color3.fromRGB(215,180,120),Error=Color3.fromRGB(215,130,130)}
+local function update()
+local order,modules=window:GetModules()
+empty:SetVisible(#order==0)
+for _,name in ipairs(order)do
+rows[name]=rows[name]or modulesCard:Info({Title=name})
+local module=modules[name]
+rows[name]:Set(module.state)
+rows[name]:SetColor(COLORS[module.state]or"muted")
+end
+end
+window:OnStatusChanged(update)
+update()
+end
+task.spawn(function()
+while window.alive do
+if window.visible and window.current==tab then
+local seconds=math.floor(os.clock()-started)
+uptime.Text=string.format("%02d:%02d:%02d",seconds//3600,(seconds//60)%60,seconds%60)
+playerCount:Set(#Players:GetPlayers().." / "..Players.MaxPlayers)
+local ok,value=pcall(function()return player:GetNetworkPing()end)
+ping:Set(ok and(math.floor(value*1000+0.5).." ms")or"--")
+end
+task.wait(1)
+end
+end)
+return tab
+end
+end
+__modules["dialog"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local create,corner,stroke,label,tween=Util.create,Util.corner,Util.stroke,Util.label,Util.tween
+return function(Window)
+function Window:Dialog(cfg)
+cfg=cfg or{}
+if self._dialog then self._dialog:Close()end
+local window=self
+local overlay=create("TextButton",{
+Name="Dialog",Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundColor3=Color3.new(0,0,0),
+BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=200,Parent=self.main,
+})
+local panel=create("Frame",{
+Name="Panel",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.new(0,330,0,0),
+AutomaticSize=Enum.AutomaticSize.Y,BorderSizePixel=0,ZIndex=201,Active=true,Parent=overlay,
+})
+create("UISizeConstraint",{MaxSize=Vector2.new(330,400),MinSize=Vector2.new(200,0),Parent=panel})
+Theme.bind(panel,"BackgroundColor3","card")
+corner(panel,8)
+Theme.bind(stroke(panel),"Color","line")
+Util.padding(panel,16,16,12,12)
+Util.list(panel,8)
+local title=label(panel,tostring(cfg.Title or""),13,{Name="Title",Size=UDim2.new(1,0,0,20),Font=Enum.Font.GothamMedium,ZIndex=202,LayoutOrder=1})
+Theme.bind(title,"TextColor3","heading")
+if cfg.Icon and Icons.Get(cfg.Icon)then
+Util.padding(title,24,0,0,0)
+local icon=Icons.themed(title,cfg.Icon,16,"accent",{Name="DialogIcon",Position=UDim2.fromOffset(-24,2),ZIndex=203})
+if typeof(cfg.IconColor)=="Color3"then Theme.bind(icon,"ImageColor3",cfg.IconColor)end
+end
+if cfg.Content then
+local content=label(panel,tostring(cfg.Content),10,{
+Name="Content",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,
+TextTruncate=Enum.TextTruncate.None,TextYAlignment=Enum.TextYAlignment.Top,RichText=true,ZIndex=202,LayoutOrder=2,
+})
+Theme.bind(content,"TextColor3","muted")
+end
+local row=create("Frame",{Name="Buttons",BackgroundTransparency=1,Size=UDim2.new(1,0,0,28),LayoutOrder=3,ZIndex=202,Parent=panel})
+Util.list(row,8,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Right,Enum.VerticalAlignment.Center)
+local dialog={Frame=overlay}
+function dialog:Close(result)
+if not overlay.Parent then return end
+if window._dialog==dialog then window._dialog=nil end
+overlay:Destroy()
+if result==nil then window:_safe("Dialog",cfg.OnCancel)end
+end
+local buttons=cfg.Buttons or{{Title="OK"}}
+for index,spec in ipairs(buttons)do
+local style=spec.Style
+local button=create("TextButton",{
+Name=tostring(spec.Title or"OK"),Text=tostring(spec.Title or"OK"),TextSize=10,Font=Enum.Font.GothamMedium,
+AutoButtonColor=false,BorderSizePixel=0,AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(70,28),
+LayoutOrder=index,ZIndex=203,Parent=row,
+})
+Util.padding(button,14,14,0,0)
+corner(button,6)
+local outline=stroke(button)
+if style=="Danger"then
+button.BackgroundColor3,button.TextColor3,outline.Color=Color3.fromRGB(150,52,58),Color3.new(1,1,1),Color3.fromRGB(226,101,107)
+elseif style=="Primary"then
+Theme.bind(button,"BackgroundColor3","accentDeep")
+Theme.bind(button,"TextColor3","accent")
+Theme.bind(outline,"Color","accent")
+outline.Transparency=0.45
+else
+Theme.bind(button,"BackgroundColor3","input")
+Theme.bind(button,"TextColor3","text")
+Theme.bind(outline,"Color","buttonEdge")
+end
+button.Activated:Connect(function()
+dialog:Close(true)
+window:_safe("Dialog",spec.Callback)
+end)
+end
+overlay.Activated:Connect(function()dialog:Close()end)
+tween(overlay,0.15,{BackgroundTransparency=0.35})
+self._dialog=dialog
+return dialog
+end
+function Window:Confirm(title,content,onConfirm,confirmText,danger)
+return self:Dialog({
+Title=title,Content=content,Icon=danger and"triangle-alert"or nil,IconColor=danger and Color3.fromRGB(226,101,107)or nil,
+Buttons={{Title="Cancel"},{Title=confirmText or"Confirm",Style=danger and"Danger"or"Primary",Callback=onConfirm}},
+})
+end
+end
+end
+__modules["elements/actioninput"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local GREEN,RED=Color3.fromRGB(110,200,130),Color3.fromRGB(215,130,130)
+return function(card,cfg)
+local window=card.window
+local holder=create("Frame",{Name=tostring(cfg.Name or cfg.Button or"ActionInput"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=card:_order(),Parent=card.body})
+Util.list(holder,5)
+local field=create("Frame",{Name="Field",Size=UDim2.new(1,0,0,34),BorderSizePixel=0,LayoutOrder=1,Parent=holder})
+Theme.bind(field,"BackgroundColor3","input")
+corner(field,8)
+local outline=stroke(field)
+Theme.bind(outline,"Color","buttonEdge")
+local left=12
+local icon=cfg.Icon and Icons.themed(field,cfg.Icon,14,"muted",{Name="FieldIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,11,0.5,0)})
+if icon then left=33 end
+local buttonText=tostring(cfg.Button or"OK")
+local buttonWidth=Util.textWidth(buttonText,10,Enum.Font.GothamMedium)+26
+local button=create("TextButton",{
+Name="Action",Text=buttonText,TextSize=10,Font=Enum.Font.GothamMedium,AutoButtonColor=false,BorderSizePixel=0,
+AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-5,0.5,0),Size=UDim2.fromOffset(buttonWidth,24),Parent=field,
+})
+corner(button,6)
+local buttonEdge=stroke(button)
+local box=create("TextBox",{
+Name="Box",Text="",PlaceholderText=tostring(cfg.Placeholder or""),TextSize=10,Font=Enum.Font.Gotham,
+TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=false,BackgroundTransparency=1,ClipsDescendants=true,
+Position=UDim2.fromOffset(left,0),Size=UDim2.new(1,-(left+buttonWidth+14),1,0),Parent=field,
+})
+Theme.bind(box,"TextColor3","heading")
+Theme.bind(box,"PlaceholderColor3","muted")
+local hintRow=create("Frame",{Name="HintRow",BackgroundTransparency=1,Size=UDim2.new(1,0,0,14),LayoutOrder=2,Parent=holder})
+local hintDot=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,3,0.5,0),Size=UDim2.fromOffset(5,5),BorderSizePixel=0,Visible=false,Parent=hintRow})
+corner(hintDot,3)
+local hint=label(hintRow,tostring(cfg.Hint or""),9,{Name="Hint",Position=UDim2.fromOffset(2,0),Size=UDim2.new(1,-2,1,0)})
+Theme.bind(hint,"TextColor3","muted")
+hintRow.Visible=cfg.Hint~=nil or cfg.Validate~=nil
+local element=Base.element(card,"ActionInput",cfg,holder,nil,nil)
+element.Value=""
+local ready=false
+local function style()
+Theme.tweenTo(button,"BackgroundColor3",ready and"accentDeep"or"base",0.1)
+Theme.tweenTo(button,"TextColor3",ready and"accent"or"muted",0.1)
+Theme.tweenTo(buttonEdge,"Color",ready and"accent"or"line",0.1)
+buttonEdge.Transparency=ready and 0.45 or 0
+end
+function element:SetHint(text,state)
+hintRow.Visible=true
+hint.Text=tostring(text or cfg.Hint or"")
+local color=state=="ok"and GREEN or(state=="error"and RED or nil)
+hintDot.Visible=color~=nil
+hint.Position=UDim2.fromOffset(color and 13 or 2,0)
+if color then hint.TextColor3,hintDot.BackgroundColor3=color,color else Theme.bind(hint,"TextColor3","muted")end
+end
+local function validate()
+local text=box.Text:gsub("^%s+",""):gsub("%s+$","")
+element.Value=text
+if text==""then
+ready=false
+element:SetHint(cfg.Hint)
+elseif type(cfg.Validate)=="function"then
+local okCall,ok,message=pcall(cfg.Validate,text)
+if not okCall then ok,message=false,tostring(ok)end
+ready=ok~=false
+if message then element:SetHint(message,ok==true and"ok"or(ok==false and"error"or nil))else element:SetHint(cfg.Hint)end
+else
+ready=true
+end
+style()
+end
+local function run()
+validate()
+if not ready or element.Locked then return end
+window:_safe(tostring(cfg.Button or"Action"),cfg.Callback,element.Value)
+if cfg.ClearOnAction~=false then box.Text=""end
+validate()
+end
+box:GetPropertyChangedSignal("Text"):Connect(validate)
+box.Focused:Connect(function()Theme.tweenTo(outline,"Color","accent",0.12)outline.Transparency=0.4 end)
+box.FocusLost:Connect(function(enter)
+Theme.tweenTo(outline,"Color","buttonEdge",0.12)
+outline.Transparency=0
+if enter then run()end
+end)
+button.Activated:Connect(run)
+button.MouseEnter:Connect(function()if ready then Theme.tweenTo(button,"TextColor3","heading",0.1)end end)
+button.MouseLeave:Connect(style)
+function element:Set(text)box.Text=tostring(text or"")validate()end
+function element:Get()return self.Value end
+function element:Focus()pcall(function()box:CaptureFocus()end)end
+function element:Run()run()end
+validate()
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/base"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local create,corner,label=Util.create,Util.corner,Util.label
+local Base={}
+function Base.row(card,cfg,height,opts)
+opts=opts or{}
+local row=create(opts.button and"TextButton"or"Frame",{
+Name=tostring(cfg.Title or"Row"),BackgroundTransparency=1,BorderSizePixel=0,
+Size=UDim2.new(1,0,0,height),LayoutOrder=card:_order(),Parent=card.body,
+})
+if opts.button then row.Text=""row.AutoButtonColor=false end
+local right=opts.right or 0
+local title=label(row,tostring(cfg.Title or""),11,{
+Name="Title",Position=UDim2.fromOffset(0,cfg.Desc and 3 or 0),
+Size=UDim2.new(1,-right,0,cfg.Desc and 18 or(opts.titleHeight or height)),
+})
+Theme.bind(title,"TextColor3","text")
+local desc
+if cfg.Desc then
+desc=label(row,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(0,23),Size=UDim2.new(1,-right,0,14)})
+Theme.bind(desc,"TextColor3","muted")
+end
+if cfg.Icon and not opts.noIcon then
+local icon=Icons.themed(row,cfg.Icon,14,"muted",{Name="RowIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,cfg.Desc and 12 or height/2)})
+if icon then
+title.Position=UDim2.new(0,22,0,title.Position.Y.Offset)
+title.Size=UDim2.new(1,title.Size.X.Offset-22,0,title.Size.Y.Offset)
+if desc then desc.Position=UDim2.fromOffset(22,23)desc.Size=UDim2.new(1,desc.Size.X.Offset-22,0,14)end
+end
+end
+if cfg.Help then
+local help=create("TextButton",{
+Name="Help",Text="i",TextSize=10,Font=Enum.Font.GothamMedium,AutoButtonColor=false,BackgroundTransparency=1,
+AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-(opts.helpRight or right),0,opts.helpY or height/2),
+Size=UDim2.fromOffset(14,16),ZIndex=5,Parent=row,
+})
+Theme.bind(help,"TextColor3","muted")
+help.Activated:Connect(function()card.window:_tip(cfg.Help)end)
+help.MouseLeave:Connect(function()card.window:_hideTip()end)
+title.Size=UDim2.new(1,-(opts.helpRight or right)-16,0,title.Size.Y.Offset)
+end
+return row,title,desc
+end
+function Base.element(card,kind,cfg,row,title,desc)
+local window=card.window
+local element={Type=kind,Title=cfg.Title,Flag=cfg.Flag,Row=row,Card=card,Locked=false,_changed={}}
+function element:OnChanged(callback)
+self._changed[#self._changed+1]=callback
+return self
+end
+function element:_fire(value,silent)
+if self.Flag then window.Lib.Flags[self.Flag]=value end
+if silent then return end
+local source=tostring(self.Title or kind)
+window:_safe(source,cfg.Callback,value)
+for _,callback in ipairs(self._changed)do window:_safe(source,callback,value)end
+end
+function element:SetTitle(text)self.Title=text if title then title.Text=tostring(text)end end
+function element:SetDesc(text)if desc then desc.Text=tostring(text)end end
+function element:SetVisible(visible)row.Visible=visible~=false end
+function element:Lock(reason)
+self.Locked=true
+self._lockReason=reason
+if not self._lock then
+local cover=create("TextButton",{
+Name="Lock",Text="",AutoButtonColor=false,BackgroundTransparency=0.45,BorderSizePixel=0,
+Position=UDim2.fromOffset(-4,-2),Size=UDim2.new(1,8,1,4),ZIndex=20,Parent=row,
+})
+Theme.bind(cover,"BackgroundColor3","card")
+corner(cover,6)
+cover.MouseEnter:Connect(function()if self._lockReason then window:_tip(self._lockReason)end end)
+cover.MouseLeave:Connect(function()window:_hideTip()end)
+self._lock=cover
+end
+self._lock.Visible=true
+end
+function element:Unlock()
+self.Locked=false
+if self._lock then self._lock.Visible=false end
+window:_hideTip()
+end
+function element:Destroy()
+if self.Flag and window.flags[self.Flag]==self then window.flags[self.Flag]=nil end
+window.binds[self]=nil
+row:Destroy()
+end
+function element:_save()return self.Value end
+function element:_load(value)self:Set(value)end
+if cfg.Flag then window:_register(cfg.Flag,element)end
+return element
+end
+function Base.finish(element,cfg)
+if cfg.Locked then element:Lock(cfg.LockedTitle or cfg.LockedReason)end
+return element
+end
+return Base
+end
+__modules["elements/button"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
+return function(card,cfg)
+local height=cfg.Desc and 44 or 28
+local row=create("Frame",{Name=tostring(cfg.Title or"Button"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,height),LayoutOrder=card:_order(),Parent=card.body})
+local button=create("TextButton",{
+Name="Button",Size=UDim2.new(1,0,0,28),BorderSizePixel=0,Text=tostring(cfg.Title or"Button"),
+TextSize=10,Font=Enum.Font.Gotham,AutoButtonColor=false,Parent=row,
+})
+Theme.bind(button,"BackgroundColor3","input")
+Theme.bind(button,"TextColor3","text")
+corner(button,6)
+local outline=stroke(button)
+Theme.bind(outline,"Color","buttonEdge")
+local desc
+if cfg.Desc then
+desc=Util.label(row,tostring(cfg.Desc),9,{Position=UDim2.fromOffset(2,30),Size=UDim2.new(1,-4,0,14)})
+Theme.bind(desc,"TextColor3","muted")
+end
+local textLabel
+if cfg.Icon and Icons.Get(cfg.Icon)then
+local content=create("Frame",{Name="Content",BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromScale(0,1),AutomaticSize=Enum.AutomaticSize.X,Parent=button})
+Util.list(content,6,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Center,Enum.VerticalAlignment.Center)
+local icon=Icons.themed(content,cfg.Icon,13,"text",{Name="ButtonIcon",LayoutOrder=1})
+textLabel=Util.label(content,button.Text,10,{Name="Text",Size=UDim2.fromScale(0,1),AutomaticSize=Enum.AutomaticSize.X,TextTruncate=Enum.TextTruncate.None,LayoutOrder=2})
+Theme.bind(textLabel,"TextColor3","text")
+button:GetPropertyChangedSignal("Text"):Connect(function()if button.Text~=""then textLabel.Text=button.Text button.Text=""end end)
+button:GetPropertyChangedSignal("TextColor3"):Connect(function()textLabel.TextColor3=button.TextColor3 icon.ImageColor3=button.TextColor3 end)
+button.Text=""
+end
+local element=Base.element(card,"Button",cfg,row,button,desc)
+element.Text=tostring(cfg.Title or"Button")
+function element:SetTitle(text)self.Text=tostring(text)button.Text=self.Text end
+function element:Fire()card.window:_safe(element.Text,cfg.Callback)end
+button.MouseEnter:Connect(function()Theme.tweenTo(button,"BackgroundColor3","hover",0.12)Theme.tweenTo(button,"TextColor3","heading",0.12)end)
+button.MouseLeave:Connect(function()Theme.tweenTo(button,"BackgroundColor3","input",0.12)Theme.tweenTo(button,"TextColor3","text",0.12)end)
+local armed=0
+button.Activated:Connect(function()
+if element.Locked then return end
+if cfg.Confirm then
+if armed==0 then
+armed=armed+1
+local token=armed
+button.Text=type(cfg.Confirm)=="string"and cfg.Confirm or"Click again to confirm"
+Theme.tweenTo(outline,"Color","accent",0.1)
+task.delay(2,function()
+if armed==token and button.Parent then armed=0 button.Text=element.Text Theme.tweenTo(outline,"Color","buttonEdge",0.1)end
+end)
+return
+end
+armed=0
+button.Text=element.Text
+Theme.tweenTo(outline,"Color","buttonEdge",0.1)
+end
+card.window:_safe(element.Text,cfg.Callback)
+end)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/code"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local KEYWORDS={}
+for word in("and break do else elseif end false for function if in local nil not or repeat return then true until while continue"):gmatch("%a+")do KEYWORDS[word]=true end
+local GLOBALS={}
+for word in("game workspace script task math string table print warn pcall require loadstring getgenv Instance Vector3 Vector2 CFrame UDim2 Color3 Enum"):gmatch("%a+")do GLOBALS[word]=true end
+local COLORS={keyword="#c792ea",string="#c3e88d",number="#f78c6c",comment="#6b7080",global="#82aaff",call="#ffcb6b"}
+local function escape(text)return(text:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"))end
+local function paint(kind,text)return'<font color="'..COLORS[kind]..'">'..escape(text).."</font>"end
+local function highlight(source)
+local out,i,n={},1,#source
+while i<=n do
+local c=source:sub(i,i)
+if source:sub(i,i+1)=="--"then
+local long=source:match("^%-%-%[(=*)%[",i)
+local stop
+if long then stop=select(2,source:find("%]"..long.."%]",i))end
+stop=stop or(source:find("\n",i)or n+1)-1
+out[#out+1]=paint("comment",source:sub(i,stop))
+i=stop+1
+elseif c=='"'or c=="'"then
+local j=i+1
+while j<=n do
+local d=source:sub(j,j)
+if d=="\\"then j=j+2 elseif d==c or d=="\n"then break else j=j+1 end
+end
+out[#out+1]=paint("string",source:sub(i,j))
+i=j+1
+elseif source:match("^%[=*%[",i)then
+local eq=source:match("^%[(=*)%[",i)
+local stop=select(2,source:find("%]"..eq.."%]",i))or n
+out[#out+1]=paint("string",source:sub(i,stop))
+i=stop+1
+elseif c:match("%d")then
+local number=source:match("^0[xX]%x+",i)or source:match("^%d+%.?%d*[eE][%-+]?%d+",i)or source:match("^%d+%.?%d*",i)
+out[#out+1]=paint("number",number)
+i=i+#number
+elseif c:match("[%a_]")then
+local word=source:match("^[%w_]+",i)
+local after=source:match("^%s*(.)",i+#word)
+if KEYWORDS[word]then out[#out+1]=paint("keyword",word)
+elseif GLOBALS[word]then out[#out+1]=paint("global",word)
+elseif after=="("then out[#out+1]=paint("call",word)
+else out[#out+1]=escape(word)end
+i=i+#word
+else
+out[#out+1]=escape(c)
+i=i+1
+end
+end
+return table.concat(out)
+end
+return function(card,cfg)
+local window=card.window
+local maxHeight=tonumber(cfg.MaxHeight)or 200
+local holder=create("Frame",{Name=tostring(cfg.Title or"Code"),Size=UDim2.new(1,0,0,60),BorderSizePixel=0,LayoutOrder=card:_order(),Parent=card.body})
+Theme.bind(holder,"BackgroundColor3","base")
+corner(holder,7)
+Theme.bind(stroke(holder),"Color","line")
+local head=create("Frame",{Name="Head",BackgroundTransparency=1,Size=UDim2.new(1,0,0,26),Parent=holder})
+Icons.themed(head,"code",12,"muted",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,10,0.5,0)})
+local title=label(head,tostring(cfg.Title or"Code"),10,{Name="Title",Position=UDim2.fromOffset(28,0),Size=UDim2.new(1,-90,1,0),Font=Enum.Font.GothamMedium})
+Theme.bind(title,"TextColor3","text")
+local line=create("Frame",{Position=UDim2.fromOffset(0,26),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,Parent=holder})
+Theme.bind(line,"BackgroundColor3","line")
+local scroller=create("ScrollingFrame",{
+Name="Body",BackgroundTransparency=1,BorderSizePixel=0,Position=UDim2.fromOffset(0,27),Size=UDim2.new(1,0,1,-27),
+CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.XY,ScrollBarThickness=3,Parent=holder,
+})
+Theme.bind(scroller,"ScrollBarImageColor3","muted")
+local text=create("TextLabel",{
+Name="Code",BackgroundTransparency=1,Position=UDim2.fromOffset(10,8),Size=UDim2.fromOffset(0,0),AutomaticSize=Enum.AutomaticSize.XY,
+Font=Enum.Font.Code,TextSize=11,RichText=true,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,
+TextWrapped=false,Text="",Parent=scroller,
+})
+Theme.bind(text,"TextColor3","heading")
+create("UIPadding",{PaddingRight=UDim.new(0,12),PaddingBottom=UDim.new(0,10),Parent=text})
+local element=Base.element(card,"Code",{},holder,title,nil)
+local function fit()
+local lines=select(2,(element.Value or""):gsub("\n","\n"))+1
+holder.Size=UDim2.new(1,0,0,math.min(maxHeight,27+18+lines*14))
+end
+function element:Set(code)
+self.Value=tostring(code or"")
+text.Text=cfg.Highlight==false and self.Value:gsub("<","&lt;")or highlight(self.Value)
+fit()
+end
+function element:Get()return self.Value end
+if cfg.Copy~=false then
+local copy=create("TextButton",{
+Name="Copy",Text="",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),
+Position=UDim2.new(1,-6,0.5,0),Size=UDim2.fromOffset(52,18),Parent=head,
+})
+Theme.bind(copy,"BackgroundColor3","input")
+corner(copy,5)
+Theme.bind(stroke(copy),"Color","buttonEdge")
+local copyText=label(copy,"Copy",9,{Position=UDim2.fromOffset(20,0),Size=UDim2.new(1,-22,1,0),Font=Enum.Font.GothamMedium})
+Theme.bind(copyText,"TextColor3","text")
+local copyIcon=Icons.themed(copy,"copy",10,"text",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,7,0.5,0)})
+copy.Activated:Connect(function()
+local clipboard=setclipboard or toclipboard
+local ok=type(clipboard)=="function"and pcall(clipboard,element.Value)
+copyText.Text=ok and"Copied"or"Failed"
+if copyIcon then Icons.Apply(copyIcon,ok and"check"or"x")end
+if ok and cfg.OnCopy then window:_safe("Code",cfg.OnCopy)end
+task.delay(1.4,function()
+if copy.Parent then copyText.Text="Copy"if copyIcon then Icons.Apply(copyIcon,"copy")end end
+end)
+end)
+end
+element:Set(cfg.Code or"")
+return element
+end
+end
+__modules["elements/colorpicker"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local HUE=ColorSequence.new({
+ColorSequenceKeypoint.new(0,Color3.fromHSV(0,1,1)),ColorSequenceKeypoint.new(1/6,Color3.fromHSV(1/6,1,1)),
+ColorSequenceKeypoint.new(2/6,Color3.fromHSV(2/6,1,1)),ColorSequenceKeypoint.new(3/6,Color3.fromHSV(3/6,1,1)),
+ColorSequenceKeypoint.new(4/6,Color3.fromHSV(4/6,1,1)),ColorSequenceKeypoint.new(5/6,Color3.fromHSV(5/6,1,1)),
+ColorSequenceKeypoint.new(1,Color3.fromHSV(1,1,1)),
+})
+return function(card,cfg)
+local window=card.window
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=60,button=true})
+local swatch=create("TextButton",{
+Name="Swatch",Text="",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),
+Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(34,18),Parent=row,
+})
+corner(swatch,5)
+Theme.bind(stroke(swatch,nil,0.2),"Color","buttonEdge")
+local panel=create("Frame",{
+Name="Picker",BackgroundTransparency=1,Size=UDim2.new(1,0,0,158),LayoutOrder=row.LayoutOrder+1,
+Visible=false,Parent=card.body,
+})
+local square=create("TextButton",{
+Name="Square",Text="",AutoButtonColor=false,BorderSizePixel=0,Position=UDim2.fromOffset(0,4),
+Size=UDim2.new(1,-104,0,104),Parent=panel,
+})
+corner(square,6)
+local white=create("Frame",{Size=UDim2.fromScale(1,1),BorderSizePixel=0,BackgroundColor3=Color3.new(1,1,1),Parent=square})
+corner(white,6)
+create("UIGradient",{Transparency=NumberSequence.new(0,1),Parent=white})
+local black=create("Frame",{Size=UDim2.fromScale(1,1),BorderSizePixel=0,BackgroundColor3=Color3.new(0,0,0),Parent=square})
+corner(black,6)
+create("UIGradient",{Rotation=90,Transparency=NumberSequence.new(1,0),Parent=black})
+local cursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(8,8),BackgroundTransparency=1,ZIndex=3,Parent=square})
+corner(cursor,4)
+stroke(cursor,Color3.new(1,1,1),0,1.5)
+local hueBar=create("TextButton",{
+Name="Hue",Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundColor3=Color3.new(1,1,1),
+Position=UDim2.fromOffset(0,116),Size=UDim2.new(1,-104,0,10),Parent=panel,
+})
+corner(hueBar,5)
+create("UIGradient",{Color=HUE,Parent=hueBar})
+local hueCursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(4,14),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0,ZIndex=3,Parent=hueBar})
+corner(hueCursor,2)
+local side=create("Frame",{Name="Side",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,4),Size=UDim2.fromOffset(92,150),Parent=panel})
+local preview=create("Frame",{Size=UDim2.new(1,0,0,26),BorderSizePixel=0,Parent=side})
+corner(preview,6)
+Theme.bind(stroke(preview,nil,0.2),"Color","buttonEdge")
+local hex=create("TextBox",{
+Name="Hex",Position=UDim2.fromOffset(0,32),Size=UDim2.new(1,0,0,24),BorderSizePixel=0,Text="",
+TextSize=10,Font=Enum.Font.GothamMedium,ClearTextOnFocus=false,Parent=side,
+})
+Theme.bind(hex,"BackgroundColor3","input")
+Theme.bind(hex,"TextColor3","text")
+corner(hex,6)
+Theme.bind(stroke(hex),"Color","buttonEdge")
+local random=create("TextButton",{
+Name="Random",Position=UDim2.fromOffset(0,62),Size=UDim2.new(1,0,0,24),BorderSizePixel=0,
+Text="Random",TextSize=10,Font=Enum.Font.Gotham,AutoButtonColor=false,Parent=side,
+})
+Theme.bind(random,"BackgroundColor3","input")
+Theme.bind(random,"TextColor3","text")
+corner(random,6)
+Theme.bind(stroke(random),"Color","buttonEdge")
+local rainbow=create("TextButton",{
+Name="Rainbow",Position=UDim2.fromOffset(0,92),Size=UDim2.new(1,0,0,24),BorderSizePixel=0,
+Text="Rainbow",TextSize=10,Font=Enum.Font.Gotham,AutoButtonColor=false,Parent=side,
+})
+Theme.bind(rainbow,"BackgroundColor3","input")
+Theme.bind(rainbow,"TextColor3","text")
+corner(rainbow,6)
+local rainbowEdge=stroke(rainbow)
+Theme.bind(rainbowEdge,"Color","buttonEdge")
+local done=create("TextButton",{
+Name="Done",Position=UDim2.fromOffset(0,122),Size=UDim2.new(1,0,0,24),BorderSizePixel=0,
+Text=cfg.Apply and"Apply"or"Done",TextSize=10,Font=Enum.Font.GothamMedium,AutoButtonColor=false,Parent=side,
+})
+Theme.bind(done,"BackgroundColor3","accentDeep")
+Theme.bind(done,"TextColor3","accent")
+corner(done,6)
+Theme.bind(stroke(done,nil,0.45),"Color","accent")
+local element=Base.element(card,"ColorPicker",cfg,row,title,desc)
+local h,s,v=0,0,1
+local function render()
+local color=Color3.fromHSV(h,s,v)
+swatch.BackgroundColor3,preview.BackgroundColor3=color,color
+square.BackgroundColor3=Color3.fromHSV(h,1,1)
+cursor.Position=UDim2.fromScale(s,1-v)
+hueCursor.Position=UDim2.fromScale(h,0.5)
+hex.Text="#"..Util.toHex(color)
+end
+local applyMode=cfg.Apply==true
+local function commit(silent,force)
+local color=Color3.fromHSV(h,s,v)
+if applyMode and not force and panel.Visible and not silent then render()swatch.BackgroundColor3=element.Value or color return end
+local changed=color~=element.Value
+element.Value=color
+render()
+element:_fire(color,silent or not changed)
+end
+function element:Set(color,silent)
+if type(color)=="string"then color=Util.fromHex(color)end
+if typeof(color)~="Color3"then return end
+h,s,v=color:ToHSV()
+commit(silent,true)
+end
+function element:Get()return self.Value end
+function element:_save()return self.Rainbow and{Color=Util.toHex(self.Value),Rainbow=true}or Util.toHex(self.Value)end
+function element:_load(data)
+if type(data)=="table"then self:Set(data.Color)self:SetRainbow(data.Rainbow==true)else self:SetRainbow(false)self:Set(data)end
+end
+local function revert()
+if applyMode and element.Value then h,s,v=element.Value:ToHSV()render()end
+end
+function element:SetOpen(open)
+if not open then revert()end
+panel.Visible=open==true
+end
+element.Rainbow=false
+local rainbowConnection
+local function renderRainbow()
+Theme.tweenTo(rainbow,"BackgroundColor3",element.Rainbow and"accentDeep"or"input",0.1)
+Theme.tweenTo(rainbow,"TextColor3",element.Rainbow and"accent"or"text",0.1)
+Theme.tweenTo(rainbowEdge,"Color",element.Rainbow and"accent"or"buttonEdge",0.1)
+end
+function element:SetRainbow(on)
+on=on==true
+if on==self.Rainbow then return end
+self.Rainbow=on
+if rainbowConnection then rainbowConnection:Disconnect()rainbowConnection=nil end
+if on then
+local period=math.max(0.5,tonumber(cfg.RainbowSpeed)or 5)
+local last=0
+rainbowConnection=window.maid:connect(Util.Services.RunService.Heartbeat,function()
+local now=os.clock()
+if now-last<0.05 then return end
+last=now
+h=(now/period)%1
+if s<0.05 then s=0.75 end
+commit(false,true)
+end)
+end
+renderRainbow()
+end
+local function drag(target,apply)
+target.InputBegan:Connect(function(input)
+if not Util.isPress(input)or element.Locked then return end
+local function move(point)
+local p,size=target.AbsolutePosition,target.AbsoluteSize
+if size.X<=0 or size.Y<=0 then return end
+apply(math.clamp((point.X-p.X)/size.X,0,1),math.clamp((point.Y-p.Y)/size.Y,0,1))
+commit()
+end
+move(Util.pointer(input))
+window:_beginDrag(input,move)
+end)
+end
+drag(square,function(x,y)s,v=x,1-y end)
+drag(hueBar,function(x)h=math.min(x,0.999)end)
+hex.FocusLost:Connect(function()
+local color=Util.fromHex(hex.Text)
+if color then h,s,v=color:ToHSV()commit()else render()end
+end)
+random.Activated:Connect(function()if not element.Locked then h,s,v=math.random(),0.45+math.random()*0.5,0.6+math.random()*0.4 commit()end end)
+rainbow.Activated:Connect(function()if not element.Locked then element:SetRainbow(not element.Rainbow)end end)
+done.Activated:Connect(function()
+if applyMode then commit(false,true)end
+panel.Visible=false
+end)
+local function toggleOpen()if not element.Locked then element:SetOpen(not panel.Visible)end end
+row.Activated:Connect(toggleOpen)
+swatch.Activated:Connect(toggleOpen)
+local default=cfg.Default
+if type(default)=="string"then default=Util.fromHex(default)end
+element:Set(typeof(default)=="Color3"and default or Color3.new(1,1,1),true)
+renderRainbow()
+if cfg.Rainbow then element:SetRainbow(true)end
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/divider"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create=Util.create
+return function(card)
+local holder=create("Frame",{Name="Divider",BackgroundTransparency=1,Size=UDim2.new(1,0,0,7),LayoutOrder=card:_order(),Parent=card.body})
+local line=create("Frame",{Position=UDim2.fromOffset(0,3),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,BackgroundTransparency=0.3,Parent=holder})
+Theme.bind(line,"BackgroundColor3","line")
+return Base.element(card,"Divider",{},holder,nil,nil)
+end
+end
+__modules["elements/dropdown"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local ITEM,ITEM_DESC,MAX_HEIGHT,SEARCH=24,34,176,28
+return function(card,cfg)
+local window=card.window
+local multi=cfg.Multi==true
+local options,info={},{}
+local function setOptions(list)
+options,info={},{}
+for _,option in ipairs(list or{})do
+local entry=type(option)=="table"and option or{Title=option}
+local name=tostring(entry.Title or entry.Name or entry[1]or"")
+options[#options+1]=name
+info[name]=entry
+end
+end
+setOptions(cfg.Options or cfg.Values)
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=160})
+title.Size=UDim2.new(0.55,-8-title.Position.X.Offset,0,title.Size.Y.Offset)
+if desc then desc.Size=UDim2.new(0.55,-8-desc.Position.X.Offset,0,14)end
+local button=create("TextButton",{
+Name="Select",Text="",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),
+Position=UDim2.new(1,0,0.5,0),Size=UDim2.new(0.45,0,0,24),Parent=row,
+})
+Theme.bind(button,"BackgroundColor3","input")
+corner(button,6)
+Theme.bind(stroke(button),"Color","buttonEdge")
+create("UISizeConstraint",{MaxSize=Vector2.new(170,24),Parent=button})
+local valueIcon=create("ImageLabel",{Name="ValueIcon",BackgroundTransparency=1,AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0.5,0),Size=UDim2.fromOffset(12,12),Visible=false,Parent=button})
+Theme.bind(valueIcon,"ImageColor3","text")
+local valueLabel=label(button,"",10,{Position=UDim2.fromOffset(9,0),Size=UDim2.new(1,-28,1,0)})
+Theme.bind(valueLabel,"TextColor3","text")
+local arrow=create("Frame",{Name="Chevron",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,1),Size=UDim2.fromOffset(10,6),Parent=button})
+local arrowBars={}
+for index,rotation in ipairs({45,-45})do
+local bar=create("Frame",{
+AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromOffset(index==1 and 3 or 7,3),Size=UDim2.fromOffset(6,1.5),
+Rotation=rotation,BorderSizePixel=0,Parent=arrow,
+})
+Theme.bind(bar,"BackgroundColor3","muted")
+arrowBars[index]=bar
+end
+local function tintArrow(role)for _,bar in ipairs(arrowBars)do Theme.tweenTo(bar,"BackgroundColor3",role,0.1)end end
+local element=Base.element(card,"Dropdown",cfg,row,title,desc)
+element.Options=options
+local function chosen(option)
+if multi then return table.find(element.Value,option)~=nil end
+return element.Value==option
+end
+local function render()
+local text
+if multi then
+text=#element.Value>0 and table.concat(element.Value,", ")or"None"
+else
+text=element.Value or"None"
+end
+valueLabel.Text=text
+local entry=not multi and element.Value and info[element.Value]
+local hasIcon=entry and entry.Icon and Icons.Apply(valueIcon,entry.Icon)
+valueIcon.Visible=hasIcon==true
+valueLabel.Position=UDim2.fromOffset(hasIcon and 26 or 9,0)
+valueLabel.Size=UDim2.new(1,hasIcon and-45 or-28,1,0)
+end
+local popup
+local function closeList()
+if popup then popup:Destroy()popup=nil end
+tintArrow("muted")
+end
+local function itemHeight(option)return info[option]and info[option].Desc and ITEM_DESC or ITEM end
+local function openList()
+closeList()
+local position,size=button.AbsolutePosition,button.AbsoluteSize
+local viewport=Util.viewport()
+local searchable=cfg.Search==true or(cfg.Search~=false and#options>8)
+local contentHeight=8
+for _,option in ipairs(options)do contentHeight=contentHeight+itemHeight(option)end
+local listHeight=math.min(contentHeight,MAX_HEIGHT)
+local top=25+(searchable and SEARCH+4 or 0)
+local total=top+listHeight
+local scale=window.scale and window.scale.Scale or 1
+local hasDesc=false
+for _,option in ipairs(options)do if info[option]and info[option].Desc then hasDesc=true end end
+local width=math.max(size.X/scale,cfg.ListWidth or(hasDesc and 190 or 140))
+local roomBelow,roomAbove=viewport.Y-8-position.Y,position.Y+size.Y-8
+local below=roomBelow>=total*scale or roomBelow>=roomAbove
+popup=create("Frame",{
+Name="DropdownList",BorderSizePixel=0,ZIndex=260,
+Position=UDim2.fromOffset(math.clamp(position.X+size.X-width*scale,8,math.max(8,viewport.X-width*scale-8)),below and position.Y or position.Y+size.Y-total*scale),
+Size=UDim2.fromOffset(width,total),Parent=window.gui,
+})
+create("UIScale",{Scale=scale,Parent=popup})
+Theme.bind(popup,"BackgroundColor3","input")
+corner(popup,6)
+Theme.bind(stroke(popup),"Color","buttonEdge")
+local header=create("TextButton",{
+Name="Header",Text="",AutoButtonColor=false,BackgroundTransparency=1,ZIndex=261,
+Position=UDim2.fromOffset(0,below and 0 or total-24),Size=UDim2.new(1,0,0,24),Parent=popup,
+})
+local headerText=label(header,valueLabel.Text,10,{Position=UDim2.fromOffset(9,0),Size=UDim2.new(1,-28,1,0),ZIndex=262})
+Theme.bind(headerText,"TextColor3","text")
+for index,rotation in ipairs({-40,40})do
+local bar=create("Frame",{
+AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(1,index==1 and-16 or-12,0.5,0),Size=UDim2.fromOffset(6,1.5),
+Rotation=rotation,BorderSizePixel=0,ZIndex=262,Parent=header,
+})
+Theme.bind(bar,"BackgroundColor3","accent")
+end
+header.Activated:Connect(function()window:_closePopup()end)
+local separator=create("Frame",{
+Position=UDim2.new(0,6,0,below and 24 or total-25),Size=UDim2.new(1,-12,0,1),BorderSizePixel=0,ZIndex=261,Parent=popup,
+})
+Theme.bind(separator,"BackgroundColor3","line")
+local bodyTop=below and 25 or 0
+local searchBox
+if searchable then
+searchBox=create("TextBox",{
+Name="Search",Text="",PlaceholderText="Search...",TextSize=10,Font=Enum.Font.Gotham,ClearTextOnFocus=false,
+TextXAlignment=Enum.TextXAlignment.Left,BorderSizePixel=0,ZIndex=262,
+Position=UDim2.fromOffset(6,bodyTop+4),Size=UDim2.new(1,-12,0,SEARCH-2),Parent=popup,
+})
+Theme.bind(searchBox,"BackgroundColor3","base")
+Theme.bind(searchBox,"TextColor3","text")
+Theme.bind(searchBox,"PlaceholderColor3","muted")
+corner(searchBox,5)
+Util.padding(searchBox,24,6,0,0)
+Icons.themed(searchBox,"search",11,"muted",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,-17,0.5,0),ZIndex=263})
+bodyTop=bodyTop+SEARCH+4
+end
+local scroller=create("ScrollingFrame",{
+Name="Options",BackgroundTransparency=1,BorderSizePixel=0,ZIndex=261,ScrollBarThickness=2,
+Position=UDim2.fromOffset(0,bodyTop),Size=UDim2.new(1,0,0,listHeight),
+CanvasSize=UDim2.fromOffset(0,contentHeight),ScrollingDirection=Enum.ScrollingDirection.Y,Parent=popup,
+})
+Theme.bind(scroller,"ScrollBarImageColor3","muted")
+Util.padding(scroller,4,4,4,4)
+Util.list(scroller,0)
+local empty=label(scroller,"No matches",10,{Name="Empty",Size=UDim2.new(1,0,0,ITEM),TextXAlignment=Enum.TextXAlignment.Center,Visible=false,ZIndex=262,LayoutOrder=100000})
+Theme.bind(empty,"TextColor3","muted")
+local function refreshHeader()headerText.Text=valueLabel.Text end
+local items={}
+for index,option in ipairs(options)do
+local entry=info[option]or{}
+local height=itemHeight(option)
+local locked=entry.Locked==true
+local item=create("TextButton",{
+Name=option,Text="",AutoButtonColor=false,BackgroundTransparency=1,BorderSizePixel=0,
+Size=UDim2.new(1,0,0,height),LayoutOrder=index,ZIndex=262,Parent=scroller,
+})
+Theme.bind(item,"BackgroundColor3","hover")
+corner(item,5)
+local textX=8
+local icon=entry.Icon and Icons.themed(item,entry.Icon,12,chosen(option)and"accent"or"muted",{
+AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0,entry.Desc and 12 or height/2),ZIndex=263,
+})
+if icon then textX=26 end
+local text=label(item,option,10,{Position=UDim2.fromOffset(textX,entry.Desc and 3 or 0),Size=UDim2.new(1,-textX-20,0,entry.Desc and 17 or height),ZIndex=263})
+Theme.bind(text,"TextColor3",chosen(option)and"accent"or"text")
+if entry.Desc then
+local sub=label(item,tostring(entry.Desc),9,{Position=UDim2.fromOffset(textX,18),Size=UDim2.new(1,-textX-20,0,13),ZIndex=263})
+Theme.bind(sub,"TextColor3","muted")
+end
+if locked then
+text.TextTransparency=0.55
+if icon then icon.ImageTransparency=0.55 end
+Icons.themed(item,"lock",10,"muted",{AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,0),ZIndex=263,ImageTransparency=0.3})
+end
+local check=create("Frame",{Name="Check",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,0),Size=UDim2.fromOffset(6,6),BorderSizePixel=0,ZIndex=263,Visible=chosen(option),Parent=item})
+corner(check,3)
+Theme.bind(check,"BackgroundColor3","accent")
+items[option]=item
+item.MouseEnter:Connect(function()if not locked then item.BackgroundTransparency=0 end end)
+item.MouseLeave:Connect(function()item.BackgroundTransparency=1 end)
+item.Activated:Connect(function()
+if locked then return end
+if multi then
+local list=table.clone(element.Value)
+local at=table.find(list,option)
+if at then table.remove(list,at)else list[#list+1]=option end
+element:Set(list)
+Theme.tweenTo(text,"TextColor3",chosen(option)and"accent"or"text",0.1)
+if icon then Theme.tweenTo(icon,"ImageColor3",chosen(option)and"accent"or"muted",0.1)end
+check.Visible=chosen(option)
+refreshHeader()
+else
+if element.Value==option and cfg.AllowNone then element:Set(nil)else element:Set(option)end
+window:_closePopup()
+end
+end)
+end
+if searchBox then
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+local query=searchBox.Text:lower()
+local shown,height=0,8
+for _,option in ipairs(options)do
+local entry=info[option]or{}
+local match=query==""or option:lower():find(query,1,true)~=nil
+or(entry.Desc~=nil and tostring(entry.Desc):lower():find(query,1,true)~=nil)
+items[option].Visible=match
+if match then shown=shown+1 height=height+itemHeight(option)end
+end
+empty.Visible=shown==0
+scroller.CanvasSize=UDim2.fromOffset(0,shown==0 and ITEM+8 or height)
+end)
+task.defer(function()pcall(function()searchBox:CaptureFocus()end)end)
+end
+tintArrow("accent")
+window:_openPopup(popup,button,closeList)
+end
+button.Activated:Connect(function()
+if element.Locked then return end
+if popup then window:_closePopup()else openList()end
+end)
+function element:Set(value,silent)
+if multi then
+local list={}
+for _,option in ipairs(type(value)=="table"and value or{value})do
+option=tostring(option)
+if table.find(options,option)and not table.find(list,option)then list[#list+1]=option end
+end
+self.Value=list
+else
+value=value~=nil and tostring(value)or nil
+self.Value=(value and table.find(options,value))and value or nil
+end
+render()
+self:_fire(self.Value,silent)
+end
+function element:Get()return self.Value end
+function element:SetOptions(list,keep)
+setOptions(list)
+self.Options=options
+if popup then window:_closePopup()end
+self:Set(keep and self.Value or(multi and{}or nil),true)
+end
+function element:Refresh(list)self:SetOptions(list,true)end
+if multi then
+element.Value={}
+element:Set(cfg.Default or{},true)
+else
+element:Set(cfg.Default,true)
+end
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/gradient"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
+return function(card,cfg)
+local window=card.window
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=100,button=true})
+local preview=create("TextButton",{
+Name="Preview",Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundColor3=Color3.new(1,1,1),
+AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(88,18),Parent=row,
+})
+corner(preview,5)
+Theme.bind(stroke(preview,nil,0.2),"Color","buttonEdge")
+local gradient=create("UIGradient",{Rotation=tonumber(cfg.Rotation)or 0,Parent=preview})
+local section=create("Frame",{
+Name="GradientEditor",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
+LayoutOrder=row.LayoutOrder+1,Visible=false,Parent=card.body,
+})
+Util.list(section,4)
+local sub=setmetatable({page=card.page,window=window,order=0,body=section,frame=card.frame},getmetatable(card))
+local element=Base.element(card,"Gradient",cfg,row,title,desc)
+local a,b=Color3.new(1,1,1),Color3.new(0,0,0)
+local pickers={}
+local applying=false
+local function render()
+gradient.Color=ColorSequence.new(a,b)
+end
+local function commit(silent)
+render()
+element.Value={a,b}
+element:_fire(element.Value,true)
+if silent then return end
+local source=tostring(cfg.Title or"Gradient")
+window:_safe(source,cfg.Callback,ColorSequence.new(a,b),a,b)
+for _,callback in ipairs(element._changed)do window:_safe(source,callback,ColorSequence.new(a,b),a,b)end
+end
+pickers[1]=sub:ColorPicker({Title="Start",Default=a,Callback=function(color)if not applying then a=color commit()end end})
+pickers[2]=sub:ColorPicker({Title="End",Default=b,Callback=function(color)if not applying then b=color commit()end end})
+sub:Button({Title="Swap colours",Callback=function()element:Set({b,a})end})
+function element:Set(value,silent)
+if type(value)~="table"then return end
+local first,second=value[1],value[2]
+if type(first)=="string"then first=Util.fromHex(first)end
+if type(second)=="string"then second=Util.fromHex(second)end
+if typeof(first)~="Color3"or typeof(second)~="Color3"then return end
+local changed=first~=a or second~=b
+a,b=first,second
+applying=true
+pickers[1]:Set(a,true)
+pickers[2]:Set(b,true)
+applying=false
+commit(silent or not changed)
+end
+function element:Get()return a,b end
+function element:GetSequence()return ColorSequence.new(a,b)end
+function element:_save()return{Util.toHex(a),Util.toHex(b)}end
+function element:SetOpen(open)section.Visible=open==true end
+local function toggleOpen()if not element.Locked then section.Visible=not section.Visible end end
+row.Activated:Connect(toggleOpen)
+preview.Activated:Connect(toggleOpen)
+local default=type(cfg.Default)=="table"and cfg.Default or{Color3.fromRGB(215,120,120),Color3.fromRGB(120,140,230)}
+element:Set(default,true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/graph"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Stats=require("stats")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local window=card.window
+local points=math.clamp(tonumber(cfg.Points)or 40,5,120)
+local height=tonumber(cfg.Height)or 70
+local suffix=cfg.Suffix or(cfg.Source=="Ping"and" ms"or(cfg.Source=="FPS"and" FPS"or""))
+local holder=create("Frame",{Name=tostring(cfg.Title or"Graph"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,height+24),LayoutOrder=card:_order(),Parent=card.body})
+local title=label(holder,tostring(cfg.Title or cfg.Source or"Graph"),11,{Name="Title",Size=UDim2.new(1,-90,0,20)})
+Theme.bind(title,"TextColor3","text")
+local value=label(holder,"--",10,{Name="Value",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(90,20),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium})
+Theme.bind(value,"TextColor3","heading")
+local area=create("Frame",{Name="Area",Position=UDim2.fromOffset(0,24),Size=UDim2.new(1,0,0,height),BorderSizePixel=0,BackgroundTransparency=0.4,ClipsDescendants=true,Parent=holder})
+Theme.bind(area,"BackgroundColor3","base")
+corner(area,6)
+local bars={}
+for index=1,points do
+local bar=create("Frame",{
+AnchorPoint=Vector2.new(0,1),Position=UDim2.new((index-1)/points,1,1,0),Size=UDim2.new(1/points,-2,0,0),
+BorderSizePixel=0,BackgroundTransparency=0.3,Parent=area,
+})
+Theme.bind(bar,"BackgroundColor3","accent")
+bars[index]=bar
+end
+local element=Base.element(card,"Graph",{},holder,title,nil)
+local samples={}
+local function render()
+local top=tonumber(cfg.Max)or 1
+for _,sample in ipairs(samples)do top=math.max(top,sample)end
+for index=1,points do
+local sample=samples[#samples-points+index]
+bars[index].Size=UDim2.new(1/points,-2,sample and math.clamp(sample/top,0.02,1)or 0,0)
+end
+local last=samples[#samples]
+value.Text=last and(tostring(math.floor(last+0.5))..suffix)or"--"
+end
+function element:Push(sample)
+sample=tonumber(sample)
+if not sample then return end
+samples[#samples+1]=sample
+if#samples>points then table.remove(samples,1)end
+render()
+end
+function element:Set(list)samples={}for _,sample in ipairs(list or{})do self:Push(sample)end render()end
+local function onScreen()
+local object=holder
+while object and object~=window.gui do
+if object:IsA("GuiObject")and not object.Visible then return false end
+object=object.Parent
+end
+return window.visible
+end
+if cfg.Source=="FPS"or cfg.Source=="Ping"then
+Stats.start(window.Lib.maid)
+local key=cfg.Source=="FPS"and"fps"or"ping"
+window.maid:give(Stats.listen(function(stats)if holder.Parent then element:Push(stats[key])end end))
+elseif type(cfg.Source)=="function"then
+task.spawn(function()
+while window.alive and holder.Parent do
+if onScreen()then
+local ok,sample=pcall(cfg.Source)
+if ok then element:Push(sample)end
+end
+task.wait(tonumber(cfg.Interval)or 0.5)
+end
+end)
+end
+render()
+return element
+end
+end
+__modules["elements/image"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local height=tonumber(cfg.Height)or 120
+local holder=create("Frame",{Name=tostring(cfg.Name or"Image"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,height+(cfg.Caption and 18 or 0)),LayoutOrder=card:_order(),Parent=card.body})
+local frame=create("ImageLabel",{
+Name="Picture",Size=UDim2.new(1,0,0,height),BorderSizePixel=0,ScaleType=cfg.Fit=="Fit"and Enum.ScaleType.Fit or Enum.ScaleType.Crop,
+Parent=holder,
+})
+Theme.bind(frame,"BackgroundColor3","input")
+corner(frame,tonumber(cfg.Radius)or 8)
+if typeof(cfg.AspectRatio)=="number"then
+create("UIAspectRatioConstraint",{AspectRatio=cfg.AspectRatio,Parent=frame})
+end
+local caption
+if cfg.Caption then
+caption=label(holder,tostring(cfg.Caption),9,{Name="Caption",Position=UDim2.fromOffset(0,height+4),Size=UDim2.new(1,0,0,14),TextXAlignment=Enum.TextXAlignment.Center})
+Theme.bind(caption,"TextColor3","muted")
+end
+local element=Base.element(card,"Image",{},holder,caption,nil)
+function element:Set(image)
+self.Value=image
+frame.Image=""
+if image==nil then return end
+local icon=Icons.Get(image)
+if icon then Icons.Apply(frame,image)else frame.Image=tostring(image)end
+local isPicture=tostring(image):match("^rbxasset")or tostring(image):match("^%d+$")or tostring(image):match("^https?://")
+if isPicture then frame.ImageColor3=Color3.new(1,1,1)else Theme.bind(frame,"ImageColor3","heading")end
+end
+element:Set(cfg.Image)
+return element
+end
+end
+__modules["elements/imagepicker"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+return function(card,cfg)
+local images=cfg.Images or{}
+local columns=math.max(1,tonumber(cfg.Columns)or 5)
+local cell=tonumber(cfg.CellSize)or 40
+local rowsCount=math.ceil(#images/columns)
+local top=cfg.Title and 24 or 0
+local holder=create("Frame",{Name=tostring(cfg.Title or"Images"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,top+rowsCount*(cell+6)),LayoutOrder=card:_order(),Parent=card.body})
+local title
+if cfg.Title then
+title=label(holder,tostring(cfg.Title),11,{Name="Title",Size=UDim2.new(1,0,0,20)})
+Theme.bind(title,"TextColor3","text")
+end
+local grid=create("Frame",{Name="Grid",BackgroundTransparency=1,Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,1,-top),Parent=holder})
+local element=Base.element(card,"ImagePicker",cfg,holder,title,nil)
+local buttons={}
+local function asset(image)
+image=tostring(image)
+return image:match("^%d+$")and("rbxassetid://"..image)or image
+end
+local function render()
+for image,entry in pairs(buttons)do
+local on=image==element.Value
+Theme.tweenTo(entry.button,"BackgroundColor3",on and"selected"or"input",0.1)
+Theme.tweenTo(entry.outline,"Color",on and"accent"or"line",0.1)
+entry.outline.Transparency=on and 0.2 or 0.6
+end
+end
+for index,image in ipairs(images)do
+local key=tostring(image)
+local button=create("ImageButton",{
+Name="Image"..index,AutoButtonColor=false,BorderSizePixel=0,Image="",LayoutOrder=index,Parent=grid,
+Position=UDim2.new(((index-1)%columns)/columns,3,0,((index-1)//columns)*(cell+6)),Size=UDim2.new(1/columns,-6,0,cell),
+})
+corner(button,6)
+local outline=stroke(button)
+local preview=create("ImageLabel",{
+Name="Preview",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromScale(0.62,0.62),
+BackgroundTransparency=1,Image=asset(image),ScaleType=Enum.ScaleType.Fit,Parent=button,
+})
+if not tostring(image):match("^%d+$")and not tostring(image):match("^rbxasset")then Icons.Apply(preview,image)end
+buttons[key]={button=button,outline=outline}
+button.Activated:Connect(function()if not element.Locked then element:Set(key)end end)
+end
+function element:Set(image,silent)
+image=image~=nil and tostring(image)or nil
+if image and not buttons[image]then return end
+local changed=image~=self.Value
+self.Value=image
+render()
+self:_fire(image,silent or not changed)
+end
+function element:Get()return self.Value end
+element:Set(cfg.Default~=nil and cfg.Default or images[1],true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/info"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+return function(card,cfg)
+local row=create("Frame",{Name=tostring(cfg.Title or"Info"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,22),LayoutOrder=card:_order(),Parent=card.body})
+local title=label(row,tostring(cfg.Title or""),10,{Name="Title",Size=UDim2.new(0.42,-6,1,0)})
+Theme.bind(title,"TextColor3","muted")
+local copyWidth=cfg.Copy and 40 or 0
+local value=label(row,"",10,{
+Name="Value",Position=UDim2.new(0.42,copyWidth,0,0),Size=UDim2.new(0.58,-copyWidth,1,0),
+TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium,
+})
+Theme.bind(value,"TextColor3","text")
+local element=Base.element(card,"Info",{},row,title,nil)
+function element:Set(text)self.Value=text value.Text=tostring(text)end
+function element:Get()return self.Value end
+function element:SetColor(color)if typeof(color)=="Color3"then value.TextColor3=color else Theme.bind(value,"TextColor3",color or"text")end end
+if cfg.Copy then
+local copy=create("TextButton",{
+Name="Copy",Text="Copy",TextSize=8,Font=Enum.Font.Gotham,AutoButtonColor=false,BorderSizePixel=0,
+AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0.42,0,0.5,0),Size=UDim2.fromOffset(34,16),Parent=row,
+})
+Theme.bind(copy,"BackgroundColor3","input")
+Theme.bind(copy,"TextColor3","text")
+corner(copy,5)
+Theme.bind(stroke(copy),"Color","buttonEdge")
+copy.Activated:Connect(function()
+local text=cfg.Copy
+if type(text)=="function"then local ok,result=pcall(text)text=ok and result or nil end
+if text==true or text==nil then text=tostring(element.Value):gsub("^#","")end
+local clipboard=setclipboard or toclipboard
+local ok=type(clipboard)=="function"and pcall(clipboard,tostring(text))
+copy.Text=ok and"OK"or"!"
+task.delay(1.2,function()if copy.Parent then copy.Text="Copy"end end)
+if ok then card.window:Notify({Title="Copied",Content=tostring(cfg.Title or"Value").." copied to clipboard"})end
+end)
+end
+element:Set(cfg.Value~=nil and cfg.Value or"--")
+return element
+end
+end
+__modules["elements/input"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
+return function(card,cfg)
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=160})
+title.Size=UDim2.new(0.55,-8,0,title.Size.Y.Offset)
+if desc then desc.Size=UDim2.new(0.55,-8,0,14)end
+local box=create("TextBox",{
+Name="Box",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),Size=UDim2.new(0.45,0,0,24),
+BorderSizePixel=0,Text="",PlaceholderText=tostring(cfg.Placeholder or""),TextSize=10,Font=Enum.Font.Gotham,
+TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=cfg.ClearOnFocus==true,ClipsDescendants=true,Parent=row,
+})
+Theme.bind(box,"BackgroundColor3","input")
+Theme.bind(box,"TextColor3","text")
+Theme.bind(box,"PlaceholderColor3","muted")
+corner(box,6)
+local outline=stroke(box)
+Theme.bind(outline,"Color","buttonEdge")
+Util.padding(box,8,8,0,0)
+create("UISizeConstraint",{MaxSize=Vector2.new(170,24),Parent=box})
+local element=Base.element(card,"Input",cfg,row,title,desc)
+local function clean(text)
+text=tostring(text or"")
+if cfg.Numeric then text=text:gsub("[^%d%.%-]","")end
+return text
+end
+function element:Set(text,silent)
+text=clean(text)
+local changed=text~=self.Value
+self.Value=text
+if box.Text~=text then box.Text=text end
+self:_fire(text,silent or not changed)
+end
+function element:Get()return self.Value end
+box.Focused:Connect(function()Theme.tweenTo(outline,"Color","accent",0.1)end)
+box.FocusLost:Connect(function()
+Theme.tweenTo(outline,"Color","buttonEdge",0.1)
+element:Set(box.Text)
+end)
+if cfg.Finished==false then
+box:GetPropertyChangedSignal("Text"):Connect(function()element:Set(box.Text)end)
+end
+element:Set(cfg.Default or"",true)
+if cfg.Locked then box.TextEditable=false end
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/keybind"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
+return function(card,cfg)
+local window=card.window
+local chordMode=cfg.Chord==true
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=chordMode and 130 or 100})
+local badge=create("TextButton",{
+Name="Key",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),
+Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(48,22),Text="",TextSize=10,
+Font=Enum.Font.GothamMedium,Parent=row,
+})
+Theme.bind(badge,"BackgroundColor3","input")
+Theme.bind(badge,"TextColor3","heading")
+corner(badge,6)
+local outline=stroke(badge)
+Theme.bind(outline,"Color","buttonEdge")
+local element=Base.element(card,"Keybind",cfg,row,title,desc)
+local function show(text)
+badge.Text=text
+local width=math.max(48,Util.textWidth(text,10,Enum.Font.GothamMedium)+18)
+badge.Size=UDim2.fromOffset(width,22)
+local reserve=math.max(width,60)+12
+if cfg.Help then reserve=(chordMode and 130 or 100)+16 end
+title.Size=UDim2.new(1,-reserve,0,title.Size.Y.Offset)
+if desc then desc.Size=UDim2.new(1,-reserve,0,desc.Size.Y.Offset)end
+end
+local function chordName(chord)
+if not chord or not chord[2]then return"None"end
+return(chord[1]and(Util.keyName(chord[1]).." + ")or"")..Util.keyName(chord[2])
+end
+function element:Set(key,silent)
+if chordMode then
+if type(key)=="string"then
+local first,second=key:match("^([^+]+)%+(.+)$")
+key=first and{Util.toKey(first),Util.toKey(second)}or{nil,Util.toKey(key)}
+elseif typeof(key)=="EnumItem"then
+key={nil,key}
+elseif type(key)=="table"then
+key={Util.toKey(key[1]),Util.toKey(key[2])}
+if not key[2]and key[1]then key={nil,key[1]}end
+else
+key=nil
+end
+if key and not key[2]then key=nil end
+local changed=chordName(key)~=chordName(self.Value)
+self.Value,self.Chord=key,key
+window:_bind(self,key and key[2]or nil)
+show(chordName(key))
+Theme.tweenTo(outline,"Color","buttonEdge",0.1)
+self:_fire(key,silent or not changed)
+return
+end
+key=Util.toKey(key)
+local changed=key~=self.Value
+self.Value=key
+window:_bind(self,key)
+show(Util.keyName(key))
+Theme.tweenTo(outline,"Color","buttonEdge",0.1)
+if changed then self:_fire(key,silent)else self:_fire(key,true)end
+end
+function element:Get()return self.Value end
+function element:_onBind()window:_safe(tostring(cfg.Title or"Keybind"),cfg.Pressed,self.Value)end
+function element:_save()
+if chordMode then
+local chord=self.Value
+if not chord then return"None"end
+return(chord[1]and(chord[1].Name.."+")or"")..chord[2].Name
+end
+return self.Value and self.Value.Name or"None"
+end
+badge.Activated:Connect(function()
+if element.Locked then return end
+show("...")
+Theme.tweenTo(outline,"Color","accent",0.1)
+local modifier
+local function capture(key)
+window._captureMouse=nil
+if key==Enum.KeyCode.Escape then element:Set(element.Value,true)return end
+if key==Enum.KeyCode.Backspace then element:Set(nil)return end
+if chordMode then
+if not modifier and Util.isModifier(key)then
+modifier=key
+show(Util.keyName(key).." + ...")
+window._captureMouse=true
+window._capture=capture
+return
+end
+element:Set({modifier,key})
+return
+end
+if key==window.key then element:Set(element.Value,true)return end
+element:Set(key)
+end
+window._capture=capture
+end)
+element:Set(cfg.Default,true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/label"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+return function(card,cfg)
+local text=Util.label(card.body,tostring(cfg.Title or cfg.Text or""),10,{
+Name="Label",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,
+TextTruncate=Enum.TextTruncate.None,RichText=true,LayoutOrder=card:_order(),
+})
+if typeof(cfg.Color)=="Color3"then text.TextColor3=cfg.Color else Theme.bind(text,"TextColor3","muted")end
+local element=Base.element(card,"Label",{},text,text,nil)
+function element:Set(value)text.Text=tostring(value)end
+function element:SetColor(color)if typeof(color)=="Color3"then text.TextColor3=color end end
+return element
+end
+end
+__modules["elements/paragraph"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create=Util.create
+return function(card,cfg)
+local holder=create("Frame",{
+Name="Paragraph",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
+LayoutOrder=card:_order(),Parent=card.body,
+})
+Util.list(holder,2)
+local title=Util.label(holder,tostring(cfg.Title or""),11,{Name="Title",Size=UDim2.new(1,0,0,18),Font=Enum.Font.GothamMedium,LayoutOrder=1})
+Theme.bind(title,"TextColor3","heading")
+title.Visible=cfg.Title~=nil
+local content=Util.label(holder,tostring(cfg.Content or""),10,{
+Name="Content",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,
+TextTruncate=Enum.TextTruncate.None,TextYAlignment=Enum.TextYAlignment.Top,RichText=true,LayoutOrder=2,
+})
+Theme.bind(content,"TextColor3","muted")
+local element=Base.element(card,"Paragraph",{},holder,title,content)
+function element:Set(text)content.Text=tostring(text)end
+function element:SetContent(text)content.Text=tostring(text)end
+return element
+end
+end
+__modules["elements/playerlist"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Services=Util.Services
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local ROW=30
+return function(card,cfg)
+local window=card.window
+local Players=Services.Players
+local multi=cfg.Multi~=false
+local height=tonumber(cfg.Height)or 150
+local holder=create("Frame",{Name=tostring(cfg.Title or"Players"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,height+(cfg.Title and 56 or 34)),LayoutOrder=card:_order(),Parent=card.body})
+local top=0
+local title
+if cfg.Title then
+title=label(holder,tostring(cfg.Title),11,{Name="Title",Size=UDim2.new(1,-90,0,20)})
+Theme.bind(title,"TextColor3","text")
+top=22
+end
+local count=label(holder,"",9,{Name="Count",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(90,20),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(count,"TextColor3","muted")
+local search=create("TextBox",{
+Name="Search",Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,0,26),BorderSizePixel=0,Text="",
+PlaceholderText="Search players...",TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,
+ClearTextOnFocus=false,Parent=holder,
+})
+Theme.bind(search,"BackgroundColor3","input")
+Theme.bind(search,"TextColor3","text")
+Theme.bind(search,"PlaceholderColor3","muted")
+corner(search,6)
+Theme.bind(stroke(search),"Color","buttonEdge")
+Util.padding(search,9,9,0,0)
+local list=create("ScrollingFrame",{
+Name="List",Position=UDim2.fromOffset(0,top+32),Size=UDim2.new(1,0,0,height),BorderSizePixel=0,
+CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollBarThickness=2,ScrollingDirection=Enum.ScrollingDirection.Y,
+Parent=holder,
+})
+Theme.bind(list,"BackgroundColor3","base")
+Theme.bind(list,"ScrollBarImageColor3","muted")
+list.BackgroundTransparency=0.4
+corner(list,6)
+Theme.bind(stroke(list),"Color","line")
+local inner=create("Frame",{Name="Rows",BackgroundTransparency=1,Position=UDim2.fromOffset(4,4),Size=UDim2.new(1,-10,0,0),AutomaticSize=Enum.AutomaticSize.Y,Parent=list})
+Util.list(inner,2)
+Util.padding(inner,0,0,0,6)
+local empty=label(list,"No players",10,{Name="Empty",Size=UDim2.new(1,0,0,30),TextXAlignment=Enum.TextXAlignment.Center,Visible=false})
+Theme.bind(empty,"TextColor3","muted")
+local element=Base.element(card,"PlayerList",cfg,holder,title,nil)
+local chosen={}
+local rows={}
+local function valueList()
+local ids={}
+for id in pairs(chosen)do ids[#ids+1]=id end
+table.sort(ids)
+return ids
+end
+local function renderRow(entry)
+local on=chosen[entry.player.UserId]==true
+entry.button.BackgroundTransparency=on and 0 or 1
+Theme.bind(entry.name,"TextColor3",on and"accent"or"text")
+entry.check.Visible=on
+end
+local function filter()
+local query=search.Text:lower()
+local shown=0
+for _,entry in pairs(rows)do
+local player=entry.player
+local match=query==""or player.Name:lower():find(query,1,true)or player.DisplayName:lower():find(query,1,true)
+entry.button.Visible=match~=nil and match~=false
+if entry.button.Visible then shown=shown+1 end
+end
+empty.Visible=shown==0
+local selected=0
+for _ in pairs(chosen)do selected=selected+1 end
+local total=0
+for _ in pairs(rows)do total=total+1 end
+count.Text=selected>0 and(selected.." selected")or(total..(total==1 and" player"or" players"))
+end
+local function commit()
+element.Value=multi and valueList()or valueList()[1]
+for _,entry in pairs(rows)do renderRow(entry)end
+filter()
+element:_fire(element.Value)
+end
+local function addRow(player)
+if rows[player]or not holder.Parent or(player==Players.LocalPlayer and not cfg.IncludeSelf)then return end
+local button=create("TextButton",{
+Name=player.Name,Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundTransparency=1,
+Size=UDim2.new(1,0,0,ROW),Parent=inner,
+})
+Theme.bind(button,"BackgroundColor3","selected")
+corner(button,5)
+local avatar=create("ImageLabel",{Position=UDim2.fromOffset(4,3),Size=UDim2.fromOffset(24,24),BorderSizePixel=0,Parent=button})
+Theme.bind(avatar,"BackgroundColor3","input")
+corner(avatar,12)
+local name=label(button,player.DisplayName,10,{Position=UDim2.fromOffset(36,2),Size=UDim2.new(1,-60,0,14),Font=Enum.Font.GothamMedium})
+local user=label(button,"@"..player.Name,9,{Position=UDim2.fromOffset(36,15),Size=UDim2.new(1,-60,0,12)})
+Theme.bind(user,"TextColor3","muted")
+local check=create("Frame",{Name="Check",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-10,0.5,0),Size=UDim2.fromOffset(6,6),BorderSizePixel=0,Visible=false,Parent=button})
+Theme.bind(check,"BackgroundColor3","accent")
+corner(check,3)
+local entry={player=player,button=button,name=name,check=check}
+rows[player]=entry
+button.MouseEnter:Connect(function()if not chosen[player.UserId]then button.BackgroundTransparency=0.5 end end)
+button.MouseLeave:Connect(function()renderRow(entry)end)
+button.Activated:Connect(function()
+if element.Locked then return end
+local id=player.UserId
+if multi then
+chosen[id]=not chosen[id]or nil
+else
+local was=chosen[id]
+chosen={}
+if not was then chosen[id]=true end
+end
+commit()
+end)
+task.spawn(function()
+local ok,image=pcall(function()
+return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size48x48)
+end)
+if ok and avatar.Parent then avatar.Image=image end
+end)
+renderRow(entry)
+filter()
+end
+local function removeRow(player)
+local entry=rows[player]
+if entry then entry.button:Destroy()rows[player]=nil filter()end
+end
+for _,player in ipairs(Players:GetPlayers())do addRow(player)end
+window.maid:connect(Players.PlayerAdded,addRow)
+window.maid:connect(Players.PlayerRemoving,removeRow)
+search:GetPropertyChangedSignal("Text"):Connect(filter)
+function element:Set(ids,silent)
+chosen={}
+for _,id in ipairs(type(ids)=="table"and ids or{ids})do
+id=tonumber(id)
+if id then chosen[id]=true end
+if not multi then break end
+end
+self.Value=multi and valueList()or valueList()[1]
+for _,entry in pairs(rows)do renderRow(entry)end
+filter()
+self:_fire(self.Value,silent)
+end
+function element:Get()return self.Value end
+function element:GetPlayers()
+local out={}
+for _,player in ipairs(Players:GetPlayers())do if chosen[player.UserId]then out[#out+1]=player end end
+return out
+end
+function element:Clear()self:Set({})end
+element:Set(cfg.Default or{},true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/progress"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local window=card.window
+local top=cfg.Desc and 38 or 22
+local row,title,desc=Base.row(card,cfg,top+12,{right=90,titleHeight=22})
+local value=label(row,"",10,{Name="Value",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,1),Size=UDim2.fromOffset(86,20),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium})
+Theme.bind(value,"TextColor3","text")
+if desc then desc.Size=UDim2.new(1,desc.Size.X.Offset,0,14)end
+local track=create("Frame",{Name="Track",Position=UDim2.new(0,0,0,top+4),Size=UDim2.new(1,0,0,6),BorderSizePixel=0,ClipsDescendants=true,Parent=row})
+Theme.bind(track,"BackgroundColor3","input")
+corner(track,3)
+local fill=create("Frame",{Name="Fill",Size=UDim2.fromScale(0,1),BorderSizePixel=0,Parent=track})
+Theme.bind(fill,"BackgroundColor3","accent")
+corner(fill,3)
+create("UIGradient",{Transparency=NumberSequence.new(0.25,0),Parent=fill})
+local element=Base.element(card,"Progress",{},row,title,desc)
+local max=math.max(tonumber(cfg.Max)or 100,1e-9)
+local suffix=cfg.Suffix
+local indeterminate=false
+local function text()
+if indeterminate then return cfg.IndeterminateText or"Working..."end
+if type(cfg.Format)=="function"then
+local ok,result=pcall(cfg.Format,element.Value,max)
+if ok then return tostring(result)end
+end
+if suffix==nil and max==100 then return math.floor(element.Value+0.5).."%"end
+return math.floor(element.Value+0.5).." / "..math.floor(max+0.5)..(suffix and(" "..suffix)or"")
+end
+local function render(animate)
+value.Text=text()
+if indeterminate then return end
+local ratio=math.clamp(element.Value/max,0,1)
+fill.Position=UDim2.fromScale(0,0)
+if animate then Util.tween(fill,0.25,{Size=UDim2.fromScale(ratio,1)})else fill.Size=UDim2.fromScale(ratio,1)end
+end
+function element:Set(v)self.Value=math.max(0,tonumber(v)or 0)render(true)end
+function element:SetMax(m)max=math.max(tonumber(m)or max,1e-9)render(true)end
+function element:Get()return self.Value,max end
+local spinner
+function element:SetIndeterminate(on)
+indeterminate=on==true
+if spinner then spinner:Disconnect()spinner=nil end
+if indeterminate then
+fill.Size=UDim2.fromScale(0.3,1)
+local started=os.clock()
+spinner=window.maid:connect(Util.Services.RunService.Heartbeat,function()
+if not row.Parent then return end
+local t=((os.clock()-started)/1.2)%1
+fill.Position=UDim2.fromScale(-0.3+t*1.3,0)
+end)
+end
+render(false)
+end
+element.Value=math.max(0,tonumber(cfg.Value or cfg.Default)or 0)
+render(false)
+if cfg.Indeterminate then element:SetIndeterminate(true)end
+return element
+end
+end
+__modules["elements/range"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner=Util.create,Util.corner
+return function(card,cfg)
+local window=card.window
+local min,max=tonumber(cfg.Min)or 0,tonumber(cfg.Max)or 100
+if max<min then min,max=max,min end
+local step=tonumber(cfg.Step)or 1
+local gap=math.max(0,tonumber(cfg.MinGap)or 0)
+local suffix=cfg.Suffix and(" "..tostring(cfg.Suffix))or""
+local decimals=Util.decimals(step)
+local top=cfg.Desc and 38 or 22
+local row,title,desc=Base.row(card,cfg,top+18,{right=150,titleHeight=22,helpRight=146,helpY=11})
+local boxes=create("Frame",{Name="Values",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,1),Size=UDim2.fromOffset(150,20),Parent=row})
+local function box(name,x,align)
+local object=create("TextBox",{
+Name=name,Position=UDim2.fromOffset(x,0),Size=UDim2.fromOffset(52,20),BackgroundTransparency=1,BorderSizePixel=0,
+Text="",TextSize=10,Font=Enum.Font.GothamMedium,ClearTextOnFocus=false,TextXAlignment=align,Parent=boxes,
+})
+Theme.bind(object,"BackgroundColor3","base")
+Theme.bind(object,"TextColor3","text")
+corner(object,6)
+return object
+end
+local lowBox,highBox=box("Low",0,Enum.TextXAlignment.Right),box("High",64,Enum.TextXAlignment.Right)
+local dash=Util.label(boxes,"–",10,{Name="Dash",Position=UDim2.fromOffset(52,0),Size=UDim2.fromOffset(14,20),TextXAlignment=Enum.TextXAlignment.Center})
+Theme.bind(dash,"TextColor3","muted")
+if desc then desc.Size=UDim2.new(1,0,0,14)end
+local track=create("Frame",{Name="Track",Position=UDim2.new(0,0,0,top+8),Size=UDim2.new(1,0,0,2),BorderSizePixel=0,Parent=row})
+Theme.bind(track,"BackgroundColor3","buttonEdge")
+corner(track,1)
+local fill=create("Frame",{Name="Fill",Size=UDim2.fromScale(0,1),BorderSizePixel=0,Parent=track})
+Theme.bind(fill,"BackgroundColor3","accent")
+local function knob(name)
+local object=create("Frame",{Name=name,AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(10,10),BorderSizePixel=0,ZIndex=2,Parent=track})
+Theme.bind(object,"BackgroundColor3","accent")
+corner(object,5)
+return object
+end
+local lowKnob,highKnob=knob("LowKnob"),knob("HighKnob")
+local hit=create("TextButton",{Name="Hit",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.new(0,-6,0,top),Size=UDim2.new(1,12,0,18),ZIndex=3,Parent=row})
+local element=Base.element(card,"Range",cfg,row,title,desc)
+local focused={}
+local function format(value)
+return decimals>0 and string.format("%."..decimals.."f",value)or tostring(math.floor(value+0.5))
+end
+local function snap(value)
+value=math.clamp(Util.round(value-min,step)+min,min,max)
+if decimals>0 then value=tonumber(string.format("%."..decimals.."f",value))end
+return value
+end
+local function ratio(value)return max>min and(value-min)/(max-min)or 0 end
+local function render()
+local low,high=element.Value[1],element.Value[2]
+local a,b=ratio(low),ratio(high)
+lowKnob.Position=UDim2.new(a,5-10*a,0.5,0)
+highKnob.Position=UDim2.new(b,5-10*b,0.5,0)
+fill.Position=UDim2.new(a,5-10*a,0,0)
+fill.Size=UDim2.new(b-a,-10*(b-a),1,0)
+if not focused.low then lowBox.Text=format(low)..suffix end
+if not focused.high then highBox.Text=format(high)..suffix end
+local function width(object)return math.max(18,Util.textWidth(object.Text,10,Enum.Font.GothamMedium)+(focused[object==lowBox and"low"or"high"]and 14 or 2))end
+local highWidth,lowWidth=width(highBox),width(lowBox)
+highBox.Position,highBox.Size=UDim2.new(1,-highWidth,0,0),UDim2.fromOffset(highWidth,20)
+dash.Position=UDim2.new(1,-highWidth-14,0,0)
+lowBox.Position,lowBox.Size=UDim2.new(1,-highWidth-14-lowWidth,0,0),UDim2.fromOffset(lowWidth,20)
+if not cfg.Help then title.Size=UDim2.new(1,-(highWidth+14+lowWidth+10),0,title.Size.Y.Offset)end
+end
+function element:Set(value,silent)
+if type(value)~="table"then return end
+local low,high=tonumber(value[1])or min,tonumber(value[2])or max
+if low>high then low,high=high,low end
+low,high=snap(low),snap(high)
+if high-low<gap then
+if low+gap<=max then high=snap(low+gap)else low=snap(high-gap)end
+end
+local old=self.Value
+self.Value={low,high}
+render()
+self:_fire(self.Value,silent or(old and old[1]==low and old[2]==high))
+end
+function element:Get()return self.Value[1],self.Value[2]end
+local dragging
+local function fromPoint(point)
+local width=track.AbsoluteSize.X
+if width<=0 then return end
+local inset=5*(window.scale and window.scale.Scale or 1)
+local value=min+math.clamp((point.X-track.AbsolutePosition.X-inset)/math.max(1,width-inset*2),0,1)*(max-min)
+if not dragging then
+local low,high=element.Value[1],element.Value[2]
+dragging=(math.abs(value-low)<math.abs(value-high)or(low==high and value<low))and 1 or 2
+end
+local next={element.Value[1],element.Value[2]}
+next[dragging]=value
+if dragging==1 then next[1]=math.min(value,element.Value[2]-gap)else next[2]=math.max(value,element.Value[1]+gap)end
+element:Set(next)
+end
+hit.InputBegan:Connect(function(input)
+if not Util.isPress(input)or element.Locked then return end
+dragging=nil
+fromPoint(Util.pointer(input))
+window:_beginDrag(input,fromPoint,function()dragging=nil end)
+end)
+for key,object in pairs({low=lowBox,high=highBox})do
+object.Focused:Connect(function()focused[key]=true object.BackgroundTransparency=0.2 render()end)
+object.FocusLost:Connect(function()
+focused[key]=false
+object.BackgroundTransparency=1
+local number=tonumber((object.Text:gsub("[^%d%.%-]","")))
+if number then
+local next={element.Value[1],element.Value[2]}
+next[key=="low"and 1 or 2]=number
+element:Set(next)
+end
+render()
+end)
+end
+local default=type(cfg.Default)=="table"and cfg.Default or{min,max}
+element.Value={min,max}
+element:Set(default,true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/segment"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
+return function(card,cfg)
+local options={}
+for _,option in ipairs(cfg.Options or cfg.Values or{})do options[#options+1]=tostring(option)end
+local row,title,desc=Base.row(card,cfg,40,{})
+title.Size=UDim2.new(0,110,0,cfg.Desc and 18 or 40)
+if desc then desc.Size=UDim2.new(0,110,0,14)end
+local strip=create("Frame",{
+Name="Segments",BackgroundTransparency=1,AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,120,0.5,0),
+Size=UDim2.new(1,-120,0,28),Parent=row,
+})
+local element=Base.element(card,"Segment",cfg,row,title,desc)
+local buttons,outlines={},{}
+local function render(animate)
+local duration=animate and 0.12 or nil
+for index,option in ipairs(options)do
+local selected=option==element.Value
+Theme.tweenTo(buttons[index],"BackgroundColor3",selected and"selected"or"input",duration)
+Theme.tweenTo(buttons[index],"TextColor3",selected and"accent"or"muted",duration)
+Theme.tweenTo(outlines[index],"Color",selected and"accent"or"line",duration)
+outlines[index].Transparency=selected and 0.25 or 0.65
+end
+end
+for index,option in ipairs(options)do
+local button=create("TextButton",{
+Name=option,Text=option,TextSize=10,Font=Enum.Font.GothamMedium,AutoButtonColor=false,BorderSizePixel=0,
+AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new((index-0.5)/#options,0,0.5,0),
+Size=UDim2.new(1/#options,-4,0,24),TextTruncate=Enum.TextTruncate.AtEnd,Parent=strip,
+})
+corner(button,6)
+buttons[index],outlines[index]=button,stroke(button)
+button.Activated:Connect(function()if not element.Locked then element:Set(option)end end)
+end
+local function fit()
+local stacked=row.AbsoluteSize.X>0 and row.AbsoluteSize.X<300
+row.Size=UDim2.new(1,0,0,stacked and 70 or(cfg.Desc and 46 or 40))
+strip.AnchorPoint=stacked and Vector2.new(0,0)or Vector2.new(0,0.5)
+strip.Position=stacked and UDim2.fromOffset(0,cfg.Desc and 40 or 30)or UDim2.new(0,120,0.5,0)
+strip.Size=stacked and UDim2.new(1,0,0,28)or UDim2.new(1,-120,0,28)
+title.Size=UDim2.new(stacked and 1 or 0,stacked and 0 or 110,0,cfg.Desc and 18 or(stacked and 28 or 40))
+end
+row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+function element:Set(value,silent)
+value=value~=nil and tostring(value)or nil
+if value and not table.find(options,value)then return end
+local changed=value~=self.Value
+self.Value=value
+render(true)
+self:_fire(value,silent or not changed)
+end
+function element:Get()return self.Value end
+element.Value=cfg.Default~=nil and table.find(options,tostring(cfg.Default))and tostring(cfg.Default)or options[1]
+render(false)
+fit()
+element:_fire(element.Value,true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/slider"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner=Util.create,Util.corner
+return function(card,cfg)
+local window=card.window
+local min,max=tonumber(cfg.Min)or 0,tonumber(cfg.Max)or 100
+if max<min then min,max=max,min end
+local step=tonumber(cfg.Step)or 1
+local suffix=cfg.Suffix and(" "..tostring(cfg.Suffix))or""
+local decimals=Util.decimals(step)
+local top=cfg.Desc and 38 or 22
+local row,title,desc=Base.row(card,cfg,top+18,{right=90,titleHeight=22,helpRight=84,helpY=11})
+if desc then desc.Size=UDim2.new(1,0,0,14)end
+local box=create("TextBox",{
+Name="Value",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,1),Size=UDim2.fromOffset(78,20),
+BackgroundTransparency=1,BorderSizePixel=0,Text="",TextSize=10,Font=Enum.Font.GothamMedium,
+TextXAlignment=Enum.TextXAlignment.Right,ClearTextOnFocus=false,Parent=row,
+})
+local boxPad=Util.padding(box,0,0,0,0)
+box.Focused:Connect(function()box.BackgroundTransparency=0.2 boxPad.PaddingRight=UDim.new(0,6)boxPad.PaddingLeft=UDim.new(0,6)end)
+box.FocusLost:Connect(function()box.BackgroundTransparency=1 boxPad.PaddingRight=UDim.new(0,0)boxPad.PaddingLeft=UDim.new(0,0)end)
+Theme.bind(box,"TextColor3","text")
+Theme.bind(box,"BackgroundColor3","base")
+corner(box,6)
+local sideIcons=type(cfg.Icons)=="table"and cfg.Icons or nil
+local inset=sideIcons and 20 or 0
+local track=create("Frame",{Name="Track",Position=UDim2.new(0,inset,0,top+8),Size=UDim2.new(1,-inset*2,0,2),BorderSizePixel=0,Parent=row})
+Theme.bind(track,"BackgroundColor3","buttonEdge")
+corner(track,1)
+local fill=create("Frame",{Name="Fill",Size=UDim2.fromScale(0,1),BorderSizePixel=0,Parent=track})
+Theme.bind(fill,"BackgroundColor3","accent")
+corner(fill,1)
+local knob=create("Frame",{Name="Knob",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(10,10),BorderSizePixel=0,ZIndex=2,Parent=track})
+Theme.bind(knob,"BackgroundColor3","accent")
+corner(knob,5)
+local hit=create("TextButton",{Name="Hit",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.new(0,inset-6,0,top),Size=UDim2.new(1,12-inset*2,0,18),ZIndex=3,Parent=row})
+local bubble=create("TextLabel",{
+Name="Bubble",AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,0,-6),Size=UDim2.fromOffset(0,18),AutomaticSize=Enum.AutomaticSize.X,
+BorderSizePixel=0,Text="",TextSize=9,Font=Enum.Font.GothamMedium,Visible=false,ZIndex=6,Parent=knob,
+})
+Theme.bind(bubble,"BackgroundColor3","selected")
+Theme.bind(bubble,"TextColor3","heading")
+corner(bubble,5)
+Util.padding(bubble,7,7,0,0)
+Theme.bind(Util.stroke(bubble),"Color","buttonEdge")
+local element=Base.element(card,"Slider",cfg,row,title,desc)
+local focused=false
+local function format(value)
+return(decimals>0 and string.format("%."..decimals.."f",value)or tostring(math.floor(value+0.5)))..suffix
+end
+local function render()
+local ratio=max>min and(element.Value-min)/(max-min)or 0
+fill.Size=UDim2.new(ratio,5-10*ratio,1,0)
+knob.Position=UDim2.new(ratio,5-10*ratio,0.5,0)
+if not focused then box.Text=format(element.Value)end
+bubble.Text=format(element.Value)
+end
+function element:Set(value,silent)
+value=tonumber(value)
+if not value then render()return end
+value=math.clamp(Util.round(value-min,step)+min,min,max)
+if decimals>0 then value=tonumber(string.format("%."..decimals.."f",value))end
+local changed=value~=self.Value
+self.Value=value
+render()
+self:_fire(value,silent or not changed)
+end
+function element:Get()return self.Value end
+function element:SetRange(newMin,newMax)
+min,max=tonumber(newMin)or min,tonumber(newMax)or max
+self:Set(self.Value)
+end
+local function fromPoint(point)
+local width=track.AbsoluteSize.X
+if width<=0 then return end
+local inset=5*(window.scale and window.scale.Scale or 1)
+element:Set(min+math.clamp((point.X-track.AbsolutePosition.X-inset)/math.max(1,width-inset*2),0,1)*(max-min))
+end
+hit.InputBegan:Connect(function(input)
+if not Util.isPress(input)or element.Locked then return end
+bubble.Visible=cfg.Bubble~=false
+fromPoint(Util.pointer(input))
+window:_beginDrag(input,fromPoint,function()bubble.Visible=false end)
+end)
+if sideIcons then
+local stride=step>0 and math.max(step,(max-min)/10)or(max-min)/10
+for index,key in ipairs({"From","To"})do
+local name=sideIcons[key]or sideIcons[index]
+local icon=name and Icons.themed(row,name,13,"muted",{
+Name=key.."Icon",AnchorPoint=Vector2.new(index==1 and 0 or 1,0.5),Position=UDim2.new(index==1 and 0 or 1,0,0,top+9),
+})
+if icon then
+local click=create("TextButton",{Text="",BackgroundTransparency=1,Size=UDim2.new(1,6,1,6),Position=UDim2.fromOffset(-3,-3),ZIndex=4,Parent=icon})
+click.Activated:Connect(function()
+if element.Locked then return end
+element:Set(element.Value+(index==1 and-stride or stride))
+end)
+click.MouseEnter:Connect(function()Theme.tweenTo(icon,"ImageColor3","heading",0.1)end)
+click.MouseLeave:Connect(function()Theme.tweenTo(icon,"ImageColor3","muted",0.1)end)
+end
+end
+end
+box.Focused:Connect(function()focused=true end)
+box.FocusLost:Connect(function()
+focused=false
+local number=tonumber((box.Text:gsub("[^%d%.%-]","")))
+if number then element:Set(number)else render()end
+render()
+end)
+element.Value=math.clamp(tonumber(cfg.Default)or min,min,max)
+render()
+element:_fire(element.Value,true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/swatches"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local PRESETS={
+{"Neutral",Color3.fromRGB(177,178,183)},{"Blue",Color3.fromRGB(61,151,219)},
+{"Red",Color3.fromRGB(220,110,110)},{"Purple",Color3.fromRGB(165,125,230)},
+{"Pink",Color3.fromRGB(225,120,180)},{"Green",Color3.fromRGB(110,200,130)},
+{"Orange",Color3.fromRGB(215,170,105)},{"Cyan",Color3.fromRGB(100,200,210)},
+}
+return function(card,cfg)
+local colors=cfg.Colors or PRESETS
+local maxColumns=math.max(1,tonumber(cfg.Columns)or 4)
+local columns=maxColumns
+local rowsCount=math.ceil(#colors/columns)
+local top=(cfg.Title and 20 or 0)+(cfg.Desc and 16 or 0)+(cfg.Title and 4 or 0)
+local holder=create("Frame",{Name=tostring(cfg.Title or"Swatches"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,top+rowsCount*34),LayoutOrder=card:_order(),Parent=card.body})
+local title,desc
+if cfg.Title then
+title=label(holder,tostring(cfg.Title),11,{Name="Title",Size=UDim2.new(1,0,0,20)})
+Theme.bind(title,"TextColor3","text")
+end
+if cfg.Desc then
+desc=label(holder,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(0,cfg.Title and 20 or 0),Size=UDim2.new(1,0,0,14)})
+Theme.bind(desc,"TextColor3","muted")
+end
+local grid=create("Frame",{Name="Grid",BackgroundTransparency=1,Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,1,-top),Parent=holder})
+local element=Base.element(card,"Swatches",cfg,holder,title,desc)
+local entries,byName={},{}
+local function render()
+for _,entry in ipairs(entries)do
+local on=entry.name==element.Value
+Theme.tweenTo(entry.button,"BackgroundColor3",on and"selected"or"card",0.1)
+Theme.tweenTo(entry.text,"TextColor3",on and"heading"or"muted",0.1)
+entry.outline.Transparency=on and 0.3 or 1
+end
+end
+for index,item in ipairs(colors)do
+local name,color=tostring(item[1]or item.Name),item[2]or item.Color
+local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,LayoutOrder=index,Parent=grid})
+corner(button,6)
+local outline=stroke(button,Color3.new(1,1,1),1)
+Theme.bind(outline,"Color","accent")
+local dot=create("Frame",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0.5,0),Size=UDim2.fromOffset(14,14),BorderSizePixel=0,BackgroundColor3=color,Parent=button})
+corner(dot,4)
+local text=label(button,name,10,{Position=UDim2.fromOffset(28,0),Size=UDim2.new(1,-32,1,0)})
+local entry={name=name,color=color,button=button,text=text,outline=outline}
+entries[#entries+1]=entry
+byName[name]=entry
+button.MouseEnter:Connect(function()if element.Value~=name then Theme.tweenTo(button,"BackgroundColor3","input",0.1)end end)
+button.MouseLeave:Connect(render)
+button.Activated:Connect(function()if not element.Locked then element:Set(name)end end)
+end
+local function place()
+local width=holder.AbsoluteSize.X
+columns=width>0 and math.clamp(math.floor((width+6)/90),2,maxColumns)or maxColumns
+columns=math.min(columns,math.max(1,#entries))
+for index,entry in ipairs(entries)do
+local column,line=(index-1)%columns,(index-1)//columns
+entry.button.Position=UDim2.new(column/columns,column==0 and 0 or 3,0,line*34)
+entry.button.Size=UDim2.new(1/columns,-6+(column==0 and 3 or 0)+(column==columns-1 and 3 or 0),0,28)
+end
+holder.Size=UDim2.new(1,0,0,top+math.ceil(#entries/columns)*34)
+end
+holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+local before=columns
+local width=holder.AbsoluteSize.X
+local want=width>0 and math.min(math.clamp(math.floor((width+6)/90),2,maxColumns),#entries)or maxColumns
+if want~=before then place()end
+end)
+place()
+function element:Set(name,silent)
+if typeof(name)=="Color3"then
+for _,entry in ipairs(entries)do if entry.color==name then name=entry.name break end end
+end
+if typeof(name)=="Color3"then
+self.Value,self.Color=nil,name
+render()
+return
+end
+local entry=byName[tostring(name)]
+if not entry then return end
+local changed=entry.name~=self.Value
+self.Value=entry.name
+self.Color=entry.color
+render()
+if self.Flag then card.window.Lib.Flags[self.Flag]=entry.name end
+if not silent and changed then
+local source=tostring(cfg.Title or"Swatches")
+card.window:_safe(source,cfg.Callback,entry.color,entry.name)
+for _,callback in ipairs(self._changed)do card.window:_safe(source,callback,entry.color,entry.name)end
+end
+end
+function element:Get()return self.Value,self.Color end
+element:Set(cfg.Default or(entries[1]and entries[1].name),true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/toggle"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner=Util.create,Util.corner
+return function(card,cfg)
+local window=card.window
+local bindable=cfg.Bindable or cfg.Bind~=nil
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 46 or 36,{button=true,right=50,helpRight=44})
+local switch=create("TextButton",{
+Name="Switch",Text="",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),
+Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(34,18),Parent=row,
+})
+corner(switch,9)
+local rim=Util.stroke(switch,nil,0.18)
+local knob=create("Frame",{Name="Knob",Position=UDim2.fromOffset(2,2),Size=UDim2.fromOffset(14,14),BorderSizePixel=0,Parent=switch})
+corner(knob,7)
+if cfg.Marker then
+local marker=create("Frame",{Name="Marker",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0.5,0),Size=UDim2.fromOffset(3,24),BorderSizePixel=0,BackgroundTransparency=0.15,Parent=row})
+Theme.bind(marker,"BackgroundColor3","accent")
+corner(marker,2)
+local icon=row:FindFirstChild("RowIcon")
+if icon then icon.Position=UDim2.new(0,12,icon.Position.Y.Scale,icon.Position.Y.Offset)end
+title.Position=UDim2.new(0,title.Position.X.Offset+12,0,title.Position.Y.Offset)
+if desc then desc.Position=UDim2.fromOffset(desc.Position.X.Offset+12,desc.Position.Y.Offset)end
+end
+if cfg.Badge then
+local text=tostring(cfg.Badge)
+local width=Util.textWidth(text,9,Enum.Font.GothamMedium)+16
+local titleWidth=Util.textWidth(tostring(cfg.Title or""),11,Enum.Font.Gotham)
+local badge=create("Frame",{
+Name="Badge",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,title.Position.X.Offset+titleWidth+10,0,title.Position.Y.Offset+title.Size.Y.Offset/2),
+Size=UDim2.fromOffset(width,18),BorderSizePixel=0,Parent=row,
+})
+Theme.bind(badge,"BackgroundColor3","input")
+corner(badge,6)
+Theme.bind(Util.stroke(badge,nil,0.45),"Color","buttonEdge")
+local badgeText=Util.label(badge,text,9,{Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamMedium})
+Theme.bind(badgeText,"TextColor3","muted")
+end
+local element=Base.element(card,"Toggle",cfg,row,title,desc)
+element.Value=cfg.Default==true
+local function render(animate)
+local on=element.Value
+local duration=animate and 0.15 or nil
+Theme.tweenTo(switch,"BackgroundColor3",on and"toggleOn"or"buttonEdge",duration)
+Theme.bind(knob,"BackgroundColor3","knob")
+Theme.tweenTo(rim,"Color",on and"accent"or"line",duration)
+rim.Transparency=on and 0.6 or 0.18
+local position=UDim2.fromOffset(on and 18 or 2,2)
+if animate then Util.tween(knob,0.15,{Position=position})else knob.Position=position end
+end
+function element:Set(value,silent)
+value=value==true
+local changed=value~=self.Value
+self.Value=value
+render(true)
+if changed then self:_fire(value,silent)else self:_fire(value,true)end
+end
+function element:Get()return self.Value end
+local tag
+function element:SetBind(key)
+key=Util.toKey(key)
+self.BindKey=key
+window:_bind(self,key)
+if tag then
+tag.Text=key and("["..Util.keyName(key).."]")or""
+tag.Visible=key~=nil
+local reserve=(key and 100 or 50)+(cfg.Help and 16 or 0)
+title.Size=UDim2.new(1,-reserve,0,title.Size.Y.Offset)
+if desc then desc.Size=UDim2.new(1,-reserve,0,14)end
+end
+end
+function element:_onBind()if not self.Locked then self:Set(not self.Value)end end
+if bindable then
+tag=Util.label(row,"",9,{
+Name="Bind",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,cfg.Help and-62 or-42,0.5,0),Size=UDim2.fromOffset(48,18),
+TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium,Visible=false,
+})
+Theme.bind(tag,"TextColor3","muted")
+row.MouseButton2Click:Connect(function()
+if element.Locked then return end
+tag.Text,tag.Visible="[...]",true
+title.Size=UDim2.new(1,-(100+(cfg.Help and 16 or 0)),0,title.Size.Y.Offset)
+window._capture=function(key)
+if key==Enum.KeyCode.Escape then element:SetBind(element.BindKey)
+elseif key==Enum.KeyCode.Backspace then element:SetBind(nil)
+else element:SetBind(key)end
+end
+end)
+element:SetBind(cfg.Bind)
+function element:_save()return{Value=self.Value,Bind=self.BindKey and self.BindKey.Name or nil}end
+function element:_load(data)
+if type(data)=="table"then self:SetBind(data.Bind)self:Set(data.Value)else self:Set(data)end
+end
+end
+local function flip()if not element.Locked then element:Set(not element.Value)end end
+row.Activated:Connect(flip)
+switch.Activated:Connect(flip)
+row.MouseEnter:Connect(function()Theme.tweenTo(title,"TextColor3","heading",0.12)end)
+row.MouseLeave:Connect(function()Theme.tweenTo(title,"TextColor3","text",0.12)end)
+render(false)
+element:_fire(element.Value,true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/viewport"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+return function(card,cfg)
+local window=card.window
+local height=tonumber(cfg.Height)or 170
+local holder=create("Frame",{Name=tostring(cfg.Name or"Viewport"),Size=UDim2.new(1,0,0,height),BorderSizePixel=0,LayoutOrder=card:_order(),Parent=card.body})
+Theme.bind(holder,"BackgroundColor3","base")
+corner(holder,8)
+Theme.bind(stroke(holder),"Color","line")
+local view=create("ViewportFrame",{
+Name="View",Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Ambient=Color3.fromRGB(150,150,155),
+LightColor=Color3.fromRGB(255,255,255),LightDirection=Vector3.new(-1,-1,-0.6),Parent=holder,
+})
+corner(view,8)
+local camera=Instance.new("Camera")
+camera.FieldOfView=40
+camera.Parent=view
+view.CurrentCamera=camera
+local world=Instance.new("WorldModel")
+world.Parent=view
+local empty=label(holder,"No object",10,{Name="Empty",Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center})
+Theme.bind(empty,"TextColor3","muted")
+local element=Base.element(card,"Viewport",{},holder,nil,nil)
+local center,radius=Vector3.zero,5
+local yaw,pitch,zoom=math.rad(25),math.rad(-12),1
+local spin=cfg.Spin==true
+local function place()
+local distance=(tonumber(cfg.Distance)or radius/math.tan(math.rad(camera.FieldOfView/2))*1.15)*zoom
+local rotation=CFrame.Angles(0,yaw,0)*CFrame.Angles(pitch,0,0)
+camera.CFrame=CFrame.new(center)*rotation*CFrame.new(0,0,distance)
+camera.Focus=CFrame.new(center)
+end
+function element:SetObject(object)
+world:ClearAllChildren()
+self.Value=object
+empty.Visible=object==nil
+if not object then return end
+local ok,copy=pcall(function()
+local archivable=object.Archivable
+object.Archivable=true
+local clone=object:Clone()
+object.Archivable=archivable
+return clone
+end)
+if not ok or not copy then empty.Text="Cannot preview"empty.Visible=true return end
+for _,d in ipairs(copy:GetDescendants())do
+if d:IsA("LuaSourceContainer")then d:Destroy()elseif d:IsA("BasePart")then d.Anchored=true end
+end
+if copy:IsA("BasePart")then copy.Anchored=true end
+copy.Parent=world
+local okBox,cf,size=pcall(function()
+if copy:IsA("Model")then return copy:GetBoundingBox()end
+return copy.CFrame,copy.Size
+end)
+if okBox then center,radius=cf.Position,math.max(size.Magnitude/2,0.5)end
+place()
+end
+function element:SetSpin(on)spin=on==true end
+if cfg.Interactive~=false then
+local hit=create("TextButton",{Name="Drag",Text="",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=3,Parent=holder})
+hit.InputBegan:Connect(function(input)
+if not Util.isPress(input)then return end
+local last=Util.pointer(input)
+window:_beginDrag(input,function(point)
+local delta=point-last
+last=point
+yaw=yaw-delta.X*0.012
+pitch=math.clamp(pitch-delta.Y*0.01,-1.3,1.3)
+place()
+end)
+end)
+hit.InputChanged:Connect(function(input)
+if input.UserInputType==Enum.UserInputType.MouseWheel then
+zoom=math.clamp(zoom*(input.Position.Z>0 and 0.9 or 1.1),0.4,3)
+place()
+end
+end)
+end
+window.maid:connect(Util.Services.RunService.Heartbeat,function(dt)
+if spin and holder.Parent and holder.AbsoluteSize.X>0 then yaw=yaw+(dt or 0.016)*0.6 place()end
+end)
+element:SetObject(cfg.Object)
+return element
+end
+end
+__modules["font"]=function()
+local UIFont={current="Gotham",guis={}}
+UIFont.order={"Gotham","BuilderSans","Montserrat","Ubuntu","Roboto","SourceSans","Nunito","Arimo"}
+local function isText(object)
+return object:IsA("TextLabel")or object:IsA("TextButton")or object:IsA("TextBox")
+end
+local function familyOf(name)
+local ok,face=pcall(function()return Font.fromEnum(Enum.Font[name])end)
+return ok and face and face.Family or nil
+end
+local function apply(object,target)
+if not target or not isText(object)then return end
+pcall(function()
+local face=object.FontFace
+if face.Family~=target then object.FontFace=Font.new(target,face.Weight,face.Style)end
+end)
+end
+function UIFont.refresh()
+local target=familyOf(UIFont.current)
+for gui in pairs(UIFont.guis)do
+if gui.Parent then
+for _,object in ipairs(gui:GetDescendants())do apply(object,target)end
+else
+UIFont.guis[gui]=nil
+end
+end
+end
+function UIFont.set(name)
+name=tostring(name or"Gotham")
+if not table.find(UIFont.order,name)or not familyOf(name)then return false end
+UIFont.current=name
+UIFont.refresh()
+return true
+end
+function UIFont.register(gui,maid)
+if UIFont.guis[gui]then return end
+UIFont.guis[gui]=true
+local connection=gui.DescendantAdded:Connect(function(object)
+if UIFont.current=="Gotham"or not isText(object)then return end
+task.defer(function()
+if object.Parent then apply(object,familyOf(UIFont.current))end
+end)
+end)
+if maid then maid:give(connection)end
+if UIFont.current~="Gotham"then task.defer(UIFont.refresh)end
+end
+return UIFont
+end
+__modules["glow"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Glow={enabled=true,items={},started=false}
+local WHITE=Color3.new(1,1,1)
+local function colors(fx)
+local base=Theme.get(fx.base)
+local shine=fx.shine and Theme.get(fx.shine)or base:Lerp(WHITE,0.6)
+return ColorSequence.new({
+ColorSequenceKeypoint.new(0,base),ColorSequenceKeypoint.new(0.36,base),ColorSequenceKeypoint.new(0.5,shine),
+ColorSequenceKeypoint.new(0.64,base),ColorSequenceKeypoint.new(1,base),
+}),base
+end
+local function apply(fx)
+local sequence,base=colors(fx)
+fx.gradient.Color=sequence
+fx.outline.Color=base
+fx.gradient.Enabled,fx.outline.Enabled=Glow.enabled,Glow.enabled
+Theme.bind(fx.label,"TextColor3",Glow.enabled and WHITE or fx.base)
+end
+function Glow.add(label,opts)
+opts=opts or{}
+local fx={
+label=label,base=opts.Base or"text",shine=opts.Shine,period=opts.Period or 3.2,phase=opts.Phase or 0,
+gradient=Util.create("UIGradient",{Name="Shine",Offset=Vector2.new(-1.2,0),Parent=label}),
+outline=Util.create("UIStroke",{
+Name="Glow",ApplyStrokeMode=Enum.ApplyStrokeMode.Contextual,LineJoinMode=Enum.LineJoinMode.Round,
+Thickness=1,Transparency=opts.GlowTransparency or 0.88,Parent=label,
+}),
+}
+Glow.items[#Glow.items+1]=fx
+apply(fx)
+return fx
+end
+function Glow.setEnabled(enabled)
+Glow.enabled=enabled~=false
+for _,fx in ipairs(Glow.items)do if fx.label.Parent then apply(fx)end end
+end
+local function visible(object)
+while object do
+if object:IsA("GuiObject")and not object.Visible then return false end
+if object:IsA("LayerCollector")then return object.Enabled end
+object=object.Parent
+end
+return false
+end
+function Glow.start(maid)
+if Glow.started then return end
+Glow.started=true
+maid:connect(Util.Services.RunService.RenderStepped,function()
+if not Glow.enabled then return end
+local now=os.clock()
+for index=#Glow.items,1,-1 do
+local fx=Glow.items[index]
+if not fx.label.Parent then
+table.remove(Glow.items,index)
+elseif visible(fx.label)then
+local p=((now/fx.period)+fx.phase)%1
+fx.gradient.Offset=Vector2.new(p<0.6 and(-1.2+(p/0.6)*2.4)or 1.2,0)
+end
+end
+end)
+maid:give(function()Glow.started=false end)
+Theme.onChange(function()for _,fx in ipairs(Glow.items)do if fx.label.Parent then apply(fx)end end end)
+end
+return Glow
+end
+__modules["hud"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Stats=require("stats")
+local Glow=require("glow")
+local Services=Util.Services
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+return function(Window)
+function Window:_floating(name,width,height,default)
+local panel=create("Frame",{
+Name=name,Size=UDim2.fromOffset(width,height),BorderSizePixel=0,BackgroundTransparency=0.04,
+Visible=false,ZIndex=70,Parent=self.gui,
+})
+Theme.bind(panel,"BackgroundColor3","base")
+corner(panel,8)
+Theme.bind(stroke(panel,nil,0.4),"Color","line")
+local handle=create("TextButton",{Name="Handle",Text="",AutoButtonColor=false,BackgroundTransparency=1,Size=UDim2.new(1,0,0,28),ZIndex=71,Parent=panel})
+local saved=self.memory and self.memory.hud and self.memory.hud[name]
+local fraction=saved and Vector2.new(tonumber(saved[1])or default.X,tonumber(saved[2])or default.Y)or default
+local function place()
+local viewport=Util.viewport()
+local room=Vector2.new(math.max(0,viewport.X-panel.AbsoluteSize.X),math.max(0,viewport.Y-panel.AbsoluteSize.Y))
+panel.Position=UDim2.fromOffset(math.floor(fraction.X*room.X),math.floor(fraction.Y*room.Y))
+end
+handle.InputBegan:Connect(function(input)
+if not Util.isPress(input)then return end
+local start,origin=Util.pointer(input),Vector2.new(panel.Position.X.Offset,panel.Position.Y.Offset)
+self:_beginDrag(input,function(point)
+local viewport=Util.viewport()
+local room=Vector2.new(math.max(1,viewport.X-panel.AbsoluteSize.X),math.max(1,viewport.Y-panel.AbsoluteSize.Y))
+local target=origin+(point-start)
+fraction=Vector2.new(math.clamp(target.X/room.X,0,1),math.clamp(target.Y/room.Y,0,1))
+place()
+end,function()
+self.memory.hud=self.memory.hud or{}
+self.memory.hud[name]={fraction.X,fraction.Y}
+self:_saveMemory()
+end)
+end)
+self.maid:connect(panel:GetPropertyChangedSignal("AbsoluteSize"),place)
+self._placers=self._placers or{}
+table.insert(self._placers,place)
+place()
+return panel,handle
+end
+local function chordText(element)
+if element.Chord then
+local mod,key=element.Chord[1],element.Chord[2]
+return(mod and(Util.keyName(mod).." + ")or"")..Util.keyName(key)
+end
+return Util.keyName(element.Value or element.BindKey)
+end
+function Window:KeybindList(visible)
+visible=visible~=false
+if not self._keybindHud then
+local panel,handle=self:_floating("Keybinds",210,60,Vector2.new(0.02,0.18))
+local caption=label(handle,"Keybinds",10,{Position=UDim2.fromOffset(12,3),Size=UDim2.new(1,-24,1,-3),ZIndex=72})
+Theme.bind(caption,"TextColor3","muted")
+local list=create("Frame",{Name="List",BackgroundTransparency=1,Position=UDim2.fromOffset(12,30),Size=UDim2.new(1,-24,1,-36),ZIndex=71,Parent=panel})
+Util.list(list,2)
+local rows={}
+local function row(index)
+if rows[index]then return rows[index]end
+local holder=create("Frame",{BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=index,ZIndex=72,Parent=list})
+local name=label(holder,"",10,{Size=UDim2.new(1,-74,1,0),ZIndex=73})
+local key=label(holder,"",9,{AnchorPoint=Vector2.new(1,0),Position=UDim2.fromScale(1,0),Size=UDim2.new(0,72,1,0),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium,ZIndex=73})
+Theme.bind(key,"TextColor3","muted")
+rows[index]={holder=holder,name=name,key=key}
+return rows[index]
+end
+local function refresh()
+local entries={{title="Menu",key=Util.keyName(self.key),on=true,menu=true}}
+for element,bound in pairs(self.binds)do
+if bound and element.Row and element.Row.Parent and element.Title and element.Flag~="__ui_menu_key"then
+local on=element.Type=="Toggle"and element.Value==true or element.Type~="Toggle"
+entries[#entries+1]={title=tostring(element.Title),key=chordText(element),on=on,toggle=element.Type=="Toggle"}
+end
+end
+table.sort(entries,function(a,b)
+if a.menu~=b.menu then return a.menu==true end
+if a.on~=b.on then return a.on end
+return a.title<b.title
+end)
+for index,entry in ipairs(entries)do
+local r=row(index)
+r.holder.Visible=true
+r.name.Text,r.key.Text=entry.title,"["..entry.key.."]"
+Theme.bind(r.name,"TextColor3",entry.on and"heading"or"muted")
+end
+for index=#entries+1,#rows do rows[index].holder.Visible=false end
+panel.Size=UDim2.fromOffset(210,36+#entries*22)
+end
+self._keybindHud={panel=panel,refresh=refresh}
+task.spawn(function()
+while self.alive do
+if panel.Visible then refresh()end
+task.wait(0.5)
+end
+end)
+end
+self._keybindHud.panel.Visible=visible
+if visible then self._keybindHud.refresh()end
+end
+function Window:SessionBar(visible)
+visible=visible~=false
+if not self._sessionBar then
+Stats.start(self.Lib.maid)
+local started=os.clock()
+local bar=create("Frame",{
+Name="SessionBar",AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,20),Size=UDim2.fromOffset(300,30),
+BorderSizePixel=0,BackgroundTransparency=0.04,Visible=false,ZIndex=70,Parent=self.gui,
+})
+Theme.bind(bar,"BackgroundColor3","base")
+corner(bar,8)
+Theme.bind(stroke(bar,nil,0.4),"Color","line")
+local text=label(bar,"",10,{Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,ZIndex=71})
+Theme.bind(text,"TextColor3","text")
+local Players=Services.Players
+local function refresh()
+text.Text=string.format("%d FPS  ·  %d ms  ·  %d/%d  ·  %s",Stats.fps,Stats.ping,#Players:GetPlayers(),Players.MaxPlayers,Util.clock(os.clock()-started))
+end
+self.maid:give(Stats.listen(function()if bar.Visible then refresh()end end))
+self._sessionBar={bar=bar,refresh=refresh}
+end
+self._sessionBar.bar.Visible=visible
+if visible then self._sessionBar.refresh()end
+end
+function Window:StatsMonitor(mode)
+mode=mode==true and"Header"or(mode==false and"Off"or tostring(mode or"Header"))
+Stats.start(self.Lib.maid)
+if not self._monitor then
+local header=label(self.main,"",10,{
+Name="HeaderStats",AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,12),Size=UDim2.fromOffset(170,20),
+TextXAlignment=Enum.TextXAlignment.Center,RichText=true,Visible=false,
+})
+Theme.bind(header,"TextColor3","muted")
+local panel,handle=self:_floating("Performance",190,96,Vector2.new(0.98,0.04))
+local caption=label(handle,"Performance",10,{Position=UDim2.fromOffset(12,3),Size=UDim2.new(0.5,0,1,-3),ZIndex=72})
+Theme.bind(caption,"TextColor3","muted")
+local values=label(handle,"",10,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-12,0,3),Size=UDim2.new(0.6,0,1,-3),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium,ZIndex=72})
+Theme.bind(values,"TextColor3","text")
+local graph=create("Frame",{Name="Graph",BackgroundTransparency=1,Position=UDim2.fromOffset(12,32),Size=UDim2.new(1,-24,1,-42),ZIndex=71,Parent=panel})
+local bars={}
+for index=1,30 do
+local bar=create("Frame",{
+AnchorPoint=Vector2.new(0,1),Position=UDim2.new((index-1)/30,0,1,0),Size=UDim2.new(1/30,-1,0,1),
+BorderSizePixel=0,BackgroundTransparency=0.25,ZIndex=72,Parent=graph,
+})
+Theme.bind(bar,"BackgroundColor3","accent")
+bars[index]=bar
+end
+local function refresh()
+local text=string.format("FPS %d  ·  PING %d ms",Stats.fps,Stats.ping)
+header.Text,values.Text=text,string.format("%d FPS · %d ms",Stats.fps,Stats.ping)
+if panel.Visible then
+local history=Stats.history.fps
+local top=60
+for _,value in ipairs(history)do top=math.max(top,value)end
+for index=1,30 do
+local value=history[#history-30+index]
+bars[index].Size=UDim2.new(1/30,-1,value and math.clamp(value/top,0.03,1)or 0,value and 0 or 1)
+end
+end
+end
+self.maid:give(Stats.listen(function()if header.Visible or panel.Visible then refresh()end end))
+self._monitor={header=header,panel=panel,refresh=refresh}
+end
+self.monitorMode=mode
+self._monitor.header.Visible=mode=="Header"
+self._monitor.panel.Visible=mode=="Floating"
+self._monitor.refresh()
+self:_updateLocation()
+end
+function Window:Watermark(visible,cfg)
+visible=visible~=false
+cfg=cfg or{}
+if not self._watermark then
+Stats.start(self.Lib.maid)
+local panel,handle=self:_floating("Watermark",240,28,Vector2.new(0.01,0.01))
+local accent=create("Frame",{Name="Bar",Position=UDim2.fromOffset(0,6),Size=UDim2.new(0,2,1,-12),BorderSizePixel=0,ZIndex=72,Parent=panel})
+Theme.bind(accent,"BackgroundColor3","accent")
+corner(accent,1)
+local title=label(handle,self.Title,11,{Name="Title",Position=UDim2.fromOffset(12,0),Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,TextTruncate=Enum.TextTruncate.None,ZIndex=72})
+pcall(function()title.FontFace=Font.new(Font.fromEnum(Enum.Font.Gotham).Family,Enum.FontWeight.SemiBold)end)
+Theme.bind(title,"TextColor3","accent")
+Glow.add(title,{Base="accent",Period=3.6,Phase=0.3,GlowTransparency=0.82})
+local info=label(handle,"",10,{Name="Info",Position=UDim2.fromOffset(12,0),Size=UDim2.new(0,200,1,0),TextTruncate=Enum.TextTruncate.None,ZIndex=72})
+Theme.bind(info,"TextColor3","text")
+local extra=nil
+local function refresh()
+local parts={}
+if self.Version~=""then parts[#parts+1]=self.Version end
+if extra and extra~=""then parts[#parts+1]=extra end
+parts[#parts+1]=Stats.fps.." FPS"
+parts[#parts+1]=Stats.ping.." ms"
+parts[#parts+1]=os.date("%H:%M")
+info.Text=table.concat(parts,"  |  ")
+local titleWidth=Util.textWidth(self.Title,11,Enum.Font.GothamMedium)+4
+local infoWidth=Util.textWidth(info.Text,10,Enum.Font.Gotham)+6
+info.Position=UDim2.fromOffset(12+titleWidth+10,0)
+info.Size=UDim2.new(0,infoWidth,1,0)
+panel.Size=UDim2.fromOffset(12+titleWidth+10+infoWidth+12,28)
+end
+self.maid:give(Stats.listen(function()if panel.Visible then refresh()end end))
+self._watermark={panel=panel,refresh=refresh,setExtra=function(text)extra=text end}
+end
+if cfg.Text~=nil then self._watermark.setExtra(tostring(cfg.Text))end
+self._watermark.panel.Visible=visible
+if visible then self._watermark.refresh()end
+end
+end
+end
+__modules["icons"]=function()
+local Icons={
+Default="lucide",
+Source="https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/icons/",
+Remote={solar=true,sfsymbols=true,gravity=true,geist=true,craft=true},
+Sets={},
+_failed={},
+}
+local Theme=require("theme")
+Icons.Sets.lucide=require("icons_lucide")
+local ZERO=Vector2.new(0,0)
+function Icons.Load(set)
+if Icons.Sets[set]then return true end
+if not Icons.Remote[set]then return false,"unknown icon set "..tostring(set)end
+if Icons._failed[set]then return false,Icons._failed[set]end
+local ok,data=pcall(function()
+local source=game:HttpGet(Icons.Source..set..".lua")
+return loadstring(source)()
+end)
+if not ok or type(data)~="table"then
+Icons._failed[set]=tostring(data)
+warn("[qustah-ui-lib] icon set "..set.." could not be loaded: "..tostring(data))
+return false,Icons._failed[set]
+end
+Icons.Sets[set]=data
+return true
+end
+local function asset(value)
+if type(value)=="number"then return"rbxassetid://"..value end
+return tostring(value)
+end
+local function lookup(set,name)
+local data=Icons.Sets[set]
+if not data then return nil end
+if type(data.Icons)=="table"and type(data.Spritesheets)=="table"then
+local icon=data.Icons[name]
+if not icon then return nil end
+local parts
+for _,part in ipairs(icon.Parts or{})do
+parts=parts or{}
+parts[#parts+1]=lookup(set,part)
+end
+return{
+Image=asset(data.Spritesheets[tostring(icon.Image)]or icon.Image),
+RectSize=icon.ImageRectSize or ZERO,RectOffset=icon.ImageRectPosition or ZERO,Parts=parts,
+}
+end
+local value=data[name]
+if value==nil then return nil end
+return{Image=asset(value),RectSize=ZERO,RectOffset=ZERO}
+end
+function Icons.Get(name)
+if name==nil or name==""then return nil end
+if type(name)=="number"or(type(name)=="string"and name:match("^%d+$"))then
+return{Image="rbxassetid://"..tostring(name),RectSize=ZERO,RectOffset=ZERO}
+end
+name=tostring(name)
+if name:match("^https?://")and not name:find("roblox%.com")then
+return{Image=Icons._urls[name]or"",RectSize=ZERO,RectOffset=ZERO,Url=name}
+end
+if name:match("^rbxasset")or name:match("^https?://")then
+return{Image=name,RectSize=ZERO,RectOffset=ZERO}
+end
+local set,icon=name:match("^([%w_%-]+):(.+)$")
+if not set then set,icon=Icons.Default,name end
+set=set:lower()
+if not Icons.Sets[set]then Icons.Load(set)end
+return lookup(set,icon)or(set~="lucide"and not name:find(":")and lookup("lucide",icon))or nil
+end
+Icons._urls={}
+Icons.Folder="QustahUI/assets"
+local function fetch(url,done)
+if Icons._urls[url]then return done(Icons._urls[url])end
+task.spawn(function()
+local ok,asset=pcall(function()
+local name=url:match("([^/?#]+)[?#]?[^/]*$")or"image"
+name=name:gsub("%.[^%.]+$",""):gsub("[^%w%-_]","_"):sub(1,40)
+local file=Icons.Folder.."/"..name.."-"..#url..".png"
+if not(isfile and isfile(file))then
+local request=(syn and syn.request)or http_request or request
+local body
+if request then body=request({Url=url,Method="GET"}).Body else body=game:HttpGet(url)end
+assert(type(body)=="string"and#body>0,"empty response")
+if makefolder and isfolder then
+if not isfolder("QustahUI")then makefolder("QustahUI")end
+if not isfolder(Icons.Folder)then makefolder(Icons.Folder)end
+end
+writefile(file,body)
+end
+return(getcustomasset or getsynasset)(file)
+end)
+if ok and asset then
+Icons._urls[url]=asset
+done(asset)
+else
+warn("[qustah-ui-lib] image "..url.." could not be loaded: "..tostring(asset))
+end
+end)
+end
+function Icons.Apply(image,name)
+for _,child in ipairs(image:GetChildren())do if child.Name=="IconPart"then child:Destroy()end end
+local icon=Icons.Get(name)
+if not icon then return false end
+if icon.Url then
+image.ImageColor3=Color3.new(1,1,1)
+image.ImageRectSize,image.ImageRectOffset=ZERO,ZERO
+fetch(icon.Url,function(asset)image.Image=asset end)
+return true
+end
+image.Image=icon.Image
+image.ImageRectSize=icon.RectSize
+image.ImageRectOffset=icon.RectOffset
+for _,part in ipairs(icon.Parts or{})do
+local child=Instance.new("ImageLabel")
+child.Name="IconPart"
+child.BackgroundTransparency=1
+child.Size=UDim2.fromScale(1,1)
+child.Image,child.ImageRectSize,child.ImageRectOffset=part.Image,part.RectSize,part.RectOffset
+child.ImageTransparency=0.5
+child.ZIndex=image.ZIndex
+child.Parent=image
+child.ImageColor3=image.ImageColor3
+image:GetPropertyChangedSignal("ImageColor3"):Connect(function()child.ImageColor3=image.ImageColor3 end)
+end
+return true
+end
+function Icons.Image(name,props)
+props=props or{}
+local image=Instance.new("ImageLabel")
+image.Name=props.Name or"Icon"
+image.BackgroundTransparency=1
+image.ScaleType=Enum.ScaleType.Fit
+image.Size=props.Size or UDim2.fromOffset(16,16)
+if typeof(props.Color)=="Color3"then image.ImageColor3=props.Color end
+Icons.Apply(image,name)
+image.Parent=props.Parent
+return image
+end
+function Icons.themed(parent,name,size,role,props)
+if not Icons.Get(name)then return nil end
+local image=Icons.Image(name,{Size=UDim2.fromOffset(size,size),Name=props and props.Name or"Icon"})
+for key,value in pairs(props or{})do if key~="Name"then image[key]=value end end
+if not Icons.Get(name).Url then Theme.bind(image,"ImageColor3",role or"text")end
+image.Parent=parent
+return image
+end
+function Icons.SetDefault(set)
+set=tostring(set):lower()
+if Icons.Sets[set]or Icons.Load(set)then Icons.Default=set return true end
+return false
+end
+function Icons.Add(set,data)
+set=tostring(set):lower()
+Icons.Sets[set]=Icons.Sets[set]or{}
+for name,value in pairs(data)do Icons.Sets[set][name]=value end
+end
+function Icons.List(set)
+set=tostring(set or Icons.Default):lower()
+if not Icons.Sets[set]then Icons.Load(set)end
+local data=Icons.Sets[set]or{}
+local names={}
+for name in pairs(type(data.Icons)=="table"and data.Icons or data)do
+if type(name)=="string"then names[#names+1]=name end
+end
+table.sort(names)
+return names
+end
+return Icons
+end
+__modules["icons_lucide"]=function()
+return{
+["a-arrow-down"]=92867583610071,["a-arrow-up"]=132318504999733,["a-large-small"]=111491496660216,["accessibility"]=114029945302017,["activity"]=94212016861936,["air-vent"]=81517226012329,
+["airplay"]=115020759309179,["alarm-clock-check"]=76437352099157,["alarm-clock-minus"]=77364179863205,["alarm-clock-off"]=97904885874823,["alarm-clock-plus"]=80468822979214,["alarm-clock"]=126259032907535,
+["alarm-smoke"]=96965448419685,["album"]=127358331163602,["align-center-horizontal"]=81570549209434,["align-center-vertical"]=118470463752466,["align-end-horizontal"]=139502909745427,["align-end-vertical"]=96528869059554,
+["align-horizontal-distribute-center"]=97220086126656,["align-horizontal-distribute-end"]=106128590702022,["align-horizontal-distribute-start"]=76074660002997,["align-horizontal-justify-center"]=75732302772427,["align-horizontal-justify-end"]=129167626402283,["align-horizontal-justify-start"]=130161830325281,
+["align-horizontal-space-around"]=91646106782950,["align-horizontal-space-between"]=103886093046990,["align-start-horizontal"]=125674804697729,["align-start-vertical"]=105020230154823,["align-vertical-distribute-center"]=93791183635525,["align-vertical-distribute-end"]=139354223511433,
+["align-vertical-distribute-start"]=74961997822126,["align-vertical-justify-center"]=134754696166569,["align-vertical-justify-end"]=92569381441969,["align-vertical-justify-start"]=99692844572718,["align-vertical-space-around"]=96206012459190,["align-vertical-space-between"]=124998077349706,
+["ambulance"]=78599995190651,["ampersand"]=75272915739209,["ampersands"]=126947193455996,["amphora"]=137370389604364,["anchor"]=92181172123618,["angry"]=74237056000103,
+["annoyed"]=80064369052011,["antenna"]=99628923540956,["anvil"]=100203029845919,["aperture"]=83396154449972,["app-window-mac"]=79587216113811,["app-window"]=93142176757189,
+["apple"]=104349242902442,["archive-restore"]=78956681942188,["archive-x"]=75830115088395,["archive"]=122180020814574,["armchair"]=105384358373973,["arrow-big-down-dash"]=137987229582002,
+["arrow-big-down"]=81081164158885,["arrow-big-left-dash"]=97827621354677,["arrow-big-left"]=85973092492641,["arrow-big-right-dash"]=117825834972403,["arrow-big-right"]=82960676755590,["arrow-big-up-dash"]=99260194327483,
+["arrow-big-up"]=93136954756149,["arrow-down-0-1"]=120961896217875,["arrow-down-1-0"]=93474255891850,["arrow-down-a-z"]=99554596207900,["arrow-down-from-line"]=132045845807798,["arrow-down-left"]=102899325237364,
+["arrow-down-narrow-wide"]=129105261655061,["arrow-down-right"]=123109928624974,["arrow-down-to-dot"]=101675355931221,["arrow-down-to-line"]=87050478931254,["arrow-down-up"]=85780258549577,["arrow-down-wide-narrow"]=88461733425991,
+["arrow-down-z-a"]=76115279362232,["arrow-down"]=98764963621439,["arrow-left-from-line"]=87857914437603,["arrow-left-right"]=131324733048447,["arrow-left-to-line"]=118645136026970,["arrow-left"]=102531941843733,
+["arrow-right-from-line"]=74073639809355,["arrow-right-left"]=77015754304300,["arrow-right-to-line"]=78632510329852,["arrow-right"]=113692007244654,["arrow-up-0-1"]=105257823943016,["arrow-up-1-0"]=134175521693798,
+["arrow-up-a-z"]=77763416595160,["arrow-up-down"]=81019887641527,["arrow-up-from-dot"]=124408496673275,["arrow-up-from-line"]=95777664626453,["arrow-up-left"]=123490598231261,["arrow-up-narrow-wide"]=73006024672636,
+["arrow-up-right"]=129280608535523,["arrow-up-to-line"]=108818207813537,["arrow-up-wide-narrow"]=87437426951568,["arrow-up-z-a"]=107546173611884,["arrow-up"]=89282378235317,["arrows-up-from-line"]=133710016938621,
+["asterisk"]=88552752106723,["at-sign"]=79059152889146,["atom"]=73167696981648,["audio-lines"]=70930641819242,["audio-waveform"]=86462036665209,["award"]=132740088158419,
+["axe"]=132405197863294,["axis-3d"]=122438676546804,["baby"]=93472926933440,["backpack"]=140420225386018,["badge-alert"]=101829200081951,["badge-cent"]=133345018873154,
+["badge-check"]=76078495178149,["badge-dollar-sign"]=127139803581141,["badge-euro"]=120016477674659,["badge-indian-rupee"]=75659682309981,["badge-info"]=131995373201472,["badge-japanese-yen"]=99081574588615,
+["badge-minus"]=140321561183881,["badge-percent"]=121359224294885,["badge-plus"]=100325578561866,["badge-pound-sterling"]=119688217279444,["badge-question-mark"]=121464963737502,["badge-russian-ruble"]=108839463659864,
+["badge-swiss-franc"]=91447608372740,["badge-turkish-lira"]=137839965873529,["badge-x"]=122931434733842,["badge"]=116620312917084,["baggage-claim"]=86922213051957,["ban"]=90767043015246,
+["banana"]=140713420056179,["bandage"]=129660129590770,["banknote-arrow-down"]=139366449345199,["banknote-arrow-up"]=133758343082529,["banknote-x"]=95348701438065,["banknote"]=104840231536668,
+["barcode"]=118473018143689,["barrel"]=130647115622774,["baseline"]=124677132511270,["bath"]=76031400297942,["battery-charging"]=80139357470047,["battery-full"]=70906718268972,
+["battery-low"]=139659256984314,["battery-medium"]=105934079398915,["battery-plus"]=91931341486966,["battery-warning"]=115230083817257,["battery"]=70765800346189,["beaker"]=80902539995520,
+["bean-off"]=98164436608714,["bean"]=89491967076869,["bed-double"]=73820193212911,["bed-single"]=113423940880634,["bed"]=97726529032925,["beef"]=105850162318915,
+["beer-off"]=120333134736361,["beer"]=116404978807744,["bell-dot"]=93161277118810,["bell-electric"]=100277767266983,["bell-minus"]=126334890449727,["bell-off"]=78560046118930,
+["bell-plus"]=77014333795836,["bell-ring"]=94612128913941,["bell"]=97392696311902,["between-horizontal-end"]=81602774794322,["between-horizontal-start"]=76112384929846,["between-vertical-end"]=72817612571631,
+["between-vertical-start"]=85278312190301,["biceps-flexed"]=82004462003936,["bike"]=102930322246035,["binary"]=91751953950088,["binoculars"]=101460003267896,["biohazard"]=95956532900432,
+["bird"]=132284145117371,["birdhouse"]=83999157401433,["bitcoin"]=95459240442938,["blend"]=111679612185257,["blinds"]=71164165283925,["blocks"]=72212693357737,
+["bluetooth-connected"]=96315134002985,["bluetooth-off"]=80600044218117,["bluetooth-searching"]=100673019606426,["bluetooth"]=90506573139443,["bold"]=116141470019166,["bolt"]=102881251417484,
+["bomb"]=139223800924636,["bone"]=111242153474115,["book-a"]=104067275658465,["book-alert"]=124159928044853,["book-audio"]=109208148317037,["book-check"]=115999656081696,
+["book-copy"]=108543407492005,["book-dashed"]=127430784795958,["book-down"]=101011730128222,["book-headphones"]=108670200799574,["book-heart"]=112788845135284,["book-image"]=80808285757226,
+["book-key"]=116024426170705,["book-lock"]=118765061220571,["book-marked"]=73211024251780,["book-minus"]=112724962046282,["book-open-check"]=130848362492667,["book-open-text"]=100629528672195,
+["book-open"]=129845326810392,["book-plus"]=140267785051233,["book-text"]=94011772484232,["book-type"]=97817304725443,["book-up-2"]=130161620853665,["book-up"]=98640174079190,
+["book-user"]=128489189240523,["book-x"]=118754548186537,["book"]=125383279695672,["bookmark-check"]=93940443347986,["bookmark-minus"]=96807096039910,["bookmark-plus"]=121469724491615,
+["bookmark-x"]=112272342584706,["bookmark"]=121093149326239,["boom-box"]=99901322535868,["bot-message-square"]=96145330292478,["bot-off"]=140417690560013,["bot"]=80451686744860,
+["bottle-wine"]=131675403196921,["bow-arrow"]=124089655150375,["box"]=101768155599700,["boxes"]=136372617578355,["braces"]=117761094704041,["brackets"]=74368995728099,
+["brain-circuit"]=70547962410202,["brain-cog"]=132039205501538,["brain"]=92424107303177,["brick-wall-fire"]=92980588705520,["brick-wall-shield"]=75954432775071,["brick-wall"]=112878522258821,
+["briefcase-business"]=129135125207283,["briefcase-conveyor-belt"]=108665725653714,["briefcase-medical"]=119917756334087,["briefcase"]=96754188164225,["bring-to-front"]=132975903553748,["brush-cleaning"]=71728977448805,
+["brush"]=127035535799640,["bubbles"]=106183424168227,["bug-off"]=88020025049245,["bug-play"]=80107955888092,["bug"]=83626408925438,["building-2"]=77873775611951,
+["building"]=110616258983082,["bus-front"]=89863432456045,["bus"]=133798469717463,["cable-car"]=128643682205596,["cable"]=128449944504901,["cake-slice"]=136769828413242,
+["cake"]=103131590503275,["calculator"]=74915716529646,["calendar-1"]=98458364171044,["calendar-arrow-down"]=108415736543437,["calendar-arrow-up"]=70574654109118,["calendar-check-2"]=120231170248276,
+["calendar-check"]=71551019465748,["calendar-clock"]=119132152594595,["calendar-cog"]=122402172360287,["calendar-days"]=99072017568595,["calendar-fold"]=117368871270394,["calendar-heart"]=88839008103676,
+["calendar-minus-2"]=98846170279891,["calendar-minus"]=137354318924383,["calendar-off"]=109726151749217,["calendar-plus-2"]=112264562093883,["calendar-plus"]=125266115249843,["calendar-range"]=103641849247576,
+["calendar-search"]=92010083223634,["calendar-sync"]=78082218499697,["calendar-x-2"]=107518051061147,["calendar-x"]=106703374806500,["calendar"]=114792700814035,["camera-off"]=81057636835256,
+["camera"]=79950339943067,["candy-cane"]=71689468772492,["candy-off"]=110232752314832,["candy"]=107812129154678,["cannabis"]=98792006538601,["captions-off"]=105223545364193,
+["captions"]=104960225031445,["car-front"]=87380942739063,["car-taxi-front"]=122455403384057,["car"]=121065933462582,["caravan"]=120070979471783,["card-sim"]=134490550095771,
+["carrot"]=119118221444304,["case-lower"]=129303130603241,["case-sensitive"]=125410273293056,["case-upper"]=111633433531325,["cassette-tape"]=137065788934157,["cast"]=98202245922071,
+["castle"]=119275077187784,["cat"]=124252153404931,["cctv"]=99979894766624,["chart-area"]=123446436762366,["chart-bar-big"]=72336824986044,["chart-bar-decreasing"]=107217459044963,
+["chart-bar-increasing"]=88268905998571,["chart-bar-stacked"]=98478751113024,["chart-bar"]=105389816384108,["chart-candlestick"]=125676898615697,["chart-column-big"]=98598733210787,["chart-column-decreasing"]=73586137373563,
+["chart-column-increasing"]=120421615068601,["chart-column-stacked"]=86031449675105,["chart-column"]=97915995538580,["chart-gantt"]=88811660555940,["chart-line"]=101833156055618,["chart-network"]=104027882693561,
+["chart-no-axes-column-decreasing"]=123371717192542,["chart-no-axes-column-increasing"]=140383830943049,["chart-no-axes-column"]=94078751170351,["chart-no-axes-combined"]=121424233161912,["chart-no-axes-gantt"]=131936541106368,["chart-pie"]=113412261630136,
+["chart-scatter"]=108217585014571,["chart-spline"]=90307460742494,["check-check"]=95183312173858,["check-line"]=115122343485290,["check"]=93898873302694,["chef-hat"]=121744015002573,
+["cherry"]=139519182403183,["chess-bishop"]=121701705580238,["chess-king"]=90885687223462,["chess-knight"]=96467707042169,["chess-pawn"]=111318574652751,["chess-queen"]=98304702099749,
+["chess-rook"]=76223925830262,["chevron-down"]=134243273101015,["chevron-first"]=105243363790238,["chevron-last"]=89268452603731,["chevron-left"]=73780377692148,["chevron-right"]=92473583511724,
+["chevron-up"]=122444883127455,["chevrons-down-up"]=139404716013205,["chevrons-down"]=100524612205956,["chevrons-left-right-ellipsis"]=125035817741526,["chevrons-left-right"]=87910685945204,["chevrons-left"]=82617201744347,
+["chevrons-right-left"]=87149546686569,["chevrons-right"]=139121276490483,["chevrons-up-down"]=131833120209646,["chevrons-up"]=100467452364672,["chromium"]=128165143739006,["church"]=113714744350666,
+["cigarette-off"]=77797883078452,["circle-alert"]=83898160590116,["circle-arrow-down"]=95901860261344,["circle-arrow-left"]=102148876968988,["circle-arrow-out-down-left"]=140598097856694,["circle-arrow-out-down-right"]=119952801379305,
+["circle-arrow-out-up-left"]=132858212688303,["circle-arrow-out-up-right"]=81783743753173,["circle-arrow-right"]=70786767999559,["circle-arrow-up"]=84395128546494,["circle-check-big"]=93202927221730,["circle-check"]=85262178816537,
+["circle-chevron-down"]=137069490345718,["circle-chevron-left"]=130250009740827,["circle-chevron-right"]=125943696958495,["circle-chevron-up"]=111223574026321,["circle-dashed"]=126799443883746,["circle-divide"]=106398997754208,
+["circle-dollar-sign"]=91106238890387,["circle-dot-dashed"]=111451232827180,["circle-dot"]=82947033619201,["circle-ellipsis"]=91687150884779,["circle-equal"]=95133963751438,["circle-fading-arrow-up"]=104648212910336,
+["circle-fading-plus"]=91847890443490,["circle-gauge"]=108157549473765,["circle-minus"]=133556159576809,["circle-off"]=97923456918886,["circle-parking-off"]=128369410981252,["circle-parking"]=124034962915196,
+["circle-pause"]=139337739700879,["circle-percent"]=133311912860256,["circle-play"]=120408917249739,["circle-plus"]=113157136350384,["circle-pound-sterling"]=105476153083828,["circle-power"]=140676030155098,
+["circle-question-mark"]=97516698664325,["circle-slash-2"]=136766902186549,["circle-slash"]=125206439913049,["circle-small"]=73685402843600,["circle-star"]=120318414957104,["circle-stop"]=87400503942659,
+["circle-user-round"]=95489465399880,["circle-user"]=136220511671311,["circle-x"]=76821953846248,["circle"]=130359823580534,["circuit-board"]=107695264369312,["citrus"]=139018222976433,
+["clapperboard"]=132660667070200,["clipboard-check"]=92649798577170,["clipboard-clock"]=123957515687745,["clipboard-copy"]=125851897718493,["clipboard-list"]=96460215958908,["clipboard-minus"]=107968008485671,
+["clipboard-paste"]=74382068849983,["clipboard-pen-line"]=77711589791615,["clipboard-pen"]=75290966822953,["clipboard-plus"]=134285318675662,["clipboard-type"]=89949374318028,["clipboard-x"]=102222456890103,
+["clipboard"]=89601995828423,["clock-1"]=129363225422045,["clock-10"]=104332695855541,["clock-11"]=119023205186105,["clock-12"]=117789618723068,["clock-2"]=134710777209413,
+["clock-3"]=136385631189327,["clock-4"]=121808839832144,["clock-5"]=85082019959457,["clock-6"]=71009733505593,["clock-7"]=103111188546225,["clock-8"]=110059272125337,
+["clock-9"]=77610027126437,["clock-alert"]=97157344465162,["clock-arrow-down"]=92349314416042,["clock-arrow-up"]=111484286332629,["clock-check"]=85231630218857,["clock-fading"]=93205297285245,
+["clock-plus"]=93367709263150,["clock"]=121808839832144,["closed-caption"]=99832644030788,["cloud-alert"]=91967273658626,["cloud-check"]=97318598202432,["cloud-cog"]=96497764065749,
+["cloud-download"]=121435581993566,["cloud-drizzle"]=139525315752605,["cloud-fog"]=76650233148776,["cloud-hail"]=72320462748242,["cloud-lightning"]=133517088924849,["cloud-moon-rain"]=127667837827018,
+["cloud-moon"]=71938114737914,["cloud-off"]=131907154501444,["cloud-rain-wind"]=107414583736721,["cloud-rain"]=105547081967408,["cloud-snow"]=72307126270226,["cloud-sun-rain"]=99041604425705,
+["cloud-sun"]=86114208148727,["cloud-upload"]=93307473217005,["cloud"]=121226497050352,["cloudy"]=105360479023346,["clover"]=74925550436750,["club"]=108490365816628,
+["code-xml"]=130150477351734,["code"]=107380207681249,["codepen"]=135643965971885,["codesandbox"]=106911852964823,["coffee"]=106864403231093,["cog"]=116544501716299,
+["coins"]=116510979641930,["columns-2"]=113004100221850,["columns-3-cog"]=121589691981064,["columns-3"]=115223357399375,["columns-4"]=130807991968419,["combine"]=79908476334048,
+["command"]=93648221906330,["compass"]=115123411028382,["component"]=110027788875080,["computer"]=77480056459407,["concierge-bell"]=140384259310436,["cone"]=97759550688437,
+["construction"]=106539489968173,["contact-round"]=71907624112229,["contact"]=75868297719012,["container"]=91507237573499,["contrast"]=112796643981497,["cookie"]=73159504540002,
+["cooking-pot"]=94959783129799,["copy-check"]=91177247988892,["copy-minus"]=109524509933035,["copy-plus"]=113618379616952,["copy-slash"]=93805787810390,["copy-x"]=106557557978061,
+["copy"]=78979572434545,["copyleft"]=78559055698593,["copyright"]=129433635747111,["corner-down-left"]=90473561177832,["corner-down-right"]=86512767702085,["corner-left-down"]=139876989150630,
+["corner-left-up"]=126228268096099,["corner-right-down"]=89237035551302,["corner-right-up"]=112851237026705,["corner-up-left"]=84669279763024,["corner-up-right"]=115099889693145,["cpu"]=77549309870247,
+["creative-commons"]=90408210735312,["credit-card"]=99163352872346,["croissant"]=130710485559420,["crop"]=116344601101413,["cross"]=101833377863588,["crosshair"]=134242818164054,
+["crown"]=127843403295538,["cuboid"]=75618807946111,["cup-soda"]=121098640829562,["currency"]=90551250119972,["cylinder"]=90569677179169,["dam"]=76874486231393,
+["database-backup"]=103403210984699,["database-zap"]=131199921258418,["database"]=126791525623846,["decimals-arrow-left"]=120198500638749,["decimals-arrow-right"]=118263047146797,["delete"]=126279426372342,
+["dessert"]=71508133278830,["diameter"]=97429051503783,["diamond-minus"]=128989071438290,["diamond-percent"]=107717860105959,["diamond-plus"]=134701163723675,["diamond"]=105846996304890,
+["dice-1"]=112650149591038,["dice-2"]=112278274566793,["dice-3"]=118526270626312,["dice-4"]=113365650364004,["dice-5"]=72768312430593,["dice-6"]=85376239182543,
+["dices"]=81268120302865,["diff"]=135052708609715,["disc-2"]=91419420404185,["disc-3"]=135470554736048,["disc-album"]=74693460404344,["disc"]=101908120120777,
+["divide"]=136678191878278,["dna-off"]=89612426361540,["dna"]=74007982981741,["dock"]=121997427160252,["dog"]=71920105558570,["dollar-sign"]=127320961224019,
+["donut"]=72204922742657,["door-closed-locked"]=74027613267551,["door-closed"]=136249099949073,["door-open"]=91306356501736,["dot"]=137321056643916,["download"]=134814648082393,
+["drafting-compass"]=99701976182841,["drama"]=110297795801577,["dribbble"]=80231809663849,["drill"]=108644821412796,["drone"]=117299095794783,["droplet-off"]=119365002225172,
+["droplet"]=100597455015098,["droplets"]=140111846025180,["drum"]=136979060344890,["drumstick"]=104662462521709,["dumbbell"]=80277236776212,["ear-off"]=87421916192807,
+["ear"]=121894949934209,["earth-lock"]=88814147073745,["earth"]=76231597751076,["eclipse"]=114829622118222,["egg-fried"]=90622538210545,["egg-off"]=92288321309285,
+["egg"]=117851493400222,["ellipsis-vertical"]=117978708573781,["ellipsis"]=140019550645825,["equal-approximately"]=105382689698323,["equal-not"]=76864449458032,["equal"]=123467780715624,
+["eraser"]=133957773112410,["ethernet-port"]=75391715149314,["euro"]=72229646524456,["ev-charger"]=97906158859623,["expand"]=137492887754537,["external-link"]=129331830773832,
+["eye-closed"]=111063268625789,["eye-off"]=135928786788378,["eye"]=100033680381365,["facebook"]=72098528632192,["factory"]=102170024318039,["fan"]=78391400440696,
+["fast-forward"]=121615540167909,["feather"]=91872927606406,["fence"]=123451565578029,["ferris-wheel"]=79729205796176,["figma"]=134182122852301,["file-archive"]=77018106869967,
+["file-axis-3d"]=133912328009885,["file-badge"]=74564895394477,["file-box"]=119264004071690,["file-braces-corner"]=77253337986109,["file-braces"]=95314128621234,["file-chart-column-increasing"]=134449481172067,
+["file-chart-column"]=82048481252560,["file-chart-line"]=71954360551345,["file-chart-pie"]=81072193564497,["file-check-corner"]=76295552859171,["file-check"]=82604001452455,["file-clock"]=102325208830990,
+["file-code-corner"]=78293841184371,["file-code"]=130978036895504,["file-cog"]=101385347151368,["file-diff"]=96147216772241,["file-digit"]=89220220354580,["file-down"]=120650154178290,
+["file-exclamation-point"]=102821865889635,["file-headphone"]=100533735901986,["file-heart"]=132214916401696,["file-image"]=123334057511782,["file-input"]=124728604166044,["file-key"]=118790255921100,
+["file-lock"]=72170228691242,["file-minus-corner"]=119263271735124,["file-minus"]=111014798459222,["file-music"]=134948051536671,["file-output"]=92146832572911,["file-pen-line"]=104622936345006,
+["file-pen"]=79556179730240,["file-play"]=89006821567838,["file-plus-corner"]=76544604043974,["file-plus"]=78881710800060,["file-question-mark"]=127617422859576,["file-scan"]=129480105228213,
+["file-search-corner"]=90974165234008,["file-search"]=97780235974933,["file-signal"]=122070252538165,["file-sliders"]=85787771732439,["file-spreadsheet"]=134501869359270,["file-stack"]=138929929862605,
+["file-symlink"]=91865722036510,["file-terminal"]=116757454755476,["file-text"]=90496405707281,["file-type-corner"]=124902230275209,["file-type"]=115272552799361,["file-up"]=131173039312748,
+["file-user"]=99552018455009,["file-video-camera"]=81719056173960,["file-volume"]=111264764438958,["file-x-corner"]=87554136773609,["file-x"]=107333775515154,["file"]=74748492079329,
+["files"]=102806336233202,["film"]=120978945609706,["fingerprint"]=112173305232811,["fire-extinguisher"]=111643493006960,["fish-off"]=89756724887508,["fish-symbol"]=118475177681618,
+["fish"]=124360663785796,["flag-off"]=112944528856799,["flag-triangle-left"]=88045221285272,["flag-triangle-right"]=108292480304566,["flag"]=78183383236196,["flame-kindling"]=139728976917928,
+["flame"]=98218034436456,["flashlight-off"]=79780362871740,["flashlight"]=100286985600444,["flask-conical-off"]=112597970025298,["flask-conical"]=128406680901165,["flask-round"]=127508287324940,
+["flip-horizontal-2"]=103726993598186,["flip-horizontal"]=122937530107837,["flip-vertical-2"]=103836358956328,["flip-vertical"]=108003917346888,["flower-2"]=72934574245145,["flower"]=86129438272762,
+["focus"]=87493973153317,["fold-horizontal"]=92835712442240,["fold-vertical"]=108873727253656,["folder-archive"]=97312009460206,["folder-check"]=128492920904557,["folder-clock"]=111964836738545,
+["folder-closed"]=118286209350843,["folder-code"]=70624096349370,["folder-cog"]=85299519462846,["folder-dot"]=138687772725278,["folder-down"]=118044108459225,["folder-git-2"]=101394054141166,
+["folder-git"]=121885778095158,["folder-heart"]=79104747211105,["folder-input"]=90699920697871,["folder-kanban"]=78313285104072,["folder-key"]=85270407596791,["folder-lock"]=119201572260567,
+["folder-minus"]=85648718999010,["folder-open-dot"]=74741494767354,["folder-open"]=76018996254888,["folder-output"]=101532447937612,["folder-pen"]=112770491173911,["folder-plus"]=91865663406119,
+["folder-root"]=103333751154693,["folder-search-2"]=71276453442655,["folder-search"]=110568075123861,["folder-symlink"]=127485747227189,["folder-sync"]=91544602659796,["folder-tree"]=85577554337861,
+["folder-up"]=72008269765857,["folder-x"]=91699618247635,["folder"]=80846616596607,["folders"]=110351216219061,["footprints"]=139192589041315,["forklift"]=72030930983101,
+["forward"]=97545944739523,["frame"]=109080612832751,["framer"]=108384807262391,["frown"]=124407301067982,["fuel"]=106447647274511,["fullscreen"]=77793665526178,
+["funnel-plus"]=100780233821928,["funnel-x"]=70984385812555,["funnel"]=108829540827529,["gallery-horizontal-end"]=74672430161161,["gallery-horizontal"]=80004001442122,["gallery-thumbnails"]=136219289862706,
+["gallery-vertical-end"]=106461402088317,["gallery-vertical"]=119299431466725,["gamepad-2"]=92483947987410,["gamepad-directional"]=84342305212226,["gamepad"]=121607283959010,["gauge"]=110273524101447,
+["gavel"]=78952298198456,["gem"]=112904952151156,["georgian-lari"]=98084432591687,["ghost"]=113822048130017,["gift"]=109855212076373,["git-branch-minus"]=97385010649411,
+["git-branch-plus"]=125944221134316,["git-branch"]=90490195516649,["git-commit-horizontal"]=133646041800147,["git-commit-vertical"]=122098032990350,["git-compare-arrows"]=84874426520216,["git-compare"]=91945124438792,
+["git-fork"]=89954992404765,["git-graph"]=86166832019304,["git-merge"]=131833355158059,["git-pull-request-arrow"]=94507974577439,["git-pull-request-closed"]=78070600389091,["git-pull-request-create-arrow"]=127422677061091,
+["git-pull-request-create"]=105929577383926,["git-pull-request-draft"]=76173459869943,["git-pull-request"]=138463010991471,["github"]=120349554354380,["gitlab"]=114054627192933,["glass-water"]=115526102400988,
+["glasses"]=87936407455373,["globe-lock"]=134065526704402,["globe"]=114238209622913,["goal"]=120517954878160,["gpu"]=95577823614219,["graduation-cap"]=93771896340220,
+["grape"]=134760640415561,["grid-2x2-check"]=138468840220821,["grid-2x2-plus"]=91811610580247,["grid-2x2-x"]=72407303981388,["grid-2x2"]=99050491897640,["grid-3x2"]=95528684210010,
+["grid-3x3"]=70419024781206,["grip-horizontal"]=136255899715930,["grip-vertical"]=137183678565296,["grip"]=109058783556768,["group"]=107643418926671,["guitar"]=75915531867926,
+["ham"]=74465607934635,["hamburger"]=93086916815495,["hammer"]=83545120140895,["hand-coins"]=126990543175462,["hand-fist"]=83341608917591,["hand-grab"]=88867162163985,
+["hand-heart"]=117507367668412,["hand-helping"]=89897738419446,["hand-metal"]=113619498548713,["hand-platter"]=88594727743168,["hand"]=130703864968637,["handbag"]=135675846264061,
+["handshake"]=78442115255814,["hard-drive-download"]=73913801230614,["hard-drive-upload"]=85762133615118,["hard-drive"]=88183305858463,["hard-hat"]=128050846767382,["hash"]=82890331678520,
+["hat-glasses"]=101165538224815,["haze"]=108857561768901,["hdmi-port"]=103693661037020,["heading-1"]=118129315662110,["heading-2"]=110209069670094,["heading-3"]=90267885237062,
+["heading-4"]=129625620307602,["heading-5"]=120386663181267,["heading-6"]=90959079775093,["heading"]=129254312067735,["headphone-off"]=85038251615641,["headphones"]=118833729589183,
+["headset"]=129269236787694,["heart-crack"]=110987638564119,["heart-handshake"]=111483078692002,["heart-minus"]=96827380163326,["heart-off"]=89748414415617,["heart-plus"]=94877796283249,
+["heart-pulse"]=129352925579546,["heart"]=116559368303288,["heater"]=140478466880916,["helicopter"]=111557171735930,["hexagon"]=127592089339199,["highlighter"]=77411555641113,
+["history"]=123980022019922,["hop-off"]=103386036934034,["hop"]=82778923997672,["hospital"]=105868763850707,["hotel"]=132283390859718,["hourglass"]=86160434939203,
+["house-heart"]=136054771868597,["house-plug"]=71438263712075,["house-plus"]=118495165208309,["house-wifi"]=126495519725698,["house"]=98755624629571,["ice-cream-bowl"]=124867218454386,
+["ice-cream-cone"]=90751397288639,["id-card-lanyard"]=90761480469224,["id-card"]=75354294622640,["image-down"]=78972295741235,["image-minus"]=101066016918565,["image-off"]=81934811700938,
+["image-play"]=129501806784210,["image-plus"]=70391970623917,["image-up"]=126610009605241,["image-upscale"]=106963545024679,["images"]=79350649395557,["import"]=116545008906029,
+["inbox"]=112591360302868,["indian-rupee"]=113038778381805,["infinity"]=98083086936965,["info"]=124560466474914,["inspection-panel"]=70905313146088,["instagram"]=119864798614855,
+["italic"]=96220378864282,["iteration-ccw"]=140221832794083,["iteration-cw"]=95534489554662,["japanese-yen"]=106362863465813,["joystick"]=99416790224739,["kanban"]=125934100055431,
+["kayak"]=136107544609389,["key-round"]=83619031955390,["key-square"]=94621420033649,["key"]=96510194465420,["keyboard-music"]=121058541758636,["keyboard-off"]=92466375369772,
+["keyboard"]=121474456068237,["lamp-ceiling"]=80032758469141,["lamp-desk"]=85290686983238,["lamp-floor"]=104585881375892,["lamp-wall-down"]=91271394132073,["lamp-wall-up"]=132141464337445,
+["lamp"]=110730830653382,["land-plot"]=96449039620294,["landmark"]=76885079756393,["languages"]=90816903776498,["laptop-minimal-check"]=114352019833865,["laptop-minimal"]=136705765566068,
+["laptop"]=111387063244975,["lasso-select"]=105609719912753,["lasso"]=121072936884007,["laugh"]=104491311361166,["layers-2"]=70536710516357,["layers"]=81973586053257,
+["layout-dashboard"]=139929981863901,["layout-grid"]=81344910161871,["layout-list"]=87462136296578,["layout-panel-left"]=125092469751491,["layout-panel-top"]=91943941515944,["layout-template"]=115564446417985,
+["leaf"]=119951075637174,["leafy-green"]=105146290493154,["lectern"]=106166425183862,["library-big"]=106794530191412,["library"]=114334671982047,["life-buoy"]=81168450671956,
+["ligature"]=111397873269411,["lightbulb-off"]=83795722296178,["lightbulb"]=103871245626488,["line-squiggle"]=109555164424447,["link-2-off"]=76885956296867,["link-2"]=86072351557466,
+["link"]=131607023382430,["linkedin"]=132842789255788,["list-check"]=72374358471156,["list-checks"]=99809353635593,["list-chevrons-down-up"]=137409641500711,["list-chevrons-up-down"]=81825351389084,
+["list-collapse"]=124505247702401,["list-end"]=77650610048119,["list-filter-plus"]=96385120752336,["list-filter"]=103321376129527,["list-indent-decrease"]=137879979228193,["list-indent-increase"]=79051053161201,
+["list-minus"]=138507965142671,["list-music"]=126380635781840,["list-ordered"]=83212528113913,["list-plus"]=112384738137814,["list-restart"]=91703153577421,["list-start"]=84828348299727,
+["list-todo"]=132980603752108,["list-tree"]=97685396239010,["list-video"]=93648525452489,["list-x"]=113025303988861,["list"]=113179976918783,["loader-circle"]=116535712789945,
+["loader-pinwheel"]=108513357940900,["loader"]=78408734580845,["locate-fixed"]=137367361548433,["locate-off"]=73729216338137,["locate"]=84467676590391,["lock-keyhole-open"]=110863509313073,
+["lock-keyhole"]=78672912777756,["lock-open"]=93597915325122,["lock"]=134724289526879,["log-in"]=103768533135201,["log-out"]=84895399304975,["logs"]=89772091251787,
+["lollipop"]=84681611583044,["luggage"]=76619236486400,["magnet"]=135162361226972,["mail-check"]=86921536259917,["mail-minus"]=81989813236553,["mail-open"]=122785416858638,
+["mail-plus"]=104886401588341,["mail-question-mark"]=126540170949819,["mail-search"]=135616173775287,["mail-warning"]=81495303676089,["mail-x"]=74607841705644,["mail"]=103945161245599,
+["mailbox"]=82765503320335,["mails"]=90673453450080,["map-minus"]=129525760577747,["map-pin-check-inside"]=107130529843809,["map-pin-check"]=118110914690154,["map-pin-house"]=80546885029816,
+["map-pin-minus-inside"]=79005529692964,["map-pin-minus"]=74518762643623,["map-pin-off"]=82474689391020,["map-pin-pen"]=113515395277504,["map-pin-plus-inside"]=134639656514430,["map-pin-plus"]=91875228967029,
+["map-pin-x-inside"]=126235934252379,["map-pin-x"]=101085273547316,["map-pin"]=84279202219901,["map-pinned"]=103963788475034,["map-plus"]=129388826743495,["map"]=95107167260947,
+["mars-stroke"]=131973193186828,["mars"]=111287112372511,["martini"]=82977695401058,["maximize-2"]=73085922906397,["maximize"]=76045941763188,["medal"]=79016002264450,
+["megaphone-off"]=124280774193935,["megaphone"]=118759541854879,["meh"]=132197867028557,["memory-stick"]=93212591343119,["menu"]=77021539815611,["merge"]=126201866476775,
+["message-circle-code"]=112865244991651,["message-circle-dashed"]=81525157881897,["message-circle-heart"]=101990756073677,["message-circle-more"]=92856823884663,["message-circle-off"]=134955643890328,["message-circle-plus"]=106562979649273,
+["message-circle-question-mark"]=107700302759934,["message-circle-reply"]=137071749508334,["message-circle-warning"]=119020096067894,["message-circle-x"]=126843387725536,["message-circle"]=127255077587058,["message-square-code"]=110968863152123,
+["message-square-dashed"]=107653455516238,["message-square-diff"]=75472190472625,["message-square-dot"]=127806382463916,["message-square-heart"]=75612811742074,["message-square-lock"]=81268215619563,["message-square-more"]=120139782405970,
+["message-square-off"]=99961019005789,["message-square-plus"]=76934450256199,["message-square-quote"]=116670768629340,["message-square-reply"]=130985622754637,["message-square-share"]=131017005324026,["message-square-text"]=94899503194205,
+["message-square-warning"]=138432903962261,["message-square-x"]=137285463279462,["message-square"]=83881670383280,["messages-square"]=97532166733358,["mic-off"]=82123034444822,["mic-vocal"]=99082286164362,
+["mic"]=89640799126523,["microchip"]=73937907669903,["microscope"]=116875530102782,["microwave"]=108411735353008,["milestone"]=101618292325920,["milk-off"]=72388480962742,
+["milk"]=96221903896918,["minimize-2"]=116269596042539,["minimize"]=121304296213645,["minus"]=118026365011536,["monitor-check"]=86651948439229,["monitor-cloud"]=85931096038318,
+["monitor-cog"]=94345128715799,["monitor-dot"]=130394010063680,["monitor-down"]=97466933743423,["monitor-off"]=74395526657953,["monitor-pause"]=76002184067562,["monitor-play"]=133018824306217,
+["monitor-smartphone"]=84335680433378,["monitor-speaker"]=81744810060380,["monitor-stop"]=98708958984757,["monitor-up"]=96035360858377,["monitor-x"]=126265210441423,["monitor"]=72664649203050,
+["moon-star"]=82782200506348,["moon"]=83380517901735,["motorbike"]=94580787368233,["mountain-snow"]=105315495740588,["mountain"]=73269957566415,["mouse-off"]=75267871697595,
+["mouse-pointer-2-off"]=104701076865632,["mouse-pointer-2"]=117093892862228,["mouse-pointer-ban"]=106849413057133,["mouse-pointer-click"]=107150227368485,["mouse-pointer"]=72322454962935,["mouse"]=73096068864710,
+["move-3d"]=103365982054003,["move-diagonal-2"]=117298577948096,["move-diagonal"]=101433481954184,["move-down-left"]=102819433534567,["move-down-right"]=101479760041877,["move-down"]=70510115135583,
+["move-horizontal"]=88513523439149,["move-left"]=137614740247980,["move-right"]=132455779472989,["move-up-left"]=139079815540148,["move-up-right"]=105885140592646,["move-up"]=84505444262658,
+["move-vertical"]=86234730730899,["move"]=116138709011735,["music-2"]=134397426600888,["music-3"]=94466120066498,["music-4"]=132459323665838,["music"]=113343203848535,
+["navigation-2-off"]=116569611780763,["navigation-2"]=81889066747907,["navigation-off"]=87003270290777,["navigation"]=79308213542922,["network"]=127410729922644,["newspaper"]=123479530460544,
+["nfc"]=76822396542242,["non-binary"]=78442360386235,["notebook-pen"]=140380614761023,["notebook-tabs"]=127371085570083,["notebook-text"]=93061585217270,["notebook"]=136132108664987,
+["notepad-text-dashed"]=135793446376219,["notepad-text"]=93404682958966,["nut-off"]=78795397311573,["nut"]=127146410705656,["octagon-alert"]=140438367956051,["octagon-minus"]=74720436795421,
+["octagon-pause"]=103161463909039,["octagon-x"]=90498161006311,["octagon"]=120803515514852,["omega"]=70414080018786,["option"]=100776883894054,["orbit"]=108926136860562,
+["origami"]=136020626667101,["package-2"]=70394974762575,["package-check"]=102374216055130,["package-minus"]=114492858789692,["package-open"]=132890233237818,["package-plus"]=129261988138366,
+["package-search"]=95465120894145,["package-x"]=70818501607442,["package"]=97261141732706,["paint-bucket"]=124275586663284,["paint-roller"]=115248074358348,["paintbrush-vertical"]=105151296591292,
+["paintbrush"]=125572663700289,["palette"]=86350350950064,["panda"]=132509022802512,["panel-bottom-close"]=74287004071159,["panel-bottom-dashed"]=131084651621603,["panel-bottom-open"]=107768659586540,
+["panel-bottom"]=132127145048511,["panel-left-close"]=126579818823552,["panel-left-dashed"]=75536606374585,["panel-left-open"]=111075816195767,["panel-left-right-dashed"]=110100707973959,["panel-left"]=97419752870313,
+["panel-right-close"]=139528655524132,["panel-right-dashed"]=94959793877311,["panel-right-open"]=118114419142794,["panel-right"]=116365035443156,["panel-top-bottom-dashed"]=134737235653344,["panel-top-close"]=83578325777808,
+["panel-top-dashed"]=70522913169237,["panel-top-open"]=137959875507454,["panel-top"]=75838479462875,["panels-left-bottom"]=72996856149149,["panels-right-bottom"]=90659068960726,["panels-top-left"]=79858853850600,
+["paperclip"]=92088291163453,["parentheses"]=78950955173096,["parking-meter"]=84652733960568,["party-popper"]=111626795712193,["pause"]=74873705394436,["paw-print"]=112218825427601,
+["pc-case"]=122978648019101,["pen-line"]=109108135755303,["pen-off"]=84807123119438,["pen-tool"]=106145404953445,["pen"]=72037878096321,["pencil-line"]=88392917053533,
+["pencil-off"]=103330927652832,["pencil-ruler"]=110120288284597,["pencil"]=137986121120732,["pentagon"]=79184802179890,["percent"]=130155041032013,["person-standing"]=125020872044147,
+["philippine-peso"]=91173798254675,["phone-call"]=70555587592860,["phone-forwarded"]=113269614319737,["phone-incoming"]=82863576359288,["phone-missed"]=130156165198376,["phone-off"]=133318623553383,
+["phone-outgoing"]=104576478735825,["phone"]=128804946640049,["pi"]=74936036243146,["piano"]=85008880789520,["pickaxe"]=105888023317688,["picture-in-picture-2"]=112803319544468,
+["picture-in-picture"]=80579597835123,["piggy-bank"]=79498575790721,["pilcrow-left"]=103803000849583,["pilcrow-right"]=104881733911870,["pilcrow"]=139512780392871,["pill-bottle"]=118394692404597,
+["pill"]=73280534813448,["pin-off"]=127696372451750,["pin"]=120978111007514,["pipette"]=133167932934404,["pizza"]=126964453193501,["plane-landing"]=122555692211889,
+["plane-takeoff"]=117179478829575,["plane"]=126985561580989,["play"]=135609604299893,["plug-2"]=97912386476366,["plug-zap"]=74506269884055,["plug"]=99782373064495,
+["plus"]=111774323017047,["pocket-knife"]=134075428063965,["pocket"]=136686762542964,["podcast"]=109577075549215,["pointer-off"]=95488389312794,["pointer"]=92615117311099,
+["popcorn"]=139446511232750,["popsicle"]=112696318077073,["pound-sterling"]=127482649469130,["power-off"]=118768311012214,["power"]=96479131758775,["presentation"]=106134583757890,
+["printer-check"]=130273549443689,["printer"]=76080649734247,["projector"]=103281856385283,["proportions"]=130046855997237,["puzzle"]=136837798892463,["pyramid"]=107811442374127,
+["qr-code"]=105329945723350,["quote"]=103271711590001,["rabbit"]=98580518804206,["radar"]=138528222906635,["radiation"]=104499586848433,["radical"]=132758286926047,
+["radio-receiver"]=129598303378835,["radio-tower"]=93958663130054,["radio"]=85611589536956,["radius"]=89814505307129,["rail-symbol"]=134295386306962,["rainbow"]=132488862841895,
+["rat"]=127400975953159,["ratio"]=126369423897295,["receipt-cent"]=91557573925201,["receipt-euro"]=94015722210295,["receipt-indian-rupee"]=89718170439990,["receipt-japanese-yen"]=132472560758851,
+["receipt-pound-sterling"]=73934967569625,["receipt-russian-ruble"]=105164576936853,["receipt-swiss-franc"]=72503668620116,["receipt-text"]=138483536013737,["receipt-turkish-lira"]=91950765836342,["receipt"]=77877895901792,
+["rectangle-circle"]=100642423153903,["rectangle-ellipsis"]=112919953980965,["rectangle-goggles"]=98605436666727,["rectangle-horizontal"]=90224199814966,["rectangle-vertical"]=117277050590967,["recycle"]=140417023381961,
+["redo-2"]=70451039017914,["redo-dot"]=94252981719732,["redo"]=116150342119054,["refresh-ccw-dot"]=106702246753270,["refresh-ccw"]=117913330389477,["refresh-cw-off"]=140179498843054,
+["refresh-cw"]=138133190015277,["refrigerator"]=102614042652753,["regex"]=100727200791841,["remove-formatting"]=112833162022628,["repeat-1"]=130144534857095,["repeat-2"]=85927537182704,
+["repeat"]=121886242955173,["replace-all"]=127862728198635,["replace"]=128404082279430,["reply-all"]=71723137343562,["reply"]=109788633497028,["rewind"]=95205297521988,
+["ribbon"]=94265331526851,["rocket"]=87412317685854,["rocking-chair"]=110420269495360,["roller-coaster"]=112426178972099,["rose"]=126336840238769,["rotate-3d"]=76300551576392,
+["rotate-ccw-key"]=74976035240976,["rotate-ccw-square"]=90515853170424,["rotate-ccw"]=110116685948665,["rotate-cw-square"]=77095448159303,["rotate-cw"]=84183336178654,["route-off"]=106350402024079,
+["route"]=89968303228953,["router"]=102130331994471,["rows-2"]=112556185960101,["rows-3"]=117215586961375,["rows-4"]=125646021959055,["rss"]=131789058984793,
+["ruler-dimension-line"]=70673861371412,["ruler"]=81432445547423,["russian-ruble"]=126357936542156,["sailboat"]=87110567187540,["salad"]=128864507821603,["sandwich"]=104573187458917,
+["satellite-dish"]=136742443888305,["satellite"]=134967053164645,["saudi-riyal"]=102282769104635,["save-all"]=116946975799440,["save-off"]=87085435778560,["save"]=126116963775616,
+["scale-3d"]=72414199620352,["scale"]=108203682317477,["scaling"]=122360365318466,["scan-barcode"]=96889457154761,["scan-eye"]=99244790601968,["scan-face"]=109959345069668,
+["scan-heart"]=106280819776142,["scan-line"]=126544908146540,["scan-qr-code"]=105409149549927,["scan-search"]=80009010551347,["scan-text"]=73702396787766,["scan"]=123104789658180,
+["school"]=76351530290068,["scissors-line-dashed"]=122237447974173,["scissors"]=118665510911274,["screen-share-off"]=107677572669805,["screen-share"]=85137895705653,["scroll-text"]=97321022666868,
+["scroll"]=74072101474951,["search-check"]=75442076191356,["search-code"]=117114794592802,["search-slash"]=96483932261041,["search-x"]=137319957522951,["search"]=121018724060431,
+["section"]=91732188298948,["send-horizontal"]=111734392411664,["send-to-back"]=75340312862253,["send"]=127751956873796,["separator-horizontal"]=84864453699927,["separator-vertical"]=84031801478581,
+["server-cog"]=138470287250966,["server-crash"]=132810618000212,["server-off"]=114048751507723,["server"]=92188766517878,["settings-2"]=135684703553372,["settings"]=80758916183665,
+["shapes"]=129989433311409,["share-2"]=71210767962065,["share"]=87340985053299,["sheet"]=134902122480171,["shell"]=140212943563599,["shield-alert"]=114995877719925,
+["shield-ban"]=108765041044649,["shield-check"]=87354736164608,["shield-ellipsis"]=114794739892123,["shield-half"]=117842634172647,["shield-minus"]=89965059528921,["shield-off"]=133426959132690,
+["shield-plus"]=100664857995498,["shield-question-mark"]=135722075265150,["shield-user"]=124832775645347,["shield-x"]=73370117343811,["shield"]=110987169760162,["ship-wheel"]=130797795829448,
+["ship"]=83995100553930,["shirt"]=106579555405966,["shopping-bag"]=71885477293226,["shopping-basket"]=138646411956433,["shopping-cart"]=128420521375441,["shovel"]=102465000512056,
+["shower-head"]=75884944024117,["shredder"]=122125164414463,["shrimp"]=102625900815307,["shrink"]=90953687918880,["shrub"]=127326280714343,["shuffle"]=132382786975101,
+["sigma"]=126884244870899,["signal-high"]=130436670012270,["signal-low"]=73674683500458,["signal-medium"]=125003021367019,["signal-zero"]=130045332414754,["signal"]=78424889355261,
+["signature"]=114402748013000,["signpost-big"]=115780185675001,["signpost"]=106584743791433,["siren"]=134210267818039,["skip-back"]=70466132711334,["skip-forward"]=124844823753990,
+["skull"]=137726256442333,["slack"]=96089719516736,["slash"]=117792185664263,["slice"]=95810504278179,["sliders-horizontal"]=85538382643347,["sliders-vertical"]=101190569086853,
+["smartphone-charging"]=102837532613995,["smartphone-nfc"]=82326425754446,["smartphone"]=96623008834511,["smile-plus"]=131981881472144,["smile"]=105880397565283,["snail"]=70904536548363,
+["snowflake"]=101235206534566,["soap-dispenser-droplet"]=77258480479465,["sofa"]=114427687218324,["solar-panel"]=132448188047921,["soup"]=115092551871618,["space"]=87072088914178,
+["spade"]=131444449466462,["sparkle"]=111044800239623,["sparkles"]=138635884129147,["speaker"]=96227183003618,["speech"]=87013139446349,["spell-check-2"]=81556731785534,
+["spell-check"]=91913483031334,["spline-pointer"]=84842840956804,["spline"]=129406685807412,["split"]=105112438805988,["spool"]=124541981347743,["spotlight"]=77571742539344,
+["spray-can"]=128372039366326,["sprout"]=100091687832508,["square-activity"]=89496630185293,["square-arrow-down-left"]=108194680296901,["square-arrow-down-right"]=99403846801050,["square-arrow-down"]=135962519626588,
+["square-arrow-left"]=111671474549238,["square-arrow-out-down-left"]=125714881756353,["square-arrow-out-down-right"]=89971003001390,["square-arrow-out-up-left"]=103759986579087,["square-arrow-out-up-right"]=91221896066807,["square-arrow-right"]=113920471701361,
+["square-arrow-up-left"]=112424670290693,["square-arrow-up-right"]=76602291406940,["square-arrow-up"]=106998604646718,["square-asterisk"]=89186832353625,["square-bottom-dashed-scissors"]=79076980104803,["square-chart-gantt"]=104034017316411,
+["square-check-big"]=115320390907184,["square-check"]=134682053539509,["square-chevron-down"]=91032307924592,["square-chevron-left"]=73143404829510,["square-chevron-right"]=90612077729930,["square-chevron-up"]=85565910197337,
+["square-code"]=81604576616881,["square-dashed-bottom-code"]=100354801563230,["square-dashed-bottom"]=101102319625624,["square-dashed-kanban"]=90388067649847,["square-dashed-mouse-pointer"]=121016142178467,["square-dashed-top-solid"]=117157577548540,
+["square-dashed"]=136905537847606,["square-divide"]=99894657101970,["square-dot"]=116613421354866,["square-equal"]=110283363706707,["square-function"]=86075219551088,["square-kanban"]=114537101260131,
+["square-library"]=73810931222081,["square-m"]=117662700410577,["square-menu"]=104067089444415,["square-minus"]=116764432015770,["square-mouse-pointer"]=76141850603920,["square-parking-off"]=100857293535141,
+["square-parking"]=133116656122387,["square-pause"]=86608552787615,["square-pen"]=120239476110475,["square-percent"]=87111930314567,["square-pi"]=75383328781618,["square-pilcrow"]=131854284699367,
+["square-play"]=108186325238481,["square-plus"]=114713264461873,["square-power"]=129240437805187,["square-radical"]=132645931868292,["square-round-corner"]=104592745113567,["square-scissors"]=110601255612411,
+["square-sigma"]=113231244246816,["square-slash"]=105477013908757,["square-split-horizontal"]=76095370148660,["square-split-vertical"]=88589192032058,["square-square"]=136555087357875,["square-stack"]=100463396619394,
+["square-star"]=94506958703720,["square-stop"]=80018708472943,["square-terminal"]=83969264476798,["square-user-round"]=86484997229302,["square-user"]=70771214183445,["square-x"]=125136183850190,
+["square"]=86304921356806,["squares-exclude"]=102345385822324,["squares-intersect"]=120869602570119,["squares-subtract"]=131484650948795,["squares-unite"]=96673080107843,["squircle-dashed"]=129936702532522,
+["squircle"]=82426632573807,["squirrel"]=112864252085343,["stamp"]=92370779813368,["star-half"]=117449275562979,["star-off"]=75742832732503,["star"]=136141469398409,
+["step-back"]=108672750005121,["step-forward"]=126131872136145,["stethoscope"]=122331031702148,["sticker"]=79938203791608,["sticky-note"]=111894074643919,["store"]=90338129673705,
+["stretch-horizontal"]=87665042192343,["stretch-vertical"]=95265463417122,["strikethrough"]=103417324549613,["subscript"]=74553514785183,["sun-dim"]=129141645592715,["sun-medium"]=130278807964710,
+["sun-moon"]=75752898854559,["sun-snow"]=112791898014579,["sun"]=110150589884127,["sunrise"]=134705665494098,["sunset"]=75904872203588,["superscript"]=96887696590118,
+["swatch-book"]=126786244872453,["swiss-franc"]=113497920041625,["switch-camera"]=76841154349737,["sword"]=124448418211665,["swords"]=81872698913435,["syringe"]=123891270479254,
+["table-2"]=95751552281545,["table-cells-merge"]=95363715175258,["table-cells-split"]=114799086088649,["table-columns-split"]=111011625447949,["table-of-contents"]=135044763275414,["table-properties"]=125062886015372,
+["table-rows-split"]=96443733673997,["table"]=109109148250737,["tablet-smartphone"]=133680859813404,["tablet"]=128403991264386,["tablets"]=80835787970735,["tag"]=129104970103940,
+["tags"]=107179263080798,["tally-1"]=115301298241643,["tally-2"]=110363186864027,["tally-3"]=97655344572540,["tally-4"]=102633494371890,["tally-5"]=88031817475886,
+["tangent"]=123263132981724,["target"]=87563802520297,["telescope"]=91755049143647,["tent-tree"]=76698322463977,["tent"]=109779587826330,["terminal"]=106783148545356,
+["test-tube-diagonal"]=75662704378840,["test-tube"]=98801015650164,["test-tubes"]=92555361447433,["text-align-center"]=84051028246390,["text-align-end"]=130041738343555,["text-align-justify"]=80279880143030,
+["text-align-start"]=134489585487649,["text-cursor-input"]=107551944047171,["text-cursor"]=115984654447300,["text-initial"]=129458097472087,["text-quote"]=139278366448736,["text-search"]=92345384671606,
+["text-select"]=117087320884956,["text-wrap"]=114804318314018,["theater"]=108558145549163,["thermometer-snowflake"]=121876188028425,["thermometer-sun"]=106693240074310,["thermometer"]=106546011492311,
+["thumbs-down"]=87794009914015,["thumbs-up"]=111137070767020,["ticket-check"]=105428777212507,["ticket-minus"]=78966299769328,["ticket-percent"]=80834774406405,["ticket-plus"]=110086734392189,
+["ticket-slash"]=89045681172265,["ticket-x"]=88674114109926,["ticket"]=126527071492145,["tickets-plane"]=100367018248695,["tickets"]=135268612687833,["timer-off"]=110916370767271,
+["timer-reset"]=110052125369932,["timer"]=85473888890506,["toggle-left"]=85887872573050,["toggle-right"]=90411952142550,["toilet"]=80930782432931,["tool-case"]=87533537832522,
+["tornado"]=88358291515768,["torus"]=70855707283051,["touchpad-off"]=78784008075456,["touchpad"]=74882354908014,["tower-control"]=95937619060532,["toy-brick"]=86293483924633,
+["tractor"]=103376704722051,["traffic-cone"]=74110220470369,["train-front-tunnel"]=105194827005114,["train-front"]=125237934215370,["train-track"]=77451032453723,["tram-front"]=93315182364998,
+["transgender"]=135530817673639,["trash-2"]=109843431391323,["trash"]=106723740584310,["tree-deciduous"]=123124389219004,["tree-palm"]=103846705893963,["tree-pine"]=124662547202594,
+["trees"]=121203841375919,["trello"]=130987241149527,["trending-down"]=139309232226438,["trending-up-down"]=85083293981691,["trending-up"]=81819858538839,["triangle-alert"]=125920361880643,
+["triangle-dashed"]=124324079103935,["triangle-right"]=116930791412791,["triangle"]=126330486745540,["trophy"]=131545003268773,["truck-electric"]=111873446387359,["truck"]=86662707764771,
+["turkish-lira"]=114589876174070,["turntable"]=129870346487856,["turtle"]=118295081560334,["tv-minimal-play"]=99201833426972,["tv-minimal"]=100382201729427,["tv"]=135687724791776,
+["twitch"]=71383308134888,["twitter"]=88791703276842,["type-outline"]=80108627791690,["type"]=133543553793564,["umbrella-off"]=72395143739955,["umbrella"]=127502210274589,
+["underline"]=123709229216544,["undo-2"]=113885292059932,["undo-dot"]=132055277744844,["undo"]=111258459077271,["unfold-horizontal"]=117128358526398,["unfold-vertical"]=116593025265499,
+["ungroup"]=106674800451003,["university"]=84652528263642,["unlink-2"]=128131898892572,["unlink"]=139835795227752,["unplug"]=90171381619874,["upload"]=138212042425501,
+["usb"]=117230058949613,["user-check"]=81775205032725,["user-cog"]=92795491530865,["user-lock"]=78892639693821,["user-minus"]=126976941957511,["user-pen"]=87445472574836,
+["user-plus"]=118514469915884,["user-round-check"]=118794737621941,["user-round-cog"]=78239503290053,["user-round-minus"]=98944176636447,["user-round-pen"]=108155244324878,["user-round-plus"]=113301899567470,
+["user-round-search"]=71565774381870,["user-round-x"]=122367980560930,["user-round"]=136485052187963,["user-search"]=101335649828115,["user-star"]=98777846316000,["user-x"]=139748155894754,
+["user"]=81589895647169,["users-round"]=103005444008339,["users"]=115398113982385,["utensils-crossed"]=109520762270383,["utensils"]=139952569804235,["utility-pole"]=101965541238242,
+["variable"]=104743088438151,["vault"]=108049164599845,["vector-square"]=86713728565344,["vegan"]=119489190688082,["venetian-mask"]=102636443033920,["venus-and-mars"]=120227752103771,
+["venus"]=82891342220859,["vibrate-off"]=113446447326246,["vibrate"]=108330910738733,["video-off"]=132239189859305,["video"]=107587444636945,["videotape"]=114816894323398,
+["view"]=118717253976805,["voicemail"]=134313454010227,["volleyball"]=83889351124153,["volume-1"]=98514588731639,["volume-2"]=89344380902620,["volume-off"]=103047478058767,
+["volume-x"]=139252359189540,["volume"]=103236289817396,["vote"]=89409762851246,["wallet-cards"]=129728715308337,["wallet-minimal"]=137800448816116,["wallet"]=132331555762628,
+["wallpaper"]=74682121235494,["wand-sparkles"]=82546429942392,["wand"]=114580617777835,["warehouse"]=78388887451080,["washing-machine"]=104194127573858,["watch"]=130544621618405,
+["waves-ladder"]=101808619355514,["waves"]=96340135183647,["waypoints"]=102450133666017,["webcam"]=104148487911129,["webhook-off"]=96370548093471,["webhook"]=112812457747322,
+["weight"]=103860559844854,["wheat-off"]=133294844612307,["wheat"]=85261952080359,["whole-word"]=90111083954485,["wifi-cog"]=110500263326209,["wifi-high"]=81954601342139,
+["wifi-low"]=138217335635913,["wifi-off"]=74113634330106,["wifi-pen"]=91290205064712,["wifi-sync"]=84043971055177,["wifi-zero"]=124286465246123,["wifi"]=104669375183960,
+["wind-arrow-down"]=127753987414870,["wind"]=114551690399915,["wine-off"]=108294164302317,["wine"]=115743721332829,["workflow"]=99186544029189,["worm"]=115752311548091,
+["wrench"]=112148279212860,["x"]=110786993356448,["youtube"]=123663668456341,["zap-off"]=81385483183652,["zap"]=130551565616516,["zoom-in"]=127956924984803,
+["zoom-out"]=108334162607319,["balloon"]=97489111621526,["beef-off"]=99869959725200,["book-search"]=132585409504950,["calendars"]=130944763042289,["cannabis-off"]=101938500363812,
+["cctv-off"]=75925370187295,["cigarette"]=137149549886852,["circle-pile"]=116353155251541,["cloud-backup"]=111649579696132,["cloud-sync"]=79393911188593,["database-search"]=92017137080138,
+["ellipse"]=71559658267482,["fingerprint-pattern"]=80934710831288,["fishing-hook"]=121038780855899,["fishing-rod"]=71754848048049,["form"]=72999643971000,["git-merge-conflict"]=85677801675703,
+["globe-off"]=77775243585824,["globe-x"]=109268097029296,["hd"]=71682790698278,["image"]=112751259236831,["layers-plus"]=77587765623057,["lens-concave"]=94819631937027,
+["lens-convex"]=74736504195474,["line-dot-right-horizontal"]=104718593155221,["line-style"]=90176717785772,["map-pin-search"]=89065012915078,["message-circle-check"]=132772297689418,["message-square-check"]=125789987055668,
+["metronome"]=101991829345965,["mirror-rectangular"]=109046769760336,["mirror-round"]=121534049429097,["mouse-left"]=99144293708743,["mouse-right"]=88331710212594,["printer-x"]=103002721801548,
+["radio-off"]=80359258046586,["road"]=120251329173530,["scooter"]=100035452787934,["search-alert"]=127597984617505,["shelving-unit"]=80116568514793,["shield-cog-corner"]=111694066132698,
+["shield-cog"]=129235695057857,["sport-shoe"]=120495992692630,["square-arrow-right-enter"]=138867831495334,["square-arrow-right-exit"]=133688575845430,["square-centerline-dashed-horizontal"]=77780104374341,["square-centerline-dashed-vertical"]=107878435803525,
+["stone"]=135161057497830,["toolbox"]=85341033903792,["towel-rack"]=125223915620991,["user-key"]=105403041782190,["user-round-key"]=124547549008939,["van"]=122066377022942,
+["waves-arrow-down"]=129215220911792,["waves-arrow-up"]=102314705716217,["weight-tilde"]=112081212176951,["x-line-top"]=140592656289509,["zodiac-aquarius"]=74560047770362,["zodiac-aries"]=73255859670234,
+["zodiac-cancer"]=131985162532947,["zodiac-capricorn"]=97859568140652,["zodiac-gemini"]=80997588122992,["zodiac-leo"]=75509406718106,["zodiac-libra"]=113222735060218,["zodiac-ophiuchus"]=129180108892480,
+["zodiac-pisces"]=95845819440327,["zodiac-sagittarius"]=82651026742181,["zodiac-scorpio"]=113640924054631,["zodiac-taurus"]=123053219704400,["zodiac-virgo"]=99462994613661,
+}
+end
+__modules["inbox"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local HEADER=44
+return function(Window)
+function Window:_buildInbox()
+if self.cfg.NotificationHistory==false then return end
+local Lib=self.Lib
+local button=self._windowButton("Inbox",self:_headerSlot(),false,true)
+local parts={}
+local function part(props,radius)
+local object=create("Frame",props)
+object.BorderSizePixel=0
+object.Parent=button
+if radius then corner(object,radius)end
+Theme.bind(object,"BackgroundColor3","muted")
+parts[#parts+1]=object
+return object
+end
+part({AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,8),Size=UDim2.fromOffset(8,9)},4)
+part({AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,15),Size=UDim2.fromOffset(12,2)},1)
+part({AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,18),Size=UDim2.fromOffset(3,2)},1)
+local dot=create("Frame",{Name="Unread",Position=UDim2.new(0.5,3,0,6),Size=UDim2.fromOffset(6,6),BorderSizePixel=0,Visible=false,ZIndex=3,Parent=button})
+corner(dot,3)
+Theme.bind(dot,"BackgroundColor3","accent")
+Theme.bind(stroke(dot,nil,0,1.5),"Color","base")
+button.MouseEnter:Connect(function()for _,p in ipairs(parts)do Theme.tweenTo(p,"BackgroundColor3","heading",0.12)end end)
+button.MouseLeave:Connect(function()for _,p in ipairs(parts)do Theme.tweenTo(p,"BackgroundColor3","muted",0.12)end end)
+local seen=0
+local panel
+local function unread()
+local history=Lib.NotifyHistory or{}
+local count=0
+for _,entry in ipairs(history)do if entry.Time and entry._id and entry._id>seen then count=count+1 end end
+return count
+end
+local nextId=0
+local function stamp()
+for index=#(Lib.NotifyHistory or{}),1,-1 do
+local entry=Lib.NotifyHistory[index]
+if not entry._id then nextId=nextId+1 entry._id=nextId end
+end
+end
+local function close()
+if panel then panel:Destroy()panel=nil end
+end
+local function render()
+if not panel then return end
+local list=panel:FindFirstChild("List")
+for _,child in ipairs(list:GetChildren())do if child:IsA("GuiObject")then child:Destroy()end end
+local history=Lib.NotifyHistory or{}
+panel:FindFirstChild("Empty").Visible=#history==0
+for index,entry in ipairs(history)do
+local item=create("Frame",{Name="Entry",BackgroundTransparency=1,Size=UDim2.new(1,0,0,entry.Content and 38 or 24),LayoutOrder=index,ZIndex=232,Parent=list})
+local mark=create("Frame",{Position=UDim2.fromOffset(0,5),Size=UDim2.new(0,2,1,-10),BorderSizePixel=0,ZIndex=233,Parent=item})
+corner(mark,1)
+if typeof(entry.Color)=="Color3"then mark.BackgroundColor3=entry.Color else Theme.bind(mark,"BackgroundColor3","accent")end
+local entryIcon=entry.Icon and Icons.themed(item,entry.Icon,12,"accent",{Position=UDim2.fromOffset(10,5),ZIndex=233})
+if entryIcon and typeof(entry.Color)=="Color3"then Theme.bind(entryIcon,"ImageColor3",entry.Color)end
+local title=label(item,entry.Title,10,{Position=UDim2.fromOffset(entryIcon and 28 or 10,3),Size=UDim2.new(1,entryIcon and-82 or-64,0,16),Font=Enum.Font.GothamMedium,ZIndex=233})
+Theme.bind(title,"TextColor3","heading")
+local time=label(item,Util.ago(entry.Time),9,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,3),Size=UDim2.fromOffset(54,16),TextXAlignment=Enum.TextXAlignment.Right,ZIndex=233})
+Theme.bind(time,"TextColor3","muted")
+if entry.Content then
+local content=label(item,entry.Content,9,{Position=UDim2.fromOffset(entryIcon and 28 or 10,19),Size=UDim2.new(1,entryIcon and-28 or-10,0,14),ZIndex=233})
+Theme.bind(content,"TextColor3","muted")
+end
+end
+end
+function self:OpenInbox()
+close()
+stamp()
+panel=create("Frame",{
+Name="InboxPanel",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-16,0,HEADER-4),Size=UDim2.fromOffset(270,260),
+BorderSizePixel=0,ZIndex=230,Active=true,Parent=self.main,
+})
+Theme.bind(panel,"BackgroundColor3","card")
+corner(panel,8)
+Theme.bind(stroke(panel),"Color","line")
+local heading=label(panel,"Notifications",11,{Position=UDim2.fromOffset(14,8),Size=UDim2.new(1,-90,0,20),Font=Enum.Font.GothamMedium,ZIndex=231})
+Theme.bind(heading,"TextColor3","heading")
+local clear=create("TextButton",{
+Name="Clear",Text="Clear",TextSize=9,Font=Enum.Font.GothamMedium,AutoButtonColor=false,BorderSizePixel=0,
+AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-12,0,9),Size=UDim2.fromOffset(44,18),ZIndex=231,Parent=panel,
+})
+Theme.bind(clear,"BackgroundColor3","input")
+Theme.bind(clear,"TextColor3","text")
+corner(clear,5)
+Theme.bind(stroke(clear),"Color","buttonEdge")
+clear.Activated:Connect(function()self:ClearInbox()end)
+local line=create("Frame",{Position=UDim2.fromOffset(12,34),Size=UDim2.new(1,-24,0,1),BorderSizePixel=0,ZIndex=231,Parent=panel})
+Theme.bind(line,"BackgroundColor3","line")
+local list=create("ScrollingFrame",{
+Name="List",BackgroundTransparency=1,BorderSizePixel=0,Position=UDim2.fromOffset(14,40),Size=UDim2.new(1,-22,1,-48),
+CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollBarThickness=2,ScrollingDirection=Enum.ScrollingDirection.Y,
+ZIndex=231,Parent=panel,
+})
+Theme.bind(list,"ScrollBarImageColor3","muted")
+Util.list(list,2)
+local empty=label(panel,"No notifications yet",10,{Name="Empty",Position=UDim2.fromOffset(0,40),Size=UDim2.new(1,0,1,-48),TextXAlignment=Enum.TextXAlignment.Center,ZIndex=231})
+Theme.bind(empty,"TextColor3","muted")
+render()
+seen=nextId
+dot.Visible=false
+self:_openPopup(panel,button,close)
+end
+function self:ClearInbox()
+Lib.NotifyHistory={}
+render()
+dot.Visible=false
+end
+button.Activated:Connect(function()
+if panel then self:_closePopup()else self:OpenInbox()end
+end)
+Lib._historyListeners=Lib._historyListeners or{}
+local function listener()
+if not self.alive then return end
+stamp()
+if panel then render()seen=nextId else dot.Visible=unread()>0 end
+end
+table.insert(Lib._historyListeners,listener)
+self.maid:give(function()
+local index=table.find(Lib._historyListeners,listener)
+if index then table.remove(Lib._historyListeners,index)end
+end)
+self.inboxButton=button
+end
+end
+end
+__modules["init"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Window=require("window")
+local Notify=require("notify")
+local Settings=require("settings")
+local Dashboard=require("dashboard")
+local Icons=require("icons")
+require("status")(Window)
+require("dialog")(Window)
+require("hud")(Window)
+require("inbox")(Window)
+require("windowx")(Window)
+local Lib={
+Version="1.4.0",
+Flags={},
+Windows={},
+Theme=Theme,
+Icons=Icons,
+Util=Util,
+}
+Lib.maid=Util.maid()
+function Lib:CreateWindow(cfg)return Window.new(self,cfg)end
+function Lib:Notify(cfg)return Notify.show(self,cfg)end
+function Lib:SetAccent(color)Theme.set("accent",color)end
+function Lib:SetColor(role,color)Theme.set(role,color)end
+function Lib:GetFlag(flag)return self.Flags[flag]end
+function Lib:Destroy()
+for index=#self.Windows,1,-1 do self.Windows[index]:Destroy()end
+self.maid:clean()
+end
+function Window:SettingsTab(cfg)return Settings(self,cfg)end
+function Window:DashboardTab(cfg)return Dashboard(self,cfg)end
+return Lib
+end
+__modules["notify"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local UIFont=require("font")
+local Icons=require("icons")
+local create,corner,stroke,label,tween=Util.create,Util.corner,Util.stroke,Util.label,Util.tween
+local Notify={}
+function Notify.holder(Lib)
+if Lib._notifyHolder and Lib._notifyHolder.Parent then return Lib._notifyHolder end
+local gui=Util.screenGui("QustahUI_Notifications",60)
+Lib.maid:give(gui)
+UIFont.register(gui,Lib.maid)
+local holder=create("Frame",{
+Name="Toasts",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,1),Position=UDim2.new(1,-16,1,-16),
+Size=UDim2.new(0,250,1,-32),Parent=gui,
+})
+Util.list(holder,6,nil,nil,Enum.VerticalAlignment.Bottom)
+Lib._notifyHolder=holder
+return holder
+end
+function Notify.show(Lib,cfg)
+if type(cfg)=="string"then cfg={Title=cfg}end
+cfg=cfg or{}
+local holder=Notify.holder(Lib)
+if cfg.History~=false then
+Lib.NotifyHistory=Lib.NotifyHistory or{}
+table.insert(Lib.NotifyHistory,1,{Title=tostring(cfg.Title or""),Content=cfg.Content and tostring(cfg.Content)or nil,Color=cfg.Color,Icon=cfg.Icon,Time=os.time()})
+while#Lib.NotifyHistory>50 do table.remove(Lib.NotifyHistory)end
+for _,listener in ipairs(Lib._historyListeners or{})do Util.safe(listener)end
+end
+Lib._toastOrder=(Lib._toastOrder or 0)+1
+local duration=tonumber(cfg.Duration)or 3
+local hasContent=cfg.Content~=nil and cfg.Content~=""
+local buttons=type(cfg.Buttons)=="table"and#cfg.Buttons>0 and cfg.Buttons or nil
+if buttons and not cfg.Duration then duration=6 end
+local textHeight=hasContent and 50 or 34
+local height=textHeight+(buttons and 32 or 0)
+local toast=create("CanvasGroup",{
+Name="Toast",Size=UDim2.new(1,0,0,height),BorderSizePixel=0,GroupTransparency=1,
+LayoutOrder=Lib._toastOrder,Parent=holder,
+})
+Theme.bind(toast,"BackgroundColor3","card")
+corner(toast,8)
+Theme.bind(stroke(toast),"Color","line")
+local marker=create("Frame",{Position=UDim2.fromOffset(12,10),Size=UDim2.new(0,3,0,textHeight-20),BorderSizePixel=0,Parent=toast})
+corner(marker,2)
+local progress=create("Frame",{Position=UDim2.new(0,0,1,-2),Size=UDim2.new(1,0,0,2),BorderSizePixel=0,Parent=toast})
+if typeof(cfg.Color)=="Color3"then
+marker.BackgroundColor3,progress.BackgroundColor3=cfg.Color,cfg.Color
+else
+Theme.bind(marker,"BackgroundColor3","accent")
+Theme.bind(progress,"BackgroundColor3","accent")
+end
+local textX=23
+local icon=cfg.Icon and Icons.Get(cfg.Icon)and Icons.Image(cfg.Icon,{Name="ToastIcon",Size=UDim2.fromOffset(16,16)})
+if icon then
+marker.Visible=false
+icon.AnchorPoint=Vector2.new(0,0.5)
+icon.Position=UDim2.new(0,12,0,textHeight/2)
+if typeof(cfg.Color)=="Color3"then icon.ImageColor3=cfg.Color else Theme.bind(icon,"ImageColor3","accent")end
+icon.Parent=toast
+textX=36
+end
+local closeRoom=cfg.CanClose~=false and 22 or 0
+local title=label(toast,tostring(cfg.Title or""),11,{Position=UDim2.fromOffset(textX,hasContent and 8 or 0),Size=UDim2.new(1,-textX-9-closeRoom,0,hasContent and 17 or textHeight),Font=Enum.Font.GothamBold})
+Theme.bind(title,"TextColor3","heading")
+if hasContent then
+local content=label(toast,tostring(cfg.Content),10,{Position=UDim2.fromOffset(textX,25),Size=UDim2.new(1,-textX-9-closeRoom,0,16)})
+Theme.bind(content,"TextColor3","muted")
+end
+local closed=false
+local function dismiss()
+if closed or not toast.Parent then return end
+closed=true
+tween(toast,0.25,{GroupTransparency=1})
+task.delay(0.27,function()if toast.Parent then toast:Destroy()end end)
+end
+if cfg.CanClose~=false then
+local close=create("TextButton",{
+Name="Close",Text="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),
+Position=UDim2.new(1,-6,0,6),Size=UDim2.fromOffset(18,18),Parent=toast,
+})
+for _,rotation in ipairs({45,-45})do
+local bar=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(9,1.5),Rotation=rotation,BorderSizePixel=0,Parent=close})
+Theme.bind(bar,"BackgroundColor3","muted")
+end
+close.Activated:Connect(dismiss)
+end
+if buttons then
+local row=create("Frame",{Name="Buttons",BackgroundTransparency=1,Position=UDim2.new(0,textX,0,textHeight-4),Size=UDim2.new(1,-textX-10,0,24),Parent=toast})
+Util.list(row,6,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+for index,spec in ipairs(buttons)do
+local text=tostring(spec.Title or"OK")
+local button=create("TextButton",{
+Name=text,Text=text,TextSize=9,Font=Enum.Font.GothamMedium,AutoButtonColor=false,BorderSizePixel=0,
+Size=UDim2.fromOffset(Util.textWidth(text,9,Enum.Font.GothamMedium)+20,22),LayoutOrder=index,Parent=row,
+})
+corner(button,6)
+local outline=stroke(button)
+if spec.Style=="Primary"or index==1 then
+Theme.bind(button,"BackgroundColor3","accentDeep")
+Theme.bind(button,"TextColor3","accent")
+Theme.bind(outline,"Color","accent")
+outline.Transparency=0.5
+else
+Theme.bind(button,"BackgroundColor3","input")
+Theme.bind(button,"TextColor3","text")
+Theme.bind(outline,"Color","buttonEdge")
+end
+button.Activated:Connect(function()
+Util.safe(spec.Callback)
+if spec.Close~=false then dismiss()end
+end)
+end
+end
+tween(toast,0.2,{GroupTransparency=0})
+tween(progress,duration,{Size=UDim2.new(0,0,0,2)},Enum.EasingStyle.Linear)
+task.delay(duration,dismiss)
+return toast
+end
+return Notify
+end
+__modules["profiles"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local RED,GREEN,YELLOW=Color3.fromRGB(215,130,130),Color3.fromRGB(110,200,130),Color3.fromRGB(215,180,120)
+return function(window,page,defaults)
+local store=window.Config
+store.DefaultFlags=defaults
+local refresh,updateCurrent
+local open
+local query=""
+local function meta()return store:ReadMeta()end
+local function touch(name,fields)
+local data=meta()
+data[name]=data[name]or{}
+for key,value in pairs(fields)do data[name][key]=value end
+store:WriteMeta(data)
+end
+local function copy(text,what)
+local clipboard=setclipboard or toclipboard
+if type(clipboard)=="function"and pcall(clipboard,text)then
+window:Notify({Title="Copied",Content=what.." copied to clipboard"})
+return true
+end
+window:Notify({Title="Clipboard",Content="setclipboard is not available",Color=RED})
+return false
+end
+local function say(text,bad)
+window:Notify({
+Title=bad==true and"Profiles · error"or"Profiles",Content=tostring(text),Duration=3,
+Icon=bad==true and"triangle-alert"or(bad=="warn"and"info"or"circle-check"),
+Color=bad==true and RED or(bad=="warn"and YELLOW or nil),
+})
+end
+local function loadProfile(name,locked)
+local function go()
+if locked then
+local failed=store:Apply(defaults)
+store:_setActive(nil,nil)
+say(failed>0 and(failed.." setting(s) could not be reset")or"Default settings restored",failed>0)
+else
+local ok,err=store:Load(name)
+if ok then touch(name,{used=os.time()})end
+say(ok and(err or("Loaded \""..name.."\""))or err,not ok)
+end
+refresh()
+end
+local changes=store:Changes()
+if changes>0 then
+window:Confirm("Load \""..name.."\"?",string.format("%d unsaved change%s in \"%s\" will be lost.",changes,changes==1 and""or"s",store.Active or"Default"),go,"Load")
+else
+go()
+end
+end
+local function saveProfile(name)
+local ok,err=store:Save(name)
+if ok then touch(name,{saved=os.time(),used=os.time()})end
+say(ok and("Saved \""..name.."\"")or err,not ok)
+refresh()
+return ok
+end
+local current=page:Card({Title="Current"})
+local activeInfo=current:Info({Title="Profile",Value="Default"})
+local changesInfo=current:Info({Title="Changes",Value="--"})
+local bar=create("Frame",{Name="CurrentActions",BackgroundTransparency=1,Size=UDim2.new(1,0,0,24),LayoutOrder=current:_order(),Parent=current.body})
+Util.list(bar,6,Enum.FillDirection.Horizontal)
+local ICONS={
+Save="save",Revert="rotate-ccw",["Share current"]="share-2",["What changed?"]="list-checks",
+Load="download",Overwrite="upload",Autoload="star",["Autoload off"]="star-off",Share="share-2",
+Delete="trash-2",Rename="pencil",Duplicate="copy",
+}
+local function smallButton(parent,text,order,style)
+local iconName=ICONS[text]
+local button=create("TextButton",{
+Name=text,Text=text,TextSize=9,Font=Enum.Font.GothamMedium,AutoButtonColor=false,BorderSizePixel=0,
+Size=UDim2.fromOffset(Util.textWidth(text,9,Enum.Font.GothamMedium)+(iconName and 34 or 20),22),LayoutOrder=order,Parent=parent,
+})
+local icon=iconName and Icons.Image(iconName,{Name="ButtonIcon",Size=UDim2.fromOffset(11,11)})
+if icon then
+local content=create("Frame",{Name="Content",BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromScale(0,1),AutomaticSize=Enum.AutomaticSize.X,Parent=button})
+Util.list(content,5,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Center,Enum.VerticalAlignment.Center)
+icon.LayoutOrder=1
+icon.Parent=content
+local text_=label(content,text,9,{Name="Label",Size=UDim2.fromScale(0,1),AutomaticSize=Enum.AutomaticSize.X,TextTruncate=Enum.TextTruncate.None,Font=Enum.Font.GothamMedium,LayoutOrder=2})
+button.TextTransparency=1
+local function tint()icon.ImageColor3=button.TextColor3 text_.TextColor3=button.TextColor3 end
+button:GetPropertyChangedSignal("TextColor3"):Connect(tint)
+task.defer(tint)
+end
+corner(button,6)
+local outline=stroke(button)
+if style=="Danger"then
+button.BackgroundColor3,button.TextColor3,outline.Color,outline.Transparency=Color3.fromRGB(70,32,36),Color3.fromRGB(235,150,155),Color3.fromRGB(150,60,66),0.3
+elseif style=="Primary"then
+Theme.bind(button,"BackgroundColor3","accentDeep")
+Theme.bind(button,"TextColor3","accent")
+Theme.bind(outline,"Color","accent")
+outline.Transparency=0.5
+else
+Theme.bind(button,"BackgroundColor3","input")
+Theme.bind(button,"TextColor3","text")
+Theme.bind(outline,"Color","buttonEdge")
+end
+button.MouseEnter:Connect(function()if style==nil then Theme.tweenTo(button,"BackgroundColor3","hover",0.1)end end)
+button.MouseLeave:Connect(function()if style==nil then Theme.tweenTo(button,"BackgroundColor3","input",0.1)end end)
+return button
+end
+local saveButton=smallButton(bar,"Save",1,"Primary")
+saveButton.Activated:Connect(function()
+if store.Active then saveProfile(store.Active)
+else say("Default is locked - type a name under New profile and press Create","warn")end
+end)
+smallButton(bar,"Revert",2).Activated:Connect(function()
+local changes=store:Changes()
+if changes==0 then return say("Nothing to revert")end
+window:Confirm("Revert "..changes.." change"..(changes==1 and""or"s").."?","Settings go back to \""..(store.Active or"Default").."\".",function()
+local failed=store:Apply(store.ActiveFlags or defaults)
+say(failed>0 and(failed.." setting(s) could not be reverted")or"Reverted",failed>0)
+updateCurrent()
+end,"Revert")
+end)
+smallButton(bar,"Share current",3).Activated:Connect(function()
+local code=store:Export(nil)
+if code then copy(code,"Share code")end
+end)
+smallButton(bar,"What changed?",4).Activated:Connect(function()
+local count,names=store:Changes()
+if count==0 then return say("No changes since \""..(store.Active or"Default").."\"")end
+local titles={}
+for _,flag in ipairs(names)do
+local element=window.flags[flag]
+titles[#titles+1]=element and element.Title and tostring(element.Title)or flag
+end
+table.sort(titles)
+local shown={}
+for index=1,math.min(#titles,12)do shown[index]=titles[index]end
+window:Dialog({
+Title=count.." change"..(count==1 and""or"s"),
+Content=table.concat(shown,", ")..(#titles>12 and(" and "..(#titles-12).." more")or""),
+Buttons={{Title="Close"}},
+})
+end)
+function updateCurrent()
+local name=store.Active
+activeInfo:Set(name or"Default")
+activeInfo:SetColor(name and"accent"or"text")
+local changes=store:Changes()
+if changes>0 then
+changesInfo:Set(changes.." unsaved")
+changesInfo:SetColor(YELLOW)
+else
+changesInfo:Set("Saved")
+changesInfo:SetColor(GREEN)
+end
+end
+local newCard=page:Card({Title="New profile"})
+local sections=newCard:Tabs({"Create","Import"})
+local function count(flags)local n=0 for _ in pairs(flags or{})do n=n+1 end return n end
+sections.Create:ActionInput({
+Name="CreateProfile",Icon="plus",Placeholder="Profile name",Button="Create",
+Hint="Saves your current settings as a new profile",
+Validate=function(name)
+if name:lower()=="default"then return false,"\"Default\" is reserved"end
+if name:gsub("[%w_%- ]","")~=""then return false,"Letters, numbers, spaces, - and _ only"end
+if store:Exists(name)then return false,"\""..name.."\" already exists - open it and press Overwrite"end
+return true,"Saves "..count(store:Snapshot()).." settings as \""..name.."\""
+end,
+Callback=function(name)
+if saveProfile(name)then
+open=name
+say("Created \""..name.."\"")
+refresh()
+end
+end,
+})
+sections.Import:ActionInput({
+Name="ImportProfile",Icon="import",Placeholder="Paste a QUSTAH1: code",Button="Import",
+Hint="Get a code with Share on any profile",
+Validate=function(code)
+local name,flags=store:Decode(code)
+if not name then return false,flags end
+local target=store:FreeName(name)
+return true,"\""..name.."\" · "..count(flags).." settings"..(target~=name and(" → saved as \""..target.."\"")or"")
+end,
+Callback=function(code)
+local name,flags,custom=store:Decode(code)
+if not name then return say(flags,true)end
+name=store:FreeName(name)
+local ok,err=store:SaveFlags(name,flags,custom)
+if not ok then return say(err,true)end
+touch(name,{saved=os.time(),note="Imported"})
+open=name
+say("Imported as \""..name.."\" - open it and press Load")
+refresh()
+end,
+})
+local listCard=page:Card({Title="Saved"})
+local search=create("TextBox",{
+Name="Search",Text="",PlaceholderText="Search profiles...",TextSize=10,Font=Enum.Font.Gotham,
+TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=false,BorderSizePixel=0,
+Size=UDim2.new(1,0,0,26),LayoutOrder=listCard:_order(),Parent=listCard.body,
+})
+Theme.bind(search,"BackgroundColor3","input")
+Theme.bind(search,"TextColor3","text")
+Theme.bind(search,"PlaceholderColor3","muted")
+corner(search,6)
+Theme.bind(stroke(search),"Color","buttonEdge")
+Util.padding(search,9,9,0,0)
+local holder=create("Frame",{Name="ProfileList",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=listCard:_order(),Parent=listCard.body})
+Util.list(holder,4)
+local empty=listCard:Label("")
+local function profileRow(name,order,locked,autoload,info)
+local active=(locked and store.Active==nil)or store.Active==name
+local expanded=open==name
+local frame=create("Frame",{Name="Profile_"..name,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BorderSizePixel=0,LayoutOrder=order,Parent=holder})
+Theme.bind(frame,"BackgroundColor3",expanded and"selected"or"input")
+corner(frame,6)
+local outline=stroke(frame)
+Theme.bind(outline,"Color",active and"accent"or(expanded and"buttonEdge"or"line"))
+outline.Transparency=active and 0.55 or 0
+Util.list(frame,0)
+local note=info and info.note and tostring(info.note)or nil
+local head=create("TextButton",{Name="Head",Text="",AutoButtonColor=false,BackgroundTransparency=1,Size=UDim2.new(1,0,0,note and 42 or 34),LayoutOrder=1,Parent=frame})
+local dot=create("Frame",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,12,0,17),Size=UDim2.fromOffset(6,6),BorderSizePixel=0,Parent=head})
+Theme.bind(dot,"BackgroundColor3",active and"accent"or"buttonEdge")
+corner(dot,3)
+local title=label(head,name,11,{Name="Name",Position=UDim2.fromOffset(26,note and 6 or 0),Size=UDim2.new(0.55,-26,0,note and 18 or 34),Font=Enum.Font.GothamMedium})
+Theme.bind(title,"TextColor3",(active or expanded)and"heading"or"text")
+if note then
+local noteLabel=label(head,note,9,{Name="Note",Position=UDim2.fromOffset(26,23),Size=UDim2.new(0.55,-26,0,13)})
+Theme.bind(noteLabel,"TextColor3","muted")
+end
+local tags=create("Frame",{Name="Tags",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-12,0,0),Size=UDim2.new(0.45,-12,0,34),Parent=head})
+Util.list(tags,6,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Right,Enum.VerticalAlignment.Center)
+local function pill(text,order_,accent)
+local object=label(tags,text,8,{
+Name=text,Size=UDim2.fromOffset(Util.textWidth(text,8,Enum.Font.GothamMedium)+12,16),TextXAlignment=Enum.TextXAlignment.Center,
+Font=Enum.Font.GothamMedium,BackgroundTransparency=0,LayoutOrder=order_,
+})
+corner(object,8)
+Theme.bind(object,"BackgroundColor3",accent and"accentDeep"or"base")
+Theme.bind(object,"TextColor3",accent and"accent"or"muted")
+Theme.bind(stroke(object,nil,0.5),"Color",accent and"accent"or"buttonEdge")
+end
+if active then pill("ACTIVE",1,true)end
+if autoload then pill("AUTO",2,false)end
+if locked then pill("LOCKED",3,false)end
+local when=info and(info.saved or info.used)
+if when then
+local date=label(tags,os.date("%d %b",when),9,{Size=UDim2.fromOffset(42,16),TextXAlignment=Enum.TextXAlignment.Right,LayoutOrder=4})
+Theme.bind(date,"TextColor3","muted")
+end
+head.Activated:Connect(function()
+open=open~=name and name or nil
+refresh()
+end)
+if not expanded then return end
+local actions=create("Frame",{Name="Actions",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=2,Parent=frame})
+Util.padding(actions,12,12,0,10)
+Util.list(actions,6)
+if not locked then
+local flags=store:Read(name)
+local differs=flags and store:Changes(flags)or 0
+local summary=label(actions,flags and(differs==0 and"Same as your current settings"or(differs..(differs==1 and" setting differs"or" settings differ").." from your current settings"))or"File could not be read",9,{
+Name="Summary",Size=UDim2.new(1,0,0,14),LayoutOrder=0,
+})
+Theme.bind(summary,"TextColor3","muted")
+end
+local function box(name_,placeholder,order_,width)
+local object=create("TextBox",{
+Name=name_,Text="",PlaceholderText=placeholder,TextSize=10,Font=Enum.Font.Gotham,
+TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=false,BorderSizePixel=0,Size=width,LayoutOrder=order_,
+})
+Theme.bind(object,"BackgroundColor3","base")
+Theme.bind(object,"TextColor3","text")
+Theme.bind(object,"PlaceholderColor3","muted")
+corner(object,6)
+Util.padding(object,8,8,0,0)
+return object
+end
+if not locked then
+local noteBox=box("Note","Add a note (e.g. ranked, low graphics)",1,UDim2.new(1,0,0,24))
+noteBox.Text=note or""
+noteBox.Parent=actions
+noteBox.FocusLost:Connect(function()
+local text=noteBox.Text:gsub("^%s+",""):gsub("%s+$",""):sub(1,60)
+touch(name,{note=text~=""and text or false})
+refresh()
+end)
+end
+local nameRow=create("Frame",{Name="NameRow",BackgroundTransparency=1,Size=UDim2.new(1,0,0,24),LayoutOrder=2,Parent=actions})
+local nameBox=box("NewName",locked and"name for the copy"or"new name",1,UDim2.new(1,locked and-90 or-176,1,0))
+nameBox.Parent=nameRow
+local side=create("Frame",{BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.fromScale(1,0),Size=UDim2.new(0,locked and 84 or 170,1,0),Parent=nameRow})
+Util.list(side,6,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Right)
+local function typed()
+local text=nameBox.Text:gsub("^%s+",""):gsub("%s+$","")
+if text==""then say("Type a name in the box",true)return nil end
+if text:lower()=="default"then say("\"Default\" is reserved",true)return nil end
+return text
+end
+if not locked then
+smallButton(side,"Rename",1).Activated:Connect(function()
+local new=typed()
+if not new then return end
+local ok,err=store:Rename(name,new)
+if ok then local m=meta()m[new],m[name]=m[name],nil store:WriteMeta(m)open=new end
+say(ok and("Renamed to \""..new.."\"")or err,not ok)
+refresh()
+end)
+end
+smallButton(side,"Duplicate",2).Activated:Connect(function()
+local new=typed()
+if not new then return end
+local ok,err
+if store:Exists(new)then ok,err=false,"A profile with that name exists"
+elseif locked then ok,err=store:SaveFlags(new,defaults)
+else ok,err=store:Copy(name,new)end
+if ok then touch(new,{saved=os.time(),note="Copy of "..name})open=new end
+say(ok and("Copied to \""..new.."\"")or(err or"Copy failed"),not ok)
+refresh()
+end)
+local buttons=create("Frame",{Name="Buttons",BackgroundTransparency=1,Size=UDim2.new(1,0,0,22),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=3,Parent=actions})
+local flow=Util.list(buttons,6,Enum.FillDirection.Horizontal)
+pcall(function()flow.Wraps=true end)
+smallButton(buttons,"Load",1,"Primary").Activated:Connect(function()loadProfile(name,locked)end)
+if not locked then
+smallButton(buttons,"Overwrite",2).Activated:Connect(function()
+window:Confirm("Overwrite \""..name.."\"?","It will hold your current settings.",function()saveProfile(name)end,"Overwrite")
+end)
+smallButton(buttons,autoload and"Autoload off"or"Autoload",3).Activated:Connect(function()
+if autoload then store:ClearAutoLoad()say("Autoload off")
+else store:SetAutoLoad(name)say("\""..name.."\" loads on start")end
+refresh()
+end)
+end
+smallButton(buttons,"Share",4).Activated:Connect(function()
+local code=locked and("QUSTAH1:"..Util.base64encode(Util.Services.HttpService:JSONEncode({n="Default",f=defaults})))or store:Export(name)
+if code then copy(code,"Share code for \""..name.."\"")end
+end)
+if not locked then
+smallButton(buttons,"Delete",6,"Danger").Activated:Connect(function()
+window:Confirm("Delete \""..name.."\"?","This cannot be undone.",function()
+local ok,err=store:Delete(name)
+if ok then
+local m=meta()m[name]=nil store:WriteMeta(m)
+if store:GetAutoLoad()==name then store:ClearAutoLoad()end
+open=nil
+end
+say(ok and("Deleted \""..name.."\"")or err,not ok)
+refresh()
+end,"Delete",true)
+end)
+end
+end
+function refresh()
+for _,child in ipairs(holder:GetChildren())do if child:IsA("GuiObject")then child:Destroy()end end
+local auto=store:GetAutoLoad()
+local data=meta()
+local names={}
+for _,name in ipairs(store:List())do if name:lower()~="default"then names[#names+1]=name end end
+table.sort(names,function(a,b)
+local ta=data[a]and(data[a].used or data[a].saved)or 0
+local tb=data[b]and(data[b].used or data[b].saved)or 0
+if ta~=tb then return ta>tb end
+return a:lower()<b:lower()
+end)
+local q=query:lower()
+local shown=0
+if q==""or("default"):find(q,1,true)then profileRow("Default",1,true,auto==nil,nil)shown=shown+1 end
+for index,name in ipairs(names)do
+local info=data[name]
+local note=info and info.note and tostring(info.note):lower()or""
+if q==""or name:lower():find(q,1,true)or note:find(q,1,true)then
+profileRow(name,index+1,false,auto==name,info)
+shown=shown+1
+end
+end
+search.Visible=#names>3 or q~=""
+empty:Set(#names==0 and"No saved profiles yet - create one above."or(shown==0 and"No profile matches \""..query.."\""or""))
+empty:SetVisible(#names==0 or shown==0)
+updateCurrent()
+end
+search:GetPropertyChangedSignal("Text"):Connect(function()query=search.Text refresh()end)
+store:OnActiveChanged(function()if page.frame.Visible then refresh()end end)
+refresh()
+page.frame:GetPropertyChangedSignal("Visible"):Connect(function()if page.frame.Visible then refresh()end end)
+task.spawn(function()
+while window.alive do
+if window.visible and page.frame.Visible then updateCurrent()end
+task.wait(1)
+end
+end)
+return{refresh=refresh}
+end
+end
+__modules["settings"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Glow=require("glow")
+local UIFont=require("font")
+local Profiles=require("profiles")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local RED,GREEN=Color3.fromRGB(215,130,130),Color3.fromRGB(110,200,130)
+return function(window,cfg)
+cfg=cfg or{}
+local defaultSize=Vector2.new(window.width,window.height)
+local tab=window:Tab({Title=cfg.Title or"Settings",Icon=cfg.Icon or"settings",Divider=cfg.Divider~=false,Header=cfg.Header~=false})
+local interface=tab:Page("Interface")
+local profiles=tab:Page("Profiles",{Columns=1})
+local infoPage=tab:Page("Info")
+local look=interface:Card({Title="Appearance",Side="Left"})
+local picker
+local swatches
+local function syncSwatches()
+if not swatches then return end
+local accent=Theme.get("accent")
+if accent==Theme.neutral(Theme.pack)then swatches:Set("Neutral",true)else swatches:Set(accent,true)end
+end
+look:Dropdown({
+Title="Theme",Options=Theme.packOrder,Default="Dark",Flag="__ui_theme",
+Callback=function(name)
+Theme.applyPack(name)
+if picker then picker:Set(Theme.get("accent"),true)end
+syncSwatches()
+end,
+})
+swatches=look:Swatches({
+Title="Accent",Default="Neutral",
+Callback=function(color,name)
+if name=="Neutral"then color=Theme.neutral(Theme.pack)end
+if picker then picker:Set(color)end
+end,
+})
+picker=look:ColorPicker({
+Title="Custom accent",Desc="Any colour, saved with the profile",Flag="__ui_accent",Default=Theme.get("accent"),
+Callback=function(color)Theme.set("accent",color)syncSwatches()end,
+})
+syncSwatches()
+look:Dropdown({
+Title="Font",Options=UIFont.order,Default="Gotham",Flag="__ui_font",
+Callback=function(name)
+if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not available here",Color=RED})end
+end,
+})
+look:Toggle({
+Title="Text glow",Desc="Shine on the title and highlights",Flag="__ui_glow",Default=Glow.enabled,
+Callback=function(on)Glow.setEnabled(on)end,
+})
+local menu=interface:Card({Title="Menu",Side="Right"})
+local menuKey=menu:Keybind({
+Title="Menu key",Desc="Opens and closes the menu",Flag="__ui_menu_key",Default=window.key,
+Callback=function(key)window:SetToggleKey(key)end,
+})
+window._menuListeners=window._menuListeners or{}
+table.insert(window._menuListeners,function(key)if menuKey.Value~=key then menuKey:Set(key,true)end end)
+menu:Button({
+Title="Reset window size / position",
+Callback=function()
+window.width,window.height,window.topLeft=defaultSize.X,defaultSize.Y,nil
+window.memory.window=nil
+window:_layout()
+window:_saveMemory()
+end,
+})
+menu:Button({
+Title="Unload",
+Callback=function()
+window:Confirm("Unload "..window.Title.."?","The menu and everything it runs will be removed.",function()window:Destroy()end,"Unload",true)
+end,
+})
+local look2=interface:Card({Title="Window",Side="Left"})
+look2:Toggle({Title="Anonymous mode",Desc="Hides your name and avatar",Icon="user-round",Flag="__ui_anon",Default=window.anonymous==true,
+Callback=function(on)window:SetAnonymous(on)end})
+if window.OnAnonymousChanged then
+window:OnAnonymousChanged(function(on)local t=window.flags.__ui_anon if t and t.Value~=on then t:Set(on,true)end end)
+end
+look2:Slider({Title="Transparency",Flag="__ui_transparency",Min=0,Max=60,Default=0,Suffix="%",
+Callback=function(value)window:SetBackgroundTransparency(value/100)end})
+local bgAlpha
+look2:Input({Title="Background",Placeholder="image id or url",Flag="__ui_bg",
+Callback=function(text)window:SetBackgroundImage(text~=""and text or nil,bgAlpha and(1-bgAlpha.Value/100)or 0.85)end})
+bgAlpha=look2:Slider({Title="Background visibility",Flag="__ui_bg_alpha",Min=0,Max=60,Default=15,Suffix="%",
+Callback=function(value)if window._background then window._background.ImageTransparency=1-value/100 end end})
+look2:Button({Title="Fullscreen",Icon="maximize-2",Callback=function()window:ToggleFullscreen()end})
+local overlays=interface:Card({Title="Overlays",Side="Right"})
+overlays:Toggle({Title="Watermark",Desc="Name · FPS · ping · clock",Flag="__ui_hud_watermark",Callback=function(on)window:Watermark(on)end})
+overlays:Toggle({Title="Keybind list",Desc="Bound keys on screen",Flag="__ui_hud_keys",Callback=function(on)window:KeybindList(on)end})
+overlays:Toggle({Title="Session bar",Desc="FPS · ping · players · time",Flag="__ui_hud_session",Callback=function(on)window:SessionBar(on)end})
+overlays:Dropdown({
+Title="Performance",Options={"Off","Header","Floating"},Default="Off",Flag="__ui_hud_stats",
+Callback=function(mode)window:StatsMonitor(mode)end,
+})
+Profiles(window,profiles,window.Config.Defaults)
+local about=infoPage:Card({Title="About",Side="Left"})
+if window.Version~=""then about:Info({Title=window.Title,Value=window.Version})end
+about:Info({Title="qustah-ui-lib",Value="v"..tostring(window.Lib.Version)})
+for _,entry in ipairs(cfg.Info or{})do about:Info({Title=entry[1],Value=entry[2],Copy=entry.Copy})end
+local files=type(writefile)=="function"and type(readfile)=="function"
+about:Info({Title="File access",Value=files and"Yes"or"No (profiles off)"})
+local modulesCard=infoPage:Card({Title="Modules",Side="Left"})
+local moduleRows={}
+local noModules=modulesCard:Label("No modules reported")
+local errorsCard=infoPage:Card({Title="Errors",Side="Right"})
+errorsCard:Toggle({
+Title="Debug mode",Desc="A notification for every new error",Flag="__ui_debug",Default=window.cfg.Debug==true,
+Callback=function(on)window.debug=on end,
+})
+local errorCount=errorsCard:Info({Title="Errors",Value="0"})
+local errorText=errorsCard:Paragraph({Content="No errors"})
+errorsCard:Button({
+Title="Copy report",
+Callback=function()
+local clipboard=setclipboard or toclipboard
+if type(clipboard)=="function"and pcall(clipboard,window:GetErrorReport())then
+window:Notify({Title="Copied",Content="Error report copied to clipboard"})
+else
+window:Notify({Title="Clipboard",Content="setclipboard is not available",Color=RED})
+end
+end,
+})
+errorsCard:Button({Title="Clear",Callback=function()window:ClearErrors()end})
+local STATE={On=GREEN,Off=nil,Limited=Color3.fromRGB(215,180,120),Error=RED}
+local function update()
+local order,modules=window:GetModules()
+noModules:SetVisible(#order==0)
+for _,name in ipairs(order)do
+local row=moduleRows[name]or modulesCard:Info({Title=name})
+moduleRows[name]=row
+local module=modules[name]
+row:Set(module.state..(module.detail and module.state~="Error"and(" · "..tostring(module.detail))or""))
+row:SetColor(STATE[module.state]or"muted")
+end
+local errors=window:GetErrors()
+local total=0
+local lines={}
+for index,entry in ipairs(errors)do
+total=total+entry.count
+if index<=8 then
+lines[#lines+1]=string.format("<font color=\"#d78282\">%s</font>%s  %s",entry.source,entry.count>1 and(" ×"..entry.count)or"",(tostring(entry.message):gsub("<","&lt;")))
+end
+end
+if#errors>8 then lines[#lines+1]="+"..(#errors-8).." more (Copy report)"end
+errorCount:Set(#errors==0 and"0"or(#errors..(total>#errors and(" ("..total.."×)")or"")))
+errorCount:SetColor(#errors>0 and RED or"text")
+errorText:Set(#lines>0 and table.concat(lines,"\n")or"No errors")
+end
+window:OnStatusChanged(update)
+update()
+return tab
+end
+end
+__modules["stats"]=function()
+local Util=require("util")
+local Services=Util.Services
+local Stats={fps=0,ping=0,history={fps={},ping={}},running=false}
+local listeners={}
+local HISTORY=60
+function Stats.start(maid)
+if Stats.running then return end
+Stats.running=true
+local frames,last=0,os.clock()
+maid:connect(Services.RunService.RenderStepped,function()frames=frames+1 end)
+task.spawn(function()
+while Stats.running do
+task.wait(0.5)
+local now=os.clock()
+Stats.fps=math.floor(frames/math.max(now-last,1e-3)+0.5)
+frames,last=0,now
+local ok,ping=pcall(function()return Services.Players.LocalPlayer:GetNetworkPing()*1000 end)
+Stats.ping=ok and math.floor(ping+0.5)or Stats.ping
+for key,value in pairs({fps=Stats.fps,ping=Stats.ping})do
+local list=Stats.history[key]
+list[#list+1]=value
+if#list>HISTORY then table.remove(list,1)end
+end
+for _,listener in ipairs(listeners)do Util.safe(listener,Stats)end
+end
+end)
+maid:give(function()Stats.running=false end)
+end
+function Stats.listen(callback)
+listeners[#listeners+1]=callback
+return function()
+local index=table.find(listeners,callback)
+if index then table.remove(listeners,index)end
+end
+end
+return Stats
+end
+__modules["status"]=function()
+local Util=require("util")
+local GREEN,YELLOW,RED=Color3.fromRGB(82,207,132),Color3.fromRGB(215,180,120),Color3.fromRGB(215,130,130)
+return function(Window)
+local function changed(self)
+self:_refreshStatus()
+for _,listener in ipairs(self._statusListeners or{})do Util.safe(listener,self)end
+end
+function Window:OnStatusChanged(callback)
+self._statusListeners=self._statusListeners or{}
+table.insert(self._statusListeners,callback)
+end
+function Window:SetModule(name,state,detail)
+name=tostring(name)
+self.modules=self.modules or{}
+self.moduleOrder=self.moduleOrder or{}
+if not self.modules[name]then table.insert(self.moduleOrder,name)end
+self.modules[name]={state=tostring(state or"Off"),detail=detail}
+if state=="Error"then self:ReportError(name,detail or"Module stopped with an error")return end
+changed(self)
+end
+function Window:GetModules()return self.moduleOrder or{},self.modules or{}end
+function Window:ReportError(source,message)
+source,message=tostring(source or"Script"),tostring(message or"Unknown error")
+self.errors=self.errors or{}
+self._errorIndex=self._errorIndex or{}
+local key=source.."\0"..message
+local entry=self._errorIndex[key]
+if entry then
+entry.count=entry.count+1
+entry.last=os.time()
+else
+entry={source=source,message=message,count=1,first=os.time(),last=os.time()}
+self._errorIndex[key]=entry
+table.insert(self.errors,entry)
+warn(string.format("[%s / %s] %s",self.Title,source,message))
+if self.debug==nil then self.debug=self.cfg.Debug==true end
+if self.debug and self.Notify then
+local short=message:gsub("^.-:%d+: ","")
+self:Notify({
+Title="Error · "..source,Content=short,Icon="triangle-alert",Color=RED,Duration=6,
+Buttons={{Title="Copy",Callback=function()
+local clipboard=setclipboard or toclipboard
+if clipboard then pcall(clipboard,source..": "..message)end
+end}},
+})
+end
+end
+changed(self)
+end
+function Window:GetErrors()return self.errors or{}end
+function Window:ClearErrors()
+self.errors,self._errorIndex={},{}
+for _,module in pairs(self.modules or{})do if module.state=="Error"then module.state="Off"end end
+changed(self)
+end
+function Window:GetErrorReport()
+local lines={string.format("%s %s - error report (%s)",self.Title,self.Version,os.date("%Y-%m-%d %H:%M"))}
+for _,name in ipairs(self.moduleOrder or{})do
+local module=self.modules[name]
+lines[#lines+1]=string.format("module %s: %s%s",name,module.state,module.detail and(" ("..tostring(module.detail)..")")or"")
+end
+for _,entry in ipairs(self.errors or{})do
+lines[#lines+1]=string.format("x%d %s: %s",entry.count,entry.source,entry.message)
+end
+if#(self.errors or{})==0 then lines[#lines+1]="no errors"end
+return table.concat(lines,"\n")
+end
+function Window:SetStatus(text,color)
+self._manualStatus=text~=nil and{text=tostring(text),color=color}or nil
+self:_refreshStatus()
+end
+function Window:_refreshStatus()
+if not self.statusLabel then return end
+local text,color
+local errorCount=#(self.errors or{})
+local limited=false
+for _,module in pairs(self.modules or{})do if module.state=="Limited"then limited=true end end
+if self._manualStatus then
+text,color=self._manualStatus.text,self._manualStatus.color
+elseif errorCount>0 then
+text,color="Errors: "..errorCount,RED
+elseif limited then
+text,color="Limited",YELLOW
+else
+text,color="Connected",GREEN
+end
+self.statusLabel.Text=text
+if typeof(color)=="Color3"then self.statusDot.BackgroundColor3=color end
+end
+function Window:_safe(source,callback,...)
+if type(callback)~="function"then return end
+local ok,err=pcall(callback,...)
+if not ok then self:ReportError(source,err)end
+end
+end
+end
+__modules["theme"]=function()
+local Util=require("util")
+local Theme={}
+local rgb=Color3.fromRGB
+Theme.colors={
+base=rgb(15,15,16),
+footer=rgb(12,12,13),
+dock=rgb(16,16,16),
+selected=rgb(33,33,36),
+icon=rgb(192,192,192),
+card=rgb(19,19,20),
+input=rgb(25,25,27),
+hover=rgb(33,33,36),
+line=rgb(36,36,39),
+edge=rgb(30,30,30),
+buttonEdge=rgb(46,46,50),
+text=rgb(168,168,172),
+muted=rgb(118,118,124),
+heading=rgb(205,205,210),
+knob=rgb(190,190,195),
+accent=rgb(177,178,183),
+}
+local function derive()
+local colors=Theme.colors
+colors.accentDeep=colors.base:Lerp(colors.accent,0.12)
+colors.toggleOn=colors.input:Lerp(colors.accent,0.42)
+colors.accentEdge=colors.base:Lerp(colors.accent,0.35)
+local a=colors.accent
+local luminance=0.299*a.R+0.587*a.G+0.114*a.B
+colors.onAccent=luminance>0.6 and colors.base or Color3.new(1,1,1)
+end
+derive()
+local bound=setmetatable({},{__mode="k"})
+local listeners={}
+function Theme.get(role)
+return Theme.colors[role]or role
+end
+function Theme.bind(object,property,role)
+local entry=bound[object]
+if not entry then entry={}bound[object]=entry end
+entry[property]=role
+object[property]=Theme.get(role)
+return object
+end
+function Theme.tweenTo(object,property,role,duration)
+local entry=bound[object]
+if not entry then entry={}bound[object]=entry end
+entry[property]=role
+if duration and duration>0 then
+Util.tween(object,duration,{[property]=Theme.get(role)})
+else
+object[property]=Theme.get(role)
+end
+end
+function Theme.set(role,color)
+if typeof(color)~="Color3"then return end
+Theme.colors[role]=color
+if role=="accent"or role=="base"or role=="input"then derive()end
+for object,properties in pairs(bound)do
+if object.Parent then
+for property,boundRole in pairs(properties)do
+pcall(function()object[property]=Theme.get(boundRole)end)
+end
+end
+end
+for _,listener in ipairs(listeners)do Util.safe(listener,role,color)end
+end
+function Theme.setMany(colors)
+for role,color in pairs(colors)do if typeof(color)=="Color3"then Theme.colors[role]=color end end
+derive()
+for object,properties in pairs(bound)do
+if object.Parent then
+for property,boundRole in pairs(properties)do
+pcall(function()object[property]=Theme.get(boundRole)end)
+end
+end
+end
+for _,listener in ipairs(listeners)do Util.safe(listener,"*",nil)end
+end
+Theme.packs={
+Dark={},
+Midnight={
+base=rgb(12,14,22),footer=rgb(9,11,18),dock=rgb(13,15,24),selected=rgb(30,34,50),icon=rgb(180,188,210),
+card=rgb(16,19,29),input=rgb(22,26,39),hover=rgb(30,35,52),line=rgb(33,38,55),edge=rgb(28,32,46),
+buttonEdge=rgb(45,51,72),text=rgb(165,172,192),muted=rgb(110,118,140),heading=rgb(208,214,232),knob=rgb(196,202,220),
+},
+AMOLED={
+base=rgb(0,0,0),footer=rgb(0,0,0),dock=rgb(0,0,0),selected=rgb(26,26,28),icon=rgb(190,190,190),
+card=rgb(8,8,9),input=rgb(16,16,18),hover=rgb(26,26,28),line=rgb(30,30,33),edge=rgb(28,28,28),
+buttonEdge=rgb(42,42,46),text=rgb(170,170,174),muted=rgb(115,115,120),heading=rgb(215,215,220),knob=rgb(195,195,200),
+},
+Light={
+base=rgb(238,238,241),footer=rgb(229,229,233),dock=rgb(234,234,238),selected=rgb(216,216,222),icon=rgb(85,85,95),
+card=rgb(247,247,249),input=rgb(231,231,235),hover=rgb(221,221,226),line=rgb(214,214,220),edge=rgb(200,200,206),
+buttonEdge=rgb(190,190,198),text=rgb(62,62,70),muted=rgb(120,120,130),heading=rgb(25,25,30),knob=rgb(255,255,255),
+},
+}
+Theme.packOrder={"Dark","Midnight","AMOLED","Light"}
+local DEFAULTS={}
+for role,color in pairs(Theme.colors)do DEFAULTS[role]=color end
+Theme.defaults=DEFAULTS
+function Theme.neutral(pack)return pack=="Light"and rgb(70,70,80)or rgb(177,178,183)end
+function Theme.applyPack(name)
+local pack=Theme.packs[name]
+if not pack then return false end
+local colors={}
+for role,color in pairs(DEFAULTS)do if role~="accent"then colors[role]=color end end
+for role,color in pairs(pack)do colors[role]=color end
+local accent=Theme.colors.accent
+if accent==Theme.neutral("Dark")or accent==Theme.neutral("Light")then colors.accent=Theme.neutral(name)end
+Theme.pack=name
+Theme.setMany(colors)
+return true
+end
+Theme.pack="Dark"
+function Theme.onChange(callback)
+listeners[#listeners+1]=callback
+end
+return Theme
+end
+__modules["util"]=function()
+local Util={}
+local cloneref=cloneref or clonereference or function(object)return object end
+Util.Services=setmetatable({},{
+__index=function(cache,name)
+local service=cloneref(game:GetService(name))
+rawset(cache,name,service)
+return service
+end,
+})
+local Services=Util.Services
+function Util.create(class,props,children)
+local object=Instance.new(class)
+local parent
+for key,value in pairs(props or{})do
+if key=="Parent"then parent=value else object[key]=value end
+end
+for _,child in ipairs(children or{})do child.Parent=object end
+if parent then object.Parent=parent end
+return object
+end
+local create=Util.create
+function Util.corner(object,radius)
+return create("UICorner",{CornerRadius=UDim.new(0,radius or 6),Parent=object})
+end
+function Util.stroke(object,color,transparency,thickness)
+return create("UIStroke",{
+ApplyStrokeMode=Enum.ApplyStrokeMode.Border,Color=color or Color3.new(1,1,1),
+Transparency=transparency or 0,Thickness=thickness or 1,Parent=object,
+})
+end
+function Util.padding(object,left,right,top,bottom)
+return create("UIPadding",{
+PaddingLeft=UDim.new(0,left or 0),PaddingRight=UDim.new(0,right or left or 0),
+PaddingTop=UDim.new(0,top or 0),PaddingBottom=UDim.new(0,bottom or top or 0),Parent=object,
+})
+end
+function Util.list(object,padding,direction,horizontal,vertical)
+return create("UIListLayout",{
+Padding=UDim.new(0,padding or 0),FillDirection=direction or Enum.FillDirection.Vertical,
+HorizontalAlignment=horizontal or Enum.HorizontalAlignment.Left,
+VerticalAlignment=vertical or Enum.VerticalAlignment.Top,
+SortOrder=Enum.SortOrder.LayoutOrder,Parent=object,
+})
+end
+function Util.label(parent,text,size,props)
+local object=create("TextLabel",{
+BackgroundTransparency=1,Text=text or"",TextSize=size or 11,Font=Enum.Font.Gotham,
+TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Center,
+TextTruncate=Enum.TextTruncate.AtEnd,BorderSizePixel=0,Parent=parent,
+})
+for key,value in pairs(props or{})do object[key]=value end
+return object
+end
+function Util.tween(object,duration,props,style,direction)
+local tween=Services.TweenService:Create(object,
+TweenInfo.new(duration,style or Enum.EasingStyle.Quad,direction or Enum.EasingDirection.Out),props)
+tween:Play()
+return tween
+end
+function Util.safe(callback,...)
+if type(callback)~="function"then return end
+local ok,err=pcall(callback,...)
+if not ok then warn("[qustah-ui-lib] callback error: "..tostring(err))end
+end
+function Util.maid()
+local maid={items={}}
+function maid:give(item)self.items[#self.items+1]=item return item end
+function maid:connect(signal,callback)return self:give(signal:Connect(callback))end
+function maid:clean()
+for index=#self.items,1,-1 do
+local item=self.items[index]
+self.items[index]=nil
+if typeof(item)=="Instance"then
+pcall(item.Destroy,item)
+elseif type(item)=="function"then
+pcall(item)
+elseif item and(typeof(item)=="RBXScriptConnection"or type(item)=="table")and item.Disconnect then
+pcall(item.Disconnect,item)
+end
+end
+end
+return maid
+end
+function Util.textWidth(text,size,font)
+return Services.TextService:GetTextSize(tostring(text),size,font or Enum.Font.Gotham,Vector2.new(10000,100)).X
+end
+function Util.round(value,step)
+step=step or 1
+if step<=0 then return value end
+return math.floor(value/step+0.5)*step
+end
+function Util.decimals(step)
+local text=tostring(step)
+local dot=text:find("%.")
+return dot and#text-dot or 0
+end
+function Util.toHex(color)
+return string.format("%02X%02X%02X",math.floor(color.R*255+0.5),math.floor(color.G*255+0.5),math.floor(color.B*255+0.5))
+end
+function Util.fromHex(text)
+text=tostring(text or""):gsub("#",""):gsub("%s","")
+if not text:match("^%x%x%x%x%x%x$")then return nil end
+return Color3.fromRGB(tonumber(text:sub(1,2),16),tonumber(text:sub(3,4),16),tonumber(text:sub(5,6),16))
+end
+local SHORT_KEYS={
+LeftShift="LSHIFT",RightShift="RSHIFT",LeftControl="LCTRL",RightControl="RCTRL",
+LeftAlt="LALT",RightAlt="RALT",MouseButton1="M1",MouseButton2="M2",MouseButton3="M3",Return="ENTER",
+KeypadZero="NUM 0",KeypadOne="NUM 1",KeypadTwo="NUM 2",KeypadThree="NUM 3",KeypadFour="NUM 4",
+KeypadFive="NUM 5",KeypadSix="NUM 6",KeypadSeven="NUM 7",KeypadEight="NUM 8",KeypadNine="NUM 9",
+}
+function Util.keyName(key)
+if key==nil then return"None"end
+local name=typeof(key)=="EnumItem"and key.Name or tostring(key)
+if name=="None"or name==""or name=="Unknown"then return"None"end
+return SHORT_KEYS[name]or name:upper()
+end
+function Util.toKey(name)
+if typeof(name)=="EnumItem"then return name end
+if type(name)~="string"or name==""or name=="None"then return nil end
+if name:match("^MouseButton%d$")then
+local found,button=pcall(function()return Enum.UserInputType[name]end)
+if found and button then return button end
+end
+local ok,key=pcall(function()return Enum.KeyCode[name]end)
+if ok and key then return key end
+ok,key=pcall(function()return Enum.UserInputType[name]end)
+if ok and key then return key end
+return nil
+end
+function Util.inputKey(input,allowPrimary)
+if input.UserInputType==Enum.UserInputType.Keyboard then return input.KeyCode end
+if input.UserInputType==Enum.UserInputType.MouseButton2 or input.UserInputType==Enum.UserInputType.MouseButton3 then
+return input.UserInputType
+end
+if allowPrimary and input.UserInputType==Enum.UserInputType.MouseButton1 then return input.UserInputType end
+return nil
+end
+local MODIFIERS={
+LeftShift=true,RightShift=true,LeftControl=true,RightControl=true,LeftAlt=true,RightAlt=true,
+}
+function Util.isModifier(key)return typeof(key)=="EnumItem"and MODIFIERS[key.Name]==true end
+function Util.isDown(key)
+if typeof(key)~="EnumItem"then return false end
+local UserInputService=Services.UserInputService
+local ok,down=pcall(function()
+if tostring(key):match("^Enum%.KeyCode%.")then return UserInputService:IsKeyDown(key)end
+return UserInputService:IsMouseButtonPressed(key)
+end)
+return ok and down==true
+end
+function Util.pointer(input)
+if input and input.UserInputType==Enum.UserInputType.Touch then
+local inset=Services.GuiService:GetGuiInset()
+return Vector2.new(input.Position.X+inset.X,input.Position.Y+inset.Y)
+end
+return Services.UserInputService:GetMouseLocation()
+end
+function Util.isPress(input)
+return input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch
+end
+function Util.clock(seconds)
+seconds=math.max(0,math.floor(seconds))
+return string.format("%02d:%02d:%02d",seconds//3600,(seconds//60)%60,seconds%60)
+end
+function Util.viewport()
+local camera=workspace.CurrentCamera
+return camera and camera.ViewportSize or Vector2.new(1280,720)
+end
+function Util.guiParent()
+local ok,hidden=pcall(function()return gethui and gethui()end)
+if ok and hidden then return hidden end
+local probe=Instance.new("Folder")
+local coreOk=pcall(function()probe.Parent=Services.CoreGui end)
+probe:Destroy()
+if coreOk then return Services.CoreGui end
+return Services.Players.LocalPlayer:WaitForChild("PlayerGui")
+end
+function Util.screenGui(name,order)
+local gui=create("ScreenGui",{
+Name=name,ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=order or 50,
+ZIndexBehavior=Enum.ZIndexBehavior.Sibling,
+})
+pcall(function()if syn and syn.protect_gui then syn.protect_gui(gui)elseif protectgui then protectgui(gui)end end)
+gui.Parent=Util.guiParent()
+return gui
+end
+local B64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+function Util.base64encode(data)
+local out={}
+for i=1,#data,3 do
+local a,b,c=data:byte(i,i+2)
+local n=a*65536+(b or 0)*256+(c or 0)
+local c1,c2,c3,c4=n//262144,(n//4096)%64,(n//64)%64,n%64
+out[#out+1]=B64:sub(c1+1,c1+1)..B64:sub(c2+1,c2+1)
+..(b and B64:sub(c3+1,c3+1)or"=")..(c and B64:sub(c4+1,c4+1)or"=")
+end
+return table.concat(out)
+end
+function Util.base64decode(data)
+data=tostring(data):gsub("[^%w%+/=]","")
+local out,bits,count={},0,0
+for i=1,#data do
+local char=data:sub(i,i)
+if char=="="then break end
+local value=B64:find(char,1,true)
+if not value then return nil end
+bits=bits*64+(value-1)
+count=count+6
+if count>=8 then
+count=count-8
+out[#out+1]=string.char((bits//(2^count))%256)
+bits=bits%(2^count)
+end
+end
+return table.concat(out)
+end
+function Util.ago(time)
+local seconds=math.max(0,os.time()-(tonumber(time)or os.time()))
+if seconds<60 then return"now"end
+if seconds<3600 then return(seconds//60).."m ago"end
+if seconds<86400 then return(seconds//3600).."h ago"end
+return(seconds//86400).."d ago"
+end
+return Util
+end
+__modules["window"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Card=require("card")
+local Config=require("config")
+local Glow=require("glow")
+local UIFont=require("font")
+local Icons=require("icons")
+local Services=Util.Services
+local create,corner,stroke,label,tween=Util.create,Util.corner,Util.stroke,Util.label,Util.tween
+local HEADER,FOOTER=44,26
+local DOCK_WIDTH,DOCK_GAP,DOCK_BUTTON,DOCK_STEP,DOCK_TOP=40,12,30,37,42
+local HINTS=34
+local NARROW=470
+local Window={}
+Window.__index=Window
+local Tab={}
+Tab.__index=Tab
+local Page={}
+Page.__index=Page
+function Page.new(tab,name,cfg)
+local window=tab.window
+local self=setmetatable({tab=tab,window=window,Name=name,cfg=cfg or{},cards=0,order=0},Page)
+local frame=create("ScrollingFrame",{
+Name=name,BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.fromScale(1,1),
+CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollingDirection=Enum.ScrollingDirection.Y,
+ScrollBarThickness=2,ScrollBarImageTransparency=0.4,ElasticBehavior=Enum.ElasticBehavior.Never,
+VerticalScrollBarInset=Enum.ScrollBarInset.ScrollBar,Visible=false,Parent=window.pages,
+})
+Theme.bind(frame,"ScrollBarImageColor3","muted")
+local content=create("Frame",{
+Name="Content",BackgroundTransparency=1,Position=UDim2.fromOffset(16,2),Size=UDim2.new(1,-30,0,0),
+AutomaticSize=Enum.AutomaticSize.Y,Parent=frame,
+})
+Util.list(content,10)
+Util.padding(content,0,0,0,14)
+local wide=create("Frame",{Name="Wide",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=1,Parent=content})
+Util.list(wide,10)
+local holder=create("Frame",{
+Name="Columns",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
+LayoutOrder=2,Parent=content,
+})
+self.layout=Util.list(holder,10,Enum.FillDirection.Horizontal)
+local function column(name,order)
+local object=create("Frame",{
+Name=name,BackgroundTransparency=1,Size=UDim2.new(0.5,-5,0,0),AutomaticSize=Enum.AutomaticSize.Y,
+LayoutOrder=order,Parent=holder,
+})
+Util.list(object,10)
+return object
+end
+self.frame,self.wide,self.left,self.right=frame,wide,column("Left",1),column("Right",2)
+local function fade(top)
+local object=create("Frame",{
+Name=top and"FadeTop"or"FadeBottom",AnchorPoint=Vector2.new(0,top and 0 or 1),
+Position=UDim2.new(0,0,top and 0 or 1,0),Size=UDim2.new(1,-4,0,18),BorderSizePixel=0,
+Visible=false,ZIndex=20,Active=false,Parent=window.pages,
+})
+Theme.bind(object,"BackgroundColor3","base")
+create("UIGradient",{Rotation=90,Transparency=NumberSequence.new(top and 0 or 1,top and 1 or 0),Parent=object})
+return object
+end
+local fadeTop,fadeBottom=fade(true),fade(false)
+local function refreshFades()
+local shown=frame.Visible
+local scrolled=frame.CanvasPosition.Y
+local hidden=frame.AbsoluteCanvasSize.Y-frame.AbsoluteWindowSize.Y-scrolled
+fadeTop.Visible=shown and scrolled>2
+fadeBottom.Visible=shown and hidden>2
+end
+for _,property in ipairs({"CanvasPosition","AbsoluteCanvasSize","AbsoluteWindowSize","Visible"})do
+frame:GetPropertyChangedSignal(property):Connect(refreshFades)
+end
+local button=create("TextButton",{
+Name=name,BackgroundTransparency=1,Text=name,TextSize=10,Font=Enum.Font.GothamMedium,
+AutoButtonColor=false,Parent=tab.strip,
+})
+Theme.bind(button,"TextColor3","text")
+local underline=create("Frame",{
+Name="Underline",AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,0),
+Size=UDim2.fromOffset(math.max(12,Util.textWidth(name,10,Enum.Font.GothamMedium)),1),
+BorderSizePixel=0,Visible=false,Parent=button,
+})
+Theme.bind(underline,"BackgroundColor3","accent")
+self.button,self.underline=button,underline
+button.MouseEnter:Connect(function()if tab.current~=self then Theme.tweenTo(button,"TextColor3","heading",0.12)end end)
+button.MouseLeave:Connect(function()if tab.current~=self then Theme.tweenTo(button,"TextColor3","text",0.12)end end)
+button.Activated:Connect(function()self:Select()end)
+self:_columns(window.width)
+return self
+end
+function Page:_columns(width)
+local single=self.cfg.Columns==1 or width<NARROW
+self.layout.FillDirection=single and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal
+local size=single and UDim2.new(1,0,0,0)or UDim2.new(0.5,-5,0,0)
+self.left.Size,self.right.Size=size,size
+end
+function Page:Card(cfg)
+cfg=cfg or{}
+self.cards=self.cards+1
+local side=cfg.Side
+if self.cfg.Columns==1 then side="Left"end
+if side~="Left"and side~="Right"then side=(self.cards%2==1)and"Left"or"Right"end
+self.order=self.order+1
+if cfg.Wide then
+self.cards=self.cards-1
+return Card.new(self,self.wide,cfg,self.order)
+end
+return Card.new(self,side=="Right"and self.right or self.left,cfg,self.order)
+end
+function Page:Select()
+local tab=self.tab
+tab.current=self
+for _,page in ipairs(tab.Pages)do
+local selected=page==self
+page.frame.Visible=selected and tab.window.current==tab
+page.underline.Visible=selected
+Theme.tweenTo(page.button,"TextColor3",selected and"accent"or"text",0.12)
+end
+tab.window:_updateLocation()
+end
+function Tab.new(window,cfg)
+local index=#window.Tabs+1
+local self=setmetatable({window=window,Title=cfg.Title or("Tab "..index),Pages={},index=index},Tab)
+self.strip=create("Frame",{Name=self.Title,BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Visible=false,Parent=window.stripHolder})
+self.Header=cfg.Header==true
+self.Divider=cfg.Divider==true or window._dividerNext==true
+window._dividerNext=nil
+local button=create("TextButton",{
+Name=self.Title.."Tab",BackgroundTransparency=1,Text="",AutoButtonColor=false,BorderSizePixel=0,
+Position=UDim2.fromOffset(5,DOCK_TOP),Size=UDim2.fromOffset(DOCK_BUTTON,DOCK_BUTTON),ZIndex=42,Parent=window.dock,
+})
+Theme.bind(button,"BackgroundColor3","accentDeep")
+corner(button,15)
+local icon
+if cfg.Icon~=nil and Icons.Get(cfg.Icon)then
+icon=create("ImageLabel",{
+Name="Icon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(18,18),
+BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,ZIndex=43,Parent=button,
+})
+Icons.Apply(icon,cfg.Icon)
+self.iconProperty="ImageColor3"
+else
+icon=label(button,self.Title:sub(1,1):upper(),13,{
+Name="Icon",Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamBold,ZIndex=43,
+})
+self.iconProperty="TextColor3"
+end
+self.button,self.icon,self.hovered=button,icon,false
+self:_render(false)
+button.MouseEnter:Connect(function()
+self.hovered=true
+self:_render(true)
+window:_dockTip(self.Title,self.y or DOCK_TOP)
+end)
+button.MouseLeave:Connect(function()
+self.hovered=false
+self:_render(true)
+window:_hideTip()
+end)
+button.Activated:Connect(function()window:_hideTip()self:Select()end)
+return self
+end
+function Tab:_render(animate)
+local selected=self.window.current==self
+local duration=animate and 0.14 or nil
+local transparency=selected and 0 or(self.hovered and 0.6 or 1)
+if duration then tween(self.button,duration,{BackgroundTransparency=transparency})else self.button.BackgroundTransparency=transparency end
+Theme.tweenTo(self.icon,self.iconProperty,selected and"accent"or(self.hovered and"heading"or"icon"),duration)
+end
+function Tab:Page(name,cfg)
+local page=Page.new(self,tostring(name or("Page "..(#self.Pages+1))),cfg)
+self.Pages[#self.Pages+1]=page
+local count=#self.Pages
+for index,item in ipairs(self.Pages)do
+item.button.Position=UDim2.new((index-1)/count,0,0,0)
+item.button.Size=UDim2.new(1/count,0,1,0)
+end
+if not self.current then self.current=page end
+if self.window.current==self then self:Select()end
+return page
+end
+function Tab:Card(cfg)
+if#self.Pages==0 then self:Page(self.Title)end
+return self.Pages[1]:Card(cfg)
+end
+function Tab:Select()
+local window=self.window
+window.current=self
+for _,tab in ipairs(window.Tabs)do
+tab.strip.Visible=tab==self and#tab.Pages>1
+for _,page in ipairs(tab.Pages)do page.frame.Visible=false end
+tab:_render(true)
+end
+window:_layoutBody()
+local page=self.current or self.Pages[1]
+if page then page:Select()else window:_updateLocation()end
+end
+function Window.new(Lib,cfg)
+cfg=cfg or{}
+local size=cfg.Size or Vector2.new(540,390)
+local self=setmetatable({
+Lib=Lib,cfg=cfg,Title=tostring(cfg.Title or"Qustah UI"),Version=tostring(cfg.Version or""),
+Tabs={},flags={},binds={},maid=Util.maid(),
+width=size.X,height=size.Y,
+minSize=cfg.MinSize or Vector2.new(400,300),maxSize=cfg.MaxSize or Vector2.new(920,660),
+key=cfg.ToggleKey or Enum.KeyCode.RightShift,visible=true,folded=false,alive=true,
+},Window)
+local env=(getgenv and getgenv())or _G
+env.__QustahUIWindows=env.__QustahUIWindows or{}
+local previous=env.__QustahUIWindows[self.Title]
+if previous and previous.Destroy then pcall(previous.Destroy,previous)end
+env.__QustahUIWindows[self.Title]=self
+if typeof(cfg.Accent)=="Color3"then Theme.set("accent",cfg.Accent)end
+self.Config=Config.new(self,cfg.Folder or self.Title:gsub("[^%w_%- ]",""))
+self.memory=cfg.SaveWindow~=false and self.Config:ReadMemory()or{}
+local saved=self.memory.window
+if type(saved)=="table"and tonumber(saved.w)and tonumber(saved.h)then
+self.width=math.clamp(tonumber(saved.w),self.minSize.X,self.maxSize.X)
+self.height=math.clamp(tonumber(saved.h),self.minSize.Y,self.maxSize.Y)
+end
+Glow.start(Lib.maid)
+self:_build()
+if self._buildExtras then self:_buildExtras()end
+if self._buildInbox then self:_buildInbox()end
+self:_refreshStatus()
+Lib.Windows[#Lib.Windows+1]=self
+return self
+end
+function Window:_build()
+local maid=self.maid
+local gui=Util.screenGui("QustahUI_"..self.Title:gsub("%W",""),50)
+maid:give(gui)
+self.gui=gui
+UIFont.register(gui,maid)
+local main=create("CanvasGroup",{
+Name="Window",Size=UDim2.fromOffset(self.width,self.height),BorderSizePixel=0,
+GroupTransparency=0,ClipsDescendants=true,Parent=gui,
+})
+Theme.bind(main,"BackgroundColor3","base")
+corner(main,12)
+Theme.bind(stroke(main),"Color","edge")
+self.main=main
+self.scale=create("UIScale",{Scale=1,Parent=main})
+local header=create("Frame",{Name="Header",BackgroundTransparency=1,Size=UDim2.new(1,-90,0,HEADER),Active=true,Parent=main})
+local titleRow=create("Frame",{Name="TitleRow",BackgroundTransparency=1,Position=UDim2.fromOffset(16,0),Size=UDim2.new(1,-16,1,0),Parent=header})
+Util.list(titleRow,6,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+local title=label(titleRow,self.Title,16,{
+Name="Title",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,24),
+TextTruncate=Enum.TextTruncate.None,LayoutOrder=1,
+})
+pcall(function()title.FontFace=Font.new(Font.fromEnum(Enum.Font.Gotham).Family,Enum.FontWeight.SemiBold)end)
+Theme.bind(title,"TextColor3","accent")
+Glow.add(title,{Base="accent",Period=3.6,GlowTransparency=0.8})
+if self.cfg.Icon then
+local logo=Icons.themed(titleRow,self.cfg.Icon,18,"accent",{Name="Logo",LayoutOrder=0})
+if logo then self.logo=logo end
+end
+if self.Version~=""then
+local badge=create("Frame",{Name="Version",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,16),LayoutOrder=2,Parent=titleRow})
+Theme.bind(badge,"BackgroundColor3","card")
+corner(badge,6)
+Theme.bind(stroke(badge,nil,0.5),"Color","accent")
+Util.padding(badge,6,6,0,0)
+local text=label(badge,self.Version,9,{
+AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromScale(0,1),TextXAlignment=Enum.TextXAlignment.Center,
+TextTruncate=Enum.TextTruncate.None,
+})
+Theme.bind(text,"TextColor3","accent")
+end
+self.titleLabel=title
+local function windowButton(name,offset,cross,bare)
+local button=create("TextButton",{
+Name=name,Text="",AutoButtonColor=false,BackgroundTransparency=1,
+Position=UDim2.new(1,offset,0,8),Size=UDim2.fromOffset(30,28),Parent=main,
+})
+corner(button,6)
+Theme.bind(button,"BackgroundColor3","input")
+local bars={}
+for _,rotation in ipairs(bare and{}or(cross and{45,-45}or{0}))do
+local bar=create("Frame",{
+AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(10,2),
+Rotation=rotation,BorderSizePixel=0,Parent=button,
+})
+corner(bar,1)
+Theme.bind(bar,"BackgroundColor3","muted")
+bars[#bars+1]=bar
+end
+button.MouseEnter:Connect(function()
+tween(button,0.12,{BackgroundTransparency=0,BackgroundColor3=cross and Color3.fromRGB(60,24,26)or Theme.get("input")})
+for _,bar in ipairs(bars)do Theme.tweenTo(bar,"BackgroundColor3",cross and Color3.fromRGB(235,90,90)or"heading",0.12)end
+end)
+button.MouseLeave:Connect(function()
+tween(button,0.12,{BackgroundTransparency=1})
+for _,bar in ipairs(bars)do Theme.tweenTo(bar,"BackgroundColor3","muted",0.12)end
+end)
+return button
+end
+local minimize=windowButton("Minimize",-74,false)
+local close=windowButton("Close",-40,true)
+self._windowButton=windowButton
+self.headerRight=90
+local headerLine=create("Frame",{Name="HeaderLine",Position=UDim2.fromOffset(18,HEADER),Size=UDim2.new(1,-36,0,1),BorderSizePixel=0,Parent=main})
+Theme.bind(headerLine,"BackgroundColor3","accent")
+create("UIGradient",{
+Transparency=NumberSequence.new({
+NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.5,0.45),NumberSequenceKeypoint.new(1,1),
+}),Parent=headerLine,
+})
+local location=label(main,"",10,{
+Name="Location",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-self.headerRight,0,12),Size=UDim2.new(0.45,0,0,20),
+TextXAlignment=Enum.TextXAlignment.Right,
+})
+Theme.bind(location,"TextColor3","muted")
+self.locationLabel=location
+self.headerTabs=create("Frame",{
+Name="HeaderTabs",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-self.headerRight,0,0),
+Size=UDim2.new(0,0,0,HEADER),AutomaticSize=Enum.AutomaticSize.X,Visible=false,Parent=main,
+})
+Util.list(self.headerTabs,6,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Right)
+local body=create("Frame",{
+Name="Body",BackgroundTransparency=1,Position=UDim2.fromOffset(0,HEADER+1),
+Size=UDim2.new(1,0,1,-(HEADER+1+FOOTER)),ClipsDescendants=true,Parent=main,
+})
+self.body=body
+self.stripHolder=create("Frame",{Name="Strip",BackgroundTransparency=1,Position=UDim2.fromOffset(16,6),Size=UDim2.new(1,-32,0,26),Parent=body})
+self.pages=create("Frame",{Name="Pages",BackgroundTransparency=1,Position=UDim2.fromOffset(0,6),Size=UDim2.new(1,0,1,-6),Parent=body})
+self.hintBar=create("Frame",{Name="KeyHints",BackgroundTransparency=1,Position=UDim2.new(0,20,1,-30),Size=UDim2.new(1,-40,0,26),Visible=false,Parent=body})
+self.hintLeft=create("Frame",{Name="Left",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Parent=self.hintBar})
+Util.list(self.hintLeft,8,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+self.hintRight=create("Frame",{Name="Right",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Parent=self.hintBar})
+Util.list(self.hintRight,8,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Right,Enum.VerticalAlignment.Center)
+self.hints={}
+local footer=create("Frame",{Name="Footer",Position=UDim2.new(0,0,1,-FOOTER),Size=UDim2.new(1,0,0,FOOTER),BorderSizePixel=0,Parent=main})
+Theme.bind(footer,"BackgroundColor3","footer")
+local footerLine=create("Frame",{Size=UDim2.new(1,0,0,1),BorderSizePixel=0,BackgroundTransparency=0.45,Parent=footer})
+Theme.bind(footerLine,"BackgroundColor3","line")
+local dot=create("Frame",{Name="StatusDot",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,22,0.5,0),Size=UDim2.fromOffset(5,5),BorderSizePixel=0,BackgroundColor3=Color3.fromRGB(82,207,132),Parent=footer})
+corner(dot,3)
+local status=label(footer,"Connected",9,{Name="Status",Position=UDim2.fromOffset(32,0),Size=UDim2.new(0,150,1,0)})
+Theme.bind(status,"TextColor3","muted")
+Glow.add(status,{Base="muted",Shine="heading",GlowTransparency=0.92})
+local centre=label(footer,tostring(self.cfg.Footer or""),9,{
+Name="Centre",AnchorPoint=Vector2.new(0.5,0),Position=UDim2.fromScale(0.5,0),Size=UDim2.new(1,-240,1,0),
+TextXAlignment=Enum.TextXAlignment.Center,
+})
+Theme.bind(centre,"TextColor3","muted")
+self.footer,self.statusDot,self.statusLabel,self.footerText=footer,dot,status,centre
+if self.cfg.Footer==nil then
+task.spawn(function()
+local ok,info=pcall(function()return Services.MarketplaceService:GetProductInfo(game.PlaceId)end)
+if ok and type(info)=="table"and info.Name and centre.Parent and centre.Text==""then centre.Text=tostring(info.Name)end
+end)
+end
+local grip=create("TextButton",{
+Name="ResizeGrip",Text="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,1),
+Position=UDim2.new(1,-4,1,-4),Size=UDim2.fromOffset(18,18),ZIndex=10,Parent=main,
+})
+for _,line in ipairs({{10,10,9},{13,13,4}})do
+local mark=create("Frame",{
+AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromOffset(line[1],line[2]),Size=UDim2.fromOffset(line[3],1),
+Rotation=-45,BorderSizePixel=0,ZIndex=11,Parent=grip,
+})
+Theme.bind(mark,"BackgroundColor3","muted")
+end
+self.grip=grip
+local dock=create("CanvasGroup",{Name="Dock",Size=UDim2.fromOffset(DOCK_WIDTH,DOCK_TOP),BorderSizePixel=0,BackgroundTransparency=0.03,ZIndex=40,ClipsDescendants=true,Parent=gui})
+Theme.bind(dock,"BackgroundColor3","dock")
+corner(dock,20)
+Theme.bind(stroke(dock),"Color","line")
+self.dock=dock
+self.dockScale=create("UIScale",{Scale=1,Parent=dock})
+local dockGrip=create("TextButton",{Name="DragHandle",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.fromOffset(5,6),Size=UDim2.fromOffset(30,28),ZIndex=42,Parent=dock})
+for _,lineY in ipairs({9,13,17})do
+local bar=create("Frame",{Position=UDim2.fromOffset(9,lineY),Size=UDim2.fromOffset(12,1),BorderSizePixel=0,ZIndex=43,Parent=dockGrip})
+Theme.bind(bar,"BackgroundColor3","muted")
+end
+self.dockGrip,self.dockDividers=dockGrip,{}
+local tip=create("Frame",{Name="Tooltip",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,22),BorderSizePixel=0,Visible=false,ZIndex=300,Parent=gui})
+Theme.bind(tip,"BackgroundColor3","card")
+corner(tip,6)
+Theme.bind(stroke(tip),"Color","line")
+Util.padding(tip,8,8,0,0)
+local tipText=label(tip,"",10,{AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromScale(0,1),ZIndex=301,TextTruncate=Enum.TextTruncate.None})
+Theme.bind(tipText,"TextColor3","heading")
+self.tip,self.tipText=tip,tipText
+local function moveWindow(input)
+if not Util.isPress(input)then return end
+local start,origin=Util.pointer(input),self.topLeft
+self:_hideTip()
+self:_beginDrag(input,function(point)
+self.topLeft=origin+(point-start)
+self:_layout()
+end,function()self:_saveMemory()end)
+end
+maid:connect(header.InputBegan,moveWindow)
+maid:connect(dockGrip.InputBegan,moveWindow)
+maid:connect(dockGrip.MouseEnter,function()self:_dockTip("Drag",6)end)
+maid:connect(dockGrip.MouseLeave,function()self:_hideTip()end)
+maid:connect(grip.InputBegan,function(input)
+if not Util.isPress(input)or self.folded then return end
+local start,width,height=Util.pointer(input),self.width,self.height
+self:_beginDrag(input,function(point)
+local s=self.scale.Scale
+self.width=math.clamp(math.floor(width+(point.X-start.X)/s),self.minSize.X,self.maxSize.X)
+self.height=math.clamp(math.floor(height+(point.Y-start.Y)/s),self.minSize.Y,self.maxSize.Y)
+self:_layout()
+end,function()self:_saveMemory()end)
+end)
+maid:connect(minimize.Activated,function()self:Minimize()end)
+maid:connect(close.Activated,function()
+if self.cfg.CloseAction=="Destroy"then
+self:Notify({Title=self.Title,Content="Unloaded"})
+self:Destroy()
+return
+end
+self:SetVisible(false)
+self:Notify({Title=self.Title.." hidden",Content="Press "..Util.keyName(self.key).." to open it again"})
+end)
+local UserInputService=Services.UserInputService
+maid:connect(UserInputService.InputChanged,function(input)
+local drag=self._drag
+if not drag then return end
+if input.UserInputType==Enum.UserInputType.MouseMovement or(input.UserInputType==Enum.UserInputType.Touch and input==drag.input)then
+Util.safe(drag.move,Util.pointer(input))
+end
+end)
+maid:connect(UserInputService.InputEnded,function(input)
+local drag=self._drag
+if drag and(input.UserInputType==Enum.UserInputType.MouseButton1 or input==drag.input)then
+self._drag=nil
+Util.safe(drag.finish)
+end
+end)
+maid:connect(UserInputService.InputBegan,function(input,processed)
+if self._capture then
+local key=Util.inputKey(input,self._captureMouse)
+if key then
+local capture=self._capture
+self._capture=nil
+Util.safe(capture,key)
+return
+end
+end
+if self._popup and Util.isPress(input)then
+local point=Util.pointer(input)
+local function inside(object)
+if not object or not object.Parent then return false end
+local p,s=object.AbsolutePosition,object.AbsoluteSize
+return point.X>=p.X and point.X<=p.X+s.X and point.Y>=p.Y and point.Y<=p.Y+s.Y
+end
+if not inside(self._popup.frame)and not inside(self._popup.owner)then self:_closePopup()end
+end
+if self._dialog and input.KeyCode==Enum.KeyCode.Escape then self._dialog:Close()return end
+if processed or UserInputService:GetFocusedTextBox()then return end
+local key=Util.inputKey(input,true)
+if not key then return end
+if key==self.key then self:Toggle()return end
+for element,bound in pairs(self.binds)do
+if element.Row and element.Row.Parent then
+local chord=element.Chord
+if chord then
+if chord[2]==key and(chord[1]==nil or Util.isDown(chord[1]))then self:_safe(element.Title or"Keybind",element._onBind,element)end
+elseif bound==key and key~=Enum.UserInputType.MouseButton1 then
+self:_safe(element.Title or"Keybind",element._onBind,element)
+end
+end
+end
+end)
+if self.cfg.KeyHints~=false then
+self.menuHint=self:KeyHint({Title="MENU",Side="Right",Key=self.key,Menu=true,Callback=function(key)self:SetToggleKey(key)end})
+end
+local function watchCamera()
+local camera=workspace.CurrentCamera
+if camera then
+maid:connect(camera:GetPropertyChangedSignal("ViewportSize"),function()
+self:_layout()
+for _,place in ipairs(self._placers or{})do Util.safe(place)end
+end)
+end
+self:_layout()
+end
+maid:connect(workspace:GetPropertyChangedSignal("CurrentCamera"),watchCamera)
+watchCamera()
+end
+function Window:_layout()
+if not self.alive then return end
+local viewport=Util.viewport()
+local total=self.width+DOCK_GAP+DOCK_WIDTH
+local s=math.clamp(math.min(1,(viewport.X-24)/total,(viewport.Y-24)/self.height),0.4,1)
+self.scale.Scale,self.dockScale.Scale=s,s
+local height=self.folded and HEADER or self.height
+self.main.Size=UDim2.fromOffset(self.width,height)
+if not self.topLeft then
+local saved=self.memory and self.memory.window
+if type(saved)=="table"and tonumber(saved.x)and tonumber(saved.y)then
+local room=Vector2.new(viewport.X-total*s,viewport.Y-self.height*s)
+self.topLeft=Vector2.new(tonumber(saved.x)*room.X,tonumber(saved.y)*room.Y)
+else
+self.topLeft=Vector2.new((viewport.X-total*s)/2,(viewport.Y-self.height*s)/2)
+end
+end
+local x=math.clamp(self.topLeft.X,8,math.max(8,viewport.X-total*s-8))
+local y=math.clamp(self.topLeft.Y,8,math.max(8,viewport.Y-height*s-8))
+self.topLeft=Vector2.new(x,y)
+self.main.Position=UDim2.fromOffset(x,y)
+self.dock.Size=UDim2.fromOffset(DOCK_WIDTH,self.dockHeight or DOCK_TOP)
+self.dock.Position=UDim2.fromOffset(x+(self.width+DOCK_GAP)*s,y)
+self.dock.Visible=self.main.Visible and not self.folded and#self.Tabs>0
+self.grip.Visible=not self.folded
+for _,tab in ipairs(self.Tabs)do for _,page in ipairs(tab.Pages)do page:_columns(self.width)end end
+self:_updateLocation()
+end
+function Window:_saveMemory()
+if self.cfg.SaveWindow==false or not self.alive then return end
+local viewport=Util.viewport()
+local s=self.scale.Scale
+local room=Vector2.new(math.max(1,viewport.X-(self.width+DOCK_GAP+DOCK_WIDTH)*s),math.max(1,viewport.Y-self.height*s))
+self.memory.window={
+x=math.clamp(self.topLeft.X/room.X,0,1),y=math.clamp(self.topLeft.Y/room.Y,0,1),w=self.width,h=self.height,
+}
+if self._memoryQueued then return end
+self._memoryQueued=true
+task.delay(0.5,function()
+self._memoryQueued=false
+if self.alive then self.Config:WriteMemory(self.memory)end
+end)
+end
+function Window:_beginDrag(input,move,finish)
+self._drag={input=input,move=move,finish=finish}
+end
+function Window:_openPopup(frame,owner,onClose)
+if self._popup and self._popup.frame~=frame then self:_closePopup()end
+self._popup={frame=frame,owner=owner,close=onClose}
+end
+function Window:_closePopup()
+local popup=self._popup
+self._popup=nil
+if popup then Util.safe(popup.close)end
+end
+function Window:_layoutDock()
+for _,divider in ipairs(self.dockDividers)do divider:Destroy()end
+self.dockDividers={}
+local cursor=DOCK_TOP
+for _,tab in ipairs(self.Tabs)do
+if tab.Divider then
+local divider=create("Frame",{Name="Divider",Position=UDim2.fromOffset(9,cursor+1),Size=UDim2.fromOffset(22,1),BorderSizePixel=0,ZIndex=42,Parent=self.dock})
+Theme.bind(divider,"BackgroundColor3","line")
+self.dockDividers[#self.dockDividers+1]=divider
+cursor=cursor+8
+end
+tab.y=cursor
+tab.button.Position=UDim2.fromOffset(5,cursor)
+cursor=cursor+DOCK_STEP
+end
+self.dockHeight=cursor+8
+end
+function Window:_layoutBody()
+local tab=self.current
+local top=(tab and#tab.Pages>1)and 38 or 6
+local bottom=self.hintBar.Visible and HINTS or 0
+self.pages.Position=UDim2.fromOffset(0,top)
+self.pages.Size=UDim2.new(1,0,1,-(top+bottom))
+end
+function Window:_updateLocation()
+local tab=self.current
+local wide=self.width>=440
+local onHeaderTab=tab~=nil and tab.Header and self.cfg.HeaderTabs~=false
+self.headerTabs.Visible=onHeaderTab and wide
+for _,item in ipairs(self._headerButtons or{})do
+local selected=item.tab==tab
+Theme.tweenTo(item.button,"TextColor3",selected and"heading"or"muted",0.12)
+item.line.Visible=selected
+end
+if not tab then self.locationLabel.Text=""return end
+local page=tab.current
+self.locationLabel.Text=(page and#tab.Pages>1)and(tab.Title.." › "..page.Name)or tab.Title
+self.locationLabel.Visible=self.width>=360 and not self.headerTabs.Visible
+self.locationLabel.Size=UDim2.new(self.monitorMode=="Header"and 0.25 or 0.45,0,0,20)
+end
+function Window:_addHeaderTab(tab)
+local width=math.max(56,Util.textWidth(tab.Title,11,Enum.Font.GothamMedium)+14)
+local button=create("TextButton",{
+Name=tab.Title,Text=tab.Title,TextSize=11,Font=Enum.Font.GothamMedium,AutoButtonColor=false,
+BackgroundTransparency=1,Size=UDim2.fromOffset(width,HEADER),LayoutOrder=#(self._headerButtons or{})+1,
+Parent=self.headerTabs,
+})
+Theme.bind(button,"TextColor3","muted")
+local line=create("Frame",{Name="SelectionLine",AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,0),Size=UDim2.new(1,-14,0,2),BorderSizePixel=0,Visible=false,Parent=button})
+Theme.bind(line,"BackgroundColor3","accent")
+button.Activated:Connect(function()tab:Select()end)
+self._headerButtons=self._headerButtons or{}
+table.insert(self._headerButtons,{tab=tab,button=button,line=line})
+end
+function Window:_dockTip(text,y)
+local s=self.scale.Scale
+local dockX=self.dock.Position.X.Offset
+local top=self.dock.Position.Y.Offset+(y+5)*s
+self.tipText.Text=text
+if dockX+(DOCK_WIDTH+8)*s+150>Util.viewport().X then
+self.tip.AnchorPoint=Vector2.new(1,0)
+self.tip.Position=UDim2.fromOffset(dockX-8,top)
+else
+self.tip.AnchorPoint=Vector2.new(0,0)
+self.tip.Position=UDim2.fromOffset(dockX+(DOCK_WIDTH+8)*s,top)
+end
+self.tip.Visible=true
+end
+function Window:_tip(text)
+local mouse=Services.UserInputService:GetMouseLocation()
+local viewport=Util.viewport()
+self.tipText.Text=tostring(text)
+self.tip.AnchorPoint=Vector2.new(mouse.X>viewport.X-220 and 1 or 0,0)
+self.tip.Position=UDim2.fromOffset(mouse.X+(mouse.X>viewport.X-220 and-12 or 14),math.min(mouse.Y+14,viewport.Y-30))
+self.tip.Visible=true
+end
+function Window:_hideTip()self.tip.Visible=false end
+function Window:_register(flag,element)
+if self.flags[flag]then warn("[qustah-ui-lib] duplicate flag: "..tostring(flag))end
+self.flags[flag]=element
+task.defer(function()
+if self.alive and self.flags[flag]==element then self.Config:_elementReady(flag,element)end
+end)
+end
+function Window:_bind(element,key)
+self.binds[element]=key
+end
+function Window:Tab(cfg)
+if type(cfg)=="string"then cfg={Title=cfg}end
+local tab=Tab.new(self,cfg or{})
+self.Tabs[#self.Tabs+1]=tab
+if tab.Header then self:_addHeaderTab(tab)end
+self:_layoutDock()
+self:_layout()
+if not self.current then tab:Select()end
+return tab
+end
+function Window:SetVisible(visible)
+self.visible=visible
+self:_closePopup()
+if not visible and self._dialog then self._dialog:Close()end
+self:_hideTip()
+self._token=(self._token or 0)+1
+local token=self._token
+if visible then
+self.main.Visible=true
+tween(self.main,0.14,{GroupTransparency=0})
+tween(self.dock,0.14,{GroupTransparency=0})
+self:_layout()
+else
+self._drag=nil
+tween(self.main,0.12,{GroupTransparency=1})
+tween(self.dock,0.12,{GroupTransparency=1})
+task.delay(0.13,function()
+if self.alive and token==self._token and not self.visible then
+self.main.Visible=false
+self.dock.Visible=false
+end
+end)
+end
+end
+function Window:Toggle()self:SetVisible(not self.visible)end
+function Window:Minimize()
+self.folded=not self.folded
+self:_closePopup()
+self.body.Visible=not self.folded
+self.footer.Visible=not self.folded
+self:_layout()
+end
+function Window:KeyHint(cfg)
+cfg=cfg or{}
+local right=cfg.Side=="Right"
+local group=create("Frame",{
+Name=tostring(cfg.Title or"Hint"),BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.X,
+Size=UDim2.fromOffset(0,26),LayoutOrder=#self.hints+1,Parent=right and self.hintRight or self.hintLeft,
+})
+Util.list(group,8,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+local badge=create("TextButton",{
+Name="Key",AutoButtonColor=false,BackgroundTransparency=1,BorderSizePixel=0,Text="",TextSize=10,
+Font=Enum.Font.GothamMedium,Size=UDim2.fromOffset(48,22),LayoutOrder=right and 3 or 1,Parent=group,
+})
+Theme.bind(badge,"TextColor3","text")
+corner(badge,6)
+local outline=stroke(badge,nil,0.25)
+Theme.bind(outline,"Color","line")
+local dot=label(group,"•",10,{Name="Dot",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,20),LayoutOrder=2,TextTruncate=Enum.TextTruncate.None})
+Theme.bind(dot,"TextColor3","muted")
+local caption=label(group,tostring(cfg.Title or""),9,{Name="Caption",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,20),LayoutOrder=right and 1 or 3,TextTruncate=Enum.TextTruncate.None})
+Theme.bind(caption,"TextColor3","muted")
+local window=self
+local hint={Type="KeyHint",Title=cfg.Title,Row=group,Flag=cfg.Flag}
+local function show(text)
+badge.Text=text
+badge.Size=UDim2.fromOffset(math.max(48,Util.textWidth(text,10,Enum.Font.GothamMedium)+18),22)
+end
+function hint:Set(key,silent)
+key=Util.toKey(key)
+if cfg.Menu and not key then key=window.key end
+self.Value=key
+show(Util.keyName(key))
+if not cfg.Menu then window:_bind(self,key)end
+if self.Flag then window.Lib.Flags[self.Flag]=key end
+if not silent then window:_safe(tostring(cfg.Title or"Key"),cfg.Callback,key)end
+end
+function hint:Get()return self.Value end
+function hint:SetTitle(text)caption.Text=tostring(text)end
+function hint:_onBind()window:_safe(tostring(cfg.Title or"Key"),cfg.Pressed,self.Value)end
+function hint:_save()return self.Value and self.Value.Name or"None"end
+function hint:_load(value)self:Set(value)end
+badge.MouseEnter:Connect(function()Util.tween(outline,0.12,{Transparency=0.1})end)
+badge.MouseLeave:Connect(function()Util.tween(outline,0.12,{Transparency=0.25})end)
+badge.Activated:Connect(function()
+show("...")
+window._capture=function(key)
+if key==Enum.KeyCode.Escape then hint:Set(hint.Value,true)
+elseif key==Enum.KeyCode.Backspace and not cfg.Menu then hint:Set(nil)
+elseif not cfg.Menu and key==window.key then hint:Set(hint.Value,true)
+else hint:Set(key)end
+end
+end)
+if cfg.Flag then self:_register(cfg.Flag,hint)end
+self.hints[#self.hints+1]=hint
+self.hintBar.Visible=true
+self:_layoutBody()
+hint:Set(cfg.Key,true)
+return hint
+end
+function Window:SetToggleKey(key)
+key=Util.toKey(key)
+if not key then
+if self.menuHint then self.menuHint:Set(self.key,true)end
+for _,listener in ipairs(self._menuListeners or{})do Util.safe(listener,self.key)end
+return
+end
+self.key=key
+if self.menuHint and self.menuHint.Value~=key then self.menuHint:Set(key,true)end
+for _,listener in ipairs(self._menuListeners or{})do Util.safe(listener,key)end
+end
+function Window:SetFooter(text)self.footerText.Text=tostring(text or"")end
+function Window:Notify(cfg)return self.Lib:Notify(cfg)end
+function Window:SelectTab(target)
+for _,tab in ipairs(self.Tabs)do
+if tab==target or tab.Title==target then tab:Select()return tab end
+end
+end
+function Window:Destroy()
+if not self.alive then return end
+self.alive=false
+self._drag,self._capture=nil,nil
+self.maid:clean()
+local env=(getgenv and getgenv())or _G
+if env.__QustahUIWindows and env.__QustahUIWindows[self.Title]==self then env.__QustahUIWindows[self.Title]=nil end
+for index,window in ipairs(self.Lib.Windows)do
+if window==self then table.remove(self.Lib.Windows,index)break end
+end
+Util.safe(self.cfg.OnClose)
+end
+return Window
+end
+__modules["windowx"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local SLOT=34
+return function(Window)
+function Window:_headerSlot()
+self._slotX=(self._slotX or-74)-SLOT
+self.headerRight=-self._slotX+16
+if self.locationLabel then self.locationLabel.Position=UDim2.new(1,-self.headerRight,0,12)end
+if self.headerTabs then self.headerTabs.Position=UDim2.new(1,-self.headerRight,0,0)end
+return self._slotX
+end
+function Window:HeaderButton(cfg)
+cfg=cfg or{}
+local button=self._windowButton(tostring(cfg.Name or cfg.Tooltip or cfg.Icon or"Button"),self:_headerSlot(),false,true)
+local icon=Icons.themed(button,cfg.Icon or"circle",15,"muted",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+button.MouseEnter:Connect(function()
+if icon then Theme.tweenTo(icon,"ImageColor3","heading",0.12)end
+if cfg.Tooltip then self:_tip(cfg.Tooltip)end
+end)
+button.MouseLeave:Connect(function()
+if icon then Theme.tweenTo(icon,"ImageColor3","muted",0.12)end
+self:_hideTip()
+end)
+button.Activated:Connect(function()self:_safe(cfg.Tooltip or"Header button",cfg.Callback)end)
+local handle={Button=button,Icon=icon}
+function handle:SetIcon(name)if icon then Icons.Apply(icon,name)end end
+function handle:SetVisible(visible)button.Visible=visible~=false end
+return handle
+end
+function Window:SetFullscreen(on)
+on=on==true
+if on==(self.fullscreen==true)then return end
+if on then
+self._restore={width=self.width,height=self.height,topLeft=self.topLeft}
+local viewport=Util.viewport()
+self.width=math.max(self.minSize.X,math.floor(viewport.X-24-12-40-24))
+self.height=math.max(self.minSize.Y,math.floor(viewport.Y-24))
+self.topLeft=Vector2.new(12,12)
+elseif self._restore then
+self.width,self.height,self.topLeft=self._restore.width,self._restore.height,self._restore.topLeft
+self._restore=nil
+end
+self.fullscreen=on
+if self._fullscreenButton then self._fullscreenButton:SetIcon(on and"minimize-2"or"maximize-2")end
+self:_layout()
+end
+function Window:ToggleFullscreen()self:SetFullscreen(not self.fullscreen)end
+function Window:SetBackgroundImage(image,transparency)
+if not self._background then
+self._background=create("ImageLabel",{
+Name="Background",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ScaleType=Enum.ScaleType.Crop,
+ImageTransparency=0.85,ZIndex=0,Parent=self.main,
+})
+corner(self._background,12)
+end
+local picture=self._background
+picture.Image=""
+if image==nil or image==""then picture.Visible=false return end
+picture.Visible=true
+if tonumber(transparency)then picture.ImageTransparency=math.clamp(tonumber(transparency),0,1)end
+if not Icons.Apply(picture,image)then picture.Image=tostring(image)end
+picture.ImageColor3=Color3.new(1,1,1)
+end
+function Window:SetBackgroundTransparency(value)
+value=math.clamp(tonumber(value)or 0,0,0.9)
+self.main.BackgroundTransparency=value
+self.dock.BackgroundTransparency=math.max(0.03,value)
+end
+function Window:SetAnonymous(on)
+self.anonymous=on==true
+for _,listener in ipairs(self._anonListeners or{})do Util.safe(listener,self.anonymous)end
+end
+function Window:OnAnonymousChanged(callback)
+self._anonListeners=self._anonListeners or{}
+table.insert(self._anonListeners,callback)
+callback(self.anonymous==true)
+end
+local layoutDock=Window._layoutDock
+function Window:_layoutDock()
+layoutDock(self)
+if self._profile and self._profile.Visible then
+local y=self.dockHeight-2
+self._profileLine.Position=UDim2.fromOffset(9,y)
+self._profile.Position=UDim2.fromOffset(5,y+7)
+self.dockHeight=y+7+30+8
+end
+end
+function Window:_buildExtras()
+local cfg=self.cfg
+if cfg.FullscreenButton~=false then
+self._fullscreenButton=self:HeaderButton({Name="Fullscreen",Icon="maximize-2",Tooltip="Fullscreen",Callback=function()self:ToggleFullscreen()end})
+end
+local header=self.main:FindFirstChild("Header")
+local lastClick=0
+if header then
+self.maid:connect(header.InputBegan,function(input)
+if input.UserInputType~=Enum.UserInputType.MouseButton1 then return end
+local now=os.clock()
+if now-lastClick<0.3 then lastClick=0 self:ToggleFullscreen()else lastClick=now end
+end)
+end
+if cfg.Background then self:SetBackgroundImage(cfg.Background,cfg.BackgroundImageTransparency)end
+if cfg.BackgroundTransparency then self:SetBackgroundTransparency(cfg.BackgroundTransparency)end
+if cfg.Profile~=false then
+local Players=Util.Services.Players
+local player=Players.LocalPlayer
+local line=create("Frame",{Name="ProfileLine",Size=UDim2.fromOffset(22,1),BorderSizePixel=0,ZIndex=42,Parent=self.dock})
+Theme.bind(line,"BackgroundColor3","line")
+local button=create("ImageButton",{
+Name="Profile",AutoButtonColor=false,BorderSizePixel=0,Size=UDim2.fromOffset(30,30),ZIndex=42,
+ScaleType=Enum.ScaleType.Crop,Image="",Parent=self.dock,
+})
+Theme.bind(button,"BackgroundColor3","input")
+corner(button,15)
+local ring=stroke(button,nil,0.5,1.5)
+Theme.bind(ring,"Color","buttonEdge")
+local mask=Icons.themed(button,"user-round",14,"muted",{Name="Anon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),ZIndex=43,Visible=false})
+local avatar=""
+task.spawn(function()
+local ok,image=pcall(function()
+return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size48x48)
+end)
+if ok then avatar=image if not self.anonymous then button.Image=image end end
+end)
+self._profile,self._profileLine=button,line
+self:OnAnonymousChanged(function(on)
+button.Image=on and""or avatar
+if mask then mask.Visible=on end
+Theme.tweenTo(ring,"Color",on and"accent"or"buttonEdge",0.12)
+end)
+button.MouseEnter:Connect(function()
+self:_dockTip(self.anonymous and"Anonymous · click to show"or(player.DisplayName.." · click to hide"),button.Position.Y.Offset)
+end)
+button.MouseLeave:Connect(function()self:_hideTip()end)
+button.Activated:Connect(function()self:SetAnonymous(not self.anonymous)end)
+self:_layoutDock()
+self:_layout()
+end
+if cfg.Anonymous then self:SetAnonymous(true)end
+end
+end
+end
+return require("init")

@@ -10,9 +10,10 @@ require("status")(Window)
 require("dialog")(Window)
 require("hud")(Window)
 require("inbox")(Window)
+require("windowx")(Window)
 
 local Lib = {
-    Version = "1.3.1",
+    Version = "1.4.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

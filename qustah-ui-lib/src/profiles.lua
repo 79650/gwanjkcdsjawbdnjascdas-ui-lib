@@ -205,10 +205,10 @@ return function(window, page, defaults)
             return true, "\"" .. name .. "\" · " .. count(flags) .. " settings" .. (target ~= name and (" → saved as \"" .. target .. "\"") or "")
         end,
         Callback = function(code)
-            local name, flags = store:Decode(code)
+            local name, flags, custom = store:Decode(code)
             if not name then return say(flags, true) end
             name = store:FreeName(name)
-            local ok, err = store:SaveFlags(name, flags)
+            local ok, err = store:SaveFlags(name, flags, custom)
             if not ok then return say(err, true) end
             touch(name, { saved = os.time(), note = "Imported" })
             open = name

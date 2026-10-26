@@ -73,6 +73,10 @@ function Icons.Get(name)
         return { Image = "rbxassetid://" .. tostring(name), RectSize = ZERO, RectOffset = ZERO }
     end
     name = tostring(name)
+    if name:match("^https?://") and not name:find("roblox%.com") then
+        -- a picture on the web (logo...): downloaded once, shown through getcustomasset; not tinted
+        return { Image = Icons._urls[name] or "", RectSize = ZERO, RectOffset = ZERO, Url = name }
+    end
     if name:match("^rbxasset") or name:match("^https?://") then
         return { Image = name, RectSize = ZERO, RectOffset = ZERO }
     end
@@ -83,11 +87,49 @@ function Icons.Get(name)
     return lookup(set, icon) or (set ~= "lucide" and not name:find(":") and lookup("lucide", icon)) or nil
 end
 
+-- Web images: request + writefile + getcustomasset (cached per url for the session and on disk).
+Icons._urls = {}
+Icons.Folder = "QustahUI/assets"
+local function fetch(url, done)
+    if Icons._urls[url] then return done(Icons._urls[url]) end
+    task.spawn(function()
+        local ok, asset = pcall(function()
+            local name = url:match("([^/?#]+)[?#]?[^/]*$") or "image"
+            name = name:gsub("%.[^%.]+$", ""):gsub("[^%w%-_]", "_"):sub(1, 40)
+            local file = Icons.Folder .. "/" .. name .. "-" .. #url .. ".png"
+            if not (isfile and isfile(file)) then
+                local request = (syn and syn.request) or http_request or request
+                local body
+                if request then body = request({ Url = url, Method = "GET" }).Body else body = game:HttpGet(url) end
+                assert(type(body) == "string" and #body > 0, "empty response")
+                if makefolder and isfolder then
+                    if not isfolder("QustahUI") then makefolder("QustahUI") end
+                    if not isfolder(Icons.Folder) then makefolder(Icons.Folder) end
+                end
+                writefile(file, body)
+            end
+            return (getcustomasset or getsynasset)(file)
+        end)
+        if ok and asset then
+            Icons._urls[url] = asset
+            done(asset)
+        else
+            warn("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(asset))
+        end
+    end)
+end
+
 -- Puts the icon on an ImageLabel / ImageButton (two-tone icons get their extra parts as children).
 function Icons.Apply(image, name)
     for _, child in ipairs(image:GetChildren()) do if child.Name == "IconPart" then child:Destroy() end end
     local icon = Icons.Get(name)
     if not icon then return false end
+    if icon.Url then
+        image.ImageColor3 = Color3.new(1, 1, 1)
+        image.ImageRectSize, image.ImageRectOffset = ZERO, ZERO
+        fetch(icon.Url, function(asset) image.Image = asset end)
+        return true
+    end
     image.Image = icon.Image
     image.ImageRectSize = icon.RectSize
     image.ImageRectOffset = icon.RectOffset
@@ -125,7 +167,8 @@ function Icons.themed(parent, name, size, role, props)
     if not Icons.Get(name) then return nil end
     local image = Icons.Image(name, { Size = UDim2.fromOffset(size, size), Name = props and props.Name or "Icon" })
     for key, value in pairs(props or {}) do if key ~= "Name" then image[key] = value end end
-    Theme.bind(image, "ImageColor3", role or "text")
+    -- web images keep their own colours
+    if not Icons.Get(name).Url then Theme.bind(image, "ImageColor3", role or "text") end
     image.Parent = parent
     return image
 end

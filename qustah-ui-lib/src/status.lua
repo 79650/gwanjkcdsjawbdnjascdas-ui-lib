@@ -43,6 +43,18 @@ return function(Window)
             self._errorIndex[key] = entry
             table.insert(self.errors, entry)
             warn(string.format("[%s / %s] %s", self.Title, source, message))
+            -- Debug mode (CreateWindow{ Debug = true } or Settings › Info): a toast for every new error
+            if self.debug == nil then self.debug = self.cfg.Debug == true end
+            if self.debug and self.Notify then
+                local short = message:gsub("^.-:%d+: ", "")
+                self:Notify({
+                    Title = "Error · " .. source, Content = short, Icon = "triangle-alert", Color = RED, Duration = 6,
+                    Buttons = { { Title = "Copy", Callback = function()
+                        local clipboard = setclipboard or toclipboard
+                        if clipboard then pcall(clipboard, source .. ": " .. message) end
+                    end } },
+                })
+            end
         end
         changed(self)
     end

@@ -259,6 +259,7 @@ function Window.new(Lib, cfg)
     end
     Glow.start(Lib.maid)
     self:_build()
+    if self._buildExtras then self:_buildExtras() end
     if self._buildInbox then self:_buildInbox() end
     self:_refreshStatus()
     Lib.Windows[#Lib.Windows + 1] = self
@@ -343,7 +344,7 @@ function Window:_build()
     local close = windowButton("Close", -40, true)
     self._windowButton = windowButton
     -- room taken by the header buttons (the bell adds one more)
-    self.headerRight = self.cfg.NotificationHistory == false and 90 or 124
+    self.headerRight = 90 -- grows with each extra header button (Window:_headerSlot)
     -- fading accent line under the header
     local headerLine = create("Frame", { Name = "HeaderLine", Position = UDim2.fromOffset(18, HEADER), Size = UDim2.new(1, -36, 0, 1), BorderSizePixel = 0, Parent = main })
     Theme.bind(headerLine, "BackgroundColor3", "accent")
@@ -703,6 +704,10 @@ function Window:_hideTip() self.tip.Visible = false end
 function Window:_register(flag, element)
     if self.flags[flag] then warn("[qustah-ui-lib] duplicate flag: " .. tostring(flag)) end
     self.flags[flag] = element
+    -- after the element finished building: record its default, apply a value loaded before it existed
+    task.defer(function()
+        if self.alive and self.flags[flag] == element then self.Config:_elementReady(flag, element) end
+    end)
 end
 function Window:_bind(element, key)
     self.binds[element] = key

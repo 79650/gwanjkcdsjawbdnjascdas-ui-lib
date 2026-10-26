@@ -26,6 +26,10 @@ Card.Elements = {
     Swatches    = require("elements/swatches"),
     Graph       = require("elements/graph"),
     Gradient    = require("elements/gradient"),
+    Progress    = require("elements/progress"),
+    Code        = require("elements/code"),
+    Image       = require("elements/image"),
+    Viewport    = require("elements/viewport"),
     ActionInput = require("elements/actioninput"),
 }
 Card.__index = function(_, key)
@@ -126,6 +130,90 @@ function Card:Tabs(names, cfg)
     current = tostring(cfg.Default or names[1])
     render()
     return sections, selector
+end
+
+-- A pseudo-card: elements go into `body`, ordering is its own.
+local function sub(card, body)
+    return setmetatable({ page = card.page, window = card.window, order = 0, body = body, frame = card.frame }, Card)
+end
+
+-- card:Section({ Title, Icon, Desc, Opened = true }) -> a collapsible part of the card (click its header).
+-- section:SetOpen(bool), section:ToggleOpen(), section.Opened
+function Card:Section(cfg)
+    if type(cfg) == "string" then cfg = { Title = cfg } end
+    cfg = cfg or {}
+    local holder = create("Frame", { Name = "Section_" .. tostring(cfg.Title or ""), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Parent = self.body })
+    Util.list(holder, 4)
+    local head = create("TextButton", { Name = "Header", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, cfg.Desc and 34 or 24), LayoutOrder = 1, Parent = holder })
+    local line = create("Frame", { Name = "Line", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, Parent = head })
+    Theme.bind(line, "BackgroundColor3", "line")
+    local x = 0
+    local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 13, "accent", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, 11) })
+    if icon then x = 20 end
+    local title = label(head, tostring(cfg.Title or ""), 11, { Name = "Title", Position = UDim2.fromOffset(x, 1), Size = UDim2.new(1, -x - 24, 0, 20), Font = Enum.Font.GothamMedium })
+    Theme.bind(title, "TextColor3", "heading")
+    if cfg.Desc then
+        local desc = label(head, tostring(cfg.Desc), 9, { Name = "Desc", Position = UDim2.fromOffset(x, 18), Size = UDim2.new(1, -x - 24, 0, 12) })
+        Theme.bind(desc, "TextColor3", "muted")
+    end
+    -- chevron (two bars) that turns when the section closes
+    local chevron = create("Frame", { Name = "Chevron", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0, 11), Size = UDim2.fromOffset(10, 10), Parent = head })
+    for index, rotation in ipairs({ 45, -45 }) do
+        local bar = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(index == 1 and 3 or 7, 5), Size = UDim2.fromOffset(6, 1.5), Rotation = rotation, BorderSizePixel = 0, Parent = chevron })
+        Theme.bind(bar, "BackgroundColor3", "muted")
+    end
+    local body = create("Frame", { Name = "Body", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, Parent = holder })
+    Util.list(body, 4)
+    Util.padding(body, 0, 0, 2, 4)
+    local section = sub(self, body)
+    function section:SetOpen(open)
+        self.Opened = open ~= false
+        body.Visible = self.Opened
+        Util.tween(chevron, 0.15, { Rotation = self.Opened and 0 or -90 })
+    end
+    -- (not :Toggle - that name makes a Toggle element)
+    function section:ToggleOpen() self:SetOpen(not self.Opened) end
+    section.Header = head
+    head.Activated:Connect(function() section:SetOpen(not section.Opened) end)
+    section:SetOpen(cfg.Opened ~= false)
+    return section
+end
+
+-- card:Row({ Gap = 6 }) -> elements put in it sit side by side with equal widths (buttons, small toggles...).
+function Card:Row(cfg)
+    cfg = cfg or {}
+    local gap = tonumber(cfg.Gap) or 6
+    local holder = create("Frame", { Name = "Row", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Parent = self.body })
+    Util.list(holder, gap, Enum.FillDirection.Horizontal)
+    local function share()
+        local children = {}
+        for _, child in ipairs(holder:GetChildren()) do if child:IsA("GuiObject") and child.Visible then children[#children + 1] = child end end
+        local n = #children
+        for _, child in ipairs(children) do
+            child.Size = UDim2.new(1 / n, -gap * (n - 1) / n, child.Size.Y.Scale, child.Size.Y.Offset)
+        end
+    end
+    holder.ChildAdded:Connect(function() task.defer(share) end)
+    holder.ChildRemoved:Connect(function() task.defer(share) end)
+    return sub(self, holder)
+end
+
+-- card:Group({ Title }) -> a boxed group inside the card (elements stacked, its own background).
+function Card:Group(cfg)
+    if type(cfg) == "string" then cfg = { Title = cfg } end
+    cfg = cfg or {}
+    local box = create("Frame", { Name = "Group_" .. tostring(cfg.Title or ""), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, LayoutOrder = self:_order(), Parent = self.body })
+    Theme.bind(box, "BackgroundColor3", "base")
+    box.BackgroundTransparency = 0.35
+    corner(box, 7)
+    Theme.bind(stroke(box), "Color", "line")
+    Util.padding(box, 10, 10, 6, 8)
+    Util.list(box, 4)
+    if cfg.Title then
+        local title = label(box, tostring(cfg.Title):upper(), 8, { Name = "Title", Size = UDim2.new(1, 0, 0, 14), Font = Enum.Font.GothamMedium, LayoutOrder = 0 })
+        Theme.bind(title, "TextColor3", "muted")
+    end
+    return sub(self, box)
 end
 
 function Card:SetTitle(text) if self.titleLabel then self.titleLabel.Text = tostring(text) end end

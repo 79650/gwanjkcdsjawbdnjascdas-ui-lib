@@ -192,6 +192,36 @@ Lib.Icons.List("lucide")           -- bütün isimler
 - `card:ActionInput({ Icon, Placeholder, Button = "Create", Hint, Validate = function(text) return ok, message end, Callback })`: ikonlu tek alan, buton alanın içinde, Enter da çalıştırır; altında canlı ipucu satırı (yeşil / kırmızı).
 - Profiles › New profile: Create / Import sekmeli, yazarken kontrol ediyor (isim var mı, kod geçerli mi, kaç ayar, hangi isimle kaydedilecek). Profil butonlarında ikonlar; bildirimler toast olarak.
 
+### v1.4
+
+**Yükleme:** küçültülmüş sürüm de var (aynı kod, yorumsuz, ~%25 daha küçük):
+`.../qustah-ui-lib/dist/qustah-ui-lib.min.lua`
+
+**Config**
+- Config'i elemanlar oluşmadan yükleyebilirsin (`LoadAutoLoad` en başta da çalışır): değer, eleman oluşunca uygulanır. Default profili artık her elemanın başlangıç değerini kendisi kaydeder, SettingsTab'ın yeri fark etmez.
+- Profille birlikte kendi verin: `Window.Config:SetData("waypoints", {...})`, `:GetData(key)`, `:OnDataLoaded(function(data) end)` (paylaşım kodlarına da girer).
+
+**Hata / bildirim**
+- `CreateWindow({ Debug = true })` ya da Settings › Info › Debug mode: her yeni hata Copy butonlu bildirim olur.
+- `Notify({ Buttons = { { Title = "Undo", Callback = fn } }, CanClose = true })`: butonlar + köşede kapatma.
+
+**Elemanlar**
+- Dropdown: seçenek `{ Title, Icon, Desc, Locked }` olabilir; 8+ seçenekte arama kutusu (`Search = true/false`); `AllowNone = true`.
+- Slider: `Icons = { From = "sun-dim", To = "sun" }` (tıklayınca bir adım), sürüklerken değer balonu (`Bubble = false` kapatır).
+- `card:Progress({ Title, Value, Max, Suffix, Format, Indeterminate })` -> `:Set`, `:SetMax`, `:SetIndeterminate`.
+- `card:Code({ Title, Code, Copy = true, MaxHeight })` - Lua renklendirme + Copy.
+- `card:Image({ Image = id | url | ikon, Height, Radius, Caption })`.
+- `card:Viewport({ Object = model, Height, Spin, Interactive })` - 3D önizleme, sürükle döndür, tekerlek yakınlaştır.
+- `card:Section({ Title, Icon, Opened = false })` - açılır kapanır bölüm (`:SetOpen`).
+- `card:Row()` - içine koyduğun elemanlar yan yana eşit genişlikte; `card:Group({ Title })` - kutulu grup.
+- İkon olarak web resmi: `Icon = "https://.../logo.png"` (indirilip `getcustomasset` ile gösterilir, renklendirilmez).
+
+**Pencere**
+- `Window:HeaderButton({ Icon, Tooltip, Callback })`
+- Tam ekran: header'daki buton, header'a çift tık, `Window:ToggleFullscreen()`.
+- `Window:SetBackgroundImage(id/url, transparency)`, `Window:SetBackgroundTransparency(0-0.9)` (Settings › Window'da da var).
+- Dock'un altında profil butonu: tıklayınca **anonim mod** (isim, ID, avatar her yerde gizlenir). `Window:SetAnonymous(true)`, `CreateWindow({ Profile = false, Anonymous = true })`.
+
 ## Geliştirme
 
 ```

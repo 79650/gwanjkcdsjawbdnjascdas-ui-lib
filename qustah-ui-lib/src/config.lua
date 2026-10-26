@@ -26,7 +26,36 @@ end
 function Config.new(window, folder)
     local self = setmetatable({ window = window, folder = cleanName(folder) ~= "" and cleanName(folder) or "QustahUI" }, Config)
     self.path = self.folder .. "/configs"
+    self.pending = {}  -- values for flags whose element does not exist yet (applied when it is created)
+    self.Defaults = {} -- each flag's starting value (recorded when its element is created)
+    self.Custom = {}   -- script data saved with the profile: Config:SetData(key, value)
     return self
+end
+
+-- Called by Window:_register once the element is fully built: remembers its default and applies a pending value.
+function Config:_elementReady(flag, element)
+    if self.Defaults[flag] == nil then
+        local ok, value = pcall(element._save, element)
+        if ok and value ~= nil then self.Defaults[flag] = value end
+    end
+    local value = self.pending[flag]
+    if value ~= nil then
+        self.pending[flag] = nil
+        pcall(element._load, element, value)
+    end
+end
+
+-- Custom data: anything JSON can hold (tables of numbers / strings / booleans), saved and loaded with profiles.
+--   Window.Config:SetData("waypoints", { ... }), :GetData("waypoints"), :OnDataLoaded(function(custom) end)
+function Config:SetData(key, value) self.Custom[tostring(key)] = value end
+function Config:GetData(key) return self.Custom[tostring(key)] end
+function Config:OnDataLoaded(callback)
+    self._dataListeners = self._dataListeners or {}
+    table.insert(self._dataListeners, callback)
+end
+function Config:_setCustom(custom)
+    self.Custom = type(custom) == "table" and custom or {}
+    for _, listener in ipairs(self._dataListeners or {}) do Util.safe(listener, self.Custom) end
 end
 
 function Config:_ensure()
@@ -42,11 +71,7 @@ function Config:Save(name)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local data = { version = 1, flags = {} }
-    for flag, element in pairs(self.window.flags) do
-        local ok, value = pcall(element._save, element)
-        if ok and value ~= nil then data.flags[flag] = value end
-    end
+    local data = { version = 1, flags = self:Snapshot(), custom = self.Custom }
     local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode(data))
     if not ok then return false, tostring(err) end
     self:_setActive(name, data.flags)
@@ -54,12 +79,12 @@ function Config:Save(name)
 end
 
 -- Writes a profile from a flag table (Snapshot format) without touching the current values.
-function Config:SaveFlags(name, flags)
+function Config:SaveFlags(name, flags, custom)
     name = cleanName(name)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {} }))
+    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {}, custom = custom }))
     if not ok then return false, tostring(err) end
     return true
 end
@@ -72,6 +97,7 @@ function Config:Load(name)
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
     if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return false, "Config file is damaged" end
     local failed = self:Apply(data.flags)
+    self:_setCustom(data.custom)
     self:_setActive(name, data.flags)
     if failed > 0 then return true, failed .. " setting(s) could not be applied" end
     return true
@@ -85,7 +111,7 @@ function Config:Read(name)
     if not isfile(file) then return nil, "Config not found" end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
     if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return nil, "Config file is damaged" end
-    return data.flags
+    return data.flags, data.custom
 end
 
 -- The profile the current settings came from (nil = the script's defaults) and what it held.
@@ -121,9 +147,12 @@ end
 
 -- Share codes: "QUSTAH1:" .. base64(JSON { n = name, f = flags }).
 function Config:Export(name)
-    local flags = name and self:Read(name) or self:Snapshot()
+    local flags, custom
+    if name then flags, custom = self:Read(name) else flags, custom = self:Snapshot(), self.Custom end
     if not flags then return nil, "Config not found" end
-    return "QUSTAH1:" .. Util.base64encode(HttpService:JSONEncode({ n = name or "Shared", f = flags }))
+    local data = { n = name or "Shared", f = flags }
+    if type(custom) == "table" and next(custom) ~= nil then data.c = custom end
+    return "QUSTAH1:" .. Util.base64encode(HttpService:JSONEncode(data))
 end
 -- Returns name, flags (nothing is saved or applied).
 function Config:Decode(code)
@@ -133,7 +162,7 @@ function Config:Decode(code)
     local json = Util.base64decode(body)
     local ok, data = pcall(function() return HttpService:JSONDecode(json) end)
     if not ok or type(data) ~= "table" or type(data.f) ~= "table" then return nil, "The code is damaged or cut off" end
-    return cleanName(data.n) ~= "" and cleanName(data.n) or "Imported", data.f
+    return cleanName(data.n) ~= "" and cleanName(data.n) or "Imported", data.f, data.c
 end
 -- A free name: "pvp", "pvp 2", "pvp 3"...
 function Config:FreeName(name)
@@ -213,6 +242,7 @@ end
 -- Snapshot of every flag right now (used as the locked "Default" profile).
 function Config:Snapshot()
     local data = {}
+    for flag, value in pairs(self.pending) do data[flag] = value end -- not created yet: keep what was loaded
     for flag, element in pairs(self.window.flags) do
         local ok, value = pcall(element._save, element)
         if ok and value ~= nil then data[flag] = value end
@@ -223,7 +253,15 @@ function Config:Apply(flags)
     local failed = 0
     for flag, value in pairs(flags or {}) do
         local element = self.window.flags[flag]
-        if element and not pcall(element._load, element, value) then failed = failed + 1 end
+        if element and self.Defaults[flag] == nil then -- (a load right after building: remember the start value first)
+            local ok, current = pcall(element._save, element)
+            if ok and current ~= nil then self.Defaults[flag] = current end
+        end
+        if not element then
+            self.pending[flag] = value -- applied when the element is created
+        elseif not pcall(element._load, element, value) then
+            failed = failed + 1
+        end
     end
     return failed
 end

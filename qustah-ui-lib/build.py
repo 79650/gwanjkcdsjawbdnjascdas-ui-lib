@@ -3,7 +3,7 @@
 
 Each module becomes a function in a small module table; require("name") inside the bundle returns that
 module (loaded once). Module names are paths under src/ without .lua, e.g. "elements/toggle".
-Usage: python3 build.py            -> dist/qustah-ui-lib.lua
+Usage: python3 build.py            -> dist/qustah-ui-lib.lua + dist/qustah-ui-lib.min.lua (comments / indentation stripped)
 """
 import json, pathlib, re, sys
 
@@ -50,3 +50,67 @@ DIST.mkdir(exist_ok=True)
 target = DIST / "qustah-ui-lib.lua"
 target.write_text("\n".join(out) + "\n")
 print(f"built {target.relative_to(ROOT)}: {len(modules)} modules, {target.stat().st_size // 1024} KB, v{VERSION}")
+
+
+def minify(source):
+    """Removes comments, indentation and blank lines. Strings (quoted and [[long]]) are copied untouched;
+    line breaks stay, so statement boundaries never change. No renaming - the code means exactly the same."""
+    out, i, n = [], 0, len(source)
+    line_start = True
+    while i < n:
+        c = source[i]
+        if line_start and c in " \t":
+            i += 1
+            continue
+        line_start = False
+        if source.startswith("--", i):
+            m = re.match(r"--\[(=*)\[", source[i:])
+            if m:
+                end = source.find("]" + m.group(1) + "]", i)
+                i = n if end < 0 else end + len(m.group(1)) + 2
+            else:
+                end = source.find("\n", i)
+                i = n if end < 0 else end
+            continue
+        m = re.match(r"\[(=*)\[", source[i:])
+        if m:
+            end = source.find("]" + m.group(1) + "]", i)
+            end = n if end < 0 else end + len(m.group(1)) + 2
+            out.append(source[i:end]); i = end
+            continue
+        if c in "\"'":
+            j = i + 1
+            while j < n and source[j] != c:
+                if source[j] == "\\": j += 1
+                if source[j] == "\n": break
+                j += 1
+            out.append(source[i:j + 1]); i = j + 1
+            continue
+        if c == "\n":
+            # drop trailing spaces and empty lines
+            while out and out[-1] in (" ", "\t"): out.pop()
+            if out and out[-1] != "\n": out.append("\n")
+            line_start = True
+            i += 1
+            continue
+        if c in " \t":
+            # a space is only kept between two word characters (and a few pairs that would fuse into other tokens)
+            j = i
+            while j < n and source[j] in " \t": j += 1
+            prev = out[-1][-1] if out and out[-1] else "\n"
+            nxt = source[j] if j < n else "\n"
+            word = lambda ch: ch.isalnum() or ch == "_"
+            keep = (word(prev) and word(nxt)) or (prev == "-" and nxt == "-") or (prev == "[" and nxt == "[") \
+                or (prev == "." and nxt == ".") or (prev.isdigit() and nxt == ".") or (prev == "." and nxt.isdigit()) \
+                or (prev == "=" and nxt == "=") or (prev in "<>~" and nxt == "=")
+            if keep and prev != "\n": out.append(" ")
+            i = j
+            continue
+        out.append(c); i += 1
+    return "".join(out)
+
+
+minified = DIST / "qustah-ui-lib.min.lua"
+body = "\n".join(out[2:]) + "\n"
+minified.write_text(f"-- qustah-ui-lib v{VERSION} (minified build of dist/qustah-ui-lib.lua)\n" + minify(body))
+print(f"built {minified.relative_to(ROOT)}: {minified.stat().st_size // 1024} KB")

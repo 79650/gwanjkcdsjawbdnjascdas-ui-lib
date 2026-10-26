@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.3.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.4.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -41,6 +41,10 @@ Card.Elements = {
     Swatches    = require("elements/swatches"),
     Graph       = require("elements/graph"),
     Gradient    = require("elements/gradient"),
+    Progress    = require("elements/progress"),
+    Code        = require("elements/code"),
+    Image       = require("elements/image"),
+    Viewport    = require("elements/viewport"),
     ActionInput = require("elements/actioninput"),
 }
 Card.__index = function(_, key)
@@ -143,6 +147,90 @@ function Card:Tabs(names, cfg)
     return sections, selector
 end
 
+-- A pseudo-card: elements go into `body`, ordering is its own.
+local function sub(card, body)
+    return setmetatable({ page = card.page, window = card.window, order = 0, body = body, frame = card.frame }, Card)
+end
+
+-- card:Section({ Title, Icon, Desc, Opened = true }) -> a collapsible part of the card (click its header).
+-- section:SetOpen(bool), section:ToggleOpen(), section.Opened
+function Card:Section(cfg)
+    if type(cfg) == "string" then cfg = { Title = cfg } end
+    cfg = cfg or {}
+    local holder = create("Frame", { Name = "Section_" .. tostring(cfg.Title or ""), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Parent = self.body })
+    Util.list(holder, 4)
+    local head = create("TextButton", { Name = "Header", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, cfg.Desc and 34 or 24), LayoutOrder = 1, Parent = holder })
+    local line = create("Frame", { Name = "Line", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, Parent = head })
+    Theme.bind(line, "BackgroundColor3", "line")
+    local x = 0
+    local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 13, "accent", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, 11) })
+    if icon then x = 20 end
+    local title = label(head, tostring(cfg.Title or ""), 11, { Name = "Title", Position = UDim2.fromOffset(x, 1), Size = UDim2.new(1, -x - 24, 0, 20), Font = Enum.Font.GothamMedium })
+    Theme.bind(title, "TextColor3", "heading")
+    if cfg.Desc then
+        local desc = label(head, tostring(cfg.Desc), 9, { Name = "Desc", Position = UDim2.fromOffset(x, 18), Size = UDim2.new(1, -x - 24, 0, 12) })
+        Theme.bind(desc, "TextColor3", "muted")
+    end
+    -- chevron (two bars) that turns when the section closes
+    local chevron = create("Frame", { Name = "Chevron", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0, 11), Size = UDim2.fromOffset(10, 10), Parent = head })
+    for index, rotation in ipairs({ 45, -45 }) do
+        local bar = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(index == 1 and 3 or 7, 5), Size = UDim2.fromOffset(6, 1.5), Rotation = rotation, BorderSizePixel = 0, Parent = chevron })
+        Theme.bind(bar, "BackgroundColor3", "muted")
+    end
+    local body = create("Frame", { Name = "Body", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, Parent = holder })
+    Util.list(body, 4)
+    Util.padding(body, 0, 0, 2, 4)
+    local section = sub(self, body)
+    function section:SetOpen(open)
+        self.Opened = open ~= false
+        body.Visible = self.Opened
+        Util.tween(chevron, 0.15, { Rotation = self.Opened and 0 or -90 })
+    end
+    -- (not :Toggle - that name makes a Toggle element)
+    function section:ToggleOpen() self:SetOpen(not self.Opened) end
+    section.Header = head
+    head.Activated:Connect(function() section:SetOpen(not section.Opened) end)
+    section:SetOpen(cfg.Opened ~= false)
+    return section
+end
+
+-- card:Row({ Gap = 6 }) -> elements put in it sit side by side with equal widths (buttons, small toggles...).
+function Card:Row(cfg)
+    cfg = cfg or {}
+    local gap = tonumber(cfg.Gap) or 6
+    local holder = create("Frame", { Name = "Row", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Parent = self.body })
+    Util.list(holder, gap, Enum.FillDirection.Horizontal)
+    local function share()
+        local children = {}
+        for _, child in ipairs(holder:GetChildren()) do if child:IsA("GuiObject") and child.Visible then children[#children + 1] = child end end
+        local n = #children
+        for _, child in ipairs(children) do
+            child.Size = UDim2.new(1 / n, -gap * (n - 1) / n, child.Size.Y.Scale, child.Size.Y.Offset)
+        end
+    end
+    holder.ChildAdded:Connect(function() task.defer(share) end)
+    holder.ChildRemoved:Connect(function() task.defer(share) end)
+    return sub(self, holder)
+end
+
+-- card:Group({ Title }) -> a boxed group inside the card (elements stacked, its own background).
+function Card:Group(cfg)
+    if type(cfg) == "string" then cfg = { Title = cfg } end
+    cfg = cfg or {}
+    local box = create("Frame", { Name = "Group_" .. tostring(cfg.Title or ""), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, LayoutOrder = self:_order(), Parent = self.body })
+    Theme.bind(box, "BackgroundColor3", "base")
+    box.BackgroundTransparency = 0.35
+    corner(box, 7)
+    Theme.bind(stroke(box), "Color", "line")
+    Util.padding(box, 10, 10, 6, 8)
+    Util.list(box, 4)
+    if cfg.Title then
+        local title = label(box, tostring(cfg.Title):upper(), 8, { Name = "Title", Size = UDim2.new(1, 0, 0, 14), Font = Enum.Font.GothamMedium, LayoutOrder = 0 })
+        Theme.bind(title, "TextColor3", "muted")
+    end
+    return sub(self, box)
+end
+
 function Card:SetTitle(text) if self.titleLabel then self.titleLabel.Text = tostring(text) end end
 function Card:SetVisible(visible) self.frame.Visible = visible ~= false end
 
@@ -178,7 +266,36 @@ end
 function Config.new(window, folder)
     local self = setmetatable({ window = window, folder = cleanName(folder) ~= "" and cleanName(folder) or "QustahUI" }, Config)
     self.path = self.folder .. "/configs"
+    self.pending = {}  -- values for flags whose element does not exist yet (applied when it is created)
+    self.Defaults = {} -- each flag's starting value (recorded when its element is created)
+    self.Custom = {}   -- script data saved with the profile: Config:SetData(key, value)
     return self
+end
+
+-- Called by Window:_register once the element is fully built: remembers its default and applies a pending value.
+function Config:_elementReady(flag, element)
+    if self.Defaults[flag] == nil then
+        local ok, value = pcall(element._save, element)
+        if ok and value ~= nil then self.Defaults[flag] = value end
+    end
+    local value = self.pending[flag]
+    if value ~= nil then
+        self.pending[flag] = nil
+        pcall(element._load, element, value)
+    end
+end
+
+-- Custom data: anything JSON can hold (tables of numbers / strings / booleans), saved and loaded with profiles.
+--   Window.Config:SetData("waypoints", { ... }), :GetData("waypoints"), :OnDataLoaded(function(custom) end)
+function Config:SetData(key, value) self.Custom[tostring(key)] = value end
+function Config:GetData(key) return self.Custom[tostring(key)] end
+function Config:OnDataLoaded(callback)
+    self._dataListeners = self._dataListeners or {}
+    table.insert(self._dataListeners, callback)
+end
+function Config:_setCustom(custom)
+    self.Custom = type(custom) == "table" and custom or {}
+    for _, listener in ipairs(self._dataListeners or {}) do Util.safe(listener, self.Custom) end
 end
 
 function Config:_ensure()
@@ -194,11 +311,7 @@ function Config:Save(name)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local data = { version = 1, flags = {} }
-    for flag, element in pairs(self.window.flags) do
-        local ok, value = pcall(element._save, element)
-        if ok and value ~= nil then data.flags[flag] = value end
-    end
+    local data = { version = 1, flags = self:Snapshot(), custom = self.Custom }
     local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode(data))
     if not ok then return false, tostring(err) end
     self:_setActive(name, data.flags)
@@ -206,12 +319,12 @@ function Config:Save(name)
 end
 
 -- Writes a profile from a flag table (Snapshot format) without touching the current values.
-function Config:SaveFlags(name, flags)
+function Config:SaveFlags(name, flags, custom)
     name = cleanName(name)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {} }))
+    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {}, custom = custom }))
     if not ok then return false, tostring(err) end
     return true
 end
@@ -224,6 +337,7 @@ function Config:Load(name)
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
     if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return false, "Config file is damaged" end
     local failed = self:Apply(data.flags)
+    self:_setCustom(data.custom)
     self:_setActive(name, data.flags)
     if failed > 0 then return true, failed .. " setting(s) could not be applied" end
     return true
@@ -237,7 +351,7 @@ function Config:Read(name)
     if not isfile(file) then return nil, "Config not found" end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
     if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return nil, "Config file is damaged" end
-    return data.flags
+    return data.flags, data.custom
 end
 
 -- The profile the current settings came from (nil = the script's defaults) and what it held.
@@ -273,9 +387,12 @@ end
 
 -- Share codes: "QUSTAH1:" .. base64(JSON { n = name, f = flags }).
 function Config:Export(name)
-    local flags = name and self:Read(name) or self:Snapshot()
+    local flags, custom
+    if name then flags, custom = self:Read(name) else flags, custom = self:Snapshot(), self.Custom end
     if not flags then return nil, "Config not found" end
-    return "QUSTAH1:" .. Util.base64encode(HttpService:JSONEncode({ n = name or "Shared", f = flags }))
+    local data = { n = name or "Shared", f = flags }
+    if type(custom) == "table" and next(custom) ~= nil then data.c = custom end
+    return "QUSTAH1:" .. Util.base64encode(HttpService:JSONEncode(data))
 end
 -- Returns name, flags (nothing is saved or applied).
 function Config:Decode(code)
@@ -285,7 +402,7 @@ function Config:Decode(code)
     local json = Util.base64decode(body)
     local ok, data = pcall(function() return HttpService:JSONDecode(json) end)
     if not ok or type(data) ~= "table" or type(data.f) ~= "table" then return nil, "The code is damaged or cut off" end
-    return cleanName(data.n) ~= "" and cleanName(data.n) or "Imported", data.f
+    return cleanName(data.n) ~= "" and cleanName(data.n) or "Imported", data.f, data.c
 end
 -- A free name: "pvp", "pvp 2", "pvp 3"...
 function Config:FreeName(name)
@@ -365,6 +482,7 @@ end
 -- Snapshot of every flag right now (used as the locked "Default" profile).
 function Config:Snapshot()
     local data = {}
+    for flag, value in pairs(self.pending) do data[flag] = value end -- not created yet: keep what was loaded
     for flag, element in pairs(self.window.flags) do
         local ok, value = pcall(element._save, element)
         if ok and value ~= nil then data[flag] = value end
@@ -375,7 +493,15 @@ function Config:Apply(flags)
     local failed = 0
     for flag, value in pairs(flags or {}) do
         local element = self.window.flags[flag]
-        if element and not pcall(element._load, element, value) then failed = failed + 1 end
+        if element and self.Defaults[flag] == nil then -- (a load right after building: remember the start value first)
+            local ok, current = pcall(element._save, element)
+            if ok and current ~= nil then self.Defaults[flag] = current end
+        end
+        if not element then
+            self.pending[flag] = value -- applied when the element is created
+        elseif not pcall(element._load, element, value) then
+            failed = failed + 1
+        end
     end
     return failed
 end
@@ -454,16 +580,26 @@ return function(window, cfg)
     Theme.bind(uptime, "TextColor3", "accent")
     Glow.add(display, { Base = "heading", Phase = 0.1 })
     Glow.add(uptime, { Base = "accent", Phase = 0.45 })
+    local avatarImage = ""
     task.spawn(function()
         local ok, image = pcall(function()
             return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
         end)
-        if ok and avatar.Parent then avatar.Image = image end
+        if ok then avatarImage = image if avatar.Parent and not window.anonymous then avatar.Image = image end end
     end)
+    -- anonymous mode (dock profile button): no name, no id, no avatar
+    if window.OnAnonymousChanged then
+        window:OnAnonymousChanged(function(on)
+            display.Text = on and "Anonymous" or player.DisplayName
+            username.Text = on and "hidden" or ("@" .. player.Name .. " · #" .. player.UserId)
+            avatar.Image = on and "" or avatarImage
+        end)
+    end
 
     ------------------------------------------------------------ session / info / server
     local session = page:Card({ Title = "Session", Side = "Left" })
-    session:Info({ Title = "User ID", Value = "#" .. player.UserId, Copy = function() return tostring(player.UserId) end })
+    local userId = session:Info({ Title = "User ID", Value = "#" .. player.UserId, Copy = function() return tostring(player.UserId) end })
+    if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on) userId:Set(on and "hidden" or ("#" .. player.UserId)) end) end
     session:Info({ Title = "Account created", Value = os.date("%d %b %Y", os.time() - player.AccountAge * 86400) })
     local executor = "Unknown"
     pcall(function()
@@ -952,6 +1088,136 @@ return function(card, cfg)
 end
 end
 
+__modules["elements/code"] = function()
+-- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, MaxHeight = 200 })
+-- A code block: monospace, Lua colouring (keywords, strings, numbers, comments, functions), scrolls sideways for long
+-- lines and down past MaxHeight. Copy button in the header. :Set(code).
+local Util = require("util")
+local Theme = require("theme")
+local Base = require("elements/base")
+local Icons = require("icons")
+
+local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
+
+local KEYWORDS = {}
+for word in ("and break do else elseif end false for function if in local nil not or repeat return then true until while continue"):gmatch("%a+") do KEYWORDS[word] = true end
+local GLOBALS = {}
+for word in ("game workspace script task math string table print warn pcall require loadstring getgenv Instance Vector3 Vector2 CFrame UDim2 Color3 Enum"):gmatch("%a+") do GLOBALS[word] = true end
+local COLORS = { keyword = "#c792ea", string = "#c3e88d", number = "#f78c6c", comment = "#6b7080", global = "#82aaff", call = "#ffcb6b" }
+
+local function escape(text) return (text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")) end
+local function paint(kind, text) return '<font color="' .. COLORS[kind] .. '">' .. escape(text) .. "</font>" end
+
+-- Small Lua tokenizer -> RichText (one pass, no nesting issues).
+local function highlight(source)
+    local out, i, n = {}, 1, #source
+    while i <= n do
+        local c = source:sub(i, i)
+        if source:sub(i, i + 1) == "--" then
+            local long = source:match("^%-%-%[(=*)%[", i)
+            local stop
+            if long then stop = select(2, source:find("%]" .. long .. "%]", i)) end
+            stop = stop or (source:find("\n", i) or n + 1) - 1
+            out[#out + 1] = paint("comment", source:sub(i, stop))
+            i = stop + 1
+        elseif c == '"' or c == "'" then
+            local j = i + 1
+            while j <= n do
+                local d = source:sub(j, j)
+                if d == "\\" then j = j + 2 elseif d == c or d == "\n" then break else j = j + 1 end
+            end
+            out[#out + 1] = paint("string", source:sub(i, j))
+            i = j + 1
+        elseif source:match("^%[=*%[", i) then
+            local eq = source:match("^%[(=*)%[", i)
+            local stop = select(2, source:find("%]" .. eq .. "%]", i)) or n
+            out[#out + 1] = paint("string", source:sub(i, stop))
+            i = stop + 1
+        elseif c:match("%d") then
+            local number = source:match("^0[xX]%x+", i) or source:match("^%d+%.?%d*[eE][%-+]?%d+", i) or source:match("^%d+%.?%d*", i)
+            out[#out + 1] = paint("number", number)
+            i = i + #number
+        elseif c:match("[%a_]") then
+            local word = source:match("^[%w_]+", i)
+            local after = source:match("^%s*(.)", i + #word)
+            if KEYWORDS[word] then out[#out + 1] = paint("keyword", word)
+            elseif GLOBALS[word] then out[#out + 1] = paint("global", word)
+            elseif after == "(" then out[#out + 1] = paint("call", word)
+            else out[#out + 1] = escape(word) end
+            i = i + #word
+        else
+            out[#out + 1] = escape(c)
+            i = i + 1
+        end
+    end
+    return table.concat(out)
+end
+
+return function(card, cfg)
+    local window = card.window
+    local maxHeight = tonumber(cfg.MaxHeight) or 200
+    local holder = create("Frame", { Name = tostring(cfg.Title or "Code"), Size = UDim2.new(1, 0, 0, 60), BorderSizePixel = 0, LayoutOrder = card:_order(), Parent = card.body })
+    Theme.bind(holder, "BackgroundColor3", "base")
+    corner(holder, 7)
+    Theme.bind(stroke(holder), "Color", "line")
+    local head = create("Frame", { Name = "Head", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 26), Parent = holder })
+    Icons.themed(head, "code", 12, "muted", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 10, 0.5, 0) })
+    local title = label(head, tostring(cfg.Title or "Code"), 10, { Name = "Title", Position = UDim2.fromOffset(28, 0), Size = UDim2.new(1, -90, 1, 0), Font = Enum.Font.GothamMedium })
+    Theme.bind(title, "TextColor3", "text")
+    local line = create("Frame", { Position = UDim2.fromOffset(0, 26), Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, Parent = holder })
+    Theme.bind(line, "BackgroundColor3", "line")
+    local scroller = create("ScrollingFrame", {
+        Name = "Body", BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(0, 27), Size = UDim2.new(1, 0, 1, -27),
+        CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.XY, ScrollBarThickness = 3, Parent = holder,
+    })
+    Theme.bind(scroller, "ScrollBarImageColor3", "muted")
+    local text = create("TextLabel", {
+        Name = "Code", BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 8), Size = UDim2.fromOffset(0, 0), AutomaticSize = Enum.AutomaticSize.XY,
+        Font = Enum.Font.Code, TextSize = 11, RichText = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = false, Text = "", Parent = scroller,
+    })
+    Theme.bind(text, "TextColor3", "heading")
+    create("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingBottom = UDim.new(0, 10), Parent = text })
+
+    local element = Base.element(card, "Code", {}, holder, title, nil)
+    local function fit()
+        local lines = select(2, (element.Value or ""):gsub("\n", "\n")) + 1
+        holder.Size = UDim2.new(1, 0, 0, math.min(maxHeight, 27 + 18 + lines * 14))
+    end
+    function element:Set(code)
+        self.Value = tostring(code or "")
+        text.Text = cfg.Highlight == false and self.Value:gsub("<", "&lt;") or highlight(self.Value)
+        fit()
+    end
+    function element:Get() return self.Value end
+
+    if cfg.Copy ~= false then
+        local copy = create("TextButton", {
+            Name = "Copy", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(52, 18), Parent = head,
+        })
+        Theme.bind(copy, "BackgroundColor3", "input")
+        corner(copy, 5)
+        Theme.bind(stroke(copy), "Color", "buttonEdge")
+        local copyText = label(copy, "Copy", 9, { Position = UDim2.fromOffset(20, 0), Size = UDim2.new(1, -22, 1, 0), Font = Enum.Font.GothamMedium })
+        Theme.bind(copyText, "TextColor3", "text")
+        local copyIcon = Icons.themed(copy, "copy", 10, "text", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) })
+        copy.Activated:Connect(function()
+            local clipboard = setclipboard or toclipboard
+            local ok = type(clipboard) == "function" and pcall(clipboard, element.Value)
+            copyText.Text = ok and "Copied" or "Failed"
+            if copyIcon then Icons.Apply(copyIcon, ok and "check" or "x") end
+            if ok and cfg.OnCopy then window:_safe("Code", cfg.OnCopy) end
+            task.delay(1.4, function()
+                if copy.Parent then copyText.Text = "Copy" if copyIcon then Icons.Apply(copyIcon, "copy") end end
+            end)
+        end)
+    end
+    element:Set(cfg.Code or "")
+    return element
+end
+end
+
 __modules["elements/colorpicker"] = function()
 -- card:ColorPicker({ Title, Desc, Flag, Default = Color3, Callback = function(color) end, Locked })
 -- Click the swatch to open the picker under the row: saturation / brightness square, hue bar, HEX box, Random, Rainbow.
@@ -1168,25 +1434,38 @@ end
 end
 
 __modules["elements/dropdown"] = function()
--- card:Dropdown({ Title, Desc, Flag, Options = {...}, Default, Multi, Callback, Locked })
+-- card:Dropdown({ Title, Desc, Flag, Options = {...}, Default, Multi, AllowNone, Search, Callback, Locked })
 -- Single: Value is the chosen option (string). Multi: Value is a list of chosen options.
+-- An option is a string or { Title = "Head", Icon = "user", Desc = "aims at the head", Locked = true }.
+-- Search = true (automatic above 8 options) puts a filter box at the top of the list.
+-- AllowNone = true lets a single dropdown be cleared by clicking the chosen option again.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
+local Icons = require("icons")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
-local ITEM, MAX_VISIBLE = 24, 7
+local ITEM, ITEM_DESC, MAX_HEIGHT, SEARCH = 24, 34, 176, 28
 
 return function(card, cfg)
     local window = card.window
     local multi = cfg.Multi == true
-    local options = {}
-    for _, option in ipairs(cfg.Options or cfg.Values or {}) do options[#options + 1] = tostring(option) end
+    local options, info = {}, {}
+    local function setOptions(list)
+        options, info = {}, {}
+        for _, option in ipairs(list or {}) do
+            local entry = type(option) == "table" and option or { Title = option }
+            local name = tostring(entry.Title or entry.Name or entry[1] or "")
+            options[#options + 1] = name
+            info[name] = entry
+        end
+    end
+    setOptions(cfg.Options or cfg.Values)
 
     local row, title, desc = Base.row(card, cfg, cfg.Desc and 40 or 30, { right = 160 })
     -- the title takes the left half, the box the right half (up to 170 px)
-    title.Size = UDim2.new(0.55, -8, 0, title.Size.Y.Offset)
-    if desc then desc.Size = UDim2.new(0.55, -8, 0, 14) end
+    title.Size = UDim2.new(0.55, -8 - title.Position.X.Offset, 0, title.Size.Y.Offset)
+    if desc then desc.Size = UDim2.new(0.55, -8 - desc.Position.X.Offset, 0, 14) end
     local button = create("TextButton", {
         Name = "Select", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(0.45, 0, 0, 24), Parent = row,
@@ -1195,6 +1474,8 @@ return function(card, cfg)
     corner(button, 6)
     Theme.bind(stroke(button), "Color", "buttonEdge")
     create("UISizeConstraint", { MaxSize = Vector2.new(170, 24), Parent = button })
+    local valueIcon = create("ImageLabel", { Name = "ValueIcon", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = UDim2.fromOffset(12, 12), Visible = false, Parent = button })
+    Theme.bind(valueIcon, "ImageColor3", "text")
     local valueLabel = label(button, "", 10, { Position = UDim2.fromOffset(9, 0), Size = UDim2.new(1, -28, 1, 0) })
     Theme.bind(valueLabel, "TextColor3", "text")
     -- chevron drawn with two bars (fonts may not have an arrow glyph)
@@ -1218,11 +1499,19 @@ return function(card, cfg)
         return element.Value == option
     end
     local function render()
+        local text
         if multi then
-            valueLabel.Text = #element.Value > 0 and table.concat(element.Value, ", ") or "None"
+            text = #element.Value > 0 and table.concat(element.Value, ", ") or "None"
         else
-            valueLabel.Text = element.Value or "None"
+            text = element.Value or "None"
         end
+        valueLabel.Text = text
+        -- single value with an icon: show it in the box
+        local entry = not multi and element.Value and info[element.Value]
+        local hasIcon = entry and entry.Icon and Icons.Apply(valueIcon, entry.Icon)
+        valueIcon.Visible = hasIcon == true
+        valueLabel.Position = UDim2.fromOffset(hasIcon and 26 or 9, 0)
+        valueLabel.Size = UDim2.new(1, hasIcon and -45 or -28, 1, 0)
     end
 
     ------------------------------------------------------------ list popup
@@ -1231,22 +1520,28 @@ return function(card, cfg)
         if popup then popup:Destroy() popup = nil end
         tintArrow("muted")
     end
+    local function itemHeight(option) return info[option] and info[option].Desc and ITEM_DESC or ITEM end
     local function openList()
         closeList()
-        -- The list opens over the button: header (value + upturned chevron), divider, options. It opens upwards
-        -- when there is more room above.
+        -- The list opens over the button: header (value + upturned chevron), divider, [search], options.
+        -- It opens upwards when there is more room above. It lives outside the scaled window, so it takes the scale itself.
         local position, size = button.AbsolutePosition, button.AbsoluteSize
         local viewport = Util.viewport()
-        local listHeight = math.min(#options, MAX_VISIBLE) * ITEM + 8
-        local total = 25 + listHeight
-        -- the popup lives outside the scaled window, so it gets the window's scale itself
+        local searchable = cfg.Search == true or (cfg.Search ~= false and #options > 8)
+        local contentHeight = 8
+        for _, option in ipairs(options) do contentHeight = contentHeight + itemHeight(option) end
+        local listHeight = math.min(contentHeight, MAX_HEIGHT)
+        local top = 25 + (searchable and SEARCH + 4 or 0)
+        local total = top + listHeight
         local scale = window.scale and window.scale.Scale or 1
-        local width = math.max(size.X / scale, 120)
+        local hasDesc = false
+        for _, option in ipairs(options) do if info[option] and info[option].Desc then hasDesc = true end end
+        local width = math.max(size.X / scale, cfg.ListWidth or (hasDesc and 190 or 140))
         local roomBelow, roomAbove = viewport.Y - 8 - position.Y, position.Y + size.Y - 8
         local below = roomBelow >= total * scale or roomBelow >= roomAbove
         popup = create("Frame", {
             Name = "DropdownList", BorderSizePixel = 0, ZIndex = 260,
-            Position = UDim2.fromOffset(math.clamp(position.X, 8, math.max(8, viewport.X - width * scale - 8)), below and position.Y or position.Y + size.Y - total * scale),
+            Position = UDim2.fromOffset(math.clamp(position.X + size.X - width * scale, 8, math.max(8, viewport.X - width * scale - 8)), below and position.Y or position.Y + size.Y - total * scale),
             Size = UDim2.fromOffset(width, total), Parent = window.gui,
         })
         create("UIScale", { Scale = scale, Parent = popup })
@@ -1271,43 +1566,98 @@ return function(card, cfg)
             Position = UDim2.new(0, 6, 0, below and 24 or total - 25), Size = UDim2.new(1, -12, 0, 1), BorderSizePixel = 0, ZIndex = 261, Parent = popup,
         })
         Theme.bind(separator, "BackgroundColor3", "line")
+        local bodyTop = below and 25 or 0
+        local searchBox
+        if searchable then
+            searchBox = create("TextBox", {
+                Name = "Search", Text = "", PlaceholderText = "Search...", TextSize = 10, Font = Enum.Font.Gotham, ClearTextOnFocus = false,
+                TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 262,
+                Position = UDim2.fromOffset(6, bodyTop + 4), Size = UDim2.new(1, -12, 0, SEARCH - 2), Parent = popup,
+            })
+            Theme.bind(searchBox, "BackgroundColor3", "base")
+            Theme.bind(searchBox, "TextColor3", "text")
+            Theme.bind(searchBox, "PlaceholderColor3", "muted")
+            corner(searchBox, 5)
+            Util.padding(searchBox, 24, 6, 0, 0)
+            Icons.themed(searchBox, "search", 11, "muted", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, -17, 0.5, 0), ZIndex = 263 })
+            bodyTop = bodyTop + SEARCH + 4
+        end
         local scroller = create("ScrollingFrame", {
             Name = "Options", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 261, ScrollBarThickness = 2,
-            Position = UDim2.fromOffset(0, below and 25 or 0), Size = UDim2.new(1, 0, 0, listHeight),
-            CanvasSize = UDim2.fromOffset(0, #options * ITEM + 8), ScrollingDirection = Enum.ScrollingDirection.Y, Parent = popup,
+            Position = UDim2.fromOffset(0, bodyTop), Size = UDim2.new(1, 0, 0, listHeight),
+            CanvasSize = UDim2.fromOffset(0, contentHeight), ScrollingDirection = Enum.ScrollingDirection.Y, Parent = popup,
         })
         Theme.bind(scroller, "ScrollBarImageColor3", "muted")
         Util.padding(scroller, 4, 4, 4, 4)
         Util.list(scroller, 0)
+        local empty = label(scroller, "No matches", 10, { Name = "Empty", Size = UDim2.new(1, 0, 0, ITEM), TextXAlignment = Enum.TextXAlignment.Center, Visible = false, ZIndex = 262, LayoutOrder = 100000 })
+        Theme.bind(empty, "TextColor3", "muted")
         local function refreshHeader() headerText.Text = valueLabel.Text end
+        local items = {}
         for index, option in ipairs(options) do
+            local entry = info[option] or {}
+            local height = itemHeight(option)
+            local locked = entry.Locked == true
             local item = create("TextButton", {
                 Name = option, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, BorderSizePixel = 0,
-                Size = UDim2.new(1, 0, 0, ITEM), LayoutOrder = index, ZIndex = 262, Parent = scroller,
+                Size = UDim2.new(1, 0, 0, height), LayoutOrder = index, ZIndex = 262, Parent = scroller,
             })
             Theme.bind(item, "BackgroundColor3", "hover")
             corner(item, 5)
-            local text = label(item, option, 10, { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -28, 1, 0), ZIndex = 263 })
+            local textX = 8
+            local icon = entry.Icon and Icons.themed(item, entry.Icon, 12, chosen(option) and "accent" or "muted", {
+                AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0, entry.Desc and 12 or height / 2), ZIndex = 263,
+            })
+            if icon then textX = 26 end
+            local text = label(item, option, 10, { Position = UDim2.fromOffset(textX, entry.Desc and 3 or 0), Size = UDim2.new(1, -textX - 20, 0, entry.Desc and 17 or height), ZIndex = 263 })
             Theme.bind(text, "TextColor3", chosen(option) and "accent" or "text")
+            if entry.Desc then
+                local sub = label(item, tostring(entry.Desc), 9, { Position = UDim2.fromOffset(textX, 18), Size = UDim2.new(1, -textX - 20, 0, 13), ZIndex = 263 })
+                Theme.bind(sub, "TextColor3", "muted")
+            end
+            if locked then
+                text.TextTransparency = 0.55
+                if icon then icon.ImageTransparency = 0.55 end
+                Icons.themed(item, "lock", 10, "muted", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), ZIndex = 263, ImageTransparency = 0.3 })
+            end
             local check = create("Frame", { Name = "Check", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, ZIndex = 263, Visible = chosen(option), Parent = item })
             corner(check, 3)
             Theme.bind(check, "BackgroundColor3", "accent")
-            item.MouseEnter:Connect(function() item.BackgroundTransparency = 0 end)
+            items[option] = item
+            item.MouseEnter:Connect(function() if not locked then item.BackgroundTransparency = 0 end end)
             item.MouseLeave:Connect(function() item.BackgroundTransparency = 1 end)
             item.Activated:Connect(function()
+                if locked then return end
                 if multi then
                     local list = table.clone(element.Value)
                     local at = table.find(list, option)
                     if at then table.remove(list, at) else list[#list + 1] = option end
                     element:Set(list)
                     Theme.tweenTo(text, "TextColor3", chosen(option) and "accent" or "text", 0.1)
+                    if icon then Theme.tweenTo(icon, "ImageColor3", chosen(option) and "accent" or "muted", 0.1) end
                     check.Visible = chosen(option)
                     refreshHeader()
                 else
-                    element:Set(option)
+                    if element.Value == option and cfg.AllowNone then element:Set(nil) else element:Set(option) end
                     window:_closePopup()
                 end
             end)
+        end
+        if searchBox then
+            searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+                local query = searchBox.Text:lower()
+                local shown, height = 0, 8
+                for _, option in ipairs(options) do
+                    local entry = info[option] or {}
+                    local match = query == "" or option:lower():find(query, 1, true) ~= nil
+                        or (entry.Desc ~= nil and tostring(entry.Desc):lower():find(query, 1, true) ~= nil)
+                    items[option].Visible = match
+                    if match then shown = shown + 1 height = height + itemHeight(option) end
+                end
+                empty.Visible = shown == 0
+                scroller.CanvasSize = UDim2.fromOffset(0, shown == 0 and ITEM + 8 or height)
+            end)
+            task.defer(function() pcall(function() searchBox:CaptureFocus() end) end)
         end
         tintArrow("accent")
         window:_openPopup(popup, button, closeList)
@@ -1333,13 +1683,14 @@ return function(card, cfg)
         self:_fire(self.Value, silent)
     end
     function element:Get() return self.Value end
+    -- SetOptions accepts the same strings / tables as Options
     function element:SetOptions(list, keep)
-        options = {}
-        for _, option in ipairs(list or {}) do options[#options + 1] = tostring(option) end
+        setOptions(list)
         self.Options = options
         if popup then window:_closePopup() end
         self:Set(keep and self.Value or (multi and {} or nil), true)
     end
+    function element:Refresh(list) self:SetOptions(list, true) end
 
     if multi then
         element.Value = {}
@@ -1508,6 +1859,49 @@ return function(card, cfg)
         end)
     end
     render()
+    return element
+end
+end
+
+__modules["elements/image"] = function()
+-- card:Image({ Image = "rbxassetid://..." | "https://.../logo.png" | "icon-name", Height = 120, Radius = 8, Fit = "Crop" | "Fit", Caption })
+-- A picture inside a card. Web images download once (getcustomasset). :Set(image).
+local Util = require("util")
+local Theme = require("theme")
+local Base = require("elements/base")
+local Icons = require("icons")
+
+local create, corner, label = Util.create, Util.corner, Util.label
+
+return function(card, cfg)
+    local height = tonumber(cfg.Height) or 120
+    local holder = create("Frame", { Name = tostring(cfg.Name or "Image"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, height + (cfg.Caption and 18 or 0)), LayoutOrder = card:_order(), Parent = card.body })
+    local frame = create("ImageLabel", {
+        Name = "Picture", Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, ScaleType = cfg.Fit == "Fit" and Enum.ScaleType.Fit or Enum.ScaleType.Crop,
+        Parent = holder,
+    })
+    Theme.bind(frame, "BackgroundColor3", "input")
+    corner(frame, tonumber(cfg.Radius) or 8)
+    if typeof(cfg.AspectRatio) == "number" then
+        create("UIAspectRatioConstraint", { AspectRatio = cfg.AspectRatio, Parent = frame })
+    end
+    local caption
+    if cfg.Caption then
+        caption = label(holder, tostring(cfg.Caption), 9, { Name = "Caption", Position = UDim2.fromOffset(0, height + 4), Size = UDim2.new(1, 0, 0, 14), TextXAlignment = Enum.TextXAlignment.Center })
+        Theme.bind(caption, "TextColor3", "muted")
+    end
+    local element = Base.element(card, "Image", {}, holder, caption, nil)
+    function element:Set(image)
+        self.Value = image
+        frame.Image = ""
+        if image == nil then return end
+        local icon = Icons.Get(image)
+        if icon then Icons.Apply(frame, image) else frame.Image = tostring(image) end
+        -- icon names are tinted like text; pictures keep their colours
+        local isPicture = tostring(image):match("^rbxasset") or tostring(image):match("^%d+$") or tostring(image):match("^https?://")
+        if isPicture then frame.ImageColor3 = Color3.new(1, 1, 1) else Theme.bind(frame, "ImageColor3", "heading") end
+    end
+    element:Set(cfg.Image)
     return element
 end
 end
@@ -2023,6 +2417,76 @@ return function(card, cfg)
 end
 end
 
+__modules["elements/progress"] = function()
+-- card:Progress({ Title, Desc, Value = 0, Max = 100, Suffix = "%", Format = function(value, max) return "3 / 10" end, Indeterminate })
+-- A progress bar (farm, download, cooldown...). :Set(value), :SetMax(max), :SetIndeterminate(true) shows a moving
+-- stripe for "working, no number yet". No flag (it reports, it does not configure).
+local Util = require("util")
+local Theme = require("theme")
+local Base = require("elements/base")
+
+local create, corner, label = Util.create, Util.corner, Util.label
+
+return function(card, cfg)
+    local window = card.window
+    local top = cfg.Desc and 38 or 22
+    local row, title, desc = Base.row(card, cfg, top + 12, { right = 90, titleHeight = 22 })
+    local value = label(row, "", 10, { Name = "Value", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 1), Size = UDim2.fromOffset(86, 20), TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium })
+    Theme.bind(value, "TextColor3", "text")
+    if desc then desc.Size = UDim2.new(1, desc.Size.X.Offset, 0, 14) end
+    local track = create("Frame", { Name = "Track", Position = UDim2.new(0, 0, 0, top + 4), Size = UDim2.new(1, 0, 0, 6), BorderSizePixel = 0, ClipsDescendants = true, Parent = row })
+    Theme.bind(track, "BackgroundColor3", "input")
+    corner(track, 3)
+    local fill = create("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BorderSizePixel = 0, Parent = track })
+    Theme.bind(fill, "BackgroundColor3", "accent")
+    corner(fill, 3)
+    create("UIGradient", { Transparency = NumberSequence.new(0.25, 0), Parent = fill })
+
+    local element = Base.element(card, "Progress", {}, row, title, desc)
+    local max = math.max(tonumber(cfg.Max) or 100, 1e-9)
+    local suffix = cfg.Suffix
+    local indeterminate = false
+    local function text()
+        if indeterminate then return cfg.IndeterminateText or "Working..." end
+        if type(cfg.Format) == "function" then
+            local ok, result = pcall(cfg.Format, element.Value, max)
+            if ok then return tostring(result) end
+        end
+        if suffix == nil and max == 100 then return math.floor(element.Value + 0.5) .. "%" end
+        return math.floor(element.Value + 0.5) .. " / " .. math.floor(max + 0.5) .. (suffix and (" " .. suffix) or "")
+    end
+    local function render(animate)
+        value.Text = text()
+        if indeterminate then return end
+        local ratio = math.clamp(element.Value / max, 0, 1)
+        fill.Position = UDim2.fromScale(0, 0)
+        if animate then Util.tween(fill, 0.25, { Size = UDim2.fromScale(ratio, 1) }) else fill.Size = UDim2.fromScale(ratio, 1) end
+    end
+    function element:Set(v) self.Value = math.max(0, tonumber(v) or 0) render(true) end
+    function element:SetMax(m) max = math.max(tonumber(m) or max, 1e-9) render(true) end
+    function element:Get() return self.Value, max end
+    local spinner
+    function element:SetIndeterminate(on)
+        indeterminate = on == true
+        if spinner then spinner:Disconnect() spinner = nil end
+        if indeterminate then
+            fill.Size = UDim2.fromScale(0.3, 1)
+            local started = os.clock()
+            spinner = window.maid:connect(Util.Services.RunService.Heartbeat, function()
+                if not row.Parent then return end
+                local t = ((os.clock() - started) / 1.2) % 1
+                fill.Position = UDim2.fromScale(-0.3 + t * 1.3, 0)
+            end)
+        end
+        render(false)
+    end
+    element.Value = math.max(0, tonumber(cfg.Value or cfg.Default) or 0)
+    render(false)
+    if cfg.Indeterminate then element:SetIndeterminate(true) end
+    return element
+end
+end
+
 __modules["elements/range"] = function()
 -- card:Range({ Title, Desc, Flag, Min, Max, Default = { 20, 80 }, Step, Suffix, MinGap, Callback = function(range) end })
 -- A slider with two handles; Value is { low, high }. Dragging moves the nearer handle; the values can be typed.
@@ -2236,11 +2700,13 @@ end
 end
 
 __modules["elements/slider"] = function()
--- card:Slider({ Title, Desc, Flag, Min, Max, Default, Step, Suffix, Callback, Locked })
--- Drag the track, or click the value and type a number.
+-- card:Slider({ Title, Desc, Flag, Min, Max, Default, Step, Suffix, Callback, Locked, Icons = { From = "volume", To = "volume-2" }, Bubble = true })
+-- Drag the track, or click the value and type a number. Icons puts an icon at each end of the track (clicking one
+-- steps the value); while dragging a bubble over the knob shows the value (Bubble = false turns it off).
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
+local Icons = require("icons")
 
 local create, corner = Util.create, Util.corner
 
@@ -2267,7 +2733,9 @@ return function(card, cfg)
     Theme.bind(box, "TextColor3", "text")
     Theme.bind(box, "BackgroundColor3", "base")
     corner(box, 6)
-    local track = create("Frame", { Name = "Track", Position = UDim2.new(0, 0, 0, top + 8), Size = UDim2.new(1, 0, 0, 2), BorderSizePixel = 0, Parent = row })
+    local sideIcons = type(cfg.Icons) == "table" and cfg.Icons or nil
+    local inset = sideIcons and 20 or 0
+    local track = create("Frame", { Name = "Track", Position = UDim2.new(0, inset, 0, top + 8), Size = UDim2.new(1, -inset * 2, 0, 2), BorderSizePixel = 0, Parent = row })
     Theme.bind(track, "BackgroundColor3", "buttonEdge")
     corner(track, 1)
     local fill = create("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BorderSizePixel = 0, Parent = track })
@@ -2276,7 +2744,17 @@ return function(card, cfg)
     local knob = create("Frame", { Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(10, 10), BorderSizePixel = 0, ZIndex = 2, Parent = track })
     Theme.bind(knob, "BackgroundColor3", "accent")
     corner(knob, 5)
-    local hit = create("TextButton", { Name = "Hit", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.new(0, -6, 0, top), Size = UDim2.new(1, 12, 0, 18), ZIndex = 3, Parent = row })
+    local hit = create("TextButton", { Name = "Hit", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.new(0, inset - 6, 0, top), Size = UDim2.new(1, 12 - inset * 2, 0, 18), ZIndex = 3, Parent = row })
+    -- value bubble over the knob while dragging
+    local bubble = create("TextLabel", {
+        Name = "Bubble", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -6), Size = UDim2.fromOffset(0, 18), AutomaticSize = Enum.AutomaticSize.X,
+        BorderSizePixel = 0, Text = "", TextSize = 9, Font = Enum.Font.GothamMedium, Visible = false, ZIndex = 6, Parent = knob,
+    })
+    Theme.bind(bubble, "BackgroundColor3", "selected")
+    Theme.bind(bubble, "TextColor3", "heading")
+    corner(bubble, 5)
+    Util.padding(bubble, 7, 7, 0, 0)
+    Theme.bind(Util.stroke(bubble), "Color", "buttonEdge")
 
     local element = Base.element(card, "Slider", cfg, row, title, desc)
     local focused = false
@@ -2289,6 +2767,7 @@ return function(card, cfg)
         fill.Size = UDim2.new(ratio, 5 - 10 * ratio, 1, 0)
         knob.Position = UDim2.new(ratio, 5 - 10 * ratio, 0.5, 0)
         if not focused then box.Text = format(element.Value) end
+        bubble.Text = format(element.Value)
     end
     function element:Set(value, silent)
         value = tonumber(value)
@@ -2314,9 +2793,29 @@ return function(card, cfg)
     end
     hit.InputBegan:Connect(function(input)
         if not Util.isPress(input) or element.Locked then return end
+        bubble.Visible = cfg.Bubble ~= false
         fromPoint(Util.pointer(input))
-        window:_beginDrag(input, fromPoint)
+        window:_beginDrag(input, fromPoint, function() bubble.Visible = false end)
     end)
+    if sideIcons then
+        -- icons at both ends; a click moves one step (or a tenth of the range) that way
+        local stride = step > 0 and math.max(step, (max - min) / 10) or (max - min) / 10
+        for index, key in ipairs({ "From", "To" }) do
+            local name = sideIcons[key] or sideIcons[index]
+            local icon = name and Icons.themed(row, name, 13, "muted", {
+                Name = key .. "Icon", AnchorPoint = Vector2.new(index == 1 and 0 or 1, 0.5), Position = UDim2.new(index == 1 and 0 or 1, 0, 0, top + 9),
+            })
+            if icon then
+                local click = create("TextButton", { Text = "", BackgroundTransparency = 1, Size = UDim2.new(1, 6, 1, 6), Position = UDim2.fromOffset(-3, -3), ZIndex = 4, Parent = icon })
+                click.Activated:Connect(function()
+                    if element.Locked then return end
+                    element:Set(element.Value + (index == 1 and -stride or stride))
+                end)
+                click.MouseEnter:Connect(function() Theme.tweenTo(icon, "ImageColor3", "heading", 0.1) end)
+                click.MouseLeave:Connect(function() Theme.tweenTo(icon, "ImageColor3", "muted", 0.1) end)
+            end
+        end
+    end
     box.Focused:Connect(function() focused = true end)
     box.FocusLost:Connect(function()
         focused = false
@@ -2564,6 +3063,103 @@ return function(card, cfg)
     render(false)
     element:_fire(element.Value, true)
     return Base.finish(element, cfg)
+end
+end
+
+__modules["elements/viewport"] = function()
+-- card:Viewport({ Object = workspace.Model | BasePart, Height = 170, Interactive = true, Spin = false, Distance })
+-- A 3D preview of a clone of the object (an avatar, a weapon...). Drag to turn it, wheel to zoom.
+-- :SetObject(obj) swaps the model; :SetSpin(true) turns it slowly.
+local Util = require("util")
+local Theme = require("theme")
+local Base = require("elements/base")
+
+local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
+
+return function(card, cfg)
+    local window = card.window
+    local height = tonumber(cfg.Height) or 170
+    local holder = create("Frame", { Name = tostring(cfg.Name or "Viewport"), Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, LayoutOrder = card:_order(), Parent = card.body })
+    Theme.bind(holder, "BackgroundColor3", "base")
+    corner(holder, 8)
+    Theme.bind(stroke(holder), "Color", "line")
+    local view = create("ViewportFrame", {
+        Name = "View", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Ambient = Color3.fromRGB(150, 150, 155),
+        LightColor = Color3.fromRGB(255, 255, 255), LightDirection = Vector3.new(-1, -1, -0.6), Parent = holder,
+    })
+    corner(view, 8)
+    local camera = Instance.new("Camera")
+    camera.FieldOfView = 40
+    camera.Parent = view
+    view.CurrentCamera = camera
+    local world = Instance.new("WorldModel")
+    world.Parent = view
+    local empty = label(holder, "No object", 10, { Name = "Empty", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
+    Theme.bind(empty, "TextColor3", "muted")
+
+    local element = Base.element(card, "Viewport", {}, holder, nil, nil)
+    local center, radius = Vector3.zero, 5
+    local yaw, pitch, zoom = math.rad(25), math.rad(-12), 1
+    local spin = cfg.Spin == true
+    local function place()
+        local distance = (tonumber(cfg.Distance) or radius / math.tan(math.rad(camera.FieldOfView / 2)) * 1.15) * zoom
+        local rotation = CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+        camera.CFrame = CFrame.new(center) * rotation * CFrame.new(0, 0, distance)
+        camera.Focus = CFrame.new(center)
+    end
+    function element:SetObject(object)
+        world:ClearAllChildren()
+        self.Value = object
+        empty.Visible = object == nil
+        if not object then return end
+        local ok, copy = pcall(function()
+            local archivable = object.Archivable
+            object.Archivable = true
+            local clone = object:Clone()
+            object.Archivable = archivable
+            return clone
+        end)
+        if not ok or not copy then empty.Text = "Cannot preview" empty.Visible = true return end
+        -- scripts out, physics off
+        for _, d in ipairs(copy:GetDescendants()) do
+            if d:IsA("LuaSourceContainer") then d:Destroy() elseif d:IsA("BasePart") then d.Anchored = true end
+        end
+        if copy:IsA("BasePart") then copy.Anchored = true end
+        copy.Parent = world
+        local okBox, cf, size = pcall(function()
+            if copy:IsA("Model") then return copy:GetBoundingBox() end
+            return copy.CFrame, copy.Size
+        end)
+        if okBox then center, radius = cf.Position, math.max(size.Magnitude / 2, 0.5) end
+        place()
+    end
+    function element:SetSpin(on) spin = on == true end
+
+    if cfg.Interactive ~= false then
+        local hit = create("TextButton", { Name = "Drag", Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 3, Parent = holder })
+        hit.InputBegan:Connect(function(input)
+            if not Util.isPress(input) then return end
+            local last = Util.pointer(input)
+            window:_beginDrag(input, function(point)
+                local delta = point - last
+                last = point
+                yaw = yaw - delta.X * 0.012
+                pitch = math.clamp(pitch - delta.Y * 0.01, -1.3, 1.3)
+                place()
+            end)
+        end)
+        hit.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseWheel then
+                zoom = math.clamp(zoom * (input.Position.Z > 0 and 0.9 or 1.1), 0.4, 3)
+                place()
+            end
+        end)
+    end
+    window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
+        if spin and holder.Parent and holder.AbsoluteSize.X > 0 then yaw = yaw + (dt or 0.016) * 0.6 place() end
+    end)
+    element:SetObject(cfg.Object)
+    return element
 end
 end
 
@@ -3018,6 +3614,10 @@ function Icons.Get(name)
         return { Image = "rbxassetid://" .. tostring(name), RectSize = ZERO, RectOffset = ZERO }
     end
     name = tostring(name)
+    if name:match("^https?://") and not name:find("roblox%.com") then
+        -- a picture on the web (logo...): downloaded once, shown through getcustomasset; not tinted
+        return { Image = Icons._urls[name] or "", RectSize = ZERO, RectOffset = ZERO, Url = name }
+    end
     if name:match("^rbxasset") or name:match("^https?://") then
         return { Image = name, RectSize = ZERO, RectOffset = ZERO }
     end
@@ -3028,11 +3628,49 @@ function Icons.Get(name)
     return lookup(set, icon) or (set ~= "lucide" and not name:find(":") and lookup("lucide", icon)) or nil
 end
 
+-- Web images: request + writefile + getcustomasset (cached per url for the session and on disk).
+Icons._urls = {}
+Icons.Folder = "QustahUI/assets"
+local function fetch(url, done)
+    if Icons._urls[url] then return done(Icons._urls[url]) end
+    task.spawn(function()
+        local ok, asset = pcall(function()
+            local name = url:match("([^/?#]+)[?#]?[^/]*$") or "image"
+            name = name:gsub("%.[^%.]+$", ""):gsub("[^%w%-_]", "_"):sub(1, 40)
+            local file = Icons.Folder .. "/" .. name .. "-" .. #url .. ".png"
+            if not (isfile and isfile(file)) then
+                local request = (syn and syn.request) or http_request or request
+                local body
+                if request then body = request({ Url = url, Method = "GET" }).Body else body = game:HttpGet(url) end
+                assert(type(body) == "string" and #body > 0, "empty response")
+                if makefolder and isfolder then
+                    if not isfolder("QustahUI") then makefolder("QustahUI") end
+                    if not isfolder(Icons.Folder) then makefolder(Icons.Folder) end
+                end
+                writefile(file, body)
+            end
+            return (getcustomasset or getsynasset)(file)
+        end)
+        if ok and asset then
+            Icons._urls[url] = asset
+            done(asset)
+        else
+            warn("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(asset))
+        end
+    end)
+end
+
 -- Puts the icon on an ImageLabel / ImageButton (two-tone icons get their extra parts as children).
 function Icons.Apply(image, name)
     for _, child in ipairs(image:GetChildren()) do if child.Name == "IconPart" then child:Destroy() end end
     local icon = Icons.Get(name)
     if not icon then return false end
+    if icon.Url then
+        image.ImageColor3 = Color3.new(1, 1, 1)
+        image.ImageRectSize, image.ImageRectOffset = ZERO, ZERO
+        fetch(icon.Url, function(asset) image.Image = asset end)
+        return true
+    end
     image.Image = icon.Image
     image.ImageRectSize = icon.RectSize
     image.ImageRectOffset = icon.RectOffset
@@ -3070,7 +3708,8 @@ function Icons.themed(parent, name, size, role, props)
     if not Icons.Get(name) then return nil end
     local image = Icons.Image(name, { Size = UDim2.fromOffset(size, size), Name = props and props.Name or "Icon" })
     for key, value in pairs(props or {}) do if key ~= "Name" then image[key] = value end end
-    Theme.bind(image, "ImageColor3", role or "text")
+    -- web images keep their own colours
+    if not Icons.Get(name).Url then Theme.bind(image, "ImageColor3", role or "text") end
     image.Parent = parent
     return image
 end
@@ -3410,7 +4049,7 @@ return function(Window)
     function Window:_buildInbox()
         if self.cfg.NotificationHistory == false then return end
         local Lib = self.Lib
-        local button = self._windowButton("Inbox", -108, false, true)
+        local button = self._windowButton("Inbox", self:_headerSlot(), false, true)
         -- bell drawn from frames: dome, rim, clapper (no glyphs / images needed)
         local parts = {}
         local function part(props, radius)
@@ -3548,9 +4187,10 @@ require("status")(Window)
 require("dialog")(Window)
 require("hud")(Window)
 require("inbox")(Window)
+require("windowx")(Window)
 
 local Lib = {
-    Version = "1.3.1",
+    Version = "1.4.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -3617,7 +4257,10 @@ function Notify.show(Lib, cfg)
     Lib._toastOrder = (Lib._toastOrder or 0) + 1
     local duration = tonumber(cfg.Duration) or 3
     local hasContent = cfg.Content ~= nil and cfg.Content ~= ""
-    local height = hasContent and 50 or 34
+    local buttons = type(cfg.Buttons) == "table" and #cfg.Buttons > 0 and cfg.Buttons or nil
+    if buttons and not cfg.Duration then duration = 6 end
+    local textHeight = hasContent and 50 or 34
+    local height = textHeight + (buttons and 32 or 0)
     local toast = create("CanvasGroup", {
         Name = "Toast", Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, GroupTransparency = 1,
         LayoutOrder = Lib._toastOrder, Parent = holder,
@@ -3625,7 +4268,7 @@ function Notify.show(Lib, cfg)
     Theme.bind(toast, "BackgroundColor3", "card")
     corner(toast, 8)
     Theme.bind(stroke(toast), "Color", "line")
-    local marker = create("Frame", { Position = UDim2.fromOffset(12, 10), Size = UDim2.new(0, 3, 1, -20), BorderSizePixel = 0, Parent = toast })
+    local marker = create("Frame", { Position = UDim2.fromOffset(12, 10), Size = UDim2.new(0, 3, 0, textHeight - 20), BorderSizePixel = 0, Parent = toast })
     corner(marker, 2)
     local progress = create("Frame", { Position = UDim2.new(0, 0, 1, -2), Size = UDim2.new(1, 0, 0, 2), BorderSizePixel = 0, Parent = toast })
     if typeof(cfg.Color) == "Color3" then
@@ -3640,24 +4283,68 @@ function Notify.show(Lib, cfg)
     if icon then
         marker.Visible = false
         icon.AnchorPoint = Vector2.new(0, 0.5)
-        icon.Position = UDim2.new(0, 12, 0.5, 0)
+        icon.Position = UDim2.new(0, 12, 0, textHeight / 2)
         if typeof(cfg.Color) == "Color3" then icon.ImageColor3 = cfg.Color else Theme.bind(icon, "ImageColor3", "accent") end
         icon.Parent = toast
         textX = 36
     end
-    local title = label(toast, tostring(cfg.Title or ""), 11, { Position = UDim2.fromOffset(textX, hasContent and 8 or 0), Size = UDim2.new(1, -textX - 9, 0, hasContent and 17 or height), Font = Enum.Font.GothamBold })
+    local closeRoom = cfg.CanClose ~= false and 22 or 0
+    local title = label(toast, tostring(cfg.Title or ""), 11, { Position = UDim2.fromOffset(textX, hasContent and 8 or 0), Size = UDim2.new(1, -textX - 9 - closeRoom, 0, hasContent and 17 or textHeight), Font = Enum.Font.GothamBold })
     Theme.bind(title, "TextColor3", "heading")
     if hasContent then
-        local content = label(toast, tostring(cfg.Content), 10, { Position = UDim2.fromOffset(textX, 25), Size = UDim2.new(1, -textX - 9, 0, 16) })
+        local content = label(toast, tostring(cfg.Content), 10, { Position = UDim2.fromOffset(textX, 25), Size = UDim2.new(1, -textX - 9 - closeRoom, 0, 16) })
         Theme.bind(content, "TextColor3", "muted")
+    end
+    local closed = false
+    local function dismiss()
+        if closed or not toast.Parent then return end
+        closed = true
+        tween(toast, 0.25, { GroupTransparency = 1 })
+        task.delay(0.27, function() if toast.Parent then toast:Destroy() end end)
+    end
+    -- CanClose (default true): a small x in the corner
+    if cfg.CanClose ~= false then
+        local close = create("TextButton", {
+            Name = "Close", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -6, 0, 6), Size = UDim2.fromOffset(18, 18), Parent = toast,
+        })
+        for _, rotation in ipairs({ 45, -45 }) do
+            local bar = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(9, 1.5), Rotation = rotation, BorderSizePixel = 0, Parent = close })
+            Theme.bind(bar, "BackgroundColor3", "muted")
+        end
+        close.Activated:Connect(dismiss)
+    end
+    -- Buttons = { { Title = "Undo", Callback = fn, Style = "Primary" } }: a row under the text; a click closes the toast
+    if buttons then
+        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Position = UDim2.new(0, textX, 0, textHeight - 4), Size = UDim2.new(1, -textX - 10, 0, 24), Parent = toast })
+        Util.list(row, 6, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+        for index, spec in ipairs(buttons) do
+            local text = tostring(spec.Title or "OK")
+            local button = create("TextButton", {
+                Name = text, Text = text, TextSize = 9, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
+                Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + 20, 22), LayoutOrder = index, Parent = row,
+            })
+            corner(button, 6)
+            local outline = stroke(button)
+            if spec.Style == "Primary" or index == 1 then
+                Theme.bind(button, "BackgroundColor3", "accentDeep")
+                Theme.bind(button, "TextColor3", "accent")
+                Theme.bind(outline, "Color", "accent")
+                outline.Transparency = 0.5
+            else
+                Theme.bind(button, "BackgroundColor3", "input")
+                Theme.bind(button, "TextColor3", "text")
+                Theme.bind(outline, "Color", "buttonEdge")
+            end
+            button.Activated:Connect(function()
+                Util.safe(spec.Callback)
+                if spec.Close ~= false then dismiss() end
+            end)
+        end
     end
     tween(toast, 0.2, { GroupTransparency = 0 })
     tween(progress, duration, { Size = UDim2.new(0, 0, 0, 2) }, Enum.EasingStyle.Linear)
-    task.delay(duration, function()
-        if not toast.Parent then return end
-        tween(toast, 0.3, { GroupTransparency = 1 })
-        task.delay(0.32, function() if toast.Parent then toast:Destroy() end end)
-    end)
+    task.delay(duration, dismiss)
     return toast
 end
 
@@ -3872,10 +4559,10 @@ return function(window, page, defaults)
             return true, "\"" .. name .. "\" · " .. count(flags) .. " settings" .. (target ~= name and (" → saved as \"" .. target .. "\"") or "")
         end,
         Callback = function(code)
-            local name, flags = store:Decode(code)
+            local name, flags, custom = store:Decode(code)
             if not name then return say(flags, true) end
             name = store:FreeName(name)
-            local ok, err = store:SaveFlags(name, flags)
+            local ok, err = store:SaveFlags(name, flags, custom)
             if not ok then return say(err, true) end
             touch(name, { saved = os.time(), note = "Imported" })
             open = name
@@ -4184,6 +4871,21 @@ return function(window, cfg)
         end,
     })
 
+    local look2 = interface:Card({ Title = "Window", Side = "Left" })
+    look2:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "user-round", Flag = "__ui_anon", Default = window.anonymous == true,
+        Callback = function(on) window:SetAnonymous(on) end })
+    if window.OnAnonymousChanged then
+        window:OnAnonymousChanged(function(on) local t = window.flags.__ui_anon if t and t.Value ~= on then t:Set(on, true) end end)
+    end
+    look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
+        Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
+    local bgAlpha
+    look2:Input({ Title = "Background", Placeholder = "image id or url", Flag = "__ui_bg",
+        Callback = function(text) window:SetBackgroundImage(text ~= "" and text or nil, bgAlpha and (1 - bgAlpha.Value / 100) or 0.85) end })
+    bgAlpha = look2:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
+        Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
+    look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
+
     local overlays = interface:Card({ Title = "Overlays", Side = "Right" })
     overlays:Toggle({ Title = "Watermark", Desc = "Name · FPS · ping · clock", Flag = "__ui_hud_watermark", Callback = function(on) window:Watermark(on) end })
     overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
@@ -4194,8 +4896,8 @@ return function(window, cfg)
     })
 
     ------------------------------------------------------------ profiles
-    local defaults = window.Config:Snapshot() -- values every flag had before any profile was loaded
-    Profiles(window, profiles, defaults)
+    -- Default profile = each element's starting value (recorded as elements are created, any order)
+    Profiles(window, profiles, window.Config.Defaults)
 
     ------------------------------------------------------------ info
     local about = infoPage:Card({ Title = "About", Side = "Left" })
@@ -4210,6 +4912,10 @@ return function(window, cfg)
     local noModules = modulesCard:Label("No modules reported")
 
     local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right" })
+    errorsCard:Toggle({
+        Title = "Debug mode", Desc = "A notification for every new error", Flag = "__ui_debug", Default = window.cfg.Debug == true,
+        Callback = function(on) window.debug = on end,
+    })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
     local errorText = errorsCard:Paragraph({ Content = "No errors" })
     errorsCard:Button({
@@ -4349,6 +5055,18 @@ return function(Window)
             self._errorIndex[key] = entry
             table.insert(self.errors, entry)
             warn(string.format("[%s / %s] %s", self.Title, source, message))
+            -- Debug mode (CreateWindow{ Debug = true } or Settings › Info): a toast for every new error
+            if self.debug == nil then self.debug = self.cfg.Debug == true end
+            if self.debug and self.Notify then
+                local short = message:gsub("^.-:%d+: ", "")
+                self:Notify({
+                    Title = "Error · " .. source, Content = short, Icon = "triangle-alert", Color = RED, Duration = 6,
+                    Buttons = { { Title = "Copy", Callback = function()
+                        local clipboard = setclipboard or toclipboard
+                        if clipboard then pcall(clipboard, source .. ": " .. message) end
+                    end } },
+                })
+            end
         end
         changed(self)
     end
@@ -5067,6 +5785,7 @@ function Window.new(Lib, cfg)
     end
     Glow.start(Lib.maid)
     self:_build()
+    if self._buildExtras then self:_buildExtras() end
     if self._buildInbox then self:_buildInbox() end
     self:_refreshStatus()
     Lib.Windows[#Lib.Windows + 1] = self
@@ -5151,7 +5870,7 @@ function Window:_build()
     local close = windowButton("Close", -40, true)
     self._windowButton = windowButton
     -- room taken by the header buttons (the bell adds one more)
-    self.headerRight = self.cfg.NotificationHistory == false and 90 or 124
+    self.headerRight = 90 -- grows with each extra header button (Window:_headerSlot)
     -- fading accent line under the header
     local headerLine = create("Frame", { Name = "HeaderLine", Position = UDim2.fromOffset(18, HEADER), Size = UDim2.new(1, -36, 0, 1), BorderSizePixel = 0, Parent = main })
     Theme.bind(headerLine, "BackgroundColor3", "accent")
@@ -5511,6 +6230,10 @@ function Window:_hideTip() self.tip.Visible = false end
 function Window:_register(flag, element)
     if self.flags[flag] then warn("[qustah-ui-lib] duplicate flag: " .. tostring(flag)) end
     self.flags[flag] = element
+    -- after the element finished building: record its default, apply a value loaded before it existed
+    task.defer(function()
+        if self.alive and self.flags[flag] == element then self.Config:_elementReady(flag, element) end
+    end)
 end
 function Window:_bind(element, key)
     self.binds[element] = key
@@ -5659,6 +6382,172 @@ function Window:Destroy()
 end
 
 return Window
+end
+
+__modules["windowx"] = function()
+-- Window extras:
+--   Window:HeaderButton({ Icon = "refresh-cw", Tooltip = "Rejoin", Callback })   your own buttons in the header
+--   Window:SetFullscreen(bool) / :ToggleFullscreen()   also the maximize button and a double click on the header
+--   Window:SetBackgroundImage(image, transparency)      rbxassetid / url / nil; :SetBackgroundTransparency(0-0.9)
+--   Window:SetAnonymous(bool)                           hides your name / avatar everywhere (dock profile button)
+-- CreateWindow({ FullscreenButton = false, Profile = false, Anonymous = true, Background = "...", BackgroundTransparency })
+local Util = require("util")
+local Theme = require("theme")
+local Icons = require("icons")
+
+local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
+local SLOT = 34
+
+return function(Window)
+    -- Next free spot left of the header buttons; the location / header tabs move along.
+    function Window:_headerSlot()
+        self._slotX = (self._slotX or -74) - SLOT
+        self.headerRight = -self._slotX + 16
+        if self.locationLabel then self.locationLabel.Position = UDim2.new(1, -self.headerRight, 0, 12) end
+        if self.headerTabs then self.headerTabs.Position = UDim2.new(1, -self.headerRight, 0, 0) end
+        return self._slotX
+    end
+
+    function Window:HeaderButton(cfg)
+        cfg = cfg or {}
+        local button = self._windowButton(tostring(cfg.Name or cfg.Tooltip or cfg.Icon or "Button"), self:_headerSlot(), false, true)
+        local icon = Icons.themed(button, cfg.Icon or "circle", 15, "muted", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+        button.MouseEnter:Connect(function()
+            if icon then Theme.tweenTo(icon, "ImageColor3", "heading", 0.12) end
+            if cfg.Tooltip then self:_tip(cfg.Tooltip) end
+        end)
+        button.MouseLeave:Connect(function()
+            if icon then Theme.tweenTo(icon, "ImageColor3", "muted", 0.12) end
+            self:_hideTip()
+        end)
+        button.Activated:Connect(function() self:_safe(cfg.Tooltip or "Header button", cfg.Callback) end)
+        local handle = { Button = button, Icon = icon }
+        function handle:SetIcon(name) if icon then Icons.Apply(icon, name) end end
+        function handle:SetVisible(visible) button.Visible = visible ~= false end
+        return handle
+    end
+
+    ------------------------------------------------------------------ fullscreen
+    function Window:SetFullscreen(on)
+        on = on == true
+        if on == (self.fullscreen == true) then return end
+        if on then
+            self._restore = { width = self.width, height = self.height, topLeft = self.topLeft }
+            local viewport = Util.viewport()
+            self.width = math.max(self.minSize.X, math.floor(viewport.X - 24 - 12 - 40 - 24))
+            self.height = math.max(self.minSize.Y, math.floor(viewport.Y - 24))
+            self.topLeft = Vector2.new(12, 12)
+        elseif self._restore then
+            self.width, self.height, self.topLeft = self._restore.width, self._restore.height, self._restore.topLeft
+            self._restore = nil
+        end
+        self.fullscreen = on
+        if self._fullscreenButton then self._fullscreenButton:SetIcon(on and "minimize-2" or "maximize-2") end
+        self:_layout()
+    end
+    function Window:ToggleFullscreen() self:SetFullscreen(not self.fullscreen) end
+
+    ------------------------------------------------------------------ background
+    function Window:SetBackgroundImage(image, transparency)
+        if not self._background then
+            self._background = create("ImageLabel", {
+                Name = "Background", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ScaleType = Enum.ScaleType.Crop,
+                ImageTransparency = 0.85, ZIndex = 0, Parent = self.main,
+            })
+            corner(self._background, 12)
+        end
+        local picture = self._background
+        picture.Image = ""
+        if image == nil or image == "" then picture.Visible = false return end
+        picture.Visible = true
+        if tonumber(transparency) then picture.ImageTransparency = math.clamp(tonumber(transparency), 0, 1) end
+        if not Icons.Apply(picture, image) then picture.Image = tostring(image) end
+        picture.ImageColor3 = Color3.new(1, 1, 1)
+    end
+    function Window:SetBackgroundTransparency(value)
+        value = math.clamp(tonumber(value) or 0, 0, 0.9)
+        self.main.BackgroundTransparency = value
+        self.dock.BackgroundTransparency = math.max(0.03, value)
+    end
+
+    ------------------------------------------------------------------ profile button in the dock + anonymous mode
+    function Window:SetAnonymous(on)
+        self.anonymous = on == true
+        for _, listener in ipairs(self._anonListeners or {}) do Util.safe(listener, self.anonymous) end
+    end
+    function Window:OnAnonymousChanged(callback)
+        self._anonListeners = self._anonListeners or {}
+        table.insert(self._anonListeners, callback)
+        callback(self.anonymous == true)
+    end
+
+    local layoutDock = Window._layoutDock
+    function Window:_layoutDock()
+        layoutDock(self)
+        if self._profile and self._profile.Visible then
+            local y = self.dockHeight - 2
+            self._profileLine.Position = UDim2.fromOffset(9, y)
+            self._profile.Position = UDim2.fromOffset(5, y + 7)
+            self.dockHeight = y + 7 + 30 + 8
+        end
+    end
+
+    function Window:_buildExtras()
+        local cfg = self.cfg
+        if cfg.FullscreenButton ~= false then
+            self._fullscreenButton = self:HeaderButton({ Name = "Fullscreen", Icon = "maximize-2", Tooltip = "Fullscreen", Callback = function() self:ToggleFullscreen() end })
+        end
+        -- double click on the header toggles fullscreen too
+        local header = self.main:FindFirstChild("Header")
+        local lastClick = 0
+        if header then
+            self.maid:connect(header.InputBegan, function(input)
+                if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+                local now = os.clock()
+                if now - lastClick < 0.3 then lastClick = 0 self:ToggleFullscreen() else lastClick = now end
+            end)
+        end
+        if cfg.Background then self:SetBackgroundImage(cfg.Background, cfg.BackgroundImageTransparency) end
+        if cfg.BackgroundTransparency then self:SetBackgroundTransparency(cfg.BackgroundTransparency) end
+
+        if cfg.Profile ~= false then
+            local Players = Util.Services.Players
+            local player = Players.LocalPlayer
+            local line = create("Frame", { Name = "ProfileLine", Size = UDim2.fromOffset(22, 1), BorderSizePixel = 0, ZIndex = 42, Parent = self.dock })
+            Theme.bind(line, "BackgroundColor3", "line")
+            local button = create("ImageButton", {
+                Name = "Profile", AutoButtonColor = false, BorderSizePixel = 0, Size = UDim2.fromOffset(30, 30), ZIndex = 42,
+                ScaleType = Enum.ScaleType.Crop, Image = "", Parent = self.dock,
+            })
+            Theme.bind(button, "BackgroundColor3", "input")
+            corner(button, 15)
+            local ring = stroke(button, nil, 0.5, 1.5)
+            Theme.bind(ring, "Color", "buttonEdge")
+            local mask = Icons.themed(button, "user-round", 14, "muted", { Name = "Anon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 43, Visible = false })
+            local avatar = ""
+            task.spawn(function()
+                local ok, image = pcall(function()
+                    return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+                end)
+                if ok then avatar = image if not self.anonymous then button.Image = image end end
+            end)
+            self._profile, self._profileLine = button, line
+            self:OnAnonymousChanged(function(on)
+                button.Image = on and "" or avatar
+                if mask then mask.Visible = on end
+                Theme.tweenTo(ring, "Color", on and "accent" or "buttonEdge", 0.12)
+            end)
+            button.MouseEnter:Connect(function()
+                self:_dockTip(self.anonymous and "Anonymous · click to show" or (player.DisplayName .. " · click to hide"), button.Position.Y.Offset)
+            end)
+            button.MouseLeave:Connect(function() self:_hideTip() end)
+            button.Activated:Connect(function() self:SetAnonymous(not self.anonymous) end)
+            self:_layoutDock()
+            self:_layout()
+        end
+        if cfg.Anonymous then self:SetAnonymous(true) end
+    end
+end
 end
 
 return require("init")
