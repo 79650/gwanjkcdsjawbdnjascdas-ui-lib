@@ -211,4 +211,45 @@ function Util.screenGui(name, order)
     return gui
 end
 
+-- Base64 (profile share codes).
+local B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+function Util.base64encode(data)
+    local out = {}
+    for i = 1, #data, 3 do
+        local a, b, c = data:byte(i, i + 2)
+        local n = a * 65536 + (b or 0) * 256 + (c or 0)
+        local c1, c2, c3, c4 = n // 262144, (n // 4096) % 64, (n // 64) % 64, n % 64
+        out[#out + 1] = B64:sub(c1 + 1, c1 + 1) .. B64:sub(c2 + 1, c2 + 1)
+            .. (b and B64:sub(c3 + 1, c3 + 1) or "=") .. (c and B64:sub(c4 + 1, c4 + 1) or "=")
+    end
+    return table.concat(out)
+end
+function Util.base64decode(data)
+    data = tostring(data):gsub("[^%w%+/=]", "")
+    local out, bits, count = {}, 0, 0
+    for i = 1, #data do
+        local char = data:sub(i, i)
+        if char == "=" then break end
+        local value = B64:find(char, 1, true)
+        if not value then return nil end
+        bits = bits * 64 + (value - 1)
+        count = count + 6
+        if count >= 8 then
+            count = count - 8
+            out[#out + 1] = string.char((bits // (2 ^ count)) % 256)
+            bits = bits % (2 ^ count)
+        end
+    end
+    return table.concat(out)
+end
+
+-- "2m ago"
+function Util.ago(time)
+    local seconds = math.max(0, os.time() - (tonumber(time) or os.time()))
+    if seconds < 60 then return "now" end
+    if seconds < 3600 then return (seconds // 60) .. "m ago" end
+    if seconds < 86400 then return (seconds // 3600) .. "h ago" end
+    return (seconds // 86400) .. "d ago"
+end
+
 return Util

@@ -33,6 +33,8 @@ Info:Toggle({ Title = "Distance", Desc = "Show distance to players.", Flag = "sh
 local Colors = Appearance:Card({ Title = "Colors" })
 Colors:ColorPicker({ Title = "Fill color", Flag = "fillColor", Default = Color3.fromRGB(215, 120, 120) })          -- Rainbow button inside
 Colors:ColorPicker({ Title = "Outline color", Flag = "outlineColor", Default = Color3.fromRGB(240, 240, 240), Apply = true }) -- changes only on Apply
+Colors:Gradient({ Title = "Chams gradient", Flag = "chams", Default = { Color3.fromRGB(215, 120, 120), Color3.fromRGB(120, 140, 230) },
+    Callback = function(sequence, a, b) print("gradient", a, b) end })
 Colors:Slider({ Title = "Fill transparency", Flag = "fill", Min = 0, Max = 100, Default = 60, Suffix = "%" })
 local Text = Appearance:Card({ Title = "Text" })
 Text:Swatches({ Title = "Name color", Flag = "nameColor", Default = "Blue", Callback = function(color, name) print("name color", name) end })

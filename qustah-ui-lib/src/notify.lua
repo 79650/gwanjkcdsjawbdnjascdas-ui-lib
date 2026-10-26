@@ -1,6 +1,7 @@
 -- Toast notifications, bottom-right: Lib:Notify({ Title, Content, Duration = 3 }).
 local Util = require("util")
 local Theme = require("theme")
+local UIFont = require("font")
 
 local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
 
@@ -10,6 +11,7 @@ function Notify.holder(Lib)
     if Lib._notifyHolder and Lib._notifyHolder.Parent then return Lib._notifyHolder end
     local gui = Util.screenGui("QustahUI_Notifications", 60)
     Lib.maid:give(gui)
+    UIFont.register(gui, Lib.maid)
     local holder = create("Frame", {
         Name = "Toasts", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -16),
         Size = UDim2.new(0, 250, 1, -32), Parent = gui,
@@ -23,6 +25,13 @@ function Notify.show(Lib, cfg)
     if type(cfg) == "string" then cfg = { Title = cfg } end
     cfg = cfg or {}
     local holder = Notify.holder(Lib)
+    -- history (the bell in the window header); History = false keeps a toast out of it
+    if cfg.History ~= false then
+        Lib.NotifyHistory = Lib.NotifyHistory or {}
+        table.insert(Lib.NotifyHistory, 1, { Title = tostring(cfg.Title or ""), Content = cfg.Content and tostring(cfg.Content) or nil, Color = cfg.Color, Time = os.time() })
+        while #Lib.NotifyHistory > 50 do table.remove(Lib.NotifyHistory) end
+        for _, listener in ipairs(Lib._historyListeners or {}) do Util.safe(listener) end
+    end
     Lib._toastOrder = (Lib._toastOrder or 0) + 1
     local duration = tonumber(cfg.Duration) or 3
     local hasContent = cfg.Content ~= nil and cfg.Content ~= ""

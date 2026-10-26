@@ -77,6 +77,61 @@ function Theme.set(role, color)
     for _, listener in ipairs(listeners) do Util.safe(listener, role, color) end
 end
 
+-- Several roles at once (one recolour pass).
+function Theme.setMany(colors)
+    for role, color in pairs(colors) do if typeof(color) == "Color3" then Theme.colors[role] = color end end
+    derive()
+    for object, properties in pairs(bound) do
+        if object.Parent then
+            for property, boundRole in pairs(properties) do
+                pcall(function() object[property] = Theme.get(boundRole) end)
+            end
+        end
+    end
+    for _, listener in ipairs(listeners) do Util.safe(listener, "*", nil) end
+end
+
+-- Theme packs: background / text roles only (the accent stays the user's).
+-- Light also has its own neutral accent (see Theme.neutral).
+Theme.packs = {
+    Dark = {},
+    Midnight = {
+        base = rgb(12, 14, 22), footer = rgb(9, 11, 18), dock = rgb(13, 15, 24), selected = rgb(30, 34, 50), icon = rgb(180, 188, 210),
+        card = rgb(16, 19, 29), input = rgb(22, 26, 39), hover = rgb(30, 35, 52), line = rgb(33, 38, 55), edge = rgb(28, 32, 46),
+        buttonEdge = rgb(45, 51, 72), text = rgb(165, 172, 192), muted = rgb(110, 118, 140), heading = rgb(208, 214, 232), knob = rgb(196, 202, 220),
+    },
+    AMOLED = {
+        base = rgb(0, 0, 0), footer = rgb(0, 0, 0), dock = rgb(0, 0, 0), selected = rgb(26, 26, 28), icon = rgb(190, 190, 190),
+        card = rgb(8, 8, 9), input = rgb(16, 16, 18), hover = rgb(26, 26, 28), line = rgb(30, 30, 33), edge = rgb(28, 28, 28),
+        buttonEdge = rgb(42, 42, 46), text = rgb(170, 170, 174), muted = rgb(115, 115, 120), heading = rgb(215, 215, 220), knob = rgb(195, 195, 200),
+    },
+    Light = {
+        base = rgb(238, 238, 241), footer = rgb(229, 229, 233), dock = rgb(234, 234, 238), selected = rgb(216, 216, 222), icon = rgb(85, 85, 95),
+        card = rgb(247, 247, 249), input = rgb(231, 231, 235), hover = rgb(221, 221, 226), line = rgb(214, 214, 220), edge = rgb(200, 200, 206),
+        buttonEdge = rgb(190, 190, 198), text = rgb(62, 62, 70), muted = rgb(120, 120, 130), heading = rgb(25, 25, 30), knob = rgb(255, 255, 255),
+    },
+}
+Theme.packOrder = { "Dark", "Midnight", "AMOLED", "Light" }
+local DEFAULTS = {}
+for role, color in pairs(Theme.colors) do DEFAULTS[role] = color end
+Theme.defaults = DEFAULTS
+-- the "Neutral" accent for a pack (Light needs a dark one)
+function Theme.neutral(pack) return pack == "Light" and rgb(70, 70, 80) or rgb(177, 178, 183) end
+function Theme.applyPack(name)
+    local pack = Theme.packs[name]
+    if not pack then return false end
+    local colors = {}
+    for role, color in pairs(DEFAULTS) do if role ~= "accent" then colors[role] = color end end
+    for role, color in pairs(pack) do colors[role] = color end
+    -- the neutral accent follows the pack; any other accent is kept
+    local accent = Theme.colors.accent
+    if accent == Theme.neutral("Dark") or accent == Theme.neutral("Light") then colors.accent = Theme.neutral(name) end
+    Theme.pack = name
+    Theme.setMany(colors)
+    return true
+end
+Theme.pack = "Dark"
+
 function Theme.onChange(callback)
     listeners[#listeners + 1] = callback
 end

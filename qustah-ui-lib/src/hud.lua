@@ -6,6 +6,7 @@
 local Util = require("util")
 local Theme = require("theme")
 local Stats = require("stats")
+local Glow = require("glow")
 
 local Services = Util.Services
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
@@ -183,5 +184,45 @@ return function(Window)
         self._monitor.panel.Visible = mode == "Floating"
         self._monitor.refresh()
         self:_updateLocation()
+    end
+
+    ------------------------------------------------------------------ watermark
+    -- Window:Watermark(true, { Text = "custom" })  "Qustāh  V1.00 | 60 FPS | 40 ms | 21:03", draggable
+    function Window:Watermark(visible, cfg)
+        visible = visible ~= false
+        cfg = cfg or {}
+        if not self._watermark then
+            Stats.start(self.Lib.maid)
+            local panel, handle = self:_floating("Watermark", 240, 28, Vector2.new(0.01, 0.01))
+            local accent = create("Frame", { Name = "Bar", Position = UDim2.fromOffset(0, 6), Size = UDim2.new(0, 2, 1, -12), BorderSizePixel = 0, ZIndex = 72, Parent = panel })
+            Theme.bind(accent, "BackgroundColor3", "accent")
+            corner(accent, 1)
+            local title = label(handle, self.Title, 11, { Name = "Title", Position = UDim2.fromOffset(12, 0), Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None, ZIndex = 72 })
+            pcall(function() title.FontFace = Font.new(Font.fromEnum(Enum.Font.Gotham).Family, Enum.FontWeight.SemiBold) end)
+            Theme.bind(title, "TextColor3", "accent")
+            Glow.add(title, { Base = "accent", Period = 3.6, Phase = 0.3, GlowTransparency = 0.82 })
+            local info = label(handle, "", 10, { Name = "Info", Position = UDim2.fromOffset(12, 0), Size = UDim2.new(0, 200, 1, 0), TextTruncate = Enum.TextTruncate.None, ZIndex = 72 })
+            Theme.bind(info, "TextColor3", "text")
+            local extra = nil
+            local function refresh()
+                local parts = {}
+                if self.Version ~= "" then parts[#parts + 1] = self.Version end
+                if extra and extra ~= "" then parts[#parts + 1] = extra end
+                parts[#parts + 1] = Stats.fps .. " FPS"
+                parts[#parts + 1] = Stats.ping .. " ms"
+                parts[#parts + 1] = os.date("%H:%M")
+                info.Text = table.concat(parts, "  |  ")
+                local titleWidth = Util.textWidth(self.Title, 11, Enum.Font.GothamMedium) + 4
+                local infoWidth = Util.textWidth(info.Text, 10, Enum.Font.Gotham) + 6
+                info.Position = UDim2.fromOffset(12 + titleWidth + 10, 0)
+                info.Size = UDim2.new(0, infoWidth, 1, 0)
+                panel.Size = UDim2.fromOffset(12 + titleWidth + 10 + infoWidth + 12, 28)
+            end
+            self.maid:give(Stats.listen(function() if panel.Visible then refresh() end end))
+            self._watermark = { panel = panel, refresh = refresh, setExtra = function(text) extra = text end }
+        end
+        if cfg.Text ~= nil then self._watermark.setExtra(tostring(cfg.Text)) end
+        self._watermark.panel.Visible = visible
+        if visible then self._watermark.refresh() end
     end
 end

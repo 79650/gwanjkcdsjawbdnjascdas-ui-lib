@@ -24,6 +24,7 @@ Card.Elements = {
     ImagePicker = require("elements/imagepicker"),
     Swatches    = require("elements/swatches"),
     Graph       = require("elements/graph"),
+    Gradient    = require("elements/gradient"),
 }
 Card.__index = function(_, key)
     local method = rawget(Card, key)

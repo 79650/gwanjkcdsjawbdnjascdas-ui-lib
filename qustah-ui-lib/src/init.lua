@@ -8,9 +8,10 @@ local Dashboard = require("dashboard")
 require("status")(Window)
 require("dialog")(Window)
 require("hud")(Window)
+require("inbox")(Window)
 
 local Lib = {
-    Version = "1.1.1",
+    Version = "1.2.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

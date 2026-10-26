@@ -262,6 +262,23 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local g = outline.Value
     check("apply button commits", g.G > 0.99 and g.R < 0.01 and not panel.Visible)
 
+    -- gradient
+    local chams = W.chams
+    check("gradient default", typeof(F.chams[1]) == "Color3" and F.chams[2] == E.Color3.fromRGB(120, 140, 230))
+    MOCK.click(findIn("Chams gradient", "Preview")) wait(0.1)
+    check("gradient editor opens", find("GradientEditor").Visible)
+    local got
+    chams:OnChanged(function(seq, a, b) got = { a, b } end)
+    local startHex = find("GradientEditor"):FindFirstChild("Hex", true)
+    -- start picker panel must be open to edit; use the API of the inner picker instead
+    chams:Set({ "#00FF00", "#0000FF" })
+    check("gradient set", got and got[1] == E.Color3.fromRGB(0, 255, 0) and F.chams[2] == E.Color3.fromRGB(0, 0, 255))
+    check("gradient save", chams:_save()[1] == "00FF00" and chams:_save()[2] == "0000FF")
+    MOCK.click(findIn("Swap colours", "Button")) wait(0.1)
+    check("gradient swap", F.chams[1] == E.Color3.fromRGB(0, 0, 255))
+    chams:_load({ "FF0000", "00FF00" })
+    check("gradient load", F.chams[1] == E.Color3.fromRGB(255, 0, 0))
+
     -- chord keybind
     local silentTab = tabNamed("Silent") silentTab:Select() wait(0.1)
     local mark = W.markKey
@@ -361,6 +378,42 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.click(findIn("Accent", "Blue")) wait(0.3)
     check("accent swatch", Lib.Theme.get("accent") == E.Color3.fromRGB(61, 151, 219))
 
+    -- theme packs / font
+    W.__ui_theme:Set("Light") wait(0.2)
+    check("light pack", Lib.Theme.get("base") == E.Color3.fromRGB(238, 238, 241) and Lib.Theme.pack == "Light")
+    check("custom accent kept on pack change", Lib.Theme.get("accent") == E.Color3.fromRGB(61, 151, 219))
+    W.__ui_theme:Set("Dark") wait(0.2)
+    check("dark pack back", Lib.Theme.get("base") == E.Color3.fromRGB(15, 15, 16))
+    MOCK.click(findIn("Accent", "Neutral")) wait(0.1)
+    W.__ui_theme:Set("Light") wait(0.1)
+    check("neutral accent follows pack", Lib.Theme.get("accent") == E.Color3.fromRGB(70, 70, 80) and W.__ui_accent.Value == E.Color3.fromRGB(70, 70, 80))
+    W.__ui_theme:Set("Dark") wait(0.1)
+    check("neutral back on dark", Lib.Theme.get("accent") == E.Color3.fromRGB(177, 178, 183))
+    W.__ui_font:Set("Montserrat") wait(0.2)
+    check("font option set", F.__ui_font == "Montserrat")
+    W.__ui_font:Set("Gotham") wait(0.1)
+    -- watermark
+    W.__ui_hud_watermark:Set(true) wait(0.7)
+    local mark = window._watermark and window._watermark.panel
+    check("watermark", mark and mark.Visible and find("Info", mark).Text:find("FPS") ~= nil and mark.Size.X.Offset > 150)
+    W.__ui_hud_watermark:Set(false)
+    check("watermark off", not mark.Visible)
+    -- notification history
+    window:Notify({ Title = "History test", Content = "kept" }) wait(0.1)
+    check("history recorded", Lib.NotifyHistory[1].Title == "History test")
+    check("unread dot", find("Unread", window.inboxButton).Visible == true)
+    MOCK.click(window.inboxButton) wait(0.1)
+    check("inbox opens", find("InboxPanel") ~= nil and find("Unread", window.inboxButton).Visible == false)
+    local entries = 0
+    for _, d in ipairs(find("InboxPanel"):GetDescendants()) do if d.Name == "Entry" then entries = entries + 1 end end
+    check("inbox lists history", entries == #Lib.NotifyHistory)
+    MOCK.click(find("Clear", find("InboxPanel"))) wait(0.1)
+    check("inbox clear", #Lib.NotifyHistory == 0 and find("Empty", find("InboxPanel")).Visible)
+    MOCK.click(window.inboxButton) wait(0.1)
+    check("inbox closes", find("InboxPanel") == nil)
+    window:Notify({ Title = "Quiet", History = false }) wait(0.1)
+    check("history opt-out", #Lib.NotifyHistory == 0)
+
     -- profiles
     settingsTab.Pages[2]:Select() wait(0.1)
     local store = window.Config
@@ -371,10 +424,38 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     nameBox.Text = "pvp" MOCK.fire(nameBox, "FocusLost", true) wait(0.1)
     MOCK.click(findIn("Create from current settings", "Button")) wait(0.1)
     check("profile created", store:Exists("pvp") and find("Profile_pvp") ~= nil)
-    W.espRange:Set(99 * 10)
-    MOCK.click(find("Profile_pvp"):FindFirstChild("Head")) wait(0.1)
+    check("created profile is active + open", store.Active == "pvp" and find("Profile_pvp"):FindFirstChild("Load", true) ~= nil and find("Profile_pvp"):FindFirstChild("ACTIVE", true) ~= nil)
+    check("current: saved", findIn("Changes", "Value").Text == "Saved")
+    W.espRange:Set(99 * 10) wait(1.2)
+    check("current: unsaved count", findIn("Changes", "Value").Text == "1 unsaved")
+    check("changes lists flag", select(2, store:Changes())[1] == "espRange")
     MOCK.click(find("Profile_pvp"):FindFirstChild("Load", true)) wait(0.1)
+    check("load asks when unsaved", find("Dialog") ~= nil and F.espRange == 990)
+    MOCK.click(findIn("Dialog", "Load")) wait(0.1)
     check("profile load", F.espRange == 1230)
+    -- revert
+    W.espRange:Set(500)
+    MOCK.click(findIn("CurrentActions", "Revert")) wait(0.1)
+    MOCK.click(findIn("Dialog", "Revert")) wait(0.1)
+    check("revert", F.espRange == 1230)
+    -- note
+    local noteBox = find("Profile_pvp"):FindFirstChild("Note", true)
+    noteBox.Text = "ranked games" MOCK.fire(noteBox, "FocusLost", true) wait(0.1)
+    check("profile note", store:ReadMeta().pvp.note == "ranked games" and find("Profile_pvp"):FindFirstChild("Note", true) ~= nil)
+    -- share code round trip
+    MOCK.clipboard = nil
+    MOCK.click(find("Profile_pvp"):FindFirstChild("Share", true)) wait(0.1)
+    local code = MOCK.clipboard
+    check("share code copied", type(code) == "string" and code:sub(1, 8) == "QUSTAH1:")
+    local decodedName, decodedFlags = store:Decode(code)
+    check("share code decodes", decodedName == "pvp" and decodedFlags and decodedFlags.espRange == 1230)
+    local codeBox = findIn("Share code", "Box")
+    codeBox.Text = code MOCK.fire(codeBox, "FocusLost", true) wait(0.1)
+    MOCK.click(findIn("Import code", "Button")) wait(0.1)
+    check("import creates free name", store:Exists("pvp 2"))
+    check("bad code rejected", store:Decode("hello") == nil and store:Decode("QUSTAH1:@@@") == nil)
+    store:Delete("pvp 2")
+    MOCK.click(find("Profile_pvp"):FindFirstChild("Head")) wait(0.1) -- (import opened "pvp 2") open pvp again
     local rename = find("Profile_pvp"):FindFirstChild("NewName", true)
     rename.Text = "ranked"
     MOCK.click(find("Profile_pvp"):FindFirstChild("Rename", true)) wait(0.1)
@@ -390,7 +471,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.click(find("Profile_Default"):FindFirstChild("Head")) wait(0.1)
     check("default locked", find("Profile_Default"):FindFirstChild("Delete", true) == nil and find("Profile_Default"):FindFirstChild("Rename", true) == nil)
     MOCK.click(find("Profile_Default"):FindFirstChild("Load", true)) wait(0.1)
-    check("default restores start values", F.espRange == 1500)
+    if find("Dialog") then MOCK.click(findIn("Dialog", "Load")) wait(0.1) end
+    check("default restores start values", F.espRange == 1500 and store.Active == nil)
 
     -- info page
     settingsTab.Pages[3]:Select() wait(0.1)

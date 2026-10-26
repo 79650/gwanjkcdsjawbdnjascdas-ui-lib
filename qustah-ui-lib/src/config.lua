@@ -49,6 +49,7 @@ function Config:Save(name)
     end
     local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode(data))
     if not ok then return false, tostring(err) end
+    self:_setActive(name, data.flags)
     return true
 end
 
@@ -71,12 +72,82 @@ function Config:Load(name)
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
     if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return false, "Config file is damaged" end
     local failed = self:Apply(data.flags)
+    self:_setActive(name, data.flags)
     if failed > 0 then return true, failed .. " setting(s) could not be applied" end
     return true
 end
 
+-- Reads a profile's flags without applying them.
+function Config:Read(name)
+    name = cleanName(name)
+    if not can("readfile", "isfile") then return nil, "readfile is not available" end
+    local file = self.path .. "/" .. name .. ".json"
+    if not isfile(file) then return nil, "Config not found" end
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
+    if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return nil, "Config file is damaged" end
+    return data.flags
+end
+
+-- The profile the current settings came from (nil = the script's defaults) and what it held.
+-- Config.Active, Config:OnActiveChanged(fn), Config:Changes() -> number of settings that differ from it.
+function Config:_setActive(name, flags)
+    self.Active, self.ActiveFlags = name, flags
+    for _, listener in ipairs(self._activeListeners or {}) do Util.safe(listener, name) end
+end
+function Config:OnActiveChanged(callback)
+    self._activeListeners = self._activeListeners or {}
+    table.insert(self._activeListeners, callback)
+end
+local function same(a, b)
+    if type(a) == "number" and type(b) == "number" then return math.abs(a - b) < 1e-6 end
+    if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+    for key, value in pairs(a) do if not same(value, b[key]) then return false end end
+    for key in pairs(b) do if a[key] == nil then return false end end
+    return true
+end
+Config.same = same
+-- Settings that differ between the current values and a flag table (default: the active profile's).
+function Config:Changes(flags)
+    flags = flags or self.ActiveFlags or self.DefaultFlags or {}
+    local count, names = 0, {}
+    for flag, value in pairs(self:Snapshot()) do
+        if flags[flag] ~= nil and not same(value, flags[flag]) then
+            count = count + 1
+            names[#names + 1] = flag
+        end
+    end
+    return count, names
+end
+
+-- Share codes: "QUSTAH1:" .. base64(JSON { n = name, f = flags }).
+function Config:Export(name)
+    local flags = name and self:Read(name) or self:Snapshot()
+    if not flags then return nil, "Config not found" end
+    return "QUSTAH1:" .. Util.base64encode(HttpService:JSONEncode({ n = name or "Shared", f = flags }))
+end
+-- Returns name, flags (nothing is saved or applied).
+function Config:Decode(code)
+    code = tostring(code or ""):gsub("%s", "")
+    local body = code:match("^QUSTAH1:(.+)$")
+    if not body then return nil, "Not a profile code" end
+    local json = Util.base64decode(body)
+    local ok, data = pcall(function() return HttpService:JSONDecode(json) end)
+    if not ok or type(data) ~= "table" or type(data.f) ~= "table" then return nil, "The code is damaged or cut off" end
+    return cleanName(data.n) ~= "" and cleanName(data.n) or "Imported", data.f
+end
+-- A free name: "pvp", "pvp 2", "pvp 3"...
+function Config:FreeName(name)
+    name = cleanName(name)
+    if name == "" or name:lower() == "default" then name = "Profile" end
+    if not self:Exists(name) then return name end
+    local index = 2
+    while self:Exists(name .. " " .. index) do index = index + 1 end
+    return name .. " " .. index
+end
+
 function Config:Delete(name)
     name = cleanName(name)
+    if self.Active == name then self:_setActive(nil, nil) end
     if not can("delfile", "isfile") then return false, "delfile is not available" end
     local file = self.path .. "/" .. name .. ".json"
     if not isfile(file) then return false, "Config not found" end
@@ -111,7 +182,7 @@ end
 -- Call once after the whole UI is built.
 function Config:LoadAutoLoad()
     local name = self:GetAutoLoad()
-    if name then return self:Load(name) end
+    if name and self:Exists(name) then return self:Load(name) end
     return false, "No autoload config"
 end
 
@@ -170,6 +241,7 @@ function Config:Rename(old, new)
     pcall(writefile, self.path .. "/" .. new .. ".json", text)
     pcall(delfile, self.path .. "/" .. old .. ".json")
     if self:GetAutoLoad() == old then self:SetAutoLoad(new) end
+    if self.Active == old then self:_setActive(new, self.ActiveFlags) end
     return true
 end
 function Config:Copy(name, new)

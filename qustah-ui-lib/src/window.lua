@@ -6,6 +6,7 @@ local Theme = require("theme")
 local Card = require("card")
 local Config = require("config")
 local Glow = require("glow")
+local UIFont = require("font")
 
 local Services = Util.Services
 local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
@@ -257,6 +258,7 @@ function Window.new(Lib, cfg)
     end
     Glow.start(Lib.maid)
     self:_build()
+    if self._buildInbox then self:_buildInbox() end
     self:_refreshStatus()
     Lib.Windows[#Lib.Windows + 1] = self
     return self
@@ -267,6 +269,7 @@ function Window:_build()
     local gui = Util.screenGui("QustahUI_" .. self.Title:gsub("%W", ""), 50)
     maid:give(gui)
     self.gui = gui
+    UIFont.register(gui, maid)
 
     local main = create("CanvasGroup", {
         Name = "Window", Size = UDim2.fromOffset(self.width, self.height), BorderSizePixel = 0,
@@ -303,7 +306,7 @@ function Window:_build()
     end
     self.titleLabel = title
 
-    local function windowButton(name, offset, cross)
+    local function windowButton(name, offset, cross, bare)
         local button = create("TextButton", {
             Name = name, Text = "", AutoButtonColor = false, BackgroundTransparency = 1,
             Position = UDim2.new(1, offset, 0, 8), Size = UDim2.fromOffset(30, 28), Parent = main,
@@ -311,7 +314,7 @@ function Window:_build()
         corner(button, 6)
         Theme.bind(button, "BackgroundColor3", "input")
         local bars = {}
-        for _, rotation in ipairs(cross and { 45, -45 } or { 0 }) do
+        for _, rotation in ipairs(bare and {} or (cross and { 45, -45 } or { 0 })) do
             local bar = create("Frame", {
                 AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(10, 2),
                 Rotation = rotation, BorderSizePixel = 0, Parent = button,
@@ -332,6 +335,9 @@ function Window:_build()
     end
     local minimize = windowButton("Minimize", -74, false)
     local close = windowButton("Close", -40, true)
+    self._windowButton = windowButton
+    -- room taken by the header buttons (the bell adds one more)
+    self.headerRight = self.cfg.NotificationHistory == false and 90 or 124
     -- fading accent line under the header
     local headerLine = create("Frame", { Name = "HeaderLine", Position = UDim2.fromOffset(18, HEADER), Size = UDim2.new(1, -36, 0, 1), BorderSizePixel = 0, Parent = main })
     Theme.bind(headerLine, "BackgroundColor3", "accent")
@@ -342,14 +348,14 @@ function Window:_build()
     })
     -- "Visuals › Overview" on the right of the header
     local location = label(main, "", 10, {
-        Name = "Location", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -90, 0, 12), Size = UDim2.new(0.45, 0, 0, 20),
+        Name = "Location", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -self.headerRight, 0, 12), Size = UDim2.new(0.45, 0, 0, 20),
         TextXAlignment = Enum.TextXAlignment.Right,
     })
     Theme.bind(location, "TextColor3", "muted")
     self.locationLabel = location
     -- text tabs in the header for tabs created with Header = true (shown while one of them is open)
     self.headerTabs = create("Frame", {
-        Name = "HeaderTabs", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -90, 0, 0),
+        Name = "HeaderTabs", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -self.headerRight, 0, 0),
         Size = UDim2.new(0, 0, 0, HEADER), AutomaticSize = Enum.AutomaticSize.X, Visible = false, Parent = main,
     })
     Util.list(self.headerTabs, 6, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right)

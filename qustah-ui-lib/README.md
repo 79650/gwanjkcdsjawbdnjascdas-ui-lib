@@ -137,6 +137,19 @@ Config dosyaları `<Folder>/configs/<isim>.json`; autoload adı `<Folder>/autolo
 - Profiles: oluştur, Load / Overwrite / Rename / Duplicate / Delete / Autoload. Kilitli **Default** profili scriptin başlangıç değerleri. **SettingsTab'ı en son oluştur.**
 - Info: versiyonlar, modüller, hata listesi, Copy report, Clear.
 
+### v1.2 eklenenler
+
+- **Tema paketleri:** Settings › Appearance › Theme: `Dark`, `Midnight`, `AMOLED`, `Light`. Kodla: `Lib.Theme.applyPack("Midnight")`. Accent rengin korunur; Neutral accent Light'ta koyulaşır.
+- **Font:** Settings › Appearance › Font (Gotham, BuilderSans, Montserrat, Ubuntu, Roboto, SourceSans, Nunito, Arimo). Kalınlıklar korunur.
+- **Bildirim geçmişi:** header'da zil ikonu. Yeni bildirim gelince nokta çıkar, tıklayınca son 50 bildirim açılır, Clear ile temizlenir. `Notify({ ..., History = false })` geçmişe yazmaz; `CreateWindow({ NotificationHistory = false })` zili kaldırır.
+- **Watermark:** `Window:Watermark(true, { Text = "ekstra" })` -> "Qustāh  V1.00 | 60 FPS | 40 ms | 22:10", sürüklenebilir (Settings › Overlays).
+- **Gradient:** `card:Gradient({ Title, Flag, Default = { Color3, Color3 }, Rotation, Callback = function(sequence, a, b) end })` - önizleme çubuğu, Start / End seçiciler, Swap. `:GetSequence()`.
+- **Profiller (yenilendi):**
+  - *Current*: aktif profil + kaydedilmemiş değişiklik sayısı; **Save**, **Revert**, **Share current**, **What changed?**
+  - *New profile*: oluştur veya **paylaşım kodu** yapıştırıp **Import** (`QUSTAH1:...`, isim çakışırsa "pvp 2").
+  - *Saved*: arama (3+ profilde), son kullanılan üstte, ACTIVE / AUTO / LOCKED etiketleri, profil **notu**, "N ayar farklı" özeti, Load (kaydedilmemiş değişiklik varsa sorar), Overwrite, Autoload, **Share**, Rename, Duplicate, Delete.
+  - Kodla: `Config.Active`, `Config:Changes()`, `Config:Export(name)`, `Config:Decode(code)`, `Config:Read(name)`.
+
 ## Geliştirme
 
 ```
