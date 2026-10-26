@@ -21,7 +21,9 @@ function Base.row(card, cfg, height, opts)
         Name = "Title", Position = UDim2.fromOffset(0, cfg.Desc and 3 or 0),
         Size = UDim2.new(1, -right, 0, cfg.Desc and 18 or (opts.titleHeight or height)),
     })
-    Theme.bind(title, "TextColor3", "text")
+    -- Risky = true: the title is red (a feature that can get you flagged); Risky = "text" also explains it on hover
+    Theme.bind(title, "TextColor3", cfg.Risky and "danger" or "text")
+    if type(cfg.Risky) == "string" and not cfg.Help then cfg.Help = cfg.Risky end
     local desc
     if cfg.Desc then
         desc = label(row, tostring(cfg.Desc), 9, { Name = "Desc", Position = UDim2.fromOffset(0, 23), Size = UDim2.new(1, -right, 0, 14) })

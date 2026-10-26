@@ -15,7 +15,7 @@ return function(card, cfg)
         TextSize = 10, Font = Enum.Font.Gotham, AutoButtonColor = false, Parent = row,
     })
     Theme.bind(button, "BackgroundColor3", "input")
-    Theme.bind(button, "TextColor3", "text")
+    Theme.bind(button, "TextColor3", cfg.Risky and "danger" or "text")
     corner(button, 6)
     local outline = stroke(button)
     Theme.bind(outline, "Color", "buttonEdge")
@@ -45,7 +45,7 @@ return function(card, cfg)
     function element:Fire() card.window:_safe(element.Text, cfg.Callback) end
 
     button.MouseEnter:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "hover", 0.12) Theme.tweenTo(button, "TextColor3", "heading", 0.12) end)
-    button.MouseLeave:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "input", 0.12) Theme.tweenTo(button, "TextColor3", "text", 0.12) end)
+    button.MouseLeave:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "input", 0.12) Theme.tweenTo(button, "TextColor3", cfg.Risky and "danger" or "text", 0.12) end)
     local armed = 0
     button.Activated:Connect(function()
         if element.Locked then return end

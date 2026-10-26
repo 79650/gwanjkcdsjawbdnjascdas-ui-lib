@@ -82,7 +82,9 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("single dropdown closes after pick", find("DropdownList") == nil)
     MOCK.click(findIn("Show", "Select")) wait(0.1)
     list = find("DropdownList")
-    if list then MOCK.click(list:FindFirstChild("Weapon", true)) MOCK.click(list:FindFirstChild("Name", true)) wait(0.1) end
+    -- multi lists react on press (InputBegan) so they can be drag-selected
+    local function pressItem(item) MOCK.fire(item, "InputBegan", mouseInput(Enum.UserInputType.MouseButton1)) uis.InputEnded:Fire(mouseInput(Enum.UserInputType.MouseButton1), false) end
+    if list then pressItem(list:FindFirstChild("Weapon", true)) pressItem(list:FindFirstChild("Name", true)) wait(0.1) end
     check("list header follows the choice", list and list:FindFirstChild("Header") and list.Header:FindFirstChildOfClass("TextLabel").Text == "Health, Weapon")
     check("multi dropdown add/remove", F.parts and #F.parts == 2 and table.find(F.parts, "Weapon") and not table.find(F.parts, "Name"))
     check("multi dropdown stays open", find("DropdownList") ~= nil)
@@ -417,6 +419,44 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     window:Notify({ Title = "Quiet", History = false }) wait(0.1)
     check("history opt-out", #Lib.NotifyHistory == 0)
 
+    -- every theme pack: readable text, visible accent / switches
+    local T = Lib.Theme
+    local packIssues = {}
+    for _, name in ipairs(T.packOrder) do
+        W.__ui_theme:Set(name)
+        local c = T.colors
+        local function need(a, b, min, what)
+            local ratio = T.contrast(c[a], c[b])
+            if ratio < min then packIssues[#packIssues + 1] = string.format("%s %s %.2f", name, what or (a .. "/" .. b), ratio) end
+        end
+        need("text", "card", 4.5) need("heading", "card", 4.5) need("muted", "card", 3) need("text", "input", 4)
+        need("icon", "dock", 3) need("accent", "card", 2.5) need("knob", "toggleOn", 1.4) need("buttonEdge", "card", 1.3)
+        need("success", "card", 2.5) need("danger", "card", 2.5) need("warning", "card", 2.5)
+    end
+    for _, issue in ipairs(packIssues) do print("PACK ISSUE " .. issue) end
+    check("all " .. #T.packOrder .. " packs readable", #packIssues == 0)
+    check("palette pack brings its accent", (function() W.__ui_accent:Set(T.neutral("Dark")) W.__ui_theme:Set("Dracula") return T.get("accentUser") == T.hex("#bd93f9") end)())
+    W.__ui_theme:Set("Dark")
+    check("accent back to neutral", T.get("accentUser") == E.Color3.fromRGB(177, 178, 183))
+    -- theme editor: save, list, export, import, delete
+    local saveBox = findIn("SaveTheme", "Box")
+    T.set("base", E.Color3.fromRGB(20, 10, 30))
+    saveBox.Text = "Grape" MOCK.click(findIn("SaveTheme", "Action")) wait(0.1)
+    check("custom theme saved", T.packs.Grape ~= nil and table.find(W.__ui_theme.Options, "Grape") ~= nil and F.__ui_theme == "Grape")
+    check("custom theme on disk", E.readfile("Qustah/themes.json"):find("Grape") ~= nil)
+    MOCK.clipboard = nil
+    MOCK.click(find("Copy code"):FindFirstChild("Button")) wait(0.1)
+    local themeCode = MOCK.clipboard
+    check("theme code", type(themeCode) == "string" and themeCode:sub(1, 8) == "QTHEME1:")
+    MOCK.click(find("Delete", find("Theme editor")):FindFirstChild("Button")) wait(0.1)
+    MOCK.click(findIn("Dialog", "Delete")) wait(0.1)
+    check("custom theme deleted", T.packs.Grape == nil and F.__ui_theme == "Dark")
+    local importBox = findIn("ImportTheme", "Box")
+    importBox.Text = themeCode wait(0.1)
+    MOCK.click(findIn("ImportTheme", "Action")) wait(0.1)
+    check("theme imported", T.packs.Grape ~= nil and F.__ui_theme == "Grape" and T.get("base") == E.Color3.fromRGB(20, 10, 30))
+    W.__ui_theme:Set("Dark")
+
     -- profiles
     settingsTab.Pages[2]:Select() wait(0.1)
     local store = window.Config
@@ -653,6 +693,108 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("anonymous via dock", window.anonymous == true and F.__ui_anon == true and find("DisplayName").Text == "Anonymous")
     window:SetAnonymous(false) wait(0.1)
     check("anonymous off", find("DisplayName").Text ~= "Anonymous" and F.__ui_anon == false)
+
+    -- v1.5 dropdown: key / label values, images, chunks, drag select
+    local dcard = tabNamed("Misc").Pages[1]:Card({ Title = "Dd" })
+    local dict = dcard:Dropdown({ Title = "Mode", Options = { pvp = "PvP mode", farm = "Auto farm" }, Default = "farm" })
+    check("dict dropdown value is the key", dict.Value == "farm" and dict.Row:FindFirstChild("Select"):FindFirstChildWhichIsA("TextLabel").Text == "Auto farm")
+    dict:Set("PvP mode")
+    check("set by label resolves to key", dict.Value == "pvp" and dict:GetLabel() == "PvP mode")
+    local huge = {}
+    for i = 1, 5000 do huge[i] = "Item " .. i end
+    local big2 = dcard:Dropdown({ Title = "Huge", Options = huge })
+    MOCK.click(big2.Row:FindFirstChild("Select")) wait(0.1)
+    local drawnCount = 0
+    for _, c in ipairs(find("DropdownList"):FindFirstChild("Options"):GetChildren()) do if c:IsA("TextButton") then drawnCount = drawnCount + 1 end end
+    check("huge list drawn in chunks", drawnCount <= 60 and find("DropdownList"):FindFirstChild("More", true).Visible)
+    find("DropdownList"):FindFirstChild("Search", true).Text = "Item 4999" wait(0.1)
+    check("search finds beyond the first chunk", find("DropdownList"):FindFirstChild("Item 4999", true) ~= nil)
+    window:_closePopup()
+    local pics = dcard:Dropdown({ Title = "Pics", Multi = true, Options = { { Title = "A", Image = "rbxassetid://1" }, { Title = "B" }, { Title = "C" }, { Title = "D" } } })
+    MOCK.click(pics.Row:FindFirstChild("Select")) wait(0.1)
+    local plist = find("DropdownList")
+    check("option image", plist:FindFirstChild("A", true):FindFirstChild("Icon").Image == "rbxassetid://1")
+    MOCK.fire(plist:FindFirstChild("A", true), "InputBegan", mouseInput(Enum.UserInputType.MouseButton1))
+    MOCK.fire(plist:FindFirstChild("B", true), "MouseEnter")
+    MOCK.fire(plist:FindFirstChild("C", true), "MouseEnter")
+    uis.InputEnded:Fire(mouseInput(Enum.UserInputType.MouseButton1), false)
+    MOCK.fire(plist:FindFirstChild("D", true), "MouseEnter")
+    check("drag select", #pics.Value == 3 and not table.find(pics.Value, "D"))
+    window:_closePopup()
+
+    -- v1.5: mouse unlock
+    local modal = window.main:FindFirstChild("MouseUnlock")
+    check("mouse free while open", modal and modal.Modal == true and uis.MouseIconEnabled == true)
+    window:SetVisible(false) wait(0.2)
+    check("mouse back when hidden", modal.Modal == false)
+    window:SetVisible(true) wait(0.2)
+    W.__ui_mouse:Set(false)
+    check("mouse unlock switch", modal.Modal == false)
+    W.__ui_mouse:Set(true)
+
+    -- interactive keybind list
+    W.espEnabled:SetBind(Enum.KeyCode.F)
+    window:KeybindList(true) wait(0.6)
+    local kb = window._keybindHud.panel
+    local espRow
+    for _, r in ipairs(kb:FindFirstChild("List"):GetChildren()) do
+        if r:IsA("TextButton") and r.Visible and r:FindFirstChildWhichIsA("TextLabel").Text:find("ESP enabled") then espRow = r end
+    end
+    check("keybind list shows bound toggle", espRow ~= nil)
+    local espBefore = F.espEnabled
+    if espRow then MOCK.click(espRow) wait(0.1) end
+    check("click a bind row flips the toggle", F.espEnabled == not espBefore)
+    MOCK.click(kb:FindFirstChild("Edit", true)) wait(0.1)
+    for _, r in ipairs(kb:FindFirstChild("List"):GetChildren()) do
+        if r:IsA("TextButton") and r.Visible and r:FindFirstChildWhichIsA("TextLabel").Text:find("ESP enabled") then espRow = r end
+    end
+    MOCK.click(espRow) wait(0.1)
+    MOCK.click(kb:FindFirstChild("Edit", true)) wait(0.6)
+    local stillShown = false
+    for _, r in ipairs(kb:FindFirstChild("List"):GetChildren()) do
+        if r:IsA("TextButton") and r.Visible and r:FindFirstChildWhichIsA("TextLabel").Text:find("ESP enabled") then stillShown = true end
+    end
+    check("hidden in edit mode", not stillShown and window.memory.hud.keybindsHidden["ESP enabled"] == true)
+    MOCK.click(kb:FindFirstChild("Fold", true)) wait(0.6)
+    check("fold keybind list", kb.Size.Y.Offset == 30)
+    MOCK.click(kb:FindFirstChild("Fold", true)) wait(0.1)
+    window.memory.hud.keybindsHidden["ESP enabled"] = nil
+    window:KeybindList(false)
+
+    -- risky + warning + card desc / collapse
+    tabNamed("Silent"):Select() wait(0.1)
+    local riskyTitle = W.silentAim.Row:FindFirstChild("Title")
+    check("risky title is red", riskyTitle.TextColor3 == Lib.Theme.get("danger") and W.silentAim.Row:FindFirstChild("Help") ~= nil)
+    check("page warning", find("Warning") ~= nil and find("Warning"):FindFirstChild("Text", true).Text:find("ranked") ~= nil)
+    local aimCard = W.silentAim.Card.frame
+    check("card desc", aimCard:FindFirstChild("CardDesc") ~= nil)
+    MOCK.click(aimCard:FindFirstChild("Collapse", true)) wait(0.2)
+    check("card collapses", W.silentAim.Row.Visible == false and window.memory.collapsed["Silent/Silent/Silent Aim"] == true)
+    MOCK.click(aimCard:FindFirstChild("Collapse", true)) wait(0.2)
+    check("card expands", W.silentAim.Row.Visible == true and W.prediction.Row.Visible == true)
+
+    -- per-game profiles
+    local cstore = window.Config
+    cstore:SetPerGame("Game")
+    check("per-game path", cstore.path:find("configs/" .. tostring(E.game.GameId)) ~= nil)
+    cstore:Save("gameonly")
+    check("per-game save", E.isfile(cstore.path .. "/gameonly.json"))
+    cstore:SetAutoLoad("gameonly")
+    cstore:SetPerGame(false)
+    check("shared list does not see it", not cstore:Exists("gameonly") and cstore:GetAutoLoad() ~= "gameonly")
+    cstore:SetPerGame("Game") cstore:Delete("gameonly") cstore:ClearAutoLoad() cstore:SetPerGame(false)
+
+    -- notification progress / steps
+    local ptoast = window:Notify({ Title = "Farm", Steps = 4, Content = "Start" })
+    check("step toast text", ptoast:FindFirstChild("Content").Text == "0/4  ·  Start")
+    ptoast:SetStep(2, "Quest")
+    check("step toast advances", ptoast:FindFirstChild("Content").Text == "2/4  ·  Quest" and ptoast.Step == 2)
+    wait(4)
+    check("progress toast stays", ptoast.Parent ~= nil)
+    ptoast:SetStep(4, "Done") wait(1.6)
+    check("progress toast closes at the end", ptoast.Parent == nil)
+    local snd = window:Notify({ Title = "Ping", Sound = true })
+    check("sound toast", snd ~= nil)
 
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)

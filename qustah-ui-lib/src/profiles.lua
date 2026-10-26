@@ -220,6 +220,20 @@ return function(window, page, defaults)
         end,
     })
 
+    -- per-game profiles (each game gets its own list + autoload); remembered with the window
+    newCard:Toggle({
+        Title = "Separate profiles per game", Desc = "Each game keeps its own list and autoload", Icon = "gamepad-2",
+        Default = store.perGame ~= nil,
+        Callback = function(on)
+            store:SetPerGame(on and "Game" or false)
+            window.memory.perGame = on and "Game" or false
+            window:_saveMemory()
+            open = nil
+            refresh()
+            say(on and ("Profiles for this game (#" .. game.GameId .. ")") or "Shared profiles for all games")
+        end,
+    })
+
     ------------------------------------------------------------ saved list
     local listCard = page:Card({ Title = "Saved" })
     local search = create("TextBox", {

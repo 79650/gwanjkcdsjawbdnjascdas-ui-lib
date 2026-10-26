@@ -151,26 +151,121 @@ Theme.packs = {
         codeComment = rgb(135, 135, 145), codeGlobal = rgb(35, 95, 200), codeCall = rgb(150, 100, 0),
     },
 }
-Theme.packOrder = { "Dark", "Midnight", "AMOLED", "Light" }
+-- Palette themes: a few colours from the original palette, the rest derived with the same steps as Qustah's own
+-- Dark (card / input / hover / outline sit at fixed distances between the background and the text), then checked:
+-- text at least 4.5:1 and muted text 3:1 on cards.
+local hex = function(text) return Color3.fromRGB(tonumber(text:sub(2, 3), 16), tonumber(text:sub(4, 5), 16), tonumber(text:sub(6, 7), 16)) end
+Theme.hex = hex
+function Theme.makePack(p)
+    local base, text = hex(p.base), hex(p.text)
+    local function step(t) return base:Lerp(text, t) end
+    local pack = {
+        base = base, footer = base:Lerp(Color3.new(0, 0, 0), 0.18), dock = p.dock and hex(p.dock) or base,
+        card = p.card and hex(p.card) or step(0.026), input = p.input and hex(p.input) or step(0.065),
+        selected = step(0.118), hover = step(0.118), line = step(0.137), edge = step(0.098), buttonEdge = step(0.203),
+        text = text, muted = hex(p.muted), heading = hex(p.heading or p.text), icon = text:Lerp(hex(p.heading or p.text), 0.5),
+        knob = text:Lerp(Color3.new(1, 1, 1), 0.15), accent = p.accent and hex(p.accent) or nil,
+    }
+    for _ = 1, 10 do if contrast(pack.text, pack.card) >= 4.5 then break end pack.text = pack.text:Lerp(pack.heading, 0.2) end
+    for _ = 1, 10 do if contrast(pack.muted, pack.card) >= 3 then break end pack.muted = pack.muted:Lerp(pack.text, 0.15) end
+    -- switch-off track / button outlines must still show on cards
+    for _ = 1, 10 do if contrast(pack.buttonEdge, pack.card) >= 1.35 then break end pack.buttonEdge = pack.buttonEdge:Lerp(text, 0.08) end
+    return pack
+end
+local PALETTES = {
+    { "Tokyo Night", { base = "#1a1b26", card = "#1f2131", input = "#272a3d", text = "#a9b1d6", muted = "#6a7299", heading = "#c0caf5", accent = "#7aa2f7" } },
+    { "Catppuccin", { base = "#1e1e2e", card = "#232334", input = "#2b2b3e", text = "#bac2de", muted = "#7f849c", heading = "#cdd6f4", accent = "#cba6f7" } },
+    { "Dracula", { base = "#21222c", card = "#282a36", input = "#30323f", text = "#d6d6d0", muted = "#7484b8", heading = "#f8f8f2", accent = "#bd93f9" } },
+    { "Nord", { base = "#2e3440", card = "#343b49", input = "#3b4252", text = "#d8dee9", muted = "#8892a6", heading = "#eceff4", accent = "#88c0d0" } },
+    { "Gruvbox", { base = "#1d2021", card = "#252525", input = "#2e2c2b", text = "#d5c4a1", muted = "#928374", heading = "#fbf1c7", accent = "#fabd2f" } },
+    { "One Dark", { base = "#21252b", card = "#282c34", input = "#2f343e", text = "#abb2bf", muted = "#727a87", heading = "#d7dae0", accent = "#61afef" } },
+    { "Monokai", { base = "#1e1f1c", card = "#272822", input = "#30312a", text = "#d6d6cf", muted = "#8a8571", heading = "#f8f8f2", accent = "#a6e22e" } },
+    { "Rose Pine", { base = "#191724", card = "#1f1d2e", input = "#26233a", text = "#d2cfea", muted = "#7f7a99", heading = "#e0def4", accent = "#c4a7e7" } },
+    { "Everforest", { base = "#272e33", card = "#2d353b", input = "#343f44", text = "#d3c6aa", muted = "#859289", heading = "#e6dcc0", accent = "#a7c080" } },
+    { "Kanagawa", { base = "#1a1a22", card = "#1f1f28", input = "#2a2a37", text = "#dcd7ba", muted = "#7a7970", heading = "#f2ecbc", accent = "#7e9cd8" } },
+    { "Solarized", { base = "#00212b", card = "#002b36", input = "#073642", text = "#93a1a1", muted = "#657b83", heading = "#eee8d5", accent = "#268bd2" } },
+    { "Oceanic", { base = "#17252d", card = "#1b2b34", input = "#22343e", text = "#c0c5ce", muted = "#6f7d88", heading = "#d8dee9", accent = "#6699cc" } },
+    { "Fatality", { base = "#140f2b", card = "#1a1436", input = "#221a44", text = "#c9c2e6", muted = "#7f76a6", heading = "#efeaff", accent = "#f0024f" } },
+    { "Mint", { base = "#141615", card = "#191c1a", input = "#202422", text = "#c2ccc6", muted = "#7c8781", heading = "#e3ebe6", accent = "#3db488" } },
+    { "Cyberpunk", { base = "#0d0a17", card = "#130f21", input = "#1b152d", text = "#c9c1e8", muted = "#7d74a0", heading = "#f0e9ff", accent = "#f72585" } },
+}
+for _, entry in ipairs(PALETTES) do Theme.packs[entry[1]] = Theme.makePack(entry[2]) end
+-- Latte: the light Catppuccin
+Theme.packs.Latte = {
+    base = rgb(230, 233, 239), footer = rgb(220, 224, 232), dock = rgb(230, 233, 239), selected = rgb(204, 208, 218), icon = rgb(76, 79, 105),
+    card = rgb(239, 241, 245), input = rgb(220, 224, 232), hover = rgb(210, 214, 224), line = rgb(204, 208, 218), edge = rgb(188, 192, 204),
+    buttonEdge = rgb(172, 176, 190), text = rgb(76, 79, 105), muted = rgb(124, 127, 147), heading = rgb(48, 52, 70), knob = rgb(255, 255, 255),
+    accent = rgb(136, 57, 239),
+    success = rgb(40, 130, 40), warning = rgb(170, 100, 10), danger = rgb(200, 40, 70),
+    dangerDeep = rgb(250, 225, 230), dangerEdge = rgb(230, 150, 165), dangerText = rgb(180, 30, 60),
+    codeKeyword = rgb(136, 57, 239), codeString = rgb(64, 160, 43), codeNumber = rgb(254, 100, 11),
+    codeComment = rgb(140, 143, 161), codeGlobal = rgb(30, 102, 245), codeCall = rgb(223, 142, 29),
+}
+Theme.packOrder = { "Dark", "Midnight", "AMOLED", "Light", "Latte" }
+for _, entry in ipairs(PALETTES) do table.insert(Theme.packOrder, entry[1]) end
 local DEFAULTS = {}
 for role, color in pairs(Theme.colors) do DEFAULTS[role] = color end
 Theme.defaults = DEFAULTS
--- the "Neutral" accent for a pack (Light needs a dark one)
-function Theme.neutral(pack) return pack == "Light" and rgb(70, 70, 80) or rgb(177, 178, 183) end
+-- the pack's own accent ("Neutral" preset): palette themes bring theirs, Light a dark grey, the rest Qustah grey
+function Theme.neutral(pack)
+    local data = Theme.packs[pack]
+    if data and data.accent then return data.accent end
+    return pack == "Light" and rgb(70, 70, 80) or rgb(177, 178, 183)
+end
 function Theme.applyPack(name)
     local pack = Theme.packs[name]
     if not pack then return false end
     local colors = {}
     for role, color in pairs(DEFAULTS) do if role ~= "accent" and role ~= "accentUser" then colors[role] = color end end
-    for role, color in pairs(pack) do colors[role] = color end
-    -- the neutral accent follows the pack; any other accent is kept
+    for role, color in pairs(pack) do if role ~= "accent" then colors[role] = color end end
+    -- the pack's own accent follows the pack; an accent the user picked is kept
     local accent = Theme.colors.accentUser
-    if accent == Theme.neutral("Dark") or accent == Theme.neutral("Light") then colors.accentUser = Theme.neutral(name) end
+    if accent == Theme.neutral(Theme.pack) or accent == Theme.neutral("Dark") or accent == Theme.neutral("Light") then colors.accentUser = Theme.neutral(name) end
     Theme.pack = name
     Theme.setMany(colors)
     return true
 end
 Theme.pack = "Dark"
+
+-- Custom themes: { base = "#101010", card = ..., accent = ... } (hex per role) <-> packs
+Theme.EDITABLE = { "base", "card", "input", "line", "text", "muted", "heading", "dock", "icon", "accent" }
+function Theme.export()
+    local data = {}
+    for _, role in ipairs(Theme.EDITABLE) do
+        local color = Theme.colors[role == "accent" and "accentUser" or role]
+        data[role] = "#" .. Util.toHex(color)
+    end
+    return data
+end
+function Theme.registerCustom(name, data)
+    if type(data) ~= "table" or type(data.base) ~= "string" or type(data.text) ~= "string" then return false end
+    local ok, pack = pcall(function()
+        local made = Theme.makePack({
+            base = data.base, card = data.card, input = data.input, text = data.text, muted = data.muted or data.text,
+            heading = data.heading, accent = data.accent, dock = data.dock,
+        })
+        if data.line then made.line = hex(data.line) end
+        if data.icon then made.icon = hex(data.icon) end
+        -- light custom themes get the light state / code colours
+        if luminance(made.base) > 0.5 then
+            for role, color in pairs(Theme.packs.Light) do if made[role] == nil or role:match("^code") or role:match("^danger") or role == "success" or role == "warning" then made[role] = made[role] or color end end
+            for _, role in ipairs({ "success", "warning", "danger", "dangerDeep", "dangerEdge", "dangerText", "codeKeyword", "codeString", "codeNumber", "codeComment", "codeGlobal", "codeCall" }) do made[role] = Theme.packs.Light[role] end
+        end
+        made.custom = true
+        return made
+    end)
+    if not ok then return false end
+    Theme.packs[name] = pack
+    if not table.find(Theme.packOrder, name) then table.insert(Theme.packOrder, name) end
+    return true
+end
+function Theme.removeCustom(name)
+    if not (Theme.packs[name] and Theme.packs[name].custom) then return false end
+    Theme.packs[name] = nil
+    local index = table.find(Theme.packOrder, name)
+    if index then table.remove(Theme.packOrder, index) end
+    return true
+end
 
 function Theme.onChange(callback)
     listeners[#listeners + 1] = callback

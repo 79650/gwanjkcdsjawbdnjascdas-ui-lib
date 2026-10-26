@@ -31,7 +31,10 @@ return function(window, cfg)
         local accent = Theme.get("accentUser")
         if accent == Theme.neutral(Theme.pack) then swatches:Set("Neutral", true) else swatches:Set(accent, true) end
     end
-    look:Dropdown({
+    -- custom themes saved on this PC (<Folder>/themes.json)
+    local customThemes = window.Config:ReadJSON("themes")
+    for name, data in pairs(customThemes) do Theme.registerCustom(name, data) end
+    local themeDropdown = look:Dropdown({
         Title = "Theme", Options = Theme.packOrder, Default = "Dark", Flag = "__ui_theme",
         Callback = function(name)
             Theme.applyPack(name)
@@ -86,6 +89,80 @@ return function(window, cfg)
         end,
     })
 
+    ------------------------------------------------------------ theme editor
+    local editorCard = interface:Card({ Title = "Theme editor", Side = "Right", Icon = "palette" })
+    local editor = editorCard:Section({ Title = "Edit colours", Opened = false })
+    local ROLE_NAMES = { "Background", "Cards", "Inputs", "Outlines", "Text", "Muted text", "Headings", "Dock", "Icons", "Accent" }
+    local ROLE_OF = {}
+    for index, name in ipairs(ROLE_NAMES) do ROLE_OF[name] = Theme.EDITABLE[index] end
+    local roleColor
+    local roleDropdown = editor:Dropdown({ Title = "Colour", Options = ROLE_NAMES, Default = "Background",
+        Callback = function(name)
+            local role = ROLE_OF[name]
+            if roleColor and role then roleColor:Set(Theme.get(role == "accent" and "accentUser" or role), true) end
+        end })
+    roleColor = editor:ColorPicker({ Title = "Value", Default = Theme.get("base"),
+        Callback = function(color)
+            local role = ROLE_OF[roleDropdown.Value or "Background"]
+            if not role then return end
+            if role == "accent" then picker:Set(color) else Theme.set(role, color) end
+        end })
+    local function saveThemes() window.Config:WriteJSON("themes", customThemes) end
+    local function refreshThemeList(select)
+        themeDropdown:SetOptions(Theme.packOrder, true)
+        if select then themeDropdown:Set(select) end
+    end
+    editor:ActionInput({ Name = "SaveTheme", Icon = "save", Placeholder = "Theme name", Button = "Save",
+        Hint = "Saves the colours above as a theme",
+        Validate = function(name)
+            if Theme.packs[name] and not Theme.packs[name].custom then return false, "\"" .. name .. "\" is a built-in theme" end
+            return true, Theme.packs[name] and ("Overwrites \"" .. name .. "\"") or ("Adds \"" .. name .. "\" to the Theme list")
+        end,
+        Callback = function(name)
+            customThemes[name] = Theme.export()
+            Theme.registerCustom(name, customThemes[name])
+            saveThemes()
+            refreshThemeList(name)
+            window:Notify({ Title = "Theme saved", Content = name, Icon = "palette" })
+        end })
+    local codeRow = editor:Row()
+    codeRow:Button({ Title = "Copy code", Icon = "share-2", Callback = function()
+        local code = "QTHEME1:" .. Util.base64encode(Util.Services.HttpService:JSONEncode({ n = themeDropdown.Value or "Theme", t = Theme.export() }))
+        local clipboard = setclipboard or toclipboard
+        if clipboard and pcall(clipboard, code) then window:Notify({ Title = "Copied", Content = "Theme code copied", Icon = "palette" }) end
+    end })
+    codeRow:Button({ Title = "Delete", Icon = "trash-2", Risky = true, Callback = function()
+        local name = themeDropdown.Value
+        if not (name and Theme.packs[name] and Theme.packs[name].custom) then
+            return window:Notify({ Title = "Theme", Content = "Only your own themes can be deleted", Color = "warning" })
+        end
+        window:Confirm("Delete theme \"" .. name .. "\"?", "It is removed from this PC.", function()
+            customThemes[name] = nil
+            Theme.removeCustom(name)
+            saveThemes()
+            refreshThemeList("Dark")
+        end, "Delete", true)
+    end })
+    editor:ActionInput({ Name = "ImportTheme", Icon = "import", Placeholder = "Paste a QTHEME1: code", Button = "Import",
+        Validate = function(code)
+            local body = code:gsub("%s", ""):match("^QTHEME1:(.+)$")
+            if not body then return false, "Not a theme code" end
+            local ok, data = pcall(function() return Util.Services.HttpService:JSONDecode(Util.base64decode(body)) end)
+            if not ok or type(data) ~= "table" or type(data.t) ~= "table" then return false, "The code is damaged" end
+            return true, "Theme \"" .. tostring(data.n) .. "\""
+        end,
+        Callback = function(code)
+            local data = Util.Services.HttpService:JSONDecode(Util.base64decode(code:gsub("%s", ""):match("^QTHEME1:(.+)$")))
+            local name = tostring(data.n or "Imported"):gsub("[^%w_%- ]", "")
+            if Theme.packs[name] and not Theme.packs[name].custom then name = name .. " (2)" end
+            customThemes[name] = data.t
+            if Theme.registerCustom(name, data.t) then
+                saveThemes()
+                refreshThemeList(name)
+                window:Notify({ Title = "Theme imported", Content = name, Icon = "palette" })
+            end
+        end })
+
     local look2 = interface:Card({ Title = "Window", Side = "Left" })
     look2:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "user-round", Flag = "__ui_anon", Default = window.anonymous == true,
         Callback = function(on) window:SetAnonymous(on) end })
@@ -99,6 +176,8 @@ return function(window, cfg)
         Callback = function(text) window:SetBackgroundImage(text ~= "" and text or nil, bgAlpha and (1 - bgAlpha.Value / 100) or 0.85) end })
     bgAlpha = look2:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
         Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
+    look2:Toggle({ Title = "Free mouse", Desc = "Unlocks the mouse while the menu is open", Icon = "mouse-pointer-2", Flag = "__ui_mouse",
+        Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
     look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
 
     local overlays = interface:Card({ Title = "Overlays", Side = "Right" })

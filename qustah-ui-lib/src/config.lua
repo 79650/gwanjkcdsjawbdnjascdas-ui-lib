@@ -58,9 +58,24 @@ function Config:_setCustom(custom)
     for _, listener in ipairs(self._dataListeners or {}) do Util.safe(listener, self.Custom) end
 end
 
+-- Per-game profiles: Config:SetPerGame("Game" | "Place" | false) keeps profiles, their notes and the autoload in
+-- <Folder>/configs/<GameId or PlaceId>/ (CreateWindow({ PerGame = "Game" }) or Settings › Profiles).
+function Config:SetPerGame(mode)
+    if mode == true then mode = "Game" end
+    self.perGame = (mode == "Game" or mode == "Place") and mode or nil
+    local id = self.perGame == "Place" and game.PlaceId or (self.perGame == "Game" and game.GameId) or nil
+    self.path = self.folder .. "/configs" .. (id and ("/" .. tostring(id)) or "")
+    self:_setActive(nil, nil)
+end
+-- files that belong to the current profile scope (shared folder or the game's folder)
+function Config:_scopeFile(name)
+    return (self.perGame and self.path or self.folder) .. "/" .. name
+end
+
 function Config:_ensure()
     if not can("isfolder", "makefolder") then return false end
     if not isfolder(self.folder) then makefolder(self.folder) end
+    if not isfolder(self.folder .. "/configs") then makefolder(self.folder .. "/configs") end
     if not isfolder(self.path) then makefolder(self.path) end
     return true
 end
@@ -200,11 +215,11 @@ end
 function Config:SetAutoLoad(name)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self.folder .. "/autoload.txt", cleanName(name))
+    return pcall(writefile, self:_scopeFile("autoload.txt"), cleanName(name))
 end
 function Config:GetAutoLoad()
-    if not can("readfile", "isfile") or not isfile(self.folder .. "/autoload.txt") then return nil end
-    local ok, name = pcall(readfile, self.folder .. "/autoload.txt")
+    if not can("readfile", "isfile") or not isfile(self:_scopeFile("autoload.txt")) then return nil end
+    local ok, name = pcall(readfile, self:_scopeFile("autoload.txt"))
     name = ok and cleanName(name) or ""
     return name ~= "" and name or nil
 end
@@ -227,16 +242,29 @@ function Config:WriteMemory(data)
     return pcall(writefile, self.folder .. "/window.json", HttpService:JSONEncode(data))
 end
 
+-- Any small JSON file in the folder (custom themes...): Config:ReadJSON("themes"), :WriteJSON("themes", data)
+function Config:ReadJSON(name)
+    local file = self.folder .. "/" .. cleanName(name) .. ".json"
+    if not can("readfile", "isfile") or not isfile(file) then return {} end
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
+    return ok and type(data) == "table" and data or {}
+end
+function Config:WriteJSON(name, data)
+    if not can("writefile") then return false end
+    self:_ensure()
+    return pcall(writefile, self.folder .. "/" .. cleanName(name) .. ".json", HttpService:JSONEncode(data))
+end
+
 -- Profiles keep extra info (when saved) in <Folder>/profiles.json.
 function Config:ReadMeta()
-    if not can("readfile", "isfile") or not isfile(self.folder .. "/profiles.json") then return {} end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(self.folder .. "/profiles.json")) end)
+    if not can("readfile", "isfile") or not isfile(self:_scopeFile("profiles.json")) then return {} end
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(self:_scopeFile("profiles.json"))) end)
     return ok and type(data) == "table" and data or {}
 end
 function Config:WriteMeta(data)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self.folder .. "/profiles.json", HttpService:JSONEncode(data))
+    return pcall(writefile, self:_scopeFile("profiles.json"), HttpService:JSONEncode(data))
 end
 
 -- Snapshot of every flag right now (used as the locked "Default" profile).
@@ -291,7 +319,7 @@ function Config:Copy(name, new)
     return pcall(writefile, self.path .. "/" .. new .. ".json", text)
 end
 function Config:ClearAutoLoad()
-    if can("delfile", "isfile") and isfile(self.folder .. "/autoload.txt") then pcall(delfile, self.folder .. "/autoload.txt") end
+    if can("delfile", "isfile") and isfile(self:_scopeFile("autoload.txt")) then pcall(delfile, self:_scopeFile("autoload.txt")) end
 end
 
 return Config

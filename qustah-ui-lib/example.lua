@@ -2,7 +2,9 @@
 local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/dist/qustah-ui-lib.lua"))()
 
 local Window = Lib:CreateWindow({
-    Debug     = false,                    -- true: a notification for every callback error (Settings › Info has the switch)
+    Debug     = false,
+    PerGame   = false,                    -- "Game": every game gets its own profiles (also a switch in Settings › Profiles)
+    UnlockMouse = true,                   -- the mouse is free while the menu is open (shift lock / first person)                    -- true: a notification for every callback error (Settings › Info has the switch)
     Title     = "Qustāh",
     Version   = "V1.00",
     Folder    = "Qustah",                 -- configs go to Qustah/configs/*.json
@@ -48,8 +50,10 @@ Text:Dropdown({ Title = "Show", Flag = "parts", Multi = true, Options = { "Name"
 
 ------------------------------------------------------------------------ Silent: one page, locked element
 local Silent = Window:Tab({ Title = "Silent", Icon = "crosshair" })
-local Aim = Silent:Card({ Title = "Silent Aim" })
-local silentToggle = Aim:Toggle({ Title = "Silent Aim", Desc = "Hits targets inside the FOV.", Flag = "silentAim", Bindable = true })
+local Aim = Silent:Card({ Title = "Silent Aim", Desc = "Redirects your shots to the target" })   -- cards fold with the arrow
+Silent.Pages[1]:Warning("Silent aim can be detected in ranked servers.", { Title = "Risky features" })
+local silentToggle = Aim:Toggle({ Title = "Silent Aim", Desc = "Hits targets inside the FOV.", Flag = "silentAim", Bindable = true,
+    Risky = "Can get you flagged in ranked" })   -- red title + this text on the "i"
 local prediction = Aim:Toggle({ Title = "Prediction", Desc = "Predicts target movement.", Flag = "prediction",
     Locked = true, LockedTitle = "Turn on Silent Aim first" })
 silentToggle:OnChanged(function(on) if on then prediction:Unlock() else prediction:Lock("Turn on Silent Aim first") end end)
@@ -108,6 +112,10 @@ local About = Misc:Card({ Title = "About" })
 About:Paragraph({ Title = "qustah-ui-lib", Content = "Every element on these pages comes from the library; the script only adds its features." })
 About:Divider()
 About:Button({ Title = "Notify", Callback = function() Window:Notify({ Title = "Hello", Content = "This is a notification", Duration = 3 }) end })
+About:Button({ Title = "Progress toast", Icon = "loader", Callback = function()
+    local toast = Window:Notify({ Title = "Farming", Steps = 5, Content = "Starting", Icon = "sprout", Sound = true })
+    for step = 1, 5 do task.wait(0.6) toast:SetStep(step, step == 5 and "Done" or "Quest " .. step) end
+end })
 
 ------------------------------------------------------------------------ key hint above the footer (MENU hint on the right is automatic)
 Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Side = "Left", Flag = "espKey",

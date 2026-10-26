@@ -230,6 +230,19 @@ Lib.Icons.List("lucide")           -- bütün isimler
 - Light'ta açık accent renkleri (yeşil, sarı, cyan...) okunacak kadar otomatik koyulaşır (kartta 3:1 kontrast); seçtiğin renk `Theme.get("accentUser")`'da durur. Light'ta açık toggle'lar daha koyu dolgulu.
 - Neutral preset'in rengi pakete göre değişir (Light'ta koyu gri).
 
+### v1.5 (Obsidian'dan fikirler)
+
+- **Mouse serbest:** menü açıkken shift lock / first person'da mouse kilitli kalmaz (`UnlockMouse = false` kapatır, Settings › Window › Free mouse).
+- **Keybind listesi tıklanır:** satıra tıkla = tuşa basmış gibi (toggle açılır/kapanır, keybind çalışır). `-` listeyi katlar, göz butonu düzenleme modu: satırları gizle/göster (pencereyle birlikte hatırlanır).
+- **Risky:** `Toggle({ Risky = true })` ya da `Risky = "açıklama"` -> kırmızı başlık (+ "i" ipucu). Button'da da var.
+- **Sayfa uyarısı:** `page:Warning("metin", { Title, Icon, Level = "warning" | "danger" | "info" })` ya da `Tab:Page("Ad", { Warning = "..." })`.
+- **20 tema:** Dark, Midnight, AMOLED, Light, Latte, Tokyo Night, Catppuccin, Dracula, Nord, Gruvbox, One Dark, Monokai, Rose Pine, Everforest, Kanagawa, Solarized, Oceanic, Fatality, Mint, Cyberpunk. Hepsi otomatik kontrast kontrolünden geçer; paletli temalar kendi accent rengiyle gelir (seçtiğin özel accent korunur).
+- **Tema editörü** (Settings › Interface › Theme editor): renkleri tek tek değiştir, isim verip kaydet (listeye eklenir), `QTHEME1:` koduyla paylaş / içe aktar, sil.
+- **Oyuna göre profiller:** `CreateWindow({ PerGame = "Game" | "Place" })` ya da Profiles › "Separate profiles per game": her oyunun kendi profil listesi ve autoload'u.
+- **Katlanan kartlar:** her başlıklı kartta ok (`Collapsible = false` kaldırır, `Collapsed = true` kapalı başlar); durum hatırlanır. `Card({ Desc = "..." })` başlık altı açıklama, `card:SetCollapsed(bool)`.
+- **Dropdown:** anahtar/etiket değerleri (`Options = { pvp = "PvP mode" }` ya da `{ Value = "pvp", Title = "PvP mode" }`; Value anahtar), `Image` (renkli küçük resim), binlerce seçenek (parça parça çizilir, arama hepsinde), çoklu listede sürükleyerek seçme (`DragSelect = false` kapatır), `:GetLabel()`.
+- **Bildirim ilerlemesi:** `local t = Notify({ Title, Steps = 5, Content })` -> `t:SetStep(2, "Quest 2")`, ya da `Progress = 0` -> `t:SetProgress(0.5)`; sonuna gelince kapanır, `Persist = true` -> `t:Close()`. `Sound = true` (yerleşik kısa ses) ya da ses id, `Volume`.
+
 ## Geliştirme
 
 ```

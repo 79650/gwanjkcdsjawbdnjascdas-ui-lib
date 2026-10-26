@@ -68,13 +68,67 @@ function Card.new(page, column, cfg, order)
             Theme.bind(dot, "BackgroundColor3", "accent")
             corner(dot, ring == 0 and 3 or 6)
         end
-        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(icon and 18 or 13, 0), Size = UDim2.new(1, icon and -18 or -13, 1, 0), Font = Enum.Font.GothamMedium })
+        local collapsible = cfg.Collapsible ~= false
+        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(icon and 18 or 13, 0), Size = UDim2.new(1, (icon and -18 or -13) - (collapsible and 22 or 0), 1, 0), Font = Enum.Font.GothamMedium })
         Theme.bind(title, "TextColor3", "heading")
         self.titleLabel = title
+        -- Desc = "...": a muted line under the title
+        if cfg.Desc then
+            local desc = label(frame, tostring(cfg.Desc), 9, { Name = "CardDesc", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 1 })
+            Theme.bind(desc, "TextColor3", "muted")
+            self.descLabel = desc
+        end
+        -- collapse arrow (Collapsible = false removes it); the folded state is remembered per PC
+        if collapsible then
+            local arrow = create("TextButton", { Name = "Collapse", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 4, 0, 0), Size = UDim2.fromOffset(20, 20), Parent = head })
+            local chevron = create("Frame", { Name = "Chevron", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(10, 10), Parent = arrow })
+            local bars = {}
+            for index, rotation in ipairs({ 45, -45 }) do
+                local bar = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(index == 1 and 3 or 7, 5), Size = UDim2.fromOffset(6, 1.5), Rotation = rotation, BorderSizePixel = 0, Parent = chevron })
+                Theme.bind(bar, "BackgroundColor3", "muted")
+                bars[#bars + 1] = bar
+            end
+            arrow.MouseEnter:Connect(function() for _, bar in ipairs(bars) do Theme.tweenTo(bar, "BackgroundColor3", "heading", 0.1) end end)
+            arrow.MouseLeave:Connect(function() for _, bar in ipairs(bars) do Theme.tweenTo(bar, "BackgroundColor3", "muted", 0.1) end end)
+            self._chevron = chevron
+            arrow.Activated:Connect(function() self:SetCollapsed(not self.Collapsed) end)
+        end
+        self._key = tostring(page.tab and page.tab.Title or "") .. "/" .. tostring(page.Name or "") .. "/" .. tostring(cfg.Title)
     end
     self.frame, self.body = frame, frame
+    -- restore the folded state from the window memory
+    local memory = self.window.memory and self.window.memory.collapsed
+    if self._chevron and ((memory and memory[self._key]) or cfg.Collapsed) then
+        task.defer(function() self:SetCollapsed(true, true) end)
+    end
     return self
 end
+
+-- card:SetCollapsed(true) folds the card to its heading (elements keep working); card.Collapsed
+function Card:SetCollapsed(collapsed, quiet)
+    collapsed = collapsed == true
+    if collapsed == (self.Collapsed == true) then return end
+    self.Collapsed = collapsed
+    self._hidden = self._hidden or {}
+    for _, child in ipairs(self.frame:GetChildren()) do
+        if child:IsA("GuiObject") and child.Name ~= "Heading" and child.Name ~= "CardDesc" then
+            if collapsed then
+                if child.Visible then self._hidden[child] = true child.Visible = false end
+            elseif self._hidden[child] then
+                child.Visible = true
+            end
+        end
+    end
+    if not collapsed then self._hidden = {} end
+    if self._chevron then Util.tween(self._chevron, 0.15, { Rotation = collapsed and -90 or 0 }) end
+    local window = self.window
+    if self._key and window.memory and not quiet then
+        window.memory.collapsed = window.memory.collapsed or {}
+        window.memory.collapsed[self._key] = collapsed or nil
+        window:_saveMemory()
+    end
+end
+function Card:SetDesc(text) if self.descLabel then self.descLabel.Text = tostring(text) end end
 
 -- Layout order for the next row (steps of 2 so a colour picker can open its panel right under its row).
 function Card:_order()
@@ -89,7 +143,7 @@ function Card:Tabs(names, cfg)
     cfg = cfg or {}
     local holder
     if self.titleLabel then
-        holder = create("Frame", { Name = "Tabs", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 1), Size = UDim2.new(0.6, 0, 0, 18), Parent = self.titleLabel.Parent })
+        holder = create("Frame", { Name = "Tabs", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, self._chevron and -20 or 0, 0, 1), Size = UDim2.new(0.6, self._chevron and -20 or 0, 0, 18), Parent = self.titleLabel.Parent })
         self.titleLabel.Size = UDim2.new(0.4, -13, 1, 0)
     else
         holder = create("Frame", { Name = "Tabs", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = self:_order(), Parent = self.body })

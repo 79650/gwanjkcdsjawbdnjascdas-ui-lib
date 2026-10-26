@@ -7,6 +7,7 @@ local Util = require("util")
 local Theme = require("theme")
 local Stats = require("stats")
 local Glow = require("glow")
+local Icons = require("icons")
 
 local Services = Util.Services
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
@@ -57,33 +58,85 @@ return function(Window)
             local mod, key = element.Chord[1], element.Chord[2]
             return (mod and (Util.keyName(mod) .. " + ") or "") .. Util.keyName(key)
         end
+        if element.Type == "Toggle" then return Util.keyName(element.BindKey) end
         return Util.keyName(element.Value or element.BindKey)
     end
+    -- Window:KeybindList(true)  click a row = press it (toggles flip, keybinds fire); "-" folds the list;
+    -- the eye button switches to edit mode where rows can be hidden (remembered with the window).
     function Window:KeybindList(visible)
         visible = visible ~= false
         if not self._keybindHud then
             local panel, handle = self:_floating("Keybinds", 210, 60, Vector2.new(0.02, 0.18))
-            local caption = label(handle, "Keybinds", 10, { Position = UDim2.fromOffset(12, 3), Size = UDim2.new(1, -24, 1, -3), ZIndex = 72 })
+            local caption = label(handle, "Keybinds", 10, { Position = UDim2.fromOffset(12, 3), Size = UDim2.new(1, -70, 1, -3), ZIndex = 72 })
             Theme.bind(caption, "TextColor3", "muted")
-            local list = create("Frame", { Name = "List", BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 30), Size = UDim2.new(1, -24, 1, -36), ZIndex = 71, Parent = panel })
+            self.memory.hud = self.memory.hud or {}
+            local hidden = self.memory.hud.keybindsHidden or {}
+            local folded = self.memory.hud.keybindsFolded == true
+            local editing = false
+            local refresh
+            local function headerButton(name, x, icon)
+                local button = create("TextButton", { Name = name, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, x, 0, 5), Size = UDim2.fromOffset(20, 20), ZIndex = 74, Parent = handle })
+                local image = Icons.themed(button, icon, 12, "muted", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 75 })
+                button.MouseEnter:Connect(function() if image then Theme.tweenTo(image, "ImageColor3", "heading", 0.1) end end)
+                button.MouseLeave:Connect(function() if image then Theme.tweenTo(image, "ImageColor3", editing and name == "Edit" and "accent" or "muted", 0.1) end end)
+                return button, image
+            end
+            local foldButton, foldIcon = headerButton("Fold", -8, folded and "chevron-down" or "chevron-up")
+            local editButton, editIcon = headerButton("Edit", -30, "eye")
+            local function remember()
+                self.memory.hud.keybindsHidden, self.memory.hud.keybindsFolded = hidden, folded
+                self:_saveMemory()
+            end
+            foldButton.Activated:Connect(function()
+                folded = not folded
+                if foldIcon then Icons.Apply(foldIcon, folded and "chevron-down" or "chevron-up") end
+                remember()
+                refresh()
+            end)
+            editButton.Activated:Connect(function()
+                editing = not editing
+                if editIcon then Theme.tweenTo(editIcon, "ImageColor3", editing and "accent" or "muted", 0.1) end
+                caption.Text = editing and "Click to hide / show" or "Keybinds"
+                refresh()
+            end)
+
+            local list = create("Frame", { Name = "List", BackgroundTransparency = 1, Position = UDim2.fromOffset(8, 30), Size = UDim2.new(1, -16, 1, -36), ZIndex = 71, Parent = panel })
             Util.list(list, 2)
             local rows = {}
             local function row(index)
                 if rows[index] then return rows[index] end
-                local holder = create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = index, ZIndex = 72, Parent = list })
-                local name = label(holder, "", 10, { Size = UDim2.new(1, -74, 1, 0), ZIndex = 73 })
-                local key = label(holder, "", 9, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0, 72, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium, ZIndex = 73 })
+                local holder = create("TextButton", { Name = "Row", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = index, ZIndex = 72, Parent = list })
+                Theme.bind(holder, "BackgroundColor3", "hover")
+                corner(holder, 5)
+                local name = label(holder, "", 10, { Position = UDim2.fromOffset(4, 0), Size = UDim2.new(1, -80, 1, 0), ZIndex = 73 })
+                local key = label(holder, "", 9, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -4, 0, 0), Size = UDim2.new(0, 72, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium, ZIndex = 73 })
                 Theme.bind(key, "TextColor3", "muted")
-                rows[index] = { holder = holder, name = name, key = key }
-                return rows[index]
+                local r = { holder = holder, name = name, key = key }
+                holder.MouseEnter:Connect(function() holder.BackgroundTransparency = 0.4 end)
+                holder.MouseLeave:Connect(function() holder.BackgroundTransparency = 1 end)
+                holder.Activated:Connect(function()
+                    local entry = r.entry
+                    if not entry then return end
+                    if editing then
+                        if not entry.menu then hidden[entry.title] = not hidden[entry.title] or nil remember() end
+                    elseif entry.element and entry.element._onBind then
+                        self:_safe(entry.title, entry.element._onBind, entry.element)
+                    end
+                    refresh()
+                end)
+                rows[index] = r
+                return r
             end
-            local function refresh()
+            function refresh()
                 local entries = { { title = "Menu", key = Util.keyName(self.key), on = true, menu = true } }
                 for element, bound in pairs(self.binds) do
                     -- the settings menu-key row is the "Menu" entry already
                     if bound and element.Row and element.Row.Parent and element.Title and element.Flag ~= "__ui_menu_key" then
-                        local on = element.Type == "Toggle" and element.Value == true or element.Type ~= "Toggle"
-                        entries[#entries + 1] = { title = tostring(element.Title), key = chordText(element), on = on, toggle = element.Type == "Toggle" }
+                        local title = tostring(element.Title)
+                        if editing or not hidden[title] then
+                            local on = element.Type == "Toggle" and element.Value == true or element.Type ~= "Toggle"
+                            entries[#entries + 1] = { title = title, key = chordText(element), on = on, element = element, hidden = hidden[title] }
+                        end
                     end
                 end
                 table.sort(entries, function(a, b)
@@ -91,14 +144,19 @@ return function(Window)
                     if a.on ~= b.on then return a.on end
                     return a.title < b.title
                 end)
-                for index, entry in ipairs(entries) do
+                local shown = folded and 0 or #entries
+                for index = 1, shown do
+                    local entry = entries[index]
                     local r = row(index)
+                    r.entry = entry
                     r.holder.Visible = true
-                    r.name.Text, r.key.Text = entry.title, "[" .. entry.key .. "]"
-                    Theme.bind(r.name, "TextColor3", entry.on and "heading" or "muted")
+                    r.name.Text, r.key.Text = (entry.hidden and "· " or "") .. entry.title, "[" .. entry.key .. "]"
+                    Theme.bind(r.name, "TextColor3", entry.hidden and "muted" or (entry.on and "heading" or "muted"))
+                    r.name.TextTransparency = entry.hidden and 0.4 or 0
                 end
-                for index = #entries + 1, #rows do rows[index].holder.Visible = false end
-                panel.Size = UDim2.fromOffset(210, 36 + #entries * 22)
+                for index = shown + 1, #rows do rows[index].holder.Visible = false rows[index].entry = nil end
+                list.Visible = not folded
+                panel.Size = UDim2.fromOffset(210, folded and 30 or (36 + shown * 22))
             end
             self._keybindHud = { panel = panel, refresh = refresh }
             task.spawn(function()

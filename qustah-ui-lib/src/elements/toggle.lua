@@ -112,8 +112,8 @@ return function(card, cfg)
     local function flip() if not element.Locked then element:Set(not element.Value) end end
     row.Activated:Connect(flip)
     switch.Activated:Connect(flip)
-    row.MouseEnter:Connect(function() Theme.tweenTo(title, "TextColor3", "heading", 0.12) end)
-    row.MouseLeave:Connect(function() Theme.tweenTo(title, "TextColor3", "text", 0.12) end)
+    row.MouseEnter:Connect(function() Theme.tweenTo(title, "TextColor3", cfg.Risky and "danger" or "heading", 0.12) end)
+    row.MouseLeave:Connect(function() Theme.tweenTo(title, "TextColor3", cfg.Risky and "danger" or "text", 0.12) end)
 
     render(false)
     element:_fire(element.Value, true)

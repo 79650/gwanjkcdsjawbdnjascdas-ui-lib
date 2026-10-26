@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.4.1 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.5.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -75,13 +75,62 @@ BorderSizePixel=0,BackgroundTransparency=ring==0 and 0 or 0.91,Parent=head,
 Theme.bind(dot,"BackgroundColor3","accent")
 corner(dot,ring==0 and 3 or 6)
 end
-local title=label(head,tostring(cfg.Title),10,{Position=UDim2.fromOffset(icon and 18 or 13,0),Size=UDim2.new(1,icon and-18 or-13,1,0),Font=Enum.Font.GothamMedium})
+local collapsible=cfg.Collapsible~=false
+local title=label(head,tostring(cfg.Title),10,{Position=UDim2.fromOffset(icon and 18 or 13,0),Size=UDim2.new(1,(icon and-18 or-13)-(collapsible and 22 or 0),1,0),Font=Enum.Font.GothamMedium})
 Theme.bind(title,"TextColor3","heading")
 self.titleLabel=title
+if cfg.Desc then
+local desc=label(frame,tostring(cfg.Desc),9,{Name="CardDesc",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,TextTruncate=Enum.TextTruncate.None,LayoutOrder=1})
+Theme.bind(desc,"TextColor3","muted")
+self.descLabel=desc
+end
+if collapsible then
+local arrow=create("TextButton",{Name="Collapse",Text="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,4,0,0),Size=UDim2.fromOffset(20,20),Parent=head})
+local chevron=create("Frame",{Name="Chevron",BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(10,10),Parent=arrow})
+local bars={}
+for index,rotation in ipairs({45,-45})do
+local bar=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromOffset(index==1 and 3 or 7,5),Size=UDim2.fromOffset(6,1.5),Rotation=rotation,BorderSizePixel=0,Parent=chevron})
+Theme.bind(bar,"BackgroundColor3","muted")
+bars[#bars+1]=bar
+end
+arrow.MouseEnter:Connect(function()for _,bar in ipairs(bars)do Theme.tweenTo(bar,"BackgroundColor3","heading",0.1)end end)
+arrow.MouseLeave:Connect(function()for _,bar in ipairs(bars)do Theme.tweenTo(bar,"BackgroundColor3","muted",0.1)end end)
+self._chevron=chevron
+arrow.Activated:Connect(function()self:SetCollapsed(not self.Collapsed)end)
+end
+self._key=tostring(page.tab and page.tab.Title or"").."/"..tostring(page.Name or"").."/"..tostring(cfg.Title)
 end
 self.frame,self.body=frame,frame
+local memory=self.window.memory and self.window.memory.collapsed
+if self._chevron and((memory and memory[self._key])or cfg.Collapsed)then
+task.defer(function()self:SetCollapsed(true,true)end)
+end
 return self
 end
+function Card:SetCollapsed(collapsed,quiet)
+collapsed=collapsed==true
+if collapsed==(self.Collapsed==true)then return end
+self.Collapsed=collapsed
+self._hidden=self._hidden or{}
+for _,child in ipairs(self.frame:GetChildren())do
+if child:IsA("GuiObject")and child.Name~="Heading"and child.Name~="CardDesc"then
+if collapsed then
+if child.Visible then self._hidden[child]=true child.Visible=false end
+elseif self._hidden[child]then
+child.Visible=true
+end
+end
+end
+if not collapsed then self._hidden={}end
+if self._chevron then Util.tween(self._chevron,0.15,{Rotation=collapsed and-90 or 0})end
+local window=self.window
+if self._key and window.memory and not quiet then
+window.memory.collapsed=window.memory.collapsed or{}
+window.memory.collapsed[self._key]=collapsed or nil
+window:_saveMemory()
+end
+end
+function Card:SetDesc(text)if self.descLabel then self.descLabel.Text=tostring(text)end end
 function Card:_order()
 self.order=self.order+2
 return self.order
@@ -90,7 +139,7 @@ function Card:Tabs(names,cfg)
 cfg=cfg or{}
 local holder
 if self.titleLabel then
-holder=create("Frame",{Name="Tabs",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,1),Size=UDim2.new(0.6,0,0,18),Parent=self.titleLabel.Parent})
+holder=create("Frame",{Name="Tabs",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,self._chevron and-20 or 0,0,1),Size=UDim2.new(0.6,self._chevron and-20 or 0,0,18),Parent=self.titleLabel.Parent})
 self.titleLabel.Size=UDim2.new(0.4,-13,1,0)
 else
 holder=create("Frame",{Name="Tabs",BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=self:_order(),Parent=self.body})
@@ -257,9 +306,20 @@ function Config:_setCustom(custom)
 self.Custom=type(custom)=="table"and custom or{}
 for _,listener in ipairs(self._dataListeners or{})do Util.safe(listener,self.Custom)end
 end
+function Config:SetPerGame(mode)
+if mode==true then mode="Game"end
+self.perGame=(mode=="Game"or mode=="Place")and mode or nil
+local id=self.perGame=="Place"and game.PlaceId or(self.perGame=="Game"and game.GameId)or nil
+self.path=self.folder.."/configs"..(id and("/"..tostring(id))or"")
+self:_setActive(nil,nil)
+end
+function Config:_scopeFile(name)
+return(self.perGame and self.path or self.folder).."/"..name
+end
 function Config:_ensure()
 if not can("isfolder","makefolder")then return false end
 if not isfolder(self.folder)then makefolder(self.folder)end
+if not isfolder(self.folder.."/configs")then makefolder(self.folder.."/configs")end
 if not isfolder(self.path)then makefolder(self.path)end
 return true
 end
@@ -381,11 +441,11 @@ end
 function Config:SetAutoLoad(name)
 if not can("writefile")then return false end
 self:_ensure()
-return pcall(writefile,self.folder.."/autoload.txt",cleanName(name))
+return pcall(writefile,self:_scopeFile("autoload.txt"),cleanName(name))
 end
 function Config:GetAutoLoad()
-if not can("readfile","isfile")or not isfile(self.folder.."/autoload.txt")then return nil end
-local ok,name=pcall(readfile,self.folder.."/autoload.txt")
+if not can("readfile","isfile")or not isfile(self:_scopeFile("autoload.txt"))then return nil end
+local ok,name=pcall(readfile,self:_scopeFile("autoload.txt"))
 name=ok and cleanName(name)or""
 return name~=""and name or nil
 end
@@ -404,15 +464,26 @@ if not can("writefile")then return false end
 self:_ensure()
 return pcall(writefile,self.folder.."/window.json",HttpService:JSONEncode(data))
 end
+function Config:ReadJSON(name)
+local file=self.folder.."/"..cleanName(name)..".json"
+if not can("readfile","isfile")or not isfile(file)then return{}end
+local ok,data=pcall(function()return HttpService:JSONDecode(readfile(file))end)
+return ok and type(data)=="table"and data or{}
+end
+function Config:WriteJSON(name,data)
+if not can("writefile")then return false end
+self:_ensure()
+return pcall(writefile,self.folder.."/"..cleanName(name)..".json",HttpService:JSONEncode(data))
+end
 function Config:ReadMeta()
-if not can("readfile","isfile")or not isfile(self.folder.."/profiles.json")then return{}end
-local ok,data=pcall(function()return HttpService:JSONDecode(readfile(self.folder.."/profiles.json"))end)
+if not can("readfile","isfile")or not isfile(self:_scopeFile("profiles.json"))then return{}end
+local ok,data=pcall(function()return HttpService:JSONDecode(readfile(self:_scopeFile("profiles.json")))end)
 return ok and type(data)=="table"and data or{}
 end
 function Config:WriteMeta(data)
 if not can("writefile")then return false end
 self:_ensure()
-return pcall(writefile,self.folder.."/profiles.json",HttpService:JSONEncode(data))
+return pcall(writefile,self:_scopeFile("profiles.json"),HttpService:JSONEncode(data))
 end
 function Config:Snapshot()
 local data={}
@@ -465,7 +536,7 @@ if not ok then return false,"Profile not found"end
 return pcall(writefile,self.path.."/"..new..".json",text)
 end
 function Config:ClearAutoLoad()
-if can("delfile","isfile")and isfile(self.folder.."/autoload.txt")then pcall(delfile,self.folder.."/autoload.txt")end
+if can("delfile","isfile")and isfile(self:_scopeFile("autoload.txt"))then pcall(delfile,self:_scopeFile("autoload.txt"))end
 end
 return Config
 end
@@ -809,7 +880,8 @@ local title=label(row,tostring(cfg.Title or""),11,{
 Name="Title",Position=UDim2.fromOffset(0,cfg.Desc and 3 or 0),
 Size=UDim2.new(1,-right,0,cfg.Desc and 18 or(opts.titleHeight or height)),
 })
-Theme.bind(title,"TextColor3","text")
+Theme.bind(title,"TextColor3",cfg.Risky and"danger"or"text")
+if type(cfg.Risky)=="string"and not cfg.Help then cfg.Help=cfg.Risky end
 local desc
 if cfg.Desc then
 desc=label(row,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(0,23),Size=UDim2.new(1,-right,0,14)})
@@ -904,7 +976,7 @@ Name="Button",Size=UDim2.new(1,0,0,28),BorderSizePixel=0,Text=tostring(cfg.Title
 TextSize=10,Font=Enum.Font.Gotham,AutoButtonColor=false,Parent=row,
 })
 Theme.bind(button,"BackgroundColor3","input")
-Theme.bind(button,"TextColor3","text")
+Theme.bind(button,"TextColor3",cfg.Risky and"danger"or"text")
 corner(button,6)
 local outline=stroke(button)
 Theme.bind(outline,"Color","buttonEdge")
@@ -929,7 +1001,7 @@ element.Text=tostring(cfg.Title or"Button")
 function element:SetTitle(text)self.Text=tostring(text)button.Text=self.Text end
 function element:Fire()card.window:_safe(element.Text,cfg.Callback)end
 button.MouseEnter:Connect(function()Theme.tweenTo(button,"BackgroundColor3","hover",0.12)Theme.tweenTo(button,"TextColor3","heading",0.12)end)
-button.MouseLeave:Connect(function()Theme.tweenTo(button,"BackgroundColor3","input",0.12)Theme.tweenTo(button,"TextColor3","text",0.12)end)
+button.MouseLeave:Connect(function()Theme.tweenTo(button,"BackgroundColor3","input",0.12)Theme.tweenTo(button,"TextColor3",cfg.Risky and"danger"or"text",0.12)end)
 local armed=0
 button.Activated:Connect(function()
 if element.Locked then return end
@@ -1272,21 +1344,36 @@ local Theme=require("theme")
 local Base=require("elements/base")
 local Icons=require("icons")
 local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
-local ITEM,ITEM_DESC,MAX_HEIGHT,SEARCH=24,34,176,28
+local ITEM,ITEM_DESC,MAX_HEIGHT,SEARCH,CHUNK=24,34,176,28,60
 return function(card,cfg)
 local window=card.window
 local multi=cfg.Multi==true
 local options,info={},{}
 local function setOptions(list)
 options,info={},{}
-for _,option in ipairs(list or{})do
+list=list or{}
+local isArray=#list>0 or next(list)==nil
+if isArray then
+for _,option in ipairs(list)do
 local entry=type(option)=="table"and option or{Title=option}
-local name=tostring(entry.Title or entry.Name or entry[1]or"")
-options[#options+1]=name
-info[name]=entry
+local key=tostring(entry.Value or entry.Title or entry.Name or entry[1]or"")
+entry.Title=tostring(entry.Title or entry.Name or entry[1]or key)
+if not info[key]then options[#options+1]=key end
+info[key]=entry
+end
+else
+for key,value in pairs(list)do
+local entry=type(value)=="table"and value or{Title=tostring(value)}
+entry.Title=tostring(entry.Title or key)
+key=tostring(key)
+options[#options+1]=key
+info[key]=entry
+end
+table.sort(options,function(a,b)return info[a].Title:lower()<info[b].Title:lower()end)
 end
 end
 setOptions(cfg.Options or cfg.Values)
+local function titleOf(key)return info[key]and info[key].Title or tostring(key)end
 local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=160})
 title.Size=UDim2.new(0.55,-8-title.Position.X.Offset,0,title.Size.Y.Offset)
 if desc then desc.Size=UDim2.new(0.55,-8-desc.Position.X.Offset,0,14)end
@@ -1299,7 +1386,6 @@ corner(button,6)
 Theme.bind(stroke(button),"Color","buttonEdge")
 create("UISizeConstraint",{MaxSize=Vector2.new(170,24),Parent=button})
 local valueIcon=create("ImageLabel",{Name="ValueIcon",BackgroundTransparency=1,AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0.5,0),Size=UDim2.fromOffset(12,12),Visible=false,Parent=button})
-Theme.bind(valueIcon,"ImageColor3","text")
 local valueLabel=label(button,"",10,{Position=UDim2.fromOffset(9,0),Size=UDim2.new(1,-28,1,0)})
 Theme.bind(valueLabel,"TextColor3","text")
 local arrow=create("Frame",{Name="Chevron",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,1),Size=UDim2.fromOffset(10,6),Parent=button})
@@ -1319,23 +1405,38 @@ local function chosen(option)
 if multi then return table.find(element.Value,option)~=nil end
 return element.Value==option
 end
+local function applyVisual(image,entry,role)
+if entry.Image then
+if not Icons.Apply(image,entry.Image)then image.Image=tostring(entry.Image)end
+Theme.bind(image,"ImageColor3",Color3.new(1,1,1))
+return true
+elseif entry.Icon and Icons.Apply(image,entry.Icon)then
+Theme.bind(image,"ImageColor3",role)
+return true
+end
+return false
+end
 local function render()
 local text
 if multi then
-text=#element.Value>0 and table.concat(element.Value,", ")or"None"
+local titles={}
+for _,key in ipairs(element.Value)do titles[#titles+1]=titleOf(key)end
+text=#titles>0 and table.concat(titles,", ")or"None"
 else
-text=element.Value or"None"
+text=element.Value and titleOf(element.Value)or"None"
 end
 valueLabel.Text=text
 local entry=not multi and element.Value and info[element.Value]
-local hasIcon=entry and entry.Icon and Icons.Apply(valueIcon,entry.Icon)
-valueIcon.Visible=hasIcon==true
-valueLabel.Position=UDim2.fromOffset(hasIcon and 26 or 9,0)
-valueLabel.Size=UDim2.new(1,hasIcon and-45 or-28,1,0)
+local hasVisual=entry and applyVisual(valueIcon,entry,"text")or false
+valueIcon.Visible=hasVisual
+valueLabel.Position=UDim2.fromOffset(hasVisual and 26 or 9,0)
+valueLabel.Size=UDim2.new(1,hasVisual and-45 or-28,1,0)
 end
 local popup
+local dragging
 local function closeList()
 if popup then popup:Destroy()popup=nil end
+dragging=nil
 tintArrow("muted")
 end
 local function itemHeight(option)return info[option]and info[option].Desc and ITEM_DESC or ITEM end
@@ -1344,14 +1445,20 @@ closeList()
 local position,size=button.AbsolutePosition,button.AbsoluteSize
 local viewport=Util.viewport()
 local searchable=cfg.Search==true or(cfg.Search~=false and#options>8)
-local contentHeight=8
-for _,option in ipairs(options)do contentHeight=contentHeight+itemHeight(option)end
-local listHeight=math.min(contentHeight,MAX_HEIGHT)
+local fullHeight=8
+for index,option in ipairs(options)do
+fullHeight=fullHeight+itemHeight(option)
+if index>200 then fullHeight=MAX_HEIGHT break end
+end
+local listHeight=math.min(fullHeight,MAX_HEIGHT)
 local top=25+(searchable and SEARCH+4 or 0)
 local total=top+listHeight
 local scale=window.scale and window.scale.Scale or 1
 local hasDesc=false
-for _,option in ipairs(options)do if info[option]and info[option].Desc then hasDesc=true end end
+for index,option in ipairs(options)do
+if info[option]and info[option].Desc then hasDesc=true break end
+if index>200 then break end
+end
 local width=math.max(size.X/scale,cfg.ListWidth or(hasDesc and 190 or 140))
 local roomBelow,roomAbove=viewport.Y-8-position.Y,position.Y+size.Y-8
 local below=roomBelow>=total*scale or roomBelow>=roomAbove
@@ -1401,31 +1508,48 @@ end
 local scroller=create("ScrollingFrame",{
 Name="Options",BackgroundTransparency=1,BorderSizePixel=0,ZIndex=261,ScrollBarThickness=2,
 Position=UDim2.fromOffset(0,bodyTop),Size=UDim2.new(1,0,0,listHeight),
-CanvasSize=UDim2.fromOffset(0,contentHeight),ScrollingDirection=Enum.ScrollingDirection.Y,Parent=popup,
+CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollingDirection=Enum.ScrollingDirection.Y,Parent=popup,
 })
 Theme.bind(scroller,"ScrollBarImageColor3","muted")
 Util.padding(scroller,4,4,4,4)
 Util.list(scroller,0)
-local empty=label(scroller,"No matches",10,{Name="Empty",Size=UDim2.new(1,0,0,ITEM),TextXAlignment=Enum.TextXAlignment.Center,Visible=false,ZIndex=262,LayoutOrder=100000})
+local empty=label(scroller,"No matches",10,{Name="Empty",Size=UDim2.new(1,0,0,ITEM),TextXAlignment=Enum.TextXAlignment.Center,Visible=false,ZIndex=262,LayoutOrder=1e6})
 Theme.bind(empty,"TextColor3","muted")
+local more=label(scroller,"",9,{Name="More",Size=UDim2.new(1,0,0,ITEM),TextXAlignment=Enum.TextXAlignment.Center,Visible=false,ZIndex=262,LayoutOrder=1e6+1})
+Theme.bind(more,"TextColor3","muted")
 local function refreshHeader()headerText.Text=valueLabel.Text end
 local items={}
-for index,option in ipairs(options)do
-local entry=info[option]or{}
+local function paint(option,entry,text,icon,check)
+local on=chosen(option)
+Theme.tweenTo(text,"TextColor3",on and"accent"or"text",0.1)
+if icon and not entry.Image then Theme.tweenTo(icon,"ImageColor3",on and"accent"or"muted",0.1)end
+check.Visible=on
+end
+local function setChosen(option,on)
+local list=table.clone(element.Value)
+local at=table.find(list,option)
+if on and not at then list[#list+1]=option elseif not on and at then table.remove(list,at)end
+element:Set(list)
+refreshHeader()
+end
+local function buildItem(option,order)
+local entry=info[option]or{Title=option}
 local height=itemHeight(option)
 local locked=entry.Locked==true
 local item=create("TextButton",{
 Name=option,Text="",AutoButtonColor=false,BackgroundTransparency=1,BorderSizePixel=0,
-Size=UDim2.new(1,0,0,height),LayoutOrder=index,ZIndex=262,Parent=scroller,
+Size=UDim2.new(1,0,0,height),LayoutOrder=order,ZIndex=262,Parent=scroller,
 })
 Theme.bind(item,"BackgroundColor3","hover")
 corner(item,5)
 local textX=8
-local icon=entry.Icon and Icons.themed(item,entry.Icon,12,chosen(option)and"accent"or"muted",{
-AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0,entry.Desc and 12 or height/2),ZIndex=263,
+local icon=create("ImageLabel",{
+Name="Icon",BackgroundTransparency=1,AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0,entry.Desc and 12 or height/2),
+Size=UDim2.fromOffset(entry.Image and 16 or 12,entry.Image and 16 or 12),ZIndex=263,Parent=item,
 })
-if icon then textX=26 end
-local text=label(item,option,10,{Position=UDim2.fromOffset(textX,entry.Desc and 3 or 0),Size=UDim2.new(1,-textX-20,0,entry.Desc and 17 or height),ZIndex=263})
+if entry.Image then corner(icon,4)end
+if applyVisual(icon,entry,chosen(option)and"accent"or"muted")then textX=entry.Image and 30 or 26 else icon:Destroy()icon=nil end
+local text=label(item,entry.Title,10,{Position=UDim2.fromOffset(textX,entry.Desc and 3 or 0),Size=UDim2.new(1,-textX-20,0,entry.Desc and 17 or height),ZIndex=263})
 Theme.bind(text,"TextColor3",chosen(option)and"accent"or"text")
 if entry.Desc then
 local sub=label(item,tostring(entry.Desc),9,{Position=UDim2.fromOffset(textX,18),Size=UDim2.new(1,-textX-20,0,13),ZIndex=263})
@@ -1440,39 +1564,64 @@ local check=create("Frame",{Name="Check",AnchorPoint=Vector2.new(1,0.5),Position
 corner(check,3)
 Theme.bind(check,"BackgroundColor3","accent")
 items[option]=item
-item.MouseEnter:Connect(function()if not locked then item.BackgroundTransparency=0 end end)
+item.MouseEnter:Connect(function()
+if not locked then item.BackgroundTransparency=0 end
+if dragging~=nil and not locked and chosen(option)~=dragging then
+setChosen(option,dragging)
+paint(option,entry,text,icon,check)
+end
+end)
 item.MouseLeave:Connect(function()item.BackgroundTransparency=1 end)
+if multi then
+item.InputBegan:Connect(function(input)
+if locked or not Util.isPress(input)then return end
+local target=not chosen(option)
+setChosen(option,target)
+paint(option,entry,text,icon,check)
+if cfg.DragSelect~=false and input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=target end
+end)
+else
 item.Activated:Connect(function()
 if locked then return end
-if multi then
-local list=table.clone(element.Value)
-local at=table.find(list,option)
-if at then table.remove(list,at)else list[#list+1]=option end
-element:Set(list)
-Theme.tweenTo(text,"TextColor3",chosen(option)and"accent"or"text",0.1)
-if icon then Theme.tweenTo(icon,"ImageColor3",chosen(option)and"accent"or"muted",0.1)end
-check.Visible=chosen(option)
-refreshHeader()
-else
 if element.Value==option and cfg.AllowNone then element:Set(nil)else element:Set(option)end
 window:_closePopup()
-end
 end)
 end
-if searchBox then
-searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-local query=searchBox.Text:lower()
-local shown,height=0,8
+return item
+end
+local shown,drawn={},0
+local function drawMore()
+local limit=math.min(#shown,drawn+CHUNK)
+for index=drawn+1,limit do
+local option=shown[index]
+local item=items[option]or buildItem(option,index)
+item.LayoutOrder=index
+item.Visible=true
+end
+drawn=limit
+more.Visible=drawn<#shown
+more.Text=(#shown-drawn).." more - scroll or search"
+end
+local function filter(query)
+query=(query or""):lower()
+for _,item in pairs(items)do item.Visible=false end
+shown,drawn={},0
 for _,option in ipairs(options)do
 local entry=info[option]or{}
-local match=query==""or option:lower():find(query,1,true)~=nil
-or(entry.Desc~=nil and tostring(entry.Desc):lower():find(query,1,true)~=nil)
-items[option].Visible=match
-if match then shown=shown+1 height=height+itemHeight(option)end
+if query==""or entry.Title:lower():find(query,1,true)or option:lower():find(query,1,true)
+or(entry.Desc~=nil and tostring(entry.Desc):lower():find(query,1,true))then
+shown[#shown+1]=option
 end
-empty.Visible=shown==0
-scroller.CanvasSize=UDim2.fromOffset(0,shown==0 and ITEM+8 or height)
+end
+empty.Visible=#shown==0
+drawMore()
+end
+scroller:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+if drawn<#shown and scroller.CanvasPosition.Y+scroller.AbsoluteSize.Y>=scroller.AbsoluteCanvasSize.Y-60 then drawMore()end
 end)
+filter("")
+if searchBox then
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()filter(searchBox.Text)end)
 task.defer(function()pcall(function()searchBox:CaptureFocus()end)end)
 end
 tintArrow("accent")
@@ -1482,22 +1631,31 @@ button.Activated:Connect(function()
 if element.Locked then return end
 if popup then window:_closePopup()else openList()end
 end)
+window.maid:connect(Util.Services.UserInputService.InputEnded,function(input)
+if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=nil end
+end)
+local function resolve(value)
+value=tostring(value)
+if info[value]then return value end
+for _,key in ipairs(options)do if info[key].Title==value then return key end end
+return nil
+end
 function element:Set(value,silent)
 if multi then
 local list={}
 for _,option in ipairs(type(value)=="table"and value or{value})do
-option=tostring(option)
-if table.find(options,option)and not table.find(list,option)then list[#list+1]=option end
+local key=resolve(option)
+if key and not table.find(list,key)then list[#list+1]=key end
 end
 self.Value=list
 else
-value=value~=nil and tostring(value)or nil
-self.Value=(value and table.find(options,value))and value or nil
+self.Value=value~=nil and resolve(value)or nil
 end
 render()
 self:_fire(self.Value,silent)
 end
 function element:Get()return self.Value end
+function element:GetLabel(key)return titleOf(key or self.Value)end
 function element:SetOptions(list,keep)
 setOptions(list)
 self.Options=options
@@ -2723,8 +2881,8 @@ end
 local function flip()if not element.Locked then element:Set(not element.Value)end end
 row.Activated:Connect(flip)
 switch.Activated:Connect(flip)
-row.MouseEnter:Connect(function()Theme.tweenTo(title,"TextColor3","heading",0.12)end)
-row.MouseLeave:Connect(function()Theme.tweenTo(title,"TextColor3","text",0.12)end)
+row.MouseEnter:Connect(function()Theme.tweenTo(title,"TextColor3",cfg.Risky and"danger"or"heading",0.12)end)
+row.MouseLeave:Connect(function()Theme.tweenTo(title,"TextColor3",cfg.Risky and"danger"or"text",0.12)end)
 render(false)
 element:_fire(element.Value,true)
 return Base.finish(element,cfg)
@@ -2938,6 +3096,7 @@ local Util=require("util")
 local Theme=require("theme")
 local Stats=require("stats")
 local Glow=require("glow")
+local Icons=require("icons")
 local Services=Util.Services
 local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
 return function(Window)
@@ -2983,32 +3142,81 @@ if element.Chord then
 local mod,key=element.Chord[1],element.Chord[2]
 return(mod and(Util.keyName(mod).." + ")or"")..Util.keyName(key)
 end
+if element.Type=="Toggle"then return Util.keyName(element.BindKey)end
 return Util.keyName(element.Value or element.BindKey)
 end
 function Window:KeybindList(visible)
 visible=visible~=false
 if not self._keybindHud then
 local panel,handle=self:_floating("Keybinds",210,60,Vector2.new(0.02,0.18))
-local caption=label(handle,"Keybinds",10,{Position=UDim2.fromOffset(12,3),Size=UDim2.new(1,-24,1,-3),ZIndex=72})
+local caption=label(handle,"Keybinds",10,{Position=UDim2.fromOffset(12,3),Size=UDim2.new(1,-70,1,-3),ZIndex=72})
 Theme.bind(caption,"TextColor3","muted")
-local list=create("Frame",{Name="List",BackgroundTransparency=1,Position=UDim2.fromOffset(12,30),Size=UDim2.new(1,-24,1,-36),ZIndex=71,Parent=panel})
+self.memory.hud=self.memory.hud or{}
+local hidden=self.memory.hud.keybindsHidden or{}
+local folded=self.memory.hud.keybindsFolded==true
+local editing=false
+local refresh
+local function headerButton(name,x,icon)
+local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,x,0,5),Size=UDim2.fromOffset(20,20),ZIndex=74,Parent=handle})
+local image=Icons.themed(button,icon,12,"muted",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),ZIndex=75})
+button.MouseEnter:Connect(function()if image then Theme.tweenTo(image,"ImageColor3","heading",0.1)end end)
+button.MouseLeave:Connect(function()if image then Theme.tweenTo(image,"ImageColor3",editing and name=="Edit"and"accent"or"muted",0.1)end end)
+return button,image
+end
+local foldButton,foldIcon=headerButton("Fold",-8,folded and"chevron-down"or"chevron-up")
+local editButton,editIcon=headerButton("Edit",-30,"eye")
+local function remember()
+self.memory.hud.keybindsHidden,self.memory.hud.keybindsFolded=hidden,folded
+self:_saveMemory()
+end
+foldButton.Activated:Connect(function()
+folded=not folded
+if foldIcon then Icons.Apply(foldIcon,folded and"chevron-down"or"chevron-up")end
+remember()
+refresh()
+end)
+editButton.Activated:Connect(function()
+editing=not editing
+if editIcon then Theme.tweenTo(editIcon,"ImageColor3",editing and"accent"or"muted",0.1)end
+caption.Text=editing and"Click to hide / show"or"Keybinds"
+refresh()
+end)
+local list=create("Frame",{Name="List",BackgroundTransparency=1,Position=UDim2.fromOffset(8,30),Size=UDim2.new(1,-16,1,-36),ZIndex=71,Parent=panel})
 Util.list(list,2)
 local rows={}
 local function row(index)
 if rows[index]then return rows[index]end
-local holder=create("Frame",{BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=index,ZIndex=72,Parent=list})
-local name=label(holder,"",10,{Size=UDim2.new(1,-74,1,0),ZIndex=73})
-local key=label(holder,"",9,{AnchorPoint=Vector2.new(1,0),Position=UDim2.fromScale(1,0),Size=UDim2.new(0,72,1,0),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium,ZIndex=73})
+local holder=create("TextButton",{Name="Row",Text="",AutoButtonColor=false,BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=index,ZIndex=72,Parent=list})
+Theme.bind(holder,"BackgroundColor3","hover")
+corner(holder,5)
+local name=label(holder,"",10,{Position=UDim2.fromOffset(4,0),Size=UDim2.new(1,-80,1,0),ZIndex=73})
+local key=label(holder,"",9,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-4,0,0),Size=UDim2.new(0,72,1,0),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium,ZIndex=73})
 Theme.bind(key,"TextColor3","muted")
-rows[index]={holder=holder,name=name,key=key}
-return rows[index]
+local r={holder=holder,name=name,key=key}
+holder.MouseEnter:Connect(function()holder.BackgroundTransparency=0.4 end)
+holder.MouseLeave:Connect(function()holder.BackgroundTransparency=1 end)
+holder.Activated:Connect(function()
+local entry=r.entry
+if not entry then return end
+if editing then
+if not entry.menu then hidden[entry.title]=not hidden[entry.title]or nil remember()end
+elseif entry.element and entry.element._onBind then
+self:_safe(entry.title,entry.element._onBind,entry.element)
 end
-local function refresh()
+refresh()
+end)
+rows[index]=r
+return r
+end
+function refresh()
 local entries={{title="Menu",key=Util.keyName(self.key),on=true,menu=true}}
 for element,bound in pairs(self.binds)do
 if bound and element.Row and element.Row.Parent and element.Title and element.Flag~="__ui_menu_key"then
+local title=tostring(element.Title)
+if editing or not hidden[title]then
 local on=element.Type=="Toggle"and element.Value==true or element.Type~="Toggle"
-entries[#entries+1]={title=tostring(element.Title),key=chordText(element),on=on,toggle=element.Type=="Toggle"}
+entries[#entries+1]={title=title,key=chordText(element),on=on,element=element,hidden=hidden[title]}
+end
 end
 end
 table.sort(entries,function(a,b)
@@ -3016,14 +3224,19 @@ if a.menu~=b.menu then return a.menu==true end
 if a.on~=b.on then return a.on end
 return a.title<b.title
 end)
-for index,entry in ipairs(entries)do
+local shown=folded and 0 or#entries
+for index=1,shown do
+local entry=entries[index]
 local r=row(index)
+r.entry=entry
 r.holder.Visible=true
-r.name.Text,r.key.Text=entry.title,"["..entry.key.."]"
-Theme.bind(r.name,"TextColor3",entry.on and"heading"or"muted")
+r.name.Text,r.key.Text=(entry.hidden and"· "or"")..entry.title,"["..entry.key.."]"
+Theme.bind(r.name,"TextColor3",entry.hidden and"muted"or(entry.on and"heading"or"muted"))
+r.name.TextTransparency=entry.hidden and 0.4 or 0
 end
-for index=#entries+1,#rows do rows[index].holder.Visible=false end
-panel.Size=UDim2.fromOffset(210,36+#entries*22)
+for index=shown+1,#rows do rows[index].holder.Visible=false rows[index].entry=nil end
+list.Visible=not folded
+panel.Size=UDim2.fromOffset(210,folded and 30 or(36+shown*22))
 end
 self._keybindHud={panel=panel,refresh=refresh}
 task.spawn(function()
@@ -3749,7 +3962,7 @@ require("hud")(Window)
 require("inbox")(Window)
 require("windowx")(Window)
 local Lib={
-Version="1.4.1",
+Version="1.5.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -3802,7 +4015,8 @@ for _,listener in ipairs(Lib._historyListeners or{})do Util.safe(listener)end
 end
 Lib._toastOrder=(Lib._toastOrder or 0)+1
 local duration=tonumber(cfg.Duration)or 3
-local hasContent=cfg.Content~=nil and cfg.Content~=""
+local tracked=cfg.Progress~=nil or cfg.Steps~=nil or cfg.Persist==true
+local hasContent=(cfg.Content~=nil and cfg.Content~="")or cfg.Steps~=nil
 local buttons=type(cfg.Buttons)=="table"and#cfg.Buttons>0 and cfg.Buttons or nil
 if buttons and not cfg.Duration then duration=6 end
 local textHeight=hasContent and 50 or 34
@@ -3831,11 +4045,12 @@ icon.Parent=toast
 textX=36
 end
 local closeRoom=cfg.CanClose~=false and 22 or 0
+local contentLabel
 local title=label(toast,tostring(cfg.Title or""),11,{Position=UDim2.fromOffset(textX,hasContent and 8 or 0),Size=UDim2.new(1,-textX-9-closeRoom,0,hasContent and 17 or textHeight),Font=Enum.Font.GothamBold})
 Theme.bind(title,"TextColor3","heading")
 if hasContent then
-local content=label(toast,tostring(cfg.Content),10,{Position=UDim2.fromOffset(textX,25),Size=UDim2.new(1,-textX-9-closeRoom,0,16)})
-Theme.bind(content,"TextColor3","muted")
+contentLabel=label(toast,tostring(cfg.Content or""),10,{Name="Content",Position=UDim2.fromOffset(textX,25),Size=UDim2.new(1,-textX-9-closeRoom,0,16)})
+Theme.bind(contentLabel,"TextColor3","muted")
 end
 local closed=false
 local function dismiss()
@@ -3883,9 +4098,49 @@ end)
 end
 end
 tween(toast,0.2,{GroupTransparency=0})
+if cfg.Sound then
+pcall(function()
+local sound=Instance.new("Sound")
+sound.SoundId=cfg.Sound==true and"rbxasset://sounds/electronicpingshort.wav"or(tostring(cfg.Sound):match("^%d+$")and("rbxassetid://"..cfg.Sound)or tostring(cfg.Sound))
+sound.Volume=tonumber(cfg.Volume)or 0.4
+sound.Parent=Util.Services.SoundService
+sound:Play()
+task.delay(4,function()sound:Destroy()end)
+end)
+end
+local handle={Frame=toast}
+local steps=tonumber(cfg.Steps)
+function handle:SetTitle(text)title.Text=tostring(text)end
+function handle:SetContent(text)if contentLabel then contentLabel.Text=tostring(text)end end
+function handle:SetProgress(value)
+value=math.clamp(tonumber(value)or 0,0,1)
+self.Progress=value
+tween(progress,0.2,{Size=UDim2.new(value,0,0,2)})
+if value>=1 then task.delay(1.2,dismiss)end
+end
+function handle:SetStep(step,text)
+step=tonumber(step)or 0
+self.Step=step
+if contentLabel then contentLabel.Text=string.format("%d/%d%s",math.min(step,steps or step),steps or step,text and("  ·  "..tostring(text))or"")end
+if steps and steps>0 then self:SetProgress(step/steps)end
+end
+function handle:Close()dismiss()end
+function handle:IsOpen()return not closed and toast.Parent~=nil end
+if tracked then
+progress.Size=UDim2.new(0,0,0,2)
+if steps then handle:SetStep(tonumber(cfg.Step)or 0,cfg.Content)elseif cfg.Progress then handle:SetProgress(cfg.Progress)end
+if cfg.Duration then task.delay(duration,dismiss)end
+else
 tween(progress,duration,{Size=UDim2.new(0,0,0,2)},Enum.EasingStyle.Linear)
 task.delay(duration,dismiss)
-return toast
+end
+return setmetatable(handle,{
+__index=function(_,key)
+local value=toast[key]
+if type(value)=="function"then return function(_,...)return value(toast,...)end end
+return value
+end,
+})
 end
 return Notify
 end
@@ -4087,6 +4342,18 @@ touch(name,{saved=os.time(),note="Imported"})
 open=name
 say("Imported as \""..name.."\" - open it and press Load")
 refresh()
+end,
+})
+newCard:Toggle({
+Title="Separate profiles per game",Desc="Each game keeps its own list and autoload",Icon="gamepad-2",
+Default=store.perGame~=nil,
+Callback=function(on)
+store:SetPerGame(on and"Game"or false)
+window.memory.perGame=on and"Game"or false
+window:_saveMemory()
+open=nil
+refresh()
+say(on and("Profiles for this game (#"..game.GameId..")")or"Shared profiles for all games")
 end,
 })
 local listCard=page:Card({Title="Saved"})
@@ -4313,7 +4580,9 @@ swatches:SetColor("Neutral",Theme.neutral(Theme.pack))
 local accent=Theme.get("accentUser")
 if accent==Theme.neutral(Theme.pack)then swatches:Set("Neutral",true)else swatches:Set(accent,true)end
 end
-look:Dropdown({
+local customThemes=window.Config:ReadJSON("themes")
+for name,data in pairs(customThemes)do Theme.registerCustom(name,data)end
+local themeDropdown=look:Dropdown({
 Title="Theme",Options=Theme.packOrder,Default="Dark",Flag="__ui_theme",
 Callback=function(name)
 Theme.applyPack(name)
@@ -4365,6 +4634,78 @@ Callback=function()
 window:Confirm("Unload "..window.Title.."?","The menu and everything it runs will be removed.",function()window:Destroy()end,"Unload",true)
 end,
 })
+local editorCard=interface:Card({Title="Theme editor",Side="Right",Icon="palette"})
+local editor=editorCard:Section({Title="Edit colours",Opened=false})
+local ROLE_NAMES={"Background","Cards","Inputs","Outlines","Text","Muted text","Headings","Dock","Icons","Accent"}
+local ROLE_OF={}
+for index,name in ipairs(ROLE_NAMES)do ROLE_OF[name]=Theme.EDITABLE[index]end
+local roleColor
+local roleDropdown=editor:Dropdown({Title="Colour",Options=ROLE_NAMES,Default="Background",
+Callback=function(name)
+local role=ROLE_OF[name]
+if roleColor and role then roleColor:Set(Theme.get(role=="accent"and"accentUser"or role),true)end
+end})
+roleColor=editor:ColorPicker({Title="Value",Default=Theme.get("base"),
+Callback=function(color)
+local role=ROLE_OF[roleDropdown.Value or"Background"]
+if not role then return end
+if role=="accent"then picker:Set(color)else Theme.set(role,color)end
+end})
+local function saveThemes()window.Config:WriteJSON("themes",customThemes)end
+local function refreshThemeList(select)
+themeDropdown:SetOptions(Theme.packOrder,true)
+if select then themeDropdown:Set(select)end
+end
+editor:ActionInput({Name="SaveTheme",Icon="save",Placeholder="Theme name",Button="Save",
+Hint="Saves the colours above as a theme",
+Validate=function(name)
+if Theme.packs[name]and not Theme.packs[name].custom then return false,"\""..name.."\" is a built-in theme"end
+return true,Theme.packs[name]and("Overwrites \""..name.."\"")or("Adds \""..name.."\" to the Theme list")
+end,
+Callback=function(name)
+customThemes[name]=Theme.export()
+Theme.registerCustom(name,customThemes[name])
+saveThemes()
+refreshThemeList(name)
+window:Notify({Title="Theme saved",Content=name,Icon="palette"})
+end})
+local codeRow=editor:Row()
+codeRow:Button({Title="Copy code",Icon="share-2",Callback=function()
+local code="QTHEME1:"..Util.base64encode(Util.Services.HttpService:JSONEncode({n=themeDropdown.Value or"Theme",t=Theme.export()}))
+local clipboard=setclipboard or toclipboard
+if clipboard and pcall(clipboard,code)then window:Notify({Title="Copied",Content="Theme code copied",Icon="palette"})end
+end})
+codeRow:Button({Title="Delete",Icon="trash-2",Risky=true,Callback=function()
+local name=themeDropdown.Value
+if not(name and Theme.packs[name]and Theme.packs[name].custom)then
+return window:Notify({Title="Theme",Content="Only your own themes can be deleted",Color="warning"})
+end
+window:Confirm("Delete theme \""..name.."\"?","It is removed from this PC.",function()
+customThemes[name]=nil
+Theme.removeCustom(name)
+saveThemes()
+refreshThemeList("Dark")
+end,"Delete",true)
+end})
+editor:ActionInput({Name="ImportTheme",Icon="import",Placeholder="Paste a QTHEME1: code",Button="Import",
+Validate=function(code)
+local body=code:gsub("%s",""):match("^QTHEME1:(.+)$")
+if not body then return false,"Not a theme code"end
+local ok,data=pcall(function()return Util.Services.HttpService:JSONDecode(Util.base64decode(body))end)
+if not ok or type(data)~="table"or type(data.t)~="table"then return false,"The code is damaged"end
+return true,"Theme \""..tostring(data.n).."\""
+end,
+Callback=function(code)
+local data=Util.Services.HttpService:JSONDecode(Util.base64decode(code:gsub("%s",""):match("^QTHEME1:(.+)$")))
+local name=tostring(data.n or"Imported"):gsub("[^%w_%- ]","")
+if Theme.packs[name]and not Theme.packs[name].custom then name=name.." (2)"end
+customThemes[name]=data.t
+if Theme.registerCustom(name,data.t)then
+saveThemes()
+refreshThemeList(name)
+window:Notify({Title="Theme imported",Content=name,Icon="palette"})
+end
+end})
 local look2=interface:Card({Title="Window",Side="Left"})
 look2:Toggle({Title="Anonymous mode",Desc="Hides your name and avatar",Icon="user-round",Flag="__ui_anon",Default=window.anonymous==true,
 Callback=function(on)window:SetAnonymous(on)end})
@@ -4378,6 +4719,8 @@ look2:Input({Title="Background",Placeholder="image id or url",Flag="__ui_bg",
 Callback=function(text)window:SetBackgroundImage(text~=""and text or nil,bgAlpha and(1-bgAlpha.Value/100)or 0.85)end})
 bgAlpha=look2:Slider({Title="Background visibility",Flag="__ui_bg_alpha",Min=0,Max=60,Default=15,Suffix="%",
 Callback=function(value)if window._background then window._background.ImageTransparency=1-value/100 end end})
+look2:Toggle({Title="Free mouse",Desc="Unlocks the mouse while the menu is open",Icon="mouse-pointer-2",Flag="__ui_mouse",
+Default=window.unlockMouse~=false,Callback=function(on)window:SetMouseUnlock(on)end})
 look2:Button({Title="Fullscreen",Icon="maximize-2",Callback=function()window:ToggleFullscreen()end})
 local overlays=interface:Card({Title="Overlays",Side="Right"})
 overlays:Toggle({Title="Watermark",Desc="Name · FPS · ping · clock",Flag="__ui_hud_watermark",Callback=function(on)window:Watermark(on)end})
@@ -4715,24 +5058,111 @@ codeKeyword=rgb(135,55,195),codeString=rgb(35,125,55),codeNumber=rgb(195,85,35),
 codeComment=rgb(135,135,145),codeGlobal=rgb(35,95,200),codeCall=rgb(150,100,0),
 },
 }
-Theme.packOrder={"Dark","Midnight","AMOLED","Light"}
+local hex=function(text)return Color3.fromRGB(tonumber(text:sub(2,3),16),tonumber(text:sub(4,5),16),tonumber(text:sub(6,7),16))end
+Theme.hex=hex
+function Theme.makePack(p)
+local base,text=hex(p.base),hex(p.text)
+local function step(t)return base:Lerp(text,t)end
+local pack={
+base=base,footer=base:Lerp(Color3.new(0,0,0),0.18),dock=p.dock and hex(p.dock)or base,
+card=p.card and hex(p.card)or step(0.026),input=p.input and hex(p.input)or step(0.065),
+selected=step(0.118),hover=step(0.118),line=step(0.137),edge=step(0.098),buttonEdge=step(0.203),
+text=text,muted=hex(p.muted),heading=hex(p.heading or p.text),icon=text:Lerp(hex(p.heading or p.text),0.5),
+knob=text:Lerp(Color3.new(1,1,1),0.15),accent=p.accent and hex(p.accent)or nil,
+}
+for _=1,10 do if contrast(pack.text,pack.card)>=4.5 then break end pack.text=pack.text:Lerp(pack.heading,0.2)end
+for _=1,10 do if contrast(pack.muted,pack.card)>=3 then break end pack.muted=pack.muted:Lerp(pack.text,0.15)end
+for _=1,10 do if contrast(pack.buttonEdge,pack.card)>=1.35 then break end pack.buttonEdge=pack.buttonEdge:Lerp(text,0.08)end
+return pack
+end
+local PALETTES={
+{"Tokyo Night",{base="#1a1b26",card="#1f2131",input="#272a3d",text="#a9b1d6",muted="#6a7299",heading="#c0caf5",accent="#7aa2f7"}},
+{"Catppuccin",{base="#1e1e2e",card="#232334",input="#2b2b3e",text="#bac2de",muted="#7f849c",heading="#cdd6f4",accent="#cba6f7"}},
+{"Dracula",{base="#21222c",card="#282a36",input="#30323f",text="#d6d6d0",muted="#7484b8",heading="#f8f8f2",accent="#bd93f9"}},
+{"Nord",{base="#2e3440",card="#343b49",input="#3b4252",text="#d8dee9",muted="#8892a6",heading="#eceff4",accent="#88c0d0"}},
+{"Gruvbox",{base="#1d2021",card="#252525",input="#2e2c2b",text="#d5c4a1",muted="#928374",heading="#fbf1c7",accent="#fabd2f"}},
+{"One Dark",{base="#21252b",card="#282c34",input="#2f343e",text="#abb2bf",muted="#727a87",heading="#d7dae0",accent="#61afef"}},
+{"Monokai",{base="#1e1f1c",card="#272822",input="#30312a",text="#d6d6cf",muted="#8a8571",heading="#f8f8f2",accent="#a6e22e"}},
+{"Rose Pine",{base="#191724",card="#1f1d2e",input="#26233a",text="#d2cfea",muted="#7f7a99",heading="#e0def4",accent="#c4a7e7"}},
+{"Everforest",{base="#272e33",card="#2d353b",input="#343f44",text="#d3c6aa",muted="#859289",heading="#e6dcc0",accent="#a7c080"}},
+{"Kanagawa",{base="#1a1a22",card="#1f1f28",input="#2a2a37",text="#dcd7ba",muted="#7a7970",heading="#f2ecbc",accent="#7e9cd8"}},
+{"Solarized",{base="#00212b",card="#002b36",input="#073642",text="#93a1a1",muted="#657b83",heading="#eee8d5",accent="#268bd2"}},
+{"Oceanic",{base="#17252d",card="#1b2b34",input="#22343e",text="#c0c5ce",muted="#6f7d88",heading="#d8dee9",accent="#6699cc"}},
+{"Fatality",{base="#140f2b",card="#1a1436",input="#221a44",text="#c9c2e6",muted="#7f76a6",heading="#efeaff",accent="#f0024f"}},
+{"Mint",{base="#141615",card="#191c1a",input="#202422",text="#c2ccc6",muted="#7c8781",heading="#e3ebe6",accent="#3db488"}},
+{"Cyberpunk",{base="#0d0a17",card="#130f21",input="#1b152d",text="#c9c1e8",muted="#7d74a0",heading="#f0e9ff",accent="#f72585"}},
+}
+for _,entry in ipairs(PALETTES)do Theme.packs[entry[1]]=Theme.makePack(entry[2])end
+Theme.packs.Latte={
+base=rgb(230,233,239),footer=rgb(220,224,232),dock=rgb(230,233,239),selected=rgb(204,208,218),icon=rgb(76,79,105),
+card=rgb(239,241,245),input=rgb(220,224,232),hover=rgb(210,214,224),line=rgb(204,208,218),edge=rgb(188,192,204),
+buttonEdge=rgb(172,176,190),text=rgb(76,79,105),muted=rgb(124,127,147),heading=rgb(48,52,70),knob=rgb(255,255,255),
+accent=rgb(136,57,239),
+success=rgb(40,130,40),warning=rgb(170,100,10),danger=rgb(200,40,70),
+dangerDeep=rgb(250,225,230),dangerEdge=rgb(230,150,165),dangerText=rgb(180,30,60),
+codeKeyword=rgb(136,57,239),codeString=rgb(64,160,43),codeNumber=rgb(254,100,11),
+codeComment=rgb(140,143,161),codeGlobal=rgb(30,102,245),codeCall=rgb(223,142,29),
+}
+Theme.packOrder={"Dark","Midnight","AMOLED","Light","Latte"}
+for _,entry in ipairs(PALETTES)do table.insert(Theme.packOrder,entry[1])end
 local DEFAULTS={}
 for role,color in pairs(Theme.colors)do DEFAULTS[role]=color end
 Theme.defaults=DEFAULTS
-function Theme.neutral(pack)return pack=="Light"and rgb(70,70,80)or rgb(177,178,183)end
+function Theme.neutral(pack)
+local data=Theme.packs[pack]
+if data and data.accent then return data.accent end
+return pack=="Light"and rgb(70,70,80)or rgb(177,178,183)
+end
 function Theme.applyPack(name)
 local pack=Theme.packs[name]
 if not pack then return false end
 local colors={}
 for role,color in pairs(DEFAULTS)do if role~="accent"and role~="accentUser"then colors[role]=color end end
-for role,color in pairs(pack)do colors[role]=color end
+for role,color in pairs(pack)do if role~="accent"then colors[role]=color end end
 local accent=Theme.colors.accentUser
-if accent==Theme.neutral("Dark")or accent==Theme.neutral("Light")then colors.accentUser=Theme.neutral(name)end
+if accent==Theme.neutral(Theme.pack)or accent==Theme.neutral("Dark")or accent==Theme.neutral("Light")then colors.accentUser=Theme.neutral(name)end
 Theme.pack=name
 Theme.setMany(colors)
 return true
 end
 Theme.pack="Dark"
+Theme.EDITABLE={"base","card","input","line","text","muted","heading","dock","icon","accent"}
+function Theme.export()
+local data={}
+for _,role in ipairs(Theme.EDITABLE)do
+local color=Theme.colors[role=="accent"and"accentUser"or role]
+data[role]="#"..Util.toHex(color)
+end
+return data
+end
+function Theme.registerCustom(name,data)
+if type(data)~="table"or type(data.base)~="string"or type(data.text)~="string"then return false end
+local ok,pack=pcall(function()
+local made=Theme.makePack({
+base=data.base,card=data.card,input=data.input,text=data.text,muted=data.muted or data.text,
+heading=data.heading,accent=data.accent,dock=data.dock,
+})
+if data.line then made.line=hex(data.line)end
+if data.icon then made.icon=hex(data.icon)end
+if luminance(made.base)>0.5 then
+for role,color in pairs(Theme.packs.Light)do if made[role]==nil or role:match("^code")or role:match("^danger")or role=="success"or role=="warning"then made[role]=made[role]or color end end
+for _,role in ipairs({"success","warning","danger","dangerDeep","dangerEdge","dangerText","codeKeyword","codeString","codeNumber","codeComment","codeGlobal","codeCall"})do made[role]=Theme.packs.Light[role]end
+end
+made.custom=true
+return made
+end)
+if not ok then return false end
+Theme.packs[name]=pack
+if not table.find(Theme.packOrder,name)then table.insert(Theme.packOrder,name)end
+return true
+end
+function Theme.removeCustom(name)
+if not(Theme.packs[name]and Theme.packs[name].custom)then return false end
+Theme.packs[name]=nil
+local index=table.find(Theme.packOrder,name)
+if index then table.remove(Theme.packOrder,index)end
+return true
+end
 function Theme.onChange(callback)
 listeners[#listeners+1]=callback
 end
@@ -5016,6 +5446,8 @@ Util.list(object,10)
 return object
 end
 self.frame,self.wide,self.left,self.right=frame,wide,column("Left",1),column("Right",2)
+self.content=content
+if self.cfg.Warning then task.defer(function()self:Warning(self.cfg.Warning)end)end
 local function fade(top)
 local object=create("Frame",{
 Name=top and"FadeTop"or"FadeBottom",AnchorPoint=Vector2.new(0,top and 0 or 1),
@@ -5060,6 +5492,37 @@ local single=self.cfg.Columns==1 or width<NARROW
 self.layout.FillDirection=single and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal
 local size=single and UDim2.new(1,0,0,0)or UDim2.new(0.5,-5,0,0)
 self.left.Size,self.right.Size=size,size
+end
+function Page:Warning(text,opts)
+opts=opts or{}
+local level=opts.Level or"warning"
+local role=level=="info"and"accent"or level
+local banner=create("Frame",{Name="Warning",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BorderSizePixel=0,LayoutOrder=0,Parent=self.content})
+Theme.bind(banner,"BackgroundColor3",role)
+banner.BackgroundTransparency=0.88
+corner(banner,8)
+local edge=stroke(banner)
+Theme.bind(edge,"Color",role)
+edge.Transparency=0.55
+Util.padding(banner,12,12,9,9)
+local Icons=require("icons")
+local icon=Icons.themed(banner,opts.Icon or(level=="info"and"info"or"triangle-alert"),15,role,{Position=UDim2.fromOffset(0,1)})
+local column=create("Frame",{Name="Body",BackgroundTransparency=1,Position=UDim2.fromOffset(icon and 26 or 0,0),Size=UDim2.new(1,icon and-26 or 0,0,0),AutomaticSize=Enum.AutomaticSize.Y,Parent=banner})
+Util.list(column,2)
+local title
+if opts.Title then
+title=label(column,tostring(opts.Title),11,{Name="Title",Size=UDim2.new(1,0,0,16),Font=Enum.Font.GothamMedium,LayoutOrder=1})
+Theme.bind(title,"TextColor3",role)
+end
+local body=label(column,tostring(text or""),10,{
+Name="Text",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,
+TextTruncate=Enum.TextTruncate.None,RichText=true,LayoutOrder=2,
+})
+Theme.bind(body,"TextColor3","heading")
+local handle={Frame=banner,Icon=icon}
+function handle:SetText(value)body.Text=tostring(value)end
+function handle:SetVisible(visible)banner.Visible=visible~=false end
+return handle
 end
 function Page:Card(cfg)
 cfg=cfg or{}
@@ -5180,6 +5643,9 @@ env.__QustahUIWindows[self.Title]=self
 if typeof(cfg.Accent)=="Color3"then Theme.set("accent",cfg.Accent)end
 self.Config=Config.new(self,cfg.Folder or self.Title:gsub("[^%w_%- ]",""))
 self.memory=cfg.SaveWindow~=false and self.Config:ReadMemory()or{}
+local perGame=self.memory.perGame
+if perGame==nil then perGame=cfg.PerGame end
+if perGame then self.Config:SetPerGame(perGame)end
 local saved=self.memory.window
 if type(saved)=="table"and tonumber(saved.w)and tonumber(saved.h)then
 self.width=math.clamp(tonumber(saved.w),self.minSize.X,self.maxSize.X)
@@ -5813,8 +6279,33 @@ self._profile.Position=UDim2.fromOffset(5,y+7)
 self.dockHeight=y+7+30+8
 end
 end
+function Window:SetMouseUnlock(on)
+self.unlockMouse=on~=false
+self:_applyMouse()
+end
+function Window:_applyMouse()
+local UserInputService=Util.Services.UserInputService
+local free=self.alive and self.visible and self.unlockMouse
+if self._modal then self._modal.Modal=free==true end
+if free then
+if self._savedMouseIcon==nil then self._savedMouseIcon=UserInputService.MouseIconEnabled end
+UserInputService.MouseIconEnabled=true
+elseif self._savedMouseIcon~=nil then
+UserInputService.MouseIconEnabled=self._savedMouseIcon
+self._savedMouseIcon=nil
+end
+end
+local setVisible=Window.SetVisible
+function Window:SetVisible(visible)
+setVisible(self,visible)
+self:_applyMouse()
+end
 function Window:_buildExtras()
 local cfg=self.cfg
+self._modal=create("TextButton",{Name="MouseUnlock",Text="",BackgroundTransparency=1,Size=UDim2.fromOffset(0,0),Modal=false,Parent=self.main})
+self.unlockMouse=cfg.UnlockMouse~=false
+self.maid:give(function()self.visible=false self:_applyMouse()end)
+self:_applyMouse()
 if cfg.FullscreenButton~=false then
 self._fullscreenButton=self:HeaderButton({Name="Fullscreen",Icon="maximize-2",Tooltip="Fullscreen",Callback=function()self:ToggleFullscreen()end})
 end

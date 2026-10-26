@@ -105,8 +105,37 @@ return function(Window)
         end
     end
 
+    ------------------------------------------------------------------ mouse unlock
+    -- While the menu is open the mouse is free (shift lock / first person would keep it locked in the centre):
+    -- a Modal button releases it and the cursor is shown. UnlockMouse = false turns it off; Window:SetMouseUnlock(bool).
+    function Window:SetMouseUnlock(on)
+        self.unlockMouse = on ~= false
+        self:_applyMouse()
+    end
+    function Window:_applyMouse()
+        local UserInputService = Util.Services.UserInputService
+        local free = self.alive and self.visible and self.unlockMouse
+        if self._modal then self._modal.Modal = free == true end
+        if free then
+            if self._savedMouseIcon == nil then self._savedMouseIcon = UserInputService.MouseIconEnabled end
+            UserInputService.MouseIconEnabled = true
+        elseif self._savedMouseIcon ~= nil then
+            UserInputService.MouseIconEnabled = self._savedMouseIcon
+            self._savedMouseIcon = nil
+        end
+    end
+    local setVisible = Window.SetVisible
+    function Window:SetVisible(visible)
+        setVisible(self, visible)
+        self:_applyMouse()
+    end
+
     function Window:_buildExtras()
         local cfg = self.cfg
+        self._modal = create("TextButton", { Name = "MouseUnlock", Text = "", BackgroundTransparency = 1, Size = UDim2.fromOffset(0, 0), Modal = false, Parent = self.main })
+        self.unlockMouse = cfg.UnlockMouse ~= false
+        self.maid:give(function() self.visible = false self:_applyMouse() end)
+        self:_applyMouse()
         if cfg.FullscreenButton ~= false then
             self._fullscreenButton = self:HeaderButton({ Name = "Fullscreen", Icon = "maximize-2", Tooltip = "Fullscreen", Callback = function() self:ToggleFullscreen() end })
         end

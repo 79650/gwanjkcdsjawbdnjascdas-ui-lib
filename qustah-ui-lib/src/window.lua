@@ -61,6 +61,8 @@ function Page.new(tab, name, cfg)
         return object
     end
     self.frame, self.wide, self.left, self.right = frame, wide, column("Left", 1), column("Right", 2)
+    self.content = content
+    if self.cfg.Warning then task.defer(function() self:Warning(self.cfg.Warning) end) end
 
     -- soft fades at the top / bottom edge while there is more to scroll that way
     local function fade(top)
@@ -115,6 +117,41 @@ end
 
 -- Page:Card({ Title = "General", Side = "Left" | "Right", Wide = true }) - without Side the cards alternate
 -- left / right; Wide cards span both columns and sit above them.
+-- page:Warning("These features can get you banned", { Title = "Risky", Icon = "triangle-alert", Level = "warning" | "danger" | "info" })
+-- A banner at the top of the page. Returns { SetText, SetVisible, Frame }. Tab:Page(name, { Warning = "..." }) too.
+function Page:Warning(text, opts)
+    opts = opts or {}
+    local level = opts.Level or "warning"
+    local role = level == "info" and "accent" or level
+    local banner = create("Frame", { Name = "Warning", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, LayoutOrder = 0, Parent = self.content })
+    Theme.bind(banner, "BackgroundColor3", role)
+    banner.BackgroundTransparency = 0.88
+    corner(banner, 8)
+    local edge = stroke(banner)
+    Theme.bind(edge, "Color", role)
+    edge.Transparency = 0.55
+    Util.padding(banner, 12, 12, 9, 9)
+    local Icons = require("icons")
+    local icon = Icons.themed(banner, opts.Icon or (level == "info" and "info" or "triangle-alert"), 15, role, { Position = UDim2.fromOffset(0, 1) })
+    -- text column right of the icon
+    local column = create("Frame", { Name = "Body", BackgroundTransparency = 1, Position = UDim2.fromOffset(icon and 26 or 0, 0), Size = UDim2.new(1, icon and -26 or 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = banner })
+    Util.list(column, 2)
+    local title
+    if opts.Title then
+        title = label(column, tostring(opts.Title), 11, { Name = "Title", Size = UDim2.new(1, 0, 0, 16), Font = Enum.Font.GothamMedium, LayoutOrder = 1 })
+        Theme.bind(title, "TextColor3", role)
+    end
+    local body = label(column, tostring(text or ""), 10, {
+        Name = "Text", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.None, RichText = true, LayoutOrder = 2,
+    })
+    Theme.bind(body, "TextColor3", "heading")
+    local handle = { Frame = banner, Icon = icon }
+    function handle:SetText(value) body.Text = tostring(value) end
+    function handle:SetVisible(visible) banner.Visible = visible ~= false end
+    return handle
+end
+
 function Page:Card(cfg)
     cfg = cfg or {}
     self.cards = self.cards + 1
@@ -252,6 +289,10 @@ function Window.new(Lib, cfg)
     self.Config = Config.new(self, cfg.Folder or self.Title:gsub("[^%w_%- ]", ""))
     -- window memory: last position / size (SaveWindow = false turns it off)
     self.memory = cfg.SaveWindow ~= false and self.Config:ReadMemory() or {}
+    -- per-game profiles: the choice made in Settings (remembered with the window) wins over CreateWindow's PerGame
+    local perGame = self.memory.perGame
+    if perGame == nil then perGame = cfg.PerGame end
+    if perGame then self.Config:SetPerGame(perGame) end
     local saved = self.memory.window
     if type(saved) == "table" and tonumber(saved.w) and tonumber(saved.h) then
         self.width = math.clamp(tonumber(saved.w), self.minSize.X, self.maxSize.X)

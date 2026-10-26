@@ -6,6 +6,7 @@ mkdir -p "$OUT"; rm -f "$OUT"/*.png
 STEPS="$(mktemp)"
 {
 cat "$TOOLS/gui_dump.lua"
+echo "getfenv(0).PACKS_ENV = \"${PACKS:-}\""
 cat <<'LUA'
 getfenv(0).SMOKE_STEPS = function(MOCK)
   local E = getfenv(0)
@@ -17,13 +18,20 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
   w.width, w.height = 600, 640 w:_layout() wait()
   w:ReportError("ESP", "attempt to index nil with 'Character'")
   w:KeybindList(true) w:Watermark(true)
-  for _, pack in ipairs({ "Dark", "Midnight", "AMOLED", "Light" }) do
+  local PACKS = {}
+  for pack in string.gmatch(E.PACKS_ENV or "", "[^,]+") do PACKS[#PACKS + 1] = pack end
+  if #PACKS == 0 then PACKS = { "Dark", "Midnight", "AMOLED", "Light" } end
+  for _, pack in ipairs(PACKS) do
     w.flags.__ui_theme:Set(pack) wait()
     local V = tab("Visuals") V.Pages[1]:Select() shot(pack .. "_overview")
     tab("Silent") shot(pack .. "_silent")
     tab("Misc") shot(pack .. "_misc")
     local T = tab("Settings") T.Pages[1]:Select() shot(pack .. "_settings")
     T.Pages[3]:Select() shot(pack .. "_info")
+    T.Pages[1]:Select()
+    local ed = w.gui:FindFirstChild("Section_Edit colours", true)
+    if ed and not ed.Body.Visible then ed.Header.Activated:Fire() end
+    wait() shot(pack .. "_editor")
     tab("Dashboard") shot(pack .. "_dashboard")
   end
   w.flags.__ui_accent:Set(E.Color3.fromRGB(110, 200, 130))

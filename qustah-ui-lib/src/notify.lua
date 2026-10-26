@@ -35,7 +35,9 @@ function Notify.show(Lib, cfg)
     end
     Lib._toastOrder = (Lib._toastOrder or 0) + 1
     local duration = tonumber(cfg.Duration) or 3
-    local hasContent = cfg.Content ~= nil and cfg.Content ~= ""
+    -- Progress = 0..1 / Steps = 5 (+ Step) / Persist = true: the toast stays until :Close() or the progress reaches the end
+    local tracked = cfg.Progress ~= nil or cfg.Steps ~= nil or cfg.Persist == true
+    local hasContent = (cfg.Content ~= nil and cfg.Content ~= "") or cfg.Steps ~= nil
     local buttons = type(cfg.Buttons) == "table" and #cfg.Buttons > 0 and cfg.Buttons or nil
     if buttons and not cfg.Duration then duration = 6 end
     local textHeight = hasContent and 50 or 34
@@ -66,11 +68,12 @@ function Notify.show(Lib, cfg)
         textX = 36
     end
     local closeRoom = cfg.CanClose ~= false and 22 or 0
+    local contentLabel
     local title = label(toast, tostring(cfg.Title or ""), 11, { Position = UDim2.fromOffset(textX, hasContent and 8 or 0), Size = UDim2.new(1, -textX - 9 - closeRoom, 0, hasContent and 17 or textHeight), Font = Enum.Font.GothamBold })
     Theme.bind(title, "TextColor3", "heading")
     if hasContent then
-        local content = label(toast, tostring(cfg.Content), 10, { Position = UDim2.fromOffset(textX, 25), Size = UDim2.new(1, -textX - 9 - closeRoom, 0, 16) })
-        Theme.bind(content, "TextColor3", "muted")
+        contentLabel = label(toast, tostring(cfg.Content or ""), 10, { Name = "Content", Position = UDim2.fromOffset(textX, 25), Size = UDim2.new(1, -textX - 9 - closeRoom, 0, 16) })
+        Theme.bind(contentLabel, "TextColor3", "muted")
     end
     local closed = false
     local function dismiss()
@@ -120,9 +123,54 @@ function Notify.show(Lib, cfg)
         end
     end
     tween(toast, 0.2, { GroupTransparency = 0 })
-    tween(progress, duration, { Size = UDim2.new(0, 0, 0, 2) }, Enum.EasingStyle.Linear)
-    task.delay(duration, dismiss)
-    return toast
+
+    -- Sound = true (a short built-in ping) or an asset id; Volume 0-1
+    if cfg.Sound then
+        pcall(function()
+            local sound = Instance.new("Sound")
+            sound.SoundId = cfg.Sound == true and "rbxasset://sounds/electronicpingshort.wav" or (tostring(cfg.Sound):match("^%d+$") and ("rbxassetid://" .. cfg.Sound) or tostring(cfg.Sound))
+            sound.Volume = tonumber(cfg.Volume) or 0.4
+            sound.Parent = Util.Services.SoundService
+            sound:Play()
+            task.delay(4, function() sound:Destroy() end)
+        end)
+    end
+
+    -- the handle: a toast you can update (Progress / Steps) - it also answers like the Frame (toast.Parent, :FindFirstChild)
+    local handle = { Frame = toast }
+    local steps = tonumber(cfg.Steps)
+    function handle:SetTitle(text) title.Text = tostring(text) end
+    function handle:SetContent(text) if contentLabel then contentLabel.Text = tostring(text) end end
+    function handle:SetProgress(value)
+        value = math.clamp(tonumber(value) or 0, 0, 1)
+        self.Progress = value
+        tween(progress, 0.2, { Size = UDim2.new(value, 0, 0, 2) })
+        if value >= 1 then task.delay(1.2, dismiss) end
+    end
+    function handle:SetStep(step, text)
+        step = tonumber(step) or 0
+        self.Step = step
+        if contentLabel then contentLabel.Text = string.format("%d/%d%s", math.min(step, steps or step), steps or step, text and ("  ·  " .. tostring(text)) or "") end
+        if steps and steps > 0 then self:SetProgress(step / steps) end
+    end
+    function handle:Close() dismiss() end
+    function handle:IsOpen() return not closed and toast.Parent ~= nil end
+
+    if tracked then
+        progress.Size = UDim2.new(0, 0, 0, 2)
+        if steps then handle:SetStep(tonumber(cfg.Step) or 0, cfg.Content) elseif cfg.Progress then handle:SetProgress(cfg.Progress) end
+        if cfg.Duration then task.delay(duration, dismiss) end
+    else
+        tween(progress, duration, { Size = UDim2.new(0, 0, 0, 2) }, Enum.EasingStyle.Linear)
+        task.delay(duration, dismiss)
+    end
+    return setmetatable(handle, {
+        __index = function(_, key)
+            local value = toast[key]
+            if type(value) == "function" then return function(_, ...) return value(toast, ...) end end
+            return value
+        end,
+    })
 end
 
 return Notify
