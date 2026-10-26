@@ -8,7 +8,7 @@ local Base = require("elements/base")
 local Icons = require("icons")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
-local GREEN, RED = Color3.fromRGB(110, 200, 130), Color3.fromRGB(215, 130, 130)
+local GREEN, RED = "success", "danger" -- theme roles
 
 return function(card, cfg)
     local window = card.window
@@ -63,7 +63,7 @@ return function(card, cfg)
         local color = state == "ok" and GREEN or (state == "error" and RED or nil)
         hintDot.Visible = color ~= nil
         hint.Position = UDim2.fromOffset(color and 13 or 2, 0)
-        if color then hint.TextColor3, hintDot.BackgroundColor3 = color, color else Theme.bind(hint, "TextColor3", "muted") end
+        if color then Theme.bind(hint, "TextColor3", color) Theme.bind(hintDot, "BackgroundColor3", color) else Theme.bind(hint, "TextColor3", "muted") end
     end
     local function validate()
         local text = box.Text:gsub("^%s+", ""):gsub("%s+$", "")

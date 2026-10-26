@@ -63,9 +63,9 @@ return function(Window)
                 local item = create("Frame", { Name = "Entry", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, entry.Content and 38 or 24), LayoutOrder = index, ZIndex = 232, Parent = list })
                 local mark = create("Frame", { Position = UDim2.fromOffset(0, 5), Size = UDim2.new(0, 2, 1, -10), BorderSizePixel = 0, ZIndex = 233, Parent = item })
                 corner(mark, 1)
-                if typeof(entry.Color) == "Color3" then mark.BackgroundColor3 = entry.Color else Theme.bind(mark, "BackgroundColor3", "accent") end
+                Theme.bind(mark, "BackgroundColor3", entry.Color or "accent")
                 local entryIcon = entry.Icon and Icons.themed(item, entry.Icon, 12, "accent", { Position = UDim2.fromOffset(10, 5), ZIndex = 233 })
-                if entryIcon and typeof(entry.Color) == "Color3" then Theme.bind(entryIcon, "ImageColor3", entry.Color) end
+                if entryIcon and entry.Color then Theme.bind(entryIcon, "ImageColor3", entry.Color) end
                 local title = label(item, entry.Title, 10, { Position = UDim2.fromOffset(entryIcon and 28 or 10, 3), Size = UDim2.new(1, entryIcon and -82 or -64, 0, 16), Font = Enum.Font.GothamMedium, ZIndex = 233 })
                 Theme.bind(title, "TextColor3", "heading")
                 local time = label(item, Util.ago(entry.Time), 9, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 3), Size = UDim2.fromOffset(54, 16), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 233 })

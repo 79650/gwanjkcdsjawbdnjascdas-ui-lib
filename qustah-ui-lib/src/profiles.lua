@@ -8,7 +8,7 @@ local Theme = require("theme")
 local Icons = require("icons")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
-local RED, GREEN, YELLOW = Color3.fromRGB(215, 130, 130), Color3.fromRGB(110, 200, 130), Color3.fromRGB(215, 180, 120)
+local RED, GREEN, YELLOW = "danger", "success", "warning" -- theme roles
 
 return function(window, page, defaults)
     local store = window.Config
@@ -106,7 +106,10 @@ return function(window, page, defaults)
         corner(button, 6)
         local outline = stroke(button)
         if style == "Danger" then
-            button.BackgroundColor3, button.TextColor3, outline.Color, outline.Transparency = Color3.fromRGB(70, 32, 36), Color3.fromRGB(235, 150, 155), Color3.fromRGB(150, 60, 66), 0.3
+            Theme.bind(button, "BackgroundColor3", "dangerDeep")
+            Theme.bind(button, "TextColor3", "dangerText")
+            Theme.bind(outline, "Color", "dangerEdge")
+            outline.Transparency = 0.3
         elseif style == "Primary" then
             Theme.bind(button, "BackgroundColor3", "accentDeep")
             Theme.bind(button, "TextColor3", "accent")

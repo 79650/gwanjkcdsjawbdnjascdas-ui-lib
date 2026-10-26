@@ -222,6 +222,14 @@ Lib.Icons.List("lucide")           -- bütün isimler
 - `Window:SetBackgroundImage(id/url, transparency)`, `Window:SetBackgroundTransparency(0-0.9)` (Settings › Window'da da var).
 - Dock'un altında profil butonu: tıklayınca **anonim mod** (isim, ID, avatar her yerde gizlenir). `Window:SetAnonymous(true)`, `CreateWindow({ Profile = false, Anonymous = true })`.
 
+### v1.4.1: temalar
+
+- Dört paket de (Dark, Midnight, AMOLED, Light) bütün elemanlarda test edildi: tema değişince renklenmeyen bir şey kalmadı.
+- Yeni renk rolleri: `success`, `warning`, `danger`, `dangerDeep`, `dangerEdge`, `dangerText`, `codeKeyword`... Footer noktası, modül durumları, hata yazıları, sil butonları, kod blokları artık temaya göre (Light'ta koyu tonlar).
+- `Notify({ Color = "danger" })`, `info:SetColor("success")`: rol adı da verilebilir.
+- Light'ta açık accent renkleri (yeşil, sarı, cyan...) okunacak kadar otomatik koyulaşır (kartta 3:1 kontrast); seçtiğin renk `Theme.get("accentUser")`'da durur. Light'ta açık toggle'lar daha koyu dolgulu.
+- Neutral preset'in rengi pakete göre değişir (Light'ta koyu gri).
+
 ## Geliştirme
 
 ```

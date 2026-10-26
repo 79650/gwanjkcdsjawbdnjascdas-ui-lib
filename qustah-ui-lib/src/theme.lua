@@ -21,13 +21,46 @@ Theme.colors = {
     heading    = rgb(205, 205, 210),
     knob       = rgb(190, 190, 195),
     accent     = rgb(177, 178, 183), -- Qustah neutral; Lib:SetAccent changes it
+    -- states (footer dot, module rows, hints, danger buttons)
+    success    = rgb(110, 200, 130),
+    warning    = rgb(215, 180, 120),
+    danger     = rgb(215, 130, 130),
+    dangerDeep = rgb(70, 32, 36),    -- danger button fill
+    dangerEdge = rgb(150, 60, 66),
+    dangerText = rgb(235, 150, 155),
+    -- code blocks
+    codeKeyword = rgb(199, 146, 234), codeString = rgb(195, 232, 141), codeNumber = rgb(247, 140, 108),
+    codeComment = rgb(107, 112, 128), codeGlobal = rgb(130, 170, 255), codeCall = rgb(255, 203, 107),
 }
+Theme.colors.accentUser = Theme.colors.accent -- the accent as chosen; "accent" may be darkened for light packs
+
+local function luminance(c)
+    local function channel(v) return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+    return 0.2126 * channel(c.R) + 0.7152 * channel(c.G) + 0.0722 * channel(c.B)
+end
+local function contrast(a, b)
+    local la, lb = luminance(a), luminance(b)
+    return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05)
+end
+Theme.contrast = contrast
 
 -- Roles computed from the accent.
 local function derive()
     local colors = Theme.colors
+    -- on light backgrounds a pale accent (green, yellow...) is darkened until it reads (contrast 3:1 on cards)
+    local accent = colors.accentUser or colors.accent
+    if luminance(colors.base) > 0.5 then
+        local black = Color3.new(0, 0, 0)
+        for _ = 1, 12 do
+            if contrast(accent, colors.card) >= 3 then break end
+            accent = accent:Lerp(black, 0.08)
+        end
+    end
+    colors.accent = accent
+    Theme.isLight = luminance(colors.base) > 0.5
     colors.accentDeep = colors.base:Lerp(colors.accent, 0.12) -- selected dock button / indicator fill
-    colors.toggleOn = colors.input:Lerp(colors.accent, 0.42)
+    -- switch track when on: light packs need a much stronger fill to read against the white knob
+    colors.toggleOn = colors.input:Lerp(colors.accent, Theme.isLight and 0.85 or 0.42)
     colors.accentEdge = colors.base:Lerp(colors.accent, 0.35)
     local a = colors.accent
     local luminance = 0.299 * a.R + 0.587 * a.G + 0.114 * a.B
@@ -65,8 +98,9 @@ end
 
 function Theme.set(role, color)
     if typeof(color) ~= "Color3" then return end
+    if role == "accent" then role = "accentUser" end
     Theme.colors[role] = color
-    if role == "accent" or role == "base" or role == "input" then derive() end
+    if role == "accentUser" or role == "base" or role == "input" or role == "card" then derive() end
     for object, properties in pairs(bound) do
         if object.Parent then
             for property, boundRole in pairs(properties) do
@@ -79,7 +113,9 @@ end
 
 -- Several roles at once (one recolour pass).
 function Theme.setMany(colors)
-    for role, color in pairs(colors) do if typeof(color) == "Color3" then Theme.colors[role] = color end end
+    for role, color in pairs(colors) do
+        if typeof(color) == "Color3" then Theme.colors[role == "accent" and "accentUser" or role] = color end
+    end
     derive()
     for object, properties in pairs(bound) do
         if object.Parent then
@@ -109,6 +145,10 @@ Theme.packs = {
         base = rgb(238, 238, 241), footer = rgb(229, 229, 233), dock = rgb(234, 234, 238), selected = rgb(216, 216, 222), icon = rgb(85, 85, 95),
         card = rgb(247, 247, 249), input = rgb(231, 231, 235), hover = rgb(221, 221, 226), line = rgb(214, 214, 220), edge = rgb(200, 200, 206),
         buttonEdge = rgb(190, 190, 198), text = rgb(62, 62, 70), muted = rgb(120, 120, 130), heading = rgb(25, 25, 30), knob = rgb(255, 255, 255),
+        success = rgb(30, 135, 70), warning = rgb(165, 105, 15), danger = rgb(190, 55, 55),
+        dangerDeep = rgb(252, 230, 230), dangerEdge = rgb(225, 150, 150), dangerText = rgb(170, 40, 40),
+        codeKeyword = rgb(135, 55, 195), codeString = rgb(35, 125, 55), codeNumber = rgb(195, 85, 35),
+        codeComment = rgb(135, 135, 145), codeGlobal = rgb(35, 95, 200), codeCall = rgb(150, 100, 0),
     },
 }
 Theme.packOrder = { "Dark", "Midnight", "AMOLED", "Light" }
@@ -121,11 +161,11 @@ function Theme.applyPack(name)
     local pack = Theme.packs[name]
     if not pack then return false end
     local colors = {}
-    for role, color in pairs(DEFAULTS) do if role ~= "accent" then colors[role] = color end end
+    for role, color in pairs(DEFAULTS) do if role ~= "accent" and role ~= "accentUser" then colors[role] = color end end
     for role, color in pairs(pack) do colors[role] = color end
     -- the neutral accent follows the pack; any other accent is kept
-    local accent = Theme.colors.accent
-    if accent == Theme.neutral("Dark") or accent == Theme.neutral("Light") then colors.accent = Theme.neutral(name) end
+    local accent = Theme.colors.accentUser
+    if accent == Theme.neutral("Dark") or accent == Theme.neutral("Light") then colors.accentUser = Theme.neutral(name) end
     Theme.pack = name
     Theme.setMany(colors)
     return true

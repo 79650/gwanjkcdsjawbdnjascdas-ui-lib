@@ -331,8 +331,8 @@ function Window:_build()
             bars[#bars + 1] = bar
         end
         button.MouseEnter:Connect(function()
-            tween(button, 0.12, { BackgroundTransparency = 0, BackgroundColor3 = cross and Color3.fromRGB(60, 24, 26) or Theme.get("input") })
-            for _, bar in ipairs(bars) do Theme.tweenTo(bar, "BackgroundColor3", cross and Color3.fromRGB(235, 90, 90) or "heading", 0.12) end
+            tween(button, 0.12, { BackgroundTransparency = 0, BackgroundColor3 = Theme.get(cross and "dangerDeep" or "input") })
+            for _, bar in ipairs(bars) do Theme.tweenTo(bar, "BackgroundColor3", cross and "danger" or "heading", 0.12) end
         end)
         button.MouseLeave:Connect(function()
             tween(button, 0.12, { BackgroundTransparency = 1 })

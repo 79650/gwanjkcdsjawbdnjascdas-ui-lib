@@ -20,7 +20,8 @@ return function(card, cfg)
     local element = Base.element(card, "Info", {}, row, title, nil)
     function element:Set(text) self.Value = text value.Text = tostring(text) end
     function element:Get() return self.Value end
-    function element:SetColor(color) if typeof(color) == "Color3" then value.TextColor3 = color else Theme.bind(value, "TextColor3", color or "text") end end
+    -- a theme role ("success") or a Color3
+    function element:SetColor(color) Theme.bind(value, "TextColor3", color or "text") end
 
     if cfg.Copy then
         local copy = create("TextButton", {

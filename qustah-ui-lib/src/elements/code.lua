@@ -12,10 +12,11 @@ local KEYWORDS = {}
 for word in ("and break do else elseif end false for function if in local nil not or repeat return then true until while continue"):gmatch("%a+") do KEYWORDS[word] = true end
 local GLOBALS = {}
 for word in ("game workspace script task math string table print warn pcall require loadstring getgenv Instance Vector3 Vector2 CFrame UDim2 Color3 Enum"):gmatch("%a+") do GLOBALS[word] = true end
-local COLORS = { keyword = "#c792ea", string = "#c3e88d", number = "#f78c6c", comment = "#6b7080", global = "#82aaff", call = "#ffcb6b" }
+-- colours come from the theme (codeKeyword...), so light packs get darker ones
+local ROLES = { keyword = "codeKeyword", string = "codeString", number = "codeNumber", comment = "codeComment", global = "codeGlobal", call = "codeCall" }
 
 local function escape(text) return (text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")) end
-local function paint(kind, text) return '<font color="' .. COLORS[kind] .. '">' .. escape(text) .. "</font>" end
+local function paint(kind, text) return '<font color="#' .. Util.toHex(Theme.get(ROLES[kind])) .. '">' .. escape(text) .. "</font>" end
 
 -- Small Lua tokenizer -> RichText (one pass, no nesting issues).
 local function highlight(source)
@@ -123,5 +124,6 @@ return function(card, cfg)
         end)
     end
     element:Set(cfg.Code or "")
+    Theme.onChange(function() if holder.Parent then element:Set(element.Value) end end)
     return element
 end

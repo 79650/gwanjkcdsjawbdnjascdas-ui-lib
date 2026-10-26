@@ -48,7 +48,7 @@ return function(card, cfg)
         corner(button, 6)
         local outline = stroke(button, Color3.new(1, 1, 1), 1)
         Theme.bind(outline, "Color", "accent")
-        local dot = create("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = UDim2.fromOffset(14, 14), BorderSizePixel = 0, BackgroundColor3 = color, Parent = button })
+        local dot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = UDim2.fromOffset(14, 14), BorderSizePixel = 0, BackgroundColor3 = color, Parent = button })
         corner(dot, 4)
         local text = label(button, name, 10, { Position = UDim2.fromOffset(28, 0), Size = UDim2.new(1, -32, 1, 0) })
         local entry = { name = name, color = color, button = button, text = text, outline = outline }
@@ -102,6 +102,17 @@ return function(card, cfg)
         end
     end
     function element:Get() return self.Value, self.Color end
+    -- recolour one preset (e.g. "Neutral" per theme pack)
+    function element:SetColor(name, color)
+        for _, entry in ipairs(entries) do
+            if entry.name == name and typeof(color) == "Color3" then
+                entry.color = color
+                local dot = entry.button:FindFirstChild("Dot")
+                if dot then dot.BackgroundColor3 = color end
+                if self.Value == name then self.Color = color end
+            end
+        end
+    end
 
     element:Set(cfg.Default or (entries[1] and entries[1].name), true)
     return Base.finish(element, cfg)

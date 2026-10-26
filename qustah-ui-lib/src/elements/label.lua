@@ -11,6 +11,6 @@ return function(card, cfg)
     if typeof(cfg.Color) == "Color3" then text.TextColor3 = cfg.Color else Theme.bind(text, "TextColor3", "muted") end
     local element = Base.element(card, "Label", {}, text, text, nil)
     function element:Set(value) text.Text = tostring(value) end
-    function element:SetColor(color) if typeof(color) == "Color3" then text.TextColor3 = color end end
+    function element:SetColor(color) Theme.bind(text, "TextColor3", color or "muted") end
     return element
 end

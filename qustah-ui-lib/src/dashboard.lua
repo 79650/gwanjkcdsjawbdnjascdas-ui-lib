@@ -105,7 +105,7 @@ return function(window, cfg)
                     assert(#list > 0, "No other public server found")
                     TeleportService:TeleportToPlaceInstance(game.PlaceId, list[math.random(1, #list)].id, player)
                 end)
-                if not ok then busy = false window:Notify({ Title = "Teleport failed", Content = tostring(err), Color = Color3.fromRGB(215, 130, 130) }) end
+                if not ok then busy = false window:Notify({ Title = "Teleport failed", Content = tostring(err), Color = "danger" }) end
             end)
         end
         server:Button({ Title = "Rejoin", Callback = function() teleport(false) end })
@@ -118,7 +118,7 @@ return function(window, cfg)
         local modulesCard = page:Card({ Title = "Modules", Side = "Left" })
         local empty = modulesCard:Label("Modules report here with Window:SetModule(name, state)")
         local rows = {}
-        local COLORS = { On = Color3.fromRGB(110, 200, 130), Limited = Color3.fromRGB(215, 180, 120), Error = Color3.fromRGB(215, 130, 130) }
+        local COLORS = { On = "success", Limited = "warning", Error = "danger" }
         local function update()
             local order, modules = window:GetModules()
             empty:SetVisible(#order == 0)

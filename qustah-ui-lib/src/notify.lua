@@ -50,12 +50,10 @@ function Notify.show(Lib, cfg)
     local marker = create("Frame", { Position = UDim2.fromOffset(12, 10), Size = UDim2.new(0, 3, 0, textHeight - 20), BorderSizePixel = 0, Parent = toast })
     corner(marker, 2)
     local progress = create("Frame", { Position = UDim2.new(0, 0, 1, -2), Size = UDim2.new(1, 0, 0, 2), BorderSizePixel = 0, Parent = toast })
-    if typeof(cfg.Color) == "Color3" then
-        marker.BackgroundColor3, progress.BackgroundColor3 = cfg.Color, cfg.Color
-    else
-        Theme.bind(marker, "BackgroundColor3", "accent")
-        Theme.bind(progress, "BackgroundColor3", "accent")
-    end
+    -- Color: a Color3 or a theme role ("danger", "success", "warning"); default the accent
+    local tint = (typeof(cfg.Color) == "Color3" or type(cfg.Color) == "string") and cfg.Color or "accent"
+    Theme.bind(marker, "BackgroundColor3", tint)
+    Theme.bind(progress, "BackgroundColor3", tint)
     -- Icon = "name": icon in place of the bar (tinted with Color / the accent)
     local textX = 23
     local icon = cfg.Icon and Icons.Get(cfg.Icon) and Icons.Image(cfg.Icon, { Name = "ToastIcon", Size = UDim2.fromOffset(16, 16) })
@@ -63,7 +61,7 @@ function Notify.show(Lib, cfg)
         marker.Visible = false
         icon.AnchorPoint = Vector2.new(0, 0.5)
         icon.Position = UDim2.new(0, 12, 0, textHeight / 2)
-        if typeof(cfg.Color) == "Color3" then icon.ImageColor3 = cfg.Color else Theme.bind(icon, "ImageColor3", "accent") end
+        Theme.bind(icon, "ImageColor3", tint)
         icon.Parent = toast
         textX = 36
     end

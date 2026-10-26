@@ -5,7 +5,9 @@
 --   Window:GetErrors(), Window:GetErrorReport(), Window:ClearErrors(), Window:OnStatusChanged(fn)
 local Util = require("util")
 
-local GREEN, YELLOW, RED = Color3.fromRGB(82, 207, 132), Color3.fromRGB(215, 180, 120), Color3.fromRGB(215, 130, 130)
+local Theme = require("theme")
+-- theme roles, so the colours suit every theme pack
+local GREEN, YELLOW, RED = "success", "warning", "danger"
 
 return function(Window)
     local function changed(self)
@@ -99,7 +101,7 @@ return function(Window)
             text, color = "Connected", GREEN
         end
         self.statusLabel.Text = text
-        if typeof(color) == "Color3" then self.statusDot.BackgroundColor3 = color end
+        if color ~= nil then Theme.bind(self.statusDot, "BackgroundColor3", color) end
     end
 
     -- Runs a user callback; an error is reported (footer, Info page) instead of breaking the UI.

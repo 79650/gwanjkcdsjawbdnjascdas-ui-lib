@@ -10,7 +10,7 @@ local UIFont = require("font")
 local Profiles = require("profiles")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
-local RED, GREEN = Color3.fromRGB(215, 130, 130), Color3.fromRGB(110, 200, 130)
+local RED, GREEN = "danger", "success" -- theme roles
 
 return function(window, cfg)
     cfg = cfg or {}
@@ -26,7 +26,9 @@ return function(window, cfg)
     local swatches
     local function syncSwatches()
         if not swatches then return end
-        local accent = Theme.get("accent")
+        -- the Neutral preset shows the pack's own neutral (Light uses a dark one)
+        swatches:SetColor("Neutral", Theme.neutral(Theme.pack))
+        local accent = Theme.get("accentUser")
         if accent == Theme.neutral(Theme.pack) then swatches:Set("Neutral", true) else swatches:Set(accent, true) end
     end
     look:Dropdown({
@@ -34,7 +36,7 @@ return function(window, cfg)
         Callback = function(name)
             Theme.applyPack(name)
             -- the pack may swap the neutral accent: keep the picker / presets in step
-            if picker then picker:Set(Theme.get("accent"), true) end
+            if picker then picker:Set(Theme.get("accentUser"), true) end
             syncSwatches()
         end,
     })
@@ -46,7 +48,7 @@ return function(window, cfg)
         end,
     })
     picker = look:ColorPicker({
-        Title = "Custom accent", Desc = "Any colour, saved with the profile", Flag = "__ui_accent", Default = Theme.get("accent"),
+        Title = "Custom accent", Desc = "Any colour, saved with the profile", Flag = "__ui_accent", Default = Theme.get("accentUser"),
         Callback = function(color) Theme.set("accent", color) syncSwatches() end,
     })
     syncSwatches()
@@ -144,7 +146,7 @@ return function(window, cfg)
     })
     errorsCard:Button({ Title = "Clear", Callback = function() window:ClearErrors() end })
 
-    local STATE = { On = GREEN, Off = nil, Limited = Color3.fromRGB(215, 180, 120), Error = RED }
+    local STATE = { On = GREEN, Off = nil, Limited = "warning", Error = RED }
     local function update()
         local order, modules = window:GetModules()
         noModules:SetVisible(#order == 0)
@@ -161,7 +163,7 @@ return function(window, cfg)
         for index, entry in ipairs(errors) do
             total = total + entry.count
             if index <= 8 then
-                lines[#lines + 1] = string.format("<font color=\"#d78282\">%s</font>%s  %s", entry.source, entry.count > 1 and (" ×" .. entry.count) or "", (tostring(entry.message):gsub("<", "&lt;")))
+                lines[#lines + 1] = string.format("<font color=\"#%s\">%s</font>%s  %s", Util.toHex(Theme.get("danger")), entry.source, entry.count > 1 and (" ×" .. entry.count) or "", (tostring(entry.message):gsub("<", "&lt;")))
             end
         end
         if #errors > 8 then lines[#lines + 1] = "+" .. (#errors - 8) .. " more (Copy report)" end
@@ -170,6 +172,7 @@ return function(window, cfg)
         errorText:Set(#lines > 0 and table.concat(lines, "\n") or "No errors")
     end
     window:OnStatusChanged(update)
+    Theme.onChange(function() if infoPage.frame.Parent then update() end end)
     update()
     return tab
 end

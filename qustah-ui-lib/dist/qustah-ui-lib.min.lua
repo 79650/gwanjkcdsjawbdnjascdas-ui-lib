@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.4.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.4.1 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -565,7 +565,7 @@ end
 assert(#list>0,"No other public server found")
 TeleportService:TeleportToPlaceInstance(game.PlaceId,list[math.random(1,#list)].id,player)
 end)
-if not ok then busy=false window:Notify({Title="Teleport failed",Content=tostring(err),Color=Color3.fromRGB(215,130,130)})end
+if not ok then busy=false window:Notify({Title="Teleport failed",Content=tostring(err),Color="danger"})end
 end)
 end
 server:Button({Title="Rejoin",Callback=function()teleport(false)end})
@@ -576,7 +576,7 @@ if cfg.Modules~=false then
 local modulesCard=page:Card({Title="Modules",Side="Left"})
 local empty=modulesCard:Label("Modules report here with Window:SetModule(name, state)")
 local rows={}
-local COLORS={On=Color3.fromRGB(110,200,130),Limited=Color3.fromRGB(215,180,120),Error=Color3.fromRGB(215,130,130)}
+local COLORS={On="success",Limited="warning",Error="danger"}
 local function update()
 local order,modules=window:GetModules()
 empty:SetVisible(#order==0)
@@ -699,7 +699,7 @@ local Theme=require("theme")
 local Base=require("elements/base")
 local Icons=require("icons")
 local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
-local GREEN,RED=Color3.fromRGB(110,200,130),Color3.fromRGB(215,130,130)
+local GREEN,RED="success","danger"
 return function(card,cfg)
 local window=card.window
 local holder=create("Frame",{Name=tostring(cfg.Name or cfg.Button or"ActionInput"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=card:_order(),Parent=card.body})
@@ -748,7 +748,7 @@ hint.Text=tostring(text or cfg.Hint or"")
 local color=state=="ok"and GREEN or(state=="error"and RED or nil)
 hintDot.Visible=color~=nil
 hint.Position=UDim2.fromOffset(color and 13 or 2,0)
-if color then hint.TextColor3,hintDot.BackgroundColor3=color,color else Theme.bind(hint,"TextColor3","muted")end
+if color then Theme.bind(hint,"TextColor3",color)Theme.bind(hintDot,"BackgroundColor3",color)else Theme.bind(hint,"TextColor3","muted")end
 end
 local function validate()
 local text=box.Text:gsub("^%s+",""):gsub("%s+$","")
@@ -963,9 +963,9 @@ local KEYWORDS={}
 for word in("and break do else elseif end false for function if in local nil not or repeat return then true until while continue"):gmatch("%a+")do KEYWORDS[word]=true end
 local GLOBALS={}
 for word in("game workspace script task math string table print warn pcall require loadstring getgenv Instance Vector3 Vector2 CFrame UDim2 Color3 Enum"):gmatch("%a+")do GLOBALS[word]=true end
-local COLORS={keyword="#c792ea",string="#c3e88d",number="#f78c6c",comment="#6b7080",global="#82aaff",call="#ffcb6b"}
+local ROLES={keyword="codeKeyword",string="codeString",number="codeNumber",comment="codeComment",global="codeGlobal",call="codeCall"}
 local function escape(text)return(text:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"))end
-local function paint(kind,text)return'<font color="'..COLORS[kind]..'">'..escape(text).."</font>"end
+local function paint(kind,text)return'<font color="#'..Util.toHex(Theme.get(ROLES[kind]))..'">'..escape(text).."</font>"end
 local function highlight(source)
 local out,i,n={},1,#source
 while i<=n do
@@ -1068,6 +1068,7 @@ end)
 end)
 end
 element:Set(cfg.Code or"")
+Theme.onChange(function()if holder.Parent then element:Set(element.Value)end end)
 return element
 end
 end
@@ -1771,7 +1772,7 @@ Theme.bind(value,"TextColor3","text")
 local element=Base.element(card,"Info",{},row,title,nil)
 function element:Set(text)self.Value=text value.Text=tostring(text)end
 function element:Get()return self.Value end
-function element:SetColor(color)if typeof(color)=="Color3"then value.TextColor3=color else Theme.bind(value,"TextColor3",color or"text")end end
+function element:SetColor(color)Theme.bind(value,"TextColor3",color or"text")end
 if cfg.Copy then
 local copy=create("TextButton",{
 Name="Copy",Text="Copy",TextSize=8,Font=Enum.Font.Gotham,AutoButtonColor=false,BorderSizePixel=0,
@@ -1959,7 +1960,7 @@ TextTruncate=Enum.TextTruncate.None,RichText=true,LayoutOrder=card:_order(),
 if typeof(cfg.Color)=="Color3"then text.TextColor3=cfg.Color else Theme.bind(text,"TextColor3","muted")end
 local element=Base.element(card,"Label",{},text,text,nil)
 function element:Set(value)text.Text=tostring(value)end
-function element:SetColor(color)if typeof(color)=="Color3"then text.TextColor3=color end end
+function element:SetColor(color)Theme.bind(text,"TextColor3",color or"muted")end
 return element
 end
 end
@@ -2558,7 +2559,7 @@ local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,Border
 corner(button,6)
 local outline=stroke(button,Color3.new(1,1,1),1)
 Theme.bind(outline,"Color","accent")
-local dot=create("Frame",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0.5,0),Size=UDim2.fromOffset(14,14),BorderSizePixel=0,BackgroundColor3=color,Parent=button})
+local dot=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0.5,0),Size=UDim2.fromOffset(14,14),BorderSizePixel=0,BackgroundColor3=color,Parent=button})
 corner(dot,4)
 local text=label(button,name,10,{Position=UDim2.fromOffset(28,0),Size=UDim2.new(1,-32,1,0)})
 local entry={name=name,color=color,button=button,text=text,outline=outline}
@@ -2609,6 +2610,16 @@ for _,callback in ipairs(self._changed)do card.window:_safe(source,callback,entr
 end
 end
 function element:Get()return self.Value,self.Color end
+function element:SetColor(name,color)
+for _,entry in ipairs(entries)do
+if entry.name==name and typeof(color)=="Color3"then
+entry.color=color
+local dot=entry.button:FindFirstChild("Dot")
+if dot then dot.BackgroundColor3=color end
+if self.Value==name then self.Color=color end
+end
+end
+end
 element:Set(cfg.Default or(entries[1]and entries[1].name),true)
 return Base.finish(element,cfg)
 end
@@ -3651,9 +3662,9 @@ for index,entry in ipairs(history)do
 local item=create("Frame",{Name="Entry",BackgroundTransparency=1,Size=UDim2.new(1,0,0,entry.Content and 38 or 24),LayoutOrder=index,ZIndex=232,Parent=list})
 local mark=create("Frame",{Position=UDim2.fromOffset(0,5),Size=UDim2.new(0,2,1,-10),BorderSizePixel=0,ZIndex=233,Parent=item})
 corner(mark,1)
-if typeof(entry.Color)=="Color3"then mark.BackgroundColor3=entry.Color else Theme.bind(mark,"BackgroundColor3","accent")end
+Theme.bind(mark,"BackgroundColor3",entry.Color or"accent")
 local entryIcon=entry.Icon and Icons.themed(item,entry.Icon,12,"accent",{Position=UDim2.fromOffset(10,5),ZIndex=233})
-if entryIcon and typeof(entry.Color)=="Color3"then Theme.bind(entryIcon,"ImageColor3",entry.Color)end
+if entryIcon and entry.Color then Theme.bind(entryIcon,"ImageColor3",entry.Color)end
 local title=label(item,entry.Title,10,{Position=UDim2.fromOffset(entryIcon and 28 or 10,3),Size=UDim2.new(1,entryIcon and-82 or-64,0,16),Font=Enum.Font.GothamMedium,ZIndex=233})
 Theme.bind(title,"TextColor3","heading")
 local time=label(item,Util.ago(entry.Time),9,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,3),Size=UDim2.fromOffset(54,16),TextXAlignment=Enum.TextXAlignment.Right,ZIndex=233})
@@ -3738,7 +3749,7 @@ require("hud")(Window)
 require("inbox")(Window)
 require("windowx")(Window)
 local Lib={
-Version="1.4.0",
+Version="1.4.1",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -3806,19 +3817,16 @@ Theme.bind(stroke(toast),"Color","line")
 local marker=create("Frame",{Position=UDim2.fromOffset(12,10),Size=UDim2.new(0,3,0,textHeight-20),BorderSizePixel=0,Parent=toast})
 corner(marker,2)
 local progress=create("Frame",{Position=UDim2.new(0,0,1,-2),Size=UDim2.new(1,0,0,2),BorderSizePixel=0,Parent=toast})
-if typeof(cfg.Color)=="Color3"then
-marker.BackgroundColor3,progress.BackgroundColor3=cfg.Color,cfg.Color
-else
-Theme.bind(marker,"BackgroundColor3","accent")
-Theme.bind(progress,"BackgroundColor3","accent")
-end
+local tint=(typeof(cfg.Color)=="Color3"or type(cfg.Color)=="string")and cfg.Color or"accent"
+Theme.bind(marker,"BackgroundColor3",tint)
+Theme.bind(progress,"BackgroundColor3",tint)
 local textX=23
 local icon=cfg.Icon and Icons.Get(cfg.Icon)and Icons.Image(cfg.Icon,{Name="ToastIcon",Size=UDim2.fromOffset(16,16)})
 if icon then
 marker.Visible=false
 icon.AnchorPoint=Vector2.new(0,0.5)
 icon.Position=UDim2.new(0,12,0,textHeight/2)
-if typeof(cfg.Color)=="Color3"then icon.ImageColor3=cfg.Color else Theme.bind(icon,"ImageColor3","accent")end
+Theme.bind(icon,"ImageColor3",tint)
 icon.Parent=toast
 textX=36
 end
@@ -3886,7 +3894,7 @@ local Util=require("util")
 local Theme=require("theme")
 local Icons=require("icons")
 local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
-local RED,GREEN,YELLOW=Color3.fromRGB(215,130,130),Color3.fromRGB(110,200,130),Color3.fromRGB(215,180,120)
+local RED,GREEN,YELLOW="danger","success","warning"
 return function(window,page,defaults)
 local store=window.Config
 store.DefaultFlags=defaults
@@ -3974,7 +3982,10 @@ end
 corner(button,6)
 local outline=stroke(button)
 if style=="Danger"then
-button.BackgroundColor3,button.TextColor3,outline.Color,outline.Transparency=Color3.fromRGB(70,32,36),Color3.fromRGB(235,150,155),Color3.fromRGB(150,60,66),0.3
+Theme.bind(button,"BackgroundColor3","dangerDeep")
+Theme.bind(button,"TextColor3","dangerText")
+Theme.bind(outline,"Color","dangerEdge")
+outline.Transparency=0.3
 elseif style=="Primary"then
 Theme.bind(button,"BackgroundColor3","accentDeep")
 Theme.bind(button,"TextColor3","accent")
@@ -4285,7 +4296,7 @@ local Glow=require("glow")
 local UIFont=require("font")
 local Profiles=require("profiles")
 local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
-local RED,GREEN=Color3.fromRGB(215,130,130),Color3.fromRGB(110,200,130)
+local RED,GREEN="danger","success"
 return function(window,cfg)
 cfg=cfg or{}
 local defaultSize=Vector2.new(window.width,window.height)
@@ -4298,14 +4309,15 @@ local picker
 local swatches
 local function syncSwatches()
 if not swatches then return end
-local accent=Theme.get("accent")
+swatches:SetColor("Neutral",Theme.neutral(Theme.pack))
+local accent=Theme.get("accentUser")
 if accent==Theme.neutral(Theme.pack)then swatches:Set("Neutral",true)else swatches:Set(accent,true)end
 end
 look:Dropdown({
 Title="Theme",Options=Theme.packOrder,Default="Dark",Flag="__ui_theme",
 Callback=function(name)
 Theme.applyPack(name)
-if picker then picker:Set(Theme.get("accent"),true)end
+if picker then picker:Set(Theme.get("accentUser"),true)end
 syncSwatches()
 end,
 })
@@ -4317,7 +4329,7 @@ if picker then picker:Set(color)end
 end,
 })
 picker=look:ColorPicker({
-Title="Custom accent",Desc="Any colour, saved with the profile",Flag="__ui_accent",Default=Theme.get("accent"),
+Title="Custom accent",Desc="Any colour, saved with the profile",Flag="__ui_accent",Default=Theme.get("accentUser"),
 Callback=function(color)Theme.set("accent",color)syncSwatches()end,
 })
 syncSwatches()
@@ -4404,7 +4416,7 @@ end
 end,
 })
 errorsCard:Button({Title="Clear",Callback=function()window:ClearErrors()end})
-local STATE={On=GREEN,Off=nil,Limited=Color3.fromRGB(215,180,120),Error=RED}
+local STATE={On=GREEN,Off=nil,Limited="warning",Error=RED}
 local function update()
 local order,modules=window:GetModules()
 noModules:SetVisible(#order==0)
@@ -4421,7 +4433,7 @@ local lines={}
 for index,entry in ipairs(errors)do
 total=total+entry.count
 if index<=8 then
-lines[#lines+1]=string.format("<font color=\"#d78282\">%s</font>%s  %s",entry.source,entry.count>1 and(" ×"..entry.count)or"",(tostring(entry.message):gsub("<","&lt;")))
+lines[#lines+1]=string.format("<font color=\"#%s\">%s</font>%s  %s",Util.toHex(Theme.get("danger")),entry.source,entry.count>1 and(" ×"..entry.count)or"",(tostring(entry.message):gsub("<","&lt;")))
 end
 end
 if#errors>8 then lines[#lines+1]="+"..(#errors-8).." more (Copy report)"end
@@ -4430,6 +4442,7 @@ errorCount:SetColor(#errors>0 and RED or"text")
 errorText:Set(#lines>0 and table.concat(lines,"\n")or"No errors")
 end
 window:OnStatusChanged(update)
+Theme.onChange(function()if infoPage.frame.Parent then update()end end)
 update()
 return tab
 end
@@ -4474,7 +4487,8 @@ return Stats
 end
 __modules["status"]=function()
 local Util=require("util")
-local GREEN,YELLOW,RED=Color3.fromRGB(82,207,132),Color3.fromRGB(215,180,120),Color3.fromRGB(215,130,130)
+local Theme=require("theme")
+local GREEN,YELLOW,RED="success","warning","danger"
 return function(Window)
 local function changed(self)
 self:_refreshStatus()
@@ -4560,7 +4574,7 @@ else
 text,color="Connected",GREEN
 end
 self.statusLabel.Text=text
-if typeof(color)=="Color3"then self.statusDot.BackgroundColor3=color end
+if color~=nil then Theme.bind(self.statusDot,"BackgroundColor3",color)end
 end
 function Window:_safe(source,callback,...)
 if type(callback)~="function"then return end
@@ -4590,11 +4604,39 @@ muted=rgb(118,118,124),
 heading=rgb(205,205,210),
 knob=rgb(190,190,195),
 accent=rgb(177,178,183),
+success=rgb(110,200,130),
+warning=rgb(215,180,120),
+danger=rgb(215,130,130),
+dangerDeep=rgb(70,32,36),
+dangerEdge=rgb(150,60,66),
+dangerText=rgb(235,150,155),
+codeKeyword=rgb(199,146,234),codeString=rgb(195,232,141),codeNumber=rgb(247,140,108),
+codeComment=rgb(107,112,128),codeGlobal=rgb(130,170,255),codeCall=rgb(255,203,107),
 }
+Theme.colors.accentUser=Theme.colors.accent
+local function luminance(c)
+local function channel(v)return v<=0.03928 and v/12.92 or((v+0.055)/1.055)^2.4 end
+return 0.2126*channel(c.R)+0.7152*channel(c.G)+0.0722*channel(c.B)
+end
+local function contrast(a,b)
+local la,lb=luminance(a),luminance(b)
+return(math.max(la,lb)+0.05)/(math.min(la,lb)+0.05)
+end
+Theme.contrast=contrast
 local function derive()
 local colors=Theme.colors
+local accent=colors.accentUser or colors.accent
+if luminance(colors.base)>0.5 then
+local black=Color3.new(0,0,0)
+for _=1,12 do
+if contrast(accent,colors.card)>=3 then break end
+accent=accent:Lerp(black,0.08)
+end
+end
+colors.accent=accent
+Theme.isLight=luminance(colors.base)>0.5
 colors.accentDeep=colors.base:Lerp(colors.accent,0.12)
-colors.toggleOn=colors.input:Lerp(colors.accent,0.42)
+colors.toggleOn=colors.input:Lerp(colors.accent,Theme.isLight and 0.85 or 0.42)
 colors.accentEdge=colors.base:Lerp(colors.accent,0.35)
 local a=colors.accent
 local luminance=0.299*a.R+0.587*a.G+0.114*a.B
@@ -4625,8 +4667,9 @@ end
 end
 function Theme.set(role,color)
 if typeof(color)~="Color3"then return end
+if role=="accent"then role="accentUser"end
 Theme.colors[role]=color
-if role=="accent"or role=="base"or role=="input"then derive()end
+if role=="accentUser"or role=="base"or role=="input"or role=="card"then derive()end
 for object,properties in pairs(bound)do
 if object.Parent then
 for property,boundRole in pairs(properties)do
@@ -4637,7 +4680,9 @@ end
 for _,listener in ipairs(listeners)do Util.safe(listener,role,color)end
 end
 function Theme.setMany(colors)
-for role,color in pairs(colors)do if typeof(color)=="Color3"then Theme.colors[role]=color end end
+for role,color in pairs(colors)do
+if typeof(color)=="Color3"then Theme.colors[role=="accent"and"accentUser"or role]=color end
+end
 derive()
 for object,properties in pairs(bound)do
 if object.Parent then
@@ -4664,6 +4709,10 @@ Light={
 base=rgb(238,238,241),footer=rgb(229,229,233),dock=rgb(234,234,238),selected=rgb(216,216,222),icon=rgb(85,85,95),
 card=rgb(247,247,249),input=rgb(231,231,235),hover=rgb(221,221,226),line=rgb(214,214,220),edge=rgb(200,200,206),
 buttonEdge=rgb(190,190,198),text=rgb(62,62,70),muted=rgb(120,120,130),heading=rgb(25,25,30),knob=rgb(255,255,255),
+success=rgb(30,135,70),warning=rgb(165,105,15),danger=rgb(190,55,55),
+dangerDeep=rgb(252,230,230),dangerEdge=rgb(225,150,150),dangerText=rgb(170,40,40),
+codeKeyword=rgb(135,55,195),codeString=rgb(35,125,55),codeNumber=rgb(195,85,35),
+codeComment=rgb(135,135,145),codeGlobal=rgb(35,95,200),codeCall=rgb(150,100,0),
 },
 }
 Theme.packOrder={"Dark","Midnight","AMOLED","Light"}
@@ -4675,10 +4724,10 @@ function Theme.applyPack(name)
 local pack=Theme.packs[name]
 if not pack then return false end
 local colors={}
-for role,color in pairs(DEFAULTS)do if role~="accent"then colors[role]=color end end
+for role,color in pairs(DEFAULTS)do if role~="accent"and role~="accentUser"then colors[role]=color end end
 for role,color in pairs(pack)do colors[role]=color end
-local accent=Theme.colors.accent
-if accent==Theme.neutral("Dark")or accent==Theme.neutral("Light")then colors.accent=Theme.neutral(name)end
+local accent=Theme.colors.accentUser
+if accent==Theme.neutral("Dark")or accent==Theme.neutral("Light")then colors.accentUser=Theme.neutral(name)end
 Theme.pack=name
 Theme.setMany(colors)
 return true
@@ -5204,8 +5253,8 @@ Theme.bind(bar,"BackgroundColor3","muted")
 bars[#bars+1]=bar
 end
 button.MouseEnter:Connect(function()
-tween(button,0.12,{BackgroundTransparency=0,BackgroundColor3=cross and Color3.fromRGB(60,24,26)or Theme.get("input")})
-for _,bar in ipairs(bars)do Theme.tweenTo(bar,"BackgroundColor3",cross and Color3.fromRGB(235,90,90)or"heading",0.12)end
+tween(button,0.12,{BackgroundTransparency=0,BackgroundColor3=Theme.get(cross and"dangerDeep"or"input")})
+for _,bar in ipairs(bars)do Theme.tweenTo(bar,"BackgroundColor3",cross and"danger"or"heading",0.12)end
 end)
 button.MouseLeave:Connect(function()
 tween(button,0.12,{BackgroundTransparency=1})
