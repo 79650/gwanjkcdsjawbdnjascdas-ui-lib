@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.0.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.0.2 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1316,7 +1316,7 @@ local Settings = require("settings")
 local Dashboard = require("dashboard")
 
 local Lib = {
-    Version = "1.0.1",
+    Version = "1.0.2",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -2164,27 +2164,6 @@ function Window:_build()
     Theme.bind(tipText, "TextColor3", "heading")
     self.tip, self.tipText = tip, tipText
 
-    ---------------------------------------------------------------- close popup (Minimize / Close)
-    local popup = create("Frame", { Name = "ClosePopup", Size = UDim2.fromOffset(190, 68), BorderSizePixel = 0, Visible = false, ZIndex = 250, Parent = gui })
-    Theme.bind(popup, "BackgroundColor3", "card")
-    corner(popup, 8)
-    Theme.bind(stroke(popup), "Color", "line")
-    local popupTitle = label(popup, self.Title, 11, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 24), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamMedium, ZIndex = 251 })
-    Theme.bind(popupTitle, "TextColor3", "text")
-    local function popupButton(text, x, danger)
-        local button = create("TextButton", {
-            Text = text, TextSize = 10, Font = Enum.Font.Gotham, AutoButtonColor = false, BorderSizePixel = 0,
-            Position = UDim2.fromOffset(x, 32), Size = UDim2.fromOffset(82, 26), ZIndex = 251, Parent = popup,
-        })
-        Theme.bind(button, "BackgroundColor3", "input")
-        if danger then button.TextColor3 = Color3.fromRGB(210, 105, 105) else Theme.bind(button, "TextColor3", "text") end
-        corner(button, 6)
-        Theme.bind(stroke(button), "Color", "buttonEdge")
-        return button
-    end
-    local popupMinimize = popupButton("Minimize", 10, false)
-    local popupClose = popupButton("Close", 98, true)
-
     ---------------------------------------------------------------- behaviour
     local function moveWindow(input)
         if not Util.isPress(input) then return end
@@ -2210,18 +2189,17 @@ function Window:_build()
         end)
     end)
     maid:connect(minimize.Activated, function() self:Minimize() end)
+    -- X closes straight away (no extra popup) and says how to get the menu back.
+    -- CloseAction = "Destroy" unloads the whole UI instead of hiding it.
     maid:connect(close.Activated, function()
-        if popup.Visible then self:_closePopup() return end
-        local position = close.AbsolutePosition
-        local viewport = Util.viewport()
-        popup.Position = UDim2.fromOffset(
-            math.clamp(position.X + close.AbsoluteSize.X - 190, 8, math.max(8, viewport.X - 198)),
-            math.clamp(position.Y + close.AbsoluteSize.Y + 6, 8, math.max(8, viewport.Y - 76)))
-        self:_openPopup(popup, close, function() popup.Visible = false end)
-        popup.Visible = true
+        if self.cfg.CloseAction == "Destroy" then
+            self:Notify({ Title = self.Title, Content = "Unloaded" })
+            self:Destroy()
+            return
+        end
+        self:SetVisible(false)
+        self:Notify({ Title = self.Title .. " hidden", Content = "Press " .. Util.keyName(self.key) .. " to open it again" })
     end)
-    maid:connect(popupMinimize.Activated, function() self:_closePopup() if not self.folded then self:Minimize() end end)
-    maid:connect(popupClose.Activated, function() self:_closePopup() self:Destroy() end)
 
     local UserInputService = Services.UserInputService
     maid:connect(UserInputService.InputChanged, function(input)

@@ -7,7 +7,7 @@ local Settings = require("settings")
 local Dashboard = require("dashboard")
 
 local Lib = {
-    Version = "1.0.1",
+    Version = "1.0.2",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

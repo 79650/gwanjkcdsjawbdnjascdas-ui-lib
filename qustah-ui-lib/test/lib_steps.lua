@@ -199,6 +199,14 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("narrow window stacks columns", visuals.Pages[1].layout.FillDirection == Enum.FillDirection.Vertical)
     MOCK.setViewport(1280, 720) window.width = 560 window:_layout() wait(0.2)
 
+    -- X hides the menu at once and tells how to reopen it
+    MOCK.click(find("Close")) wait(0.4)
+    check("X hides without a popup", window.main.Visible == false and find("ClosePopup") == nil)
+    check("X shows a notification", find("Toast", Lib._notifyHolder) ~= nil)
+    MOCK.press(Enum.KeyCode.RightShift) wait(0.4)
+    check("menu key brings it back", window.main.Visible == true)
+    wait(3.6)
+
     -- notifications
     window:Notify({ Title = "Test", Content = "Body" }) wait(0.1)
     check("toast shown", find("Toast", Lib._notifyHolder) ~= nil)

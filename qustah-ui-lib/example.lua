@@ -1,5 +1,5 @@
 -- qustah-ui-lib example: every element once, laid out like Qustah.
-local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/USER/qustah-ui-lib/main/dist/qustah-ui-lib.lua"))()
+local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/dist/qustah-ui-lib.lua"))()
 
 local Window = Lib:CreateWindow({
     Title     = "Qustāh",

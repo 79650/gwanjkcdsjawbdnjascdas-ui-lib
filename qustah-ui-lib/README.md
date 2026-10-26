@@ -7,7 +7,7 @@ sadece özelliklerini yazarsın.
 ## Yükleme
 
 ```lua
-local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/USER/qustah-ui-lib/main/dist/qustah-ui-lib.lua"))()
+local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/dist/qustah-ui-lib.lua"))()
 ```
 
 `USER` yerine GitHub kullanıcı adını yaz. Tam örnek: [`example.lua`](example.lua).
@@ -37,7 +37,7 @@ Window.Config:LoadAutoLoad()  -- autoload seçilmiş config'i yükler (UI kuruld
 ### Lib
 | | |
 |---|---|
-| `Lib:CreateWindow(cfg)` | `Title, Version, Size (Vector2), MinSize, MaxSize, ToggleKey, Accent (Color3), Folder, Footer, OnClose` |
+| `Lib:CreateWindow(cfg)` | `Title, Version, Size (Vector2), MinSize, MaxSize, ToggleKey, Accent (Color3), Folder, Footer, KeyHints, CloseAction ("Hide" / "Destroy"), OnClose` — X menüyü gizler ve bildirim gösterir; `CloseAction = "Destroy"` tamamen kapatır |
 | `Lib:Notify(cfg)` | `Title, Content, Duration (3), Color` |
 | `Lib:SetAccent(color)` | Tema rengini değiştirir, bütün arayüz anında güncellenir |
 | `Lib:SetColor(role, color)` | `base, card, input, line, text, muted, heading, accent ...` |
