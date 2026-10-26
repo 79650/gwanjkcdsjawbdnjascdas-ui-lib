@@ -14,7 +14,7 @@ local Window = Lib:CreateWindow({
 Window:DashboardTab({ Info = { { "Code revision", "571" } } })
 
 ------------------------------------------------------------------------ Visuals: two pages
-local Visuals = Window:Tab({ Title = "Visuals", Icon = "rbxassetid://78134819718605" })
+local Visuals = Window:Tab({ Title = "Visuals", Icon = "eye" })            -- icon names (lucide), "solar:eye-bold", or "rbxassetid://..."
 local Overview = Visuals:Page("Overview")
 local Appearance = Visuals:Page("Appearance")
 
@@ -42,7 +42,7 @@ Text:Dropdown({ Title = "Font", Flag = "font", Options = { "Gotham", "Code", "Ub
 Text:Dropdown({ Title = "Show", Flag = "parts", Multi = true, Options = { "Name", "Health", "Distance", "Weapon" }, Default = { "Name", "Health" } })
 
 ------------------------------------------------------------------------ Silent: one page, locked element
-local Silent = Window:Tab({ Title = "Silent", Icon = "rbxassetid://11738355467" })
+local Silent = Window:Tab({ Title = "Silent", Icon = "crosshair" })
 local Aim = Silent:Card({ Title = "Silent Aim" })
 local silentToggle = Aim:Toggle({ Title = "Silent Aim", Desc = "Hits targets inside the FOV.", Flag = "silentAim", Bindable = true })
 local prediction = Aim:Toggle({ Title = "Prediction", Desc = "Predicts target movement.", Flag = "prediction",
@@ -52,23 +52,23 @@ Aim:Slider({ Title = "Hit chance", Flag = "hitChance", Min = 0, Max = 100, Defau
 Aim:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body", "Closest" }, Default = "Head" })
 local Fov = Silent:Card({ Title = "FOV" })
 Fov:Slider({ Title = "Radius", Flag = "fovRadius", Min = 10, Max = 600, Default = 120, Suffix = "px" })
-Fov:Keybind({ Title = "Aim key", Flag = "aimKey", Default = Enum.KeyCode.Q, Pressed = function() print("aim key") end })
+Fov:Keybind({ Title = "Aim key", Icon = "target", Flag = "aimKey", Default = Enum.KeyCode.Q, Pressed = function() print("aim key") end })
 Fov:Keybind({ Title = "Mark target", Desc = "Modifier + key or mouse", Chord = true, Flag = "markKey",
     Default = { Enum.KeyCode.LeftControl, Enum.UserInputType.MouseButton1 }, Pressed = function() print("mark") end })
 
 -- one card, several sections switched from its header
-local Targets = Silent:Card({ Title = "Targets" })
+local Targets = Silent:Card({ Title = "Targets", Icon = "users" })   -- Icon replaces the dot
 local sections = Targets:Tabs({ "Players", "Filters" })
 sections.Players:PlayerList({ Title = "Whitelist", Flag = "whitelist", Height = 120, Callback = function(ids) print(#ids, "whitelisted") end })
 sections.Filters:Toggle({ Title = "Ignore squad", Flag = "ignoreSquad", Default = true })
 sections.Filters:Toggle({ Title = "Ignore friends", Flag = "ignoreFriends" })
 
 ------------------------------------------------------------------------ Misc: input, buttons, paragraph
-local Misc = Window:Tab({ Title = "Misc", Icon = "rbxassetid://87846110657364" })
+local Misc = Window:Tab({ Title = "Misc", Icon = "wrench" })
 local Tools = Misc:Card({ Title = "Tools" })
 Tools:Input({ Title = "Target name", Placeholder = "player name", Flag = "targetName" })
-Tools:Button({ Title = "Rejoin", Callback = function() print("rejoin") end })
-Tools:Button({ Title = "Server hop", Confirm = true, Callback = function() print("hop") end })
+Tools:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() print("rejoin") end })
+Tools:Button({ Title = "Server hop", Icon = "shuffle", Confirm = true, Callback = function() print("hop") end })
 local Crosshair = Misc:Card({ Title = "Crosshair" })
 Crosshair:ImagePicker({ Title = "Style", Flag = "crosshair", Columns = 4,
     Images = { "rbxassetid://9943168532", "rbxassetid://12614416478", "rbxassetid://6764432408", "rbxassetid://7072721682" } })
@@ -92,5 +92,5 @@ Window:SetModule("Silent Aim", "Off")
 Window:SetModule("Mark", "Limited", "client-side only")
 
 Window.Config:LoadAutoLoad()
-Window:Notify({ Title = "Qustāh", Content = "Loaded · RSHIFT to toggle" })
+Window:Notify({ Title = "Qustāh", Content = "Loaded · RSHIFT to toggle", Icon = "sparkles" })
 print(Lib.Flags.espRange) -- current value of any flag

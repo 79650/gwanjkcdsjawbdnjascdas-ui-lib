@@ -12,7 +12,7 @@ return function(window, cfg)
     cfg = cfg or {}
     local Players = Services.Players
     local player = Players.LocalPlayer
-    local tab = window:Tab({ Title = cfg.Title or "Dashboard", Icon = cfg.Icon or "rbxassetid://111637692403997", Header = cfg.Header ~= false })
+    local tab = window:Tab({ Title = cfg.Title or "Dashboard", Icon = cfg.Icon or "layout-dashboard", Header = cfg.Header ~= false })
     window._dividerNext = true
     local page = tab:Page(tab.Title)
     local started = os.clock()

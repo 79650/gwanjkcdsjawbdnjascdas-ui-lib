@@ -3,6 +3,7 @@
 --   Window:OpenInbox(), Window:ClearInbox()
 local Util = require("util")
 local Theme = require("theme")
+local Icons = require("icons")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 local HEADER = 44
@@ -63,12 +64,14 @@ return function(Window)
                 local mark = create("Frame", { Position = UDim2.fromOffset(0, 5), Size = UDim2.new(0, 2, 1, -10), BorderSizePixel = 0, ZIndex = 233, Parent = item })
                 corner(mark, 1)
                 if typeof(entry.Color) == "Color3" then mark.BackgroundColor3 = entry.Color else Theme.bind(mark, "BackgroundColor3", "accent") end
-                local title = label(item, entry.Title, 10, { Position = UDim2.fromOffset(10, 3), Size = UDim2.new(1, -64, 0, 16), Font = Enum.Font.GothamMedium, ZIndex = 233 })
+                local entryIcon = entry.Icon and Icons.themed(item, entry.Icon, 12, "accent", { Position = UDim2.fromOffset(10, 5), ZIndex = 233 })
+                if entryIcon and typeof(entry.Color) == "Color3" then Theme.bind(entryIcon, "ImageColor3", entry.Color) end
+                local title = label(item, entry.Title, 10, { Position = UDim2.fromOffset(entryIcon and 28 or 10, 3), Size = UDim2.new(1, entryIcon and -82 or -64, 0, 16), Font = Enum.Font.GothamMedium, ZIndex = 233 })
                 Theme.bind(title, "TextColor3", "heading")
                 local time = label(item, Util.ago(entry.Time), 9, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 3), Size = UDim2.fromOffset(54, 16), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 233 })
                 Theme.bind(time, "TextColor3", "muted")
                 if entry.Content then
-                    local content = label(item, entry.Content, 9, { Position = UDim2.fromOffset(10, 19), Size = UDim2.new(1, -10, 0, 14), ZIndex = 233 })
+                    local content = label(item, entry.Content, 9, { Position = UDim2.fromOffset(entryIcon and 28 or 10, 19), Size = UDim2.new(1, entryIcon and -28 or -10, 0, 14), ZIndex = 233 })
                     Theme.bind(content, "TextColor3", "muted")
                 end
             end

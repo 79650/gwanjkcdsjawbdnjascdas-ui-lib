@@ -2,6 +2,7 @@
 -- Lock / Unlock with a reason tooltip, and the default save / load used by configs.
 local Util = require("util")
 local Theme = require("theme")
+local Icons = require("icons")
 
 local create, corner, label = Util.create, Util.corner, Util.label
 
@@ -25,6 +26,15 @@ function Base.row(card, cfg, height, opts)
     if cfg.Desc then
         desc = label(row, tostring(cfg.Desc), 9, { Name = "Desc", Position = UDim2.fromOffset(0, 23), Size = UDim2.new(1, -right, 0, 14) })
         Theme.bind(desc, "TextColor3", "muted")
+    end
+    -- Icon = "name": a small icon before the title (title / description move right)
+    if cfg.Icon and not opts.noIcon then
+        local icon = Icons.themed(row, cfg.Icon, 14, "muted", { Name = "RowIcon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, cfg.Desc and 12 or height / 2) })
+        if icon then
+            title.Position = UDim2.new(0, 22, 0, title.Position.Y.Offset)
+            title.Size = UDim2.new(1, title.Size.X.Offset - 22, 0, title.Size.Y.Offset)
+            if desc then desc.Position = UDim2.fromOffset(22, 23) desc.Size = UDim2.new(1, desc.Size.X.Offset - 22, 0, 14) end
+        end
     end
     -- Help = "text": a small "i" left of the control; click shows the text next to the mouse.
     if cfg.Help then

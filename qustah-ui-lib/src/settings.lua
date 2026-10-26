@@ -15,7 +15,7 @@ local RED, GREEN = Color3.fromRGB(215, 130, 130), Color3.fromRGB(110, 200, 130)
 return function(window, cfg)
     cfg = cfg or {}
     local defaultSize = Vector2.new(window.width, window.height)
-    local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = cfg.Icon or "rbxassetid://11385220704", Divider = cfg.Divider ~= false, Header = cfg.Header ~= false })
+    local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = cfg.Icon or "settings", Divider = cfg.Divider ~= false, Header = cfg.Header ~= false })
     local interface = tab:Page("Interface")
     local profiles = tab:Page("Profiles", { Columns = 1 })
     local infoPage = tab:Page("Info")

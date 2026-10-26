@@ -25,8 +25,11 @@ return function(card, cfg)
         local marker = create("Frame", { Name = "Marker", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(3, 24), BorderSizePixel = 0, BackgroundTransparency = 0.15, Parent = row })
         Theme.bind(marker, "BackgroundColor3", "accent")
         corner(marker, 2)
-        title.Position = UDim2.new(0, 12, 0, title.Position.Y.Offset)
-        if desc then desc.Position = UDim2.fromOffset(12, desc.Position.Y.Offset) end
+        -- (an Icon already moved the title: the marker sits before both)
+        local icon = row:FindFirstChild("RowIcon")
+        if icon then icon.Position = UDim2.new(0, 12, icon.Position.Y.Scale, icon.Position.Y.Offset) end
+        title.Position = UDim2.new(0, title.Position.X.Offset + 12, 0, title.Position.Y.Offset)
+        if desc then desc.Position = UDim2.fromOffset(desc.Position.X.Offset + 12, desc.Position.Y.Offset) end
     end
     if cfg.Badge then
         local text = tostring(cfg.Badge)

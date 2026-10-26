@@ -150,6 +150,43 @@ Config dosyaları `<Folder>/configs/<isim>.json`; autoload adı `<Folder>/autolo
   - *Saved*: arama (3+ profilde), son kullanılan üstte, ACTIVE / AUTO / LOCKED etiketleri, profil **notu**, "N ayar farklı" özeti, Load (kaydedilmemiş değişiklik varsa sorar), Overwrite, Autoload, **Share**, Rename, Duplicate, Delete.
   - Kodla: `Config.Active`, `Config:Changes()`, `Config:Export(name)`, `Config:Decode(code)`, `Config:Read(name)`.
 
+### v1.3: ikonlar
+
+Icon alan her yerde artık **isim** yazabilirsin (asset id de çalışmaya devam eder):
+
+```lua
+Window:Tab({ Title = "Visuals", Icon = "eye" })                -- lucide (varsayılan, lib'in içinde, 1715 ikon)
+Window:Tab({ Title = "Silent", Icon = "solar:target-bold" })   -- başka set: set:isim
+Card({ Title = "Targets", Icon = "users" })                     -- kart başlığındaki nokta yerine
+Toggle({ Title = "ESP", Icon = "scan-eye" })                    -- her elemanın başlığının soluna (Slider, Keybind, Dropdown...)
+Button({ Title = "Rejoin", Icon = "refresh-cw" })
+Lib:Notify({ Title = "Saved", Icon = "circle-check" })          -- bildirim + zil geçmişi
+Lib:CreateWindow({ Title = "Qustāh", Icon = "swords" })         -- başlığın önünde logo
+card:ImagePicker({ Images = { "crosshair", "solar:target-bold", "rbxassetid://..." } })
+```
+
+| Set | Ikon | Not |
+|---|---|---|
+| `lucide` | 1715 | lib'e gömülü, internet gerekmez |
+| `solar` | 7330 | `-bold`, `-linear`, `-broken`, `-bold-duotone`... |
+| `sfsymbols` | 6984 | `sfsymbols:HouseFill` (CamelCase) |
+| `gravity` | 781 | |
+| `geist` | 465 | spritesheet, iki tonlu ikonlar |
+| `craft` | 998 | spritesheet |
+
+lucide dışındaki setler ilk kullanımda bu repodaki `icons/` klasöründen bir kere indirilir.
+
+```lua
+Lib.Icons.SetDefault("solar")      -- önek yazmadan solar kullan (bulunamazsa lucide'e düşer)
+Lib.Icons.Get("house")             -- { Image, RectSize, RectOffset, Parts }
+Lib.Icons.Image("house", { Size = UDim2.fromOffset(24, 24), Color = Color3.new(1, 1, 1), Parent = frame })
+Lib.Icons.Apply(myImageLabel, "solar:home-bold")
+Lib.Icons.Add("mine", { skull = "rbxassetid://123" })   -- kendi setin -> "mine:skull"
+Lib.Icons.List("lucide")           -- bütün isimler
+```
+
+İkon isimleri: [lucide.dev/icons](https://lucide.dev/icons), diğerleri için `icons/<set>.lua`. Ikonlar [Footagesus/Icons](https://github.com/Footagesus/Icons)'tan (MIT, `icons/LICENSE`).
+
 ## Geliştirme
 
 ```

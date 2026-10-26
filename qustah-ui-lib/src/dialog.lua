@@ -4,6 +4,7 @@
 -- The menu behind is dimmed and blocked; Escape or a click on the dim area closes it (as "cancel").
 local Util = require("util")
 local Theme = require("theme")
+local Icons = require("icons")
 
 local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
 
@@ -28,6 +29,12 @@ return function(Window)
         Util.list(panel, 8)
         local title = label(panel, tostring(cfg.Title or ""), 13, { Name = "Title", Size = UDim2.new(1, 0, 0, 20), Font = Enum.Font.GothamMedium, ZIndex = 202, LayoutOrder = 1 })
         Theme.bind(title, "TextColor3", "heading")
+        -- Icon = "name" before the title (red when IconColor / a Danger button says so)
+        if cfg.Icon and Icons.Get(cfg.Icon) then
+            Util.padding(title, 24, 0, 0, 0)
+            local icon = Icons.themed(title, cfg.Icon, 16, "accent", { Name = "DialogIcon", Position = UDim2.fromOffset(-24, 2), ZIndex = 203 })
+            if typeof(cfg.IconColor) == "Color3" then Theme.bind(icon, "ImageColor3", cfg.IconColor) end
+        end
         if cfg.Content then
             local content = label(panel, tostring(cfg.Content), 10, {
                 Name = "Content", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true,
@@ -81,7 +88,7 @@ return function(Window)
 
     function Window:Confirm(title, content, onConfirm, confirmText, danger)
         return self:Dialog({
-            Title = title, Content = content,
+            Title = title, Content = content, Icon = danger and "triangle-alert" or nil, IconColor = danger and Color3.fromRGB(226, 101, 107) or nil,
             Buttons = { { Title = "Cancel" }, { Title = confirmText or "Confirm", Style = danger and "Danger" or "Primary", Callback = onConfirm } },
         })
     end

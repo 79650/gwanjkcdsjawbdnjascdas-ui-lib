@@ -2,6 +2,7 @@
 -- Every element constructor (Toggle, Slider, ...) is available as a method: card:Toggle({ ... }).
 local Util = require("util")
 local Theme = require("theme")
+local Icons = require("icons")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 
@@ -51,9 +52,10 @@ function Card.new(page, column, cfg, order)
     Util.padding(frame, 14, 14, 8, 10)
     Util.list(frame, 4)
     if cfg.Title then
-        -- accent dot with a soft glow + medium heading (Qustah card title)
+        -- accent dot with a soft glow + medium heading (Qustah card title); Icon = "name" replaces the dot
         local head = create("Frame", { Name = "Heading", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = 0, Parent = frame })
-        for ring = 3, 0, -1 do
+        local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 13, "accent", { Name = "CardIcon", Position = UDim2.fromOffset(-1, 3) })
+        for ring = 3, (icon and 4 or 0), -1 do
             local dot = create("Frame", {
                 Name = ring == 0 and "Dot" or "Glow", Position = UDim2.fromOffset(-ring, 7 - ring), Size = UDim2.fromOffset(6 + ring * 2, 6 + ring * 2),
                 BorderSizePixel = 0, BackgroundTransparency = ring == 0 and 0 or 0.91, Parent = head,
@@ -61,7 +63,7 @@ function Card.new(page, column, cfg, order)
             Theme.bind(dot, "BackgroundColor3", "accent")
             corner(dot, ring == 0 and 3 or 6)
         end
-        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(13, 0), Size = UDim2.new(1, -13, 1, 0), Font = Enum.Font.GothamMedium })
+        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(icon and 18 or 13, 0), Size = UDim2.new(1, icon and -18 or -13, 1, 0), Font = Enum.Font.GothamMedium })
         Theme.bind(title, "TextColor3", "heading")
         self.titleLabel = title
     end

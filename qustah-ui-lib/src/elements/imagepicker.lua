@@ -3,6 +3,7 @@
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
+local Icons = require("icons")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 
@@ -42,10 +43,12 @@ return function(card, cfg)
         })
         corner(button, 6)
         local outline = stroke(button)
-        create("ImageLabel", {
+        local preview = create("ImageLabel", {
             Name = "Preview", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.62, 0.62),
             BackgroundTransparency = 1, Image = asset(image), ScaleType = Enum.ScaleType.Fit, Parent = button,
         })
+        -- icon names work too ("crosshair", "solar:target-bold")
+        if not tostring(image):match("^%d+$") and not tostring(image):match("^rbxasset") then Icons.Apply(preview, image) end
         buttons[key] = { button = button, outline = outline }
         button.Activated:Connect(function() if not element.Locked then element:Set(key) end end)
     end

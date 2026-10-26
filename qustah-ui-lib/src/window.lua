@@ -7,6 +7,7 @@ local Card = require("card")
 local Config = require("config")
 local Glow = require("glow")
 local UIFont = require("font")
+local Icons = require("icons")
 
 local Services = Util.Services
 local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
@@ -156,13 +157,13 @@ function Tab.new(window, cfg)
     Theme.bind(button, "BackgroundColor3", "accentDeep")
     corner(button, 15)
     local icon
-    local image = cfg.Icon
-    if type(image) == "number" or (type(image) == "string" and image:match("^%d+$")) then image = "rbxassetid://" .. tostring(image) end
-    if type(image) == "string" and image ~= "" then
+    -- Icon: a name ("eye", "solar:eye-bold"), an asset id or nothing (first letter of the title)
+    if cfg.Icon ~= nil and Icons.Get(cfg.Icon) then
         icon = create("ImageLabel", {
             Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(18, 18),
-            BackgroundTransparency = 1, Image = image, ScaleType = Enum.ScaleType.Fit, ZIndex = 43, Parent = button,
+            BackgroundTransparency = 1, ScaleType = Enum.ScaleType.Fit, ZIndex = 43, Parent = button,
         })
+        Icons.Apply(icon, cfg.Icon)
         self.iconProperty = "ImageColor3"
     else
         icon = label(button, self.Title:sub(1, 1):upper(), 13, {
@@ -292,6 +293,11 @@ function Window:_build()
     pcall(function() title.FontFace = Font.new(Font.fromEnum(Enum.Font.Gotham).Family, Enum.FontWeight.SemiBold) end)
     Theme.bind(title, "TextColor3", "accent")
     Glow.add(title, { Base = "accent", Period = 3.6, GlowTransparency = 0.8 })
+    -- CreateWindow({ Icon = "swords" }): a logo before the title
+    if self.cfg.Icon then
+        local logo = Icons.themed(titleRow, self.cfg.Icon, 18, "accent", { Name = "Logo", LayoutOrder = 0 })
+        if logo then self.logo = logo end
+    end
     if self.Version ~= "" then
         local badge = create("Frame", { Name = "Version", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 16), LayoutOrder = 2, Parent = titleRow })
         Theme.bind(badge, "BackgroundColor3", "card")

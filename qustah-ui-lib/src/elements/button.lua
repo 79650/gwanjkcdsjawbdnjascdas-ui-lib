@@ -3,6 +3,7 @@
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
+local Icons = require("icons")
 
 local create, corner, stroke = Util.create, Util.corner, Util.stroke
 
@@ -24,8 +25,22 @@ return function(card, cfg)
         Theme.bind(desc, "TextColor3", "muted")
     end
 
+    -- Icon = "name": icon + text centred together
+    local textLabel
+    if cfg.Icon and Icons.Get(cfg.Icon) then
+        local content = create("Frame", { Name = "Content", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, Parent = button })
+        Util.list(content, 6, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+        local icon = Icons.themed(content, cfg.Icon, 13, "text", { Name = "ButtonIcon", LayoutOrder = 1 })
+        textLabel = Util.label(content, button.Text, 10, { Name = "Text", Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 2 })
+        Theme.bind(textLabel, "TextColor3", "text")
+        -- keep the label in step with the button's text / colour (hover, Confirm)
+        button:GetPropertyChangedSignal("Text"):Connect(function() if button.Text ~= "" then textLabel.Text = button.Text button.Text = "" end end)
+        button:GetPropertyChangedSignal("TextColor3"):Connect(function() textLabel.TextColor3 = button.TextColor3 icon.ImageColor3 = button.TextColor3 end)
+        button.Text = ""
+    end
+
     local element = Base.element(card, "Button", cfg, row, button, desc)
-    element.Text = button.Text
+    element.Text = tostring(cfg.Title or "Button")
     function element:SetTitle(text) self.Text = tostring(text) button.Text = self.Text end
     function element:Fire() card.window:_safe(element.Text, cfg.Callback) end
 

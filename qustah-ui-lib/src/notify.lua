@@ -2,6 +2,7 @@
 local Util = require("util")
 local Theme = require("theme")
 local UIFont = require("font")
+local Icons = require("icons")
 
 local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
 
@@ -28,7 +29,7 @@ function Notify.show(Lib, cfg)
     -- history (the bell in the window header); History = false keeps a toast out of it
     if cfg.History ~= false then
         Lib.NotifyHistory = Lib.NotifyHistory or {}
-        table.insert(Lib.NotifyHistory, 1, { Title = tostring(cfg.Title or ""), Content = cfg.Content and tostring(cfg.Content) or nil, Color = cfg.Color, Time = os.time() })
+        table.insert(Lib.NotifyHistory, 1, { Title = tostring(cfg.Title or ""), Content = cfg.Content and tostring(cfg.Content) or nil, Color = cfg.Color, Icon = cfg.Icon, Time = os.time() })
         while #Lib.NotifyHistory > 50 do table.remove(Lib.NotifyHistory) end
         for _, listener in ipairs(Lib._historyListeners or {}) do Util.safe(listener) end
     end
@@ -52,10 +53,21 @@ function Notify.show(Lib, cfg)
         Theme.bind(marker, "BackgroundColor3", "accent")
         Theme.bind(progress, "BackgroundColor3", "accent")
     end
-    local title = label(toast, tostring(cfg.Title or ""), 11, { Position = UDim2.fromOffset(23, hasContent and 8 or 0), Size = UDim2.new(1, -32, 0, hasContent and 17 or height), Font = Enum.Font.GothamBold })
+    -- Icon = "name": icon in place of the bar (tinted with Color / the accent)
+    local textX = 23
+    local icon = cfg.Icon and Icons.Get(cfg.Icon) and Icons.Image(cfg.Icon, { Name = "ToastIcon", Size = UDim2.fromOffset(16, 16) })
+    if icon then
+        marker.Visible = false
+        icon.AnchorPoint = Vector2.new(0, 0.5)
+        icon.Position = UDim2.new(0, 12, 0.5, 0)
+        if typeof(cfg.Color) == "Color3" then icon.ImageColor3 = cfg.Color else Theme.bind(icon, "ImageColor3", "accent") end
+        icon.Parent = toast
+        textX = 36
+    end
+    local title = label(toast, tostring(cfg.Title or ""), 11, { Position = UDim2.fromOffset(textX, hasContent and 8 or 0), Size = UDim2.new(1, -textX - 9, 0, hasContent and 17 or height), Font = Enum.Font.GothamBold })
     Theme.bind(title, "TextColor3", "heading")
     if hasContent then
-        local content = label(toast, tostring(cfg.Content), 10, { Position = UDim2.fromOffset(23, 25), Size = UDim2.new(1, -32, 0, 16) })
+        local content = label(toast, tostring(cfg.Content), 10, { Position = UDim2.fromOffset(textX, 25), Size = UDim2.new(1, -textX - 9, 0, 16) })
         Theme.bind(content, "TextColor3", "muted")
     end
     tween(toast, 0.2, { GroupTransparency = 0 })

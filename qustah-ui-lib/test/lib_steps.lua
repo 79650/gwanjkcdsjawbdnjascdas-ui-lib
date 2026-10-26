@@ -490,6 +490,33 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     -- scroll fades exist
     check("scroll fades", find("FadeTop") ~= nil and find("FadeBottom") ~= nil)
 
+    -- icons
+    local Icons = Lib.Icons
+    check("icons: lucide name", Icons.Get("house") and Icons.Get("house").Image:match("^rbxassetid://%d+$") ~= nil)
+    check("icons: prefixed", Icons.Get("lucide:eye").Image == Icons.Get("eye").Image)
+    check("icons: asset id passthrough", Icons.Get(123).Image == "rbxassetid://123" and Icons.Get("rbxassetid://5").Image == "rbxassetid://5")
+    check("icons: unknown", Icons.Get("no-such-icon-xyz") == nil)
+    Icons.Add("test", { Spritesheets = { ["1"] = "rbxassetid://99" }, Icons = {
+        duo = { Image = 1, ImageRectPosition = Vector2.new(64, 0), ImageRectSize = Vector2.new(64, 64), Parts = { "duo2" } },
+        duo2 = { Image = 1, ImageRectPosition = Vector2.new(128, 0), ImageRectSize = Vector2.new(64, 64) } } })
+    local duo = Icons.Get("test:duo")
+    check("icons: spritesheet", duo and duo.Image == "rbxassetid://99" and duo.RectOffset == Vector2.new(64, 0) and #duo.Parts == 1)
+    local probe = Icons.Image("test:duo")
+    check("icons: two-tone parts", probe:FindFirstChild("IconPart") ~= nil and probe.ImageRectSize == Vector2.new(64, 64))
+    check("icons: list", #Icons.List("lucide") > 1500)
+    check("icons: tab icon", tabNamed("Visuals").icon.Image == Icons.Get("eye").Image)
+    check("icons: default tab icons", tabNamed("Settings").icon.Image == Icons.Get("settings").Image)
+    check("icons: card icon", findIn("Targets", "CardIcon") ~= nil)
+    check("icons: row icon", findIn("Aim key", "RowIcon") ~= nil)
+    check("icons: button icon", findIn("Rejoin", "ButtonIcon") ~= nil and findIn("Rejoin", "Text").Text == "Rejoin")
+    MOCK.click(find("Tools"):FindFirstChild("Server hop", true):FindFirstChild("Button")) wait(0.1)
+    check("icons: button confirm text", findIn("Server hop", "Text").Text ~= "Server hop")
+    wait(2.2)
+    check("icons: button text back", findIn("Server hop", "Text").Text == "Server hop")
+    window:Notify({ Title = "Icon toast", Icon = "bell" }) wait(0.1)
+    check("icons: toast icon", find("ToastIcon", Lib._notifyHolder) ~= nil)
+    check("icons: bad name falls back", Lib.Windows[1]:Tab({ Title = "Zz", Icon = "nope-nope" }).iconProperty == "TextColor3")
+
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
     check("old window destroyed on re-run", window.alive == false and gui.Parent == nil)

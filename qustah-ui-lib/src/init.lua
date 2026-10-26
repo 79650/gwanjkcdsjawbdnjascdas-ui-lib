@@ -5,16 +5,18 @@ local Window = require("window")
 local Notify = require("notify")
 local Settings = require("settings")
 local Dashboard = require("dashboard")
+local Icons = require("icons")
 require("status")(Window)
 require("dialog")(Window)
 require("hud")(Window)
 require("inbox")(Window)
 
 local Lib = {
-    Version = "1.2.0",
+    Version = "1.3.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
+    Icons = Icons, -- Lib.Icons.Get("house"), "solar:home-bold", Lib.Icons.SetDefault("solar")
     Util = Util,
 }
 Lib.maid = Util.maid()
