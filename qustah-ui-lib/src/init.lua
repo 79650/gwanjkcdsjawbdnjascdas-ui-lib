@@ -12,7 +12,7 @@ require("hud")(Window)
 require("inbox")(Window)
 
 local Lib = {
-    Version = "1.3.0",
+    Version = "1.3.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

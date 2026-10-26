@@ -46,6 +46,13 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
   T.Pages[2]:Select() wait(1.5)
   MOCK.click(find("Profile_pvp"):FindFirstChild("Head")) both("profiles")
   MOCK.click(find("Profile_Default"):FindFirstChild("Head")) shot("profiles_default")
+  w.width = 800 w:_layout() wait()
+  local cb = find("CreateProfile"):FindFirstChild("Box", true) cb.Text = "ranked games" shot("profiles_typing")
+  cb.Text = "pvp" shot("profiles_exists")
+  cb.Text = ""
+  MOCK.click(find("New profile"):FindFirstChild("Import", true)) wait()
+  local ib = find("ImportProfile"):FindFirstChild("Box", true) ib.Text = w.Config:Export("pvp") shot("profiles_import")
+  ib.Text = "" w.width = 560 w:_layout() wait()
   for i = 1, 3 do w:Notify({ Title = "Loaded " .. i, Content = "Profile pvp loaded" }) end
   w:Notify({ Title = "Teleport failed", Content = "No other public server found", Color = E.Color3.fromRGB(215, 130, 130) })
   wait(0.5) shot("bell_unread")

@@ -187,6 +187,11 @@ Lib.Icons.List("lucide")           -- bütün isimler
 
 İkon isimleri: [lucide.dev/icons](https://lucide.dev/icons), diğerleri için `icons/<set>.lua`. Ikonlar [Footagesus/Icons](https://github.com/Footagesus/Icons)'tan (MIT, `icons/LICENSE`).
 
+### v1.3.1
+
+- `card:ActionInput({ Icon, Placeholder, Button = "Create", Hint, Validate = function(text) return ok, message end, Callback })`: ikonlu tek alan, buton alanın içinde, Enter da çalıştırır; altında canlı ipucu satırı (yeşil / kırmızı).
+- Profiles › New profile: Create / Import sekmeli, yazarken kontrol ediyor (isim var mı, kod geçerli mi, kaç ayar, hangi isimle kaydedilecek). Profil butonlarında ikonlar; bildirimler toast olarak.
+
 ## Geliştirme
 
 ```

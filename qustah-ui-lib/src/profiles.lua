@@ -5,6 +5,7 @@
 --             Share, Delete. "Default" is locked and holds the values the script started with.
 local Util = require("util")
 local Theme = require("theme")
+local Icons = require("icons")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 local RED, GREEN, YELLOW = Color3.fromRGB(215, 130, 130), Color3.fromRGB(110, 200, 130), Color3.fromRGB(215, 180, 120)
@@ -33,12 +34,13 @@ return function(window, page, defaults)
         return false
     end
 
-    ------------------------------------------------------------ feedback line (shared)
-    local feedback
+    ------------------------------------------------------------ feedback (toast)
     local function say(text, bad)
-        if not feedback then return end
-        feedback:Set(text)
-        feedback:SetColor(bad == true and RED or (bad == "warn" and YELLOW or GREEN))
+        window:Notify({
+            Title = bad == true and "Profiles · error" or "Profiles", Content = tostring(text), Duration = 3,
+            Icon = bad == true and "triangle-alert" or (bad == "warn" and "info" or "circle-check"),
+            Color = bad == true and RED or (bad == "warn" and YELLOW or nil),
+        })
     end
 
     ------------------------------------------------------------ actions
@@ -77,11 +79,30 @@ return function(window, page, defaults)
     local bar = create("Frame", { Name = "CurrentActions", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 24), LayoutOrder = current:_order(), Parent = current.body })
     Util.list(bar, 6, Enum.FillDirection.Horizontal)
 
+    local ICONS = {
+        Save = "save", Revert = "rotate-ccw", ["Share current"] = "share-2", ["What changed?"] = "list-checks",
+        Load = "download", Overwrite = "upload", Autoload = "star", ["Autoload off"] = "star-off", Share = "share-2",
+        Delete = "trash-2", Rename = "pencil", Duplicate = "copy",
+    }
     local function smallButton(parent, text, order, style)
+        local iconName = ICONS[text]
         local button = create("TextButton", {
             Name = text, Text = text, TextSize = 9, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
-            Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + 20, 22), LayoutOrder = order, Parent = parent,
+            Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + (iconName and 34 or 20), 22), LayoutOrder = order, Parent = parent,
         })
+        -- icon + text centred together; both follow the button's TextColor3 (the button's own text is hidden)
+        local icon = iconName and Icons.Image(iconName, { Name = "ButtonIcon", Size = UDim2.fromOffset(11, 11) })
+        if icon then
+            local content = create("Frame", { Name = "Content", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, Parent = button })
+            Util.list(content, 5, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+            icon.LayoutOrder = 1
+            icon.Parent = content
+            local text_ = label(content, text, 9, { Name = "Label", Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None, Font = Enum.Font.GothamMedium, LayoutOrder = 2 })
+            button.TextTransparency = 1
+            local function tint() icon.ImageColor3 = button.TextColor3 text_.TextColor3 = button.TextColor3 end
+            button:GetPropertyChangedSignal("TextColor3"):Connect(tint)
+            task.defer(tint)
+        end
         corner(button, 6)
         local outline = stroke(button)
         if style == "Danger" then
@@ -153,41 +174,48 @@ return function(window, page, defaults)
     end
 
     ------------------------------------------------------------ new / import
-    local create_ = page:Card({ Title = "New profile" })
-    local nameInput = create_:Input({ Title = "Name", Placeholder = "profile name" })
-    create_:Button({
-        Title = "Create from current settings",
-        Callback = function()
-            local name = nameInput.Value
-            if not name or name == "" then return say("Type a name first", true) end
-            if name:lower() == "default" then return say("\"Default\" is reserved", true) end
-            if store:Exists(name) then return say("\"" .. name .. "\" already exists - open it and press Overwrite", true) end
+    -- one card, two tabs in its header; each tab is a single field with the action inside it
+    local newCard = page:Card({ Title = "New profile" })
+    local sections = newCard:Tabs({ "Create", "Import" })
+    local function count(flags) local n = 0 for _ in pairs(flags or {}) do n = n + 1 end return n end
+    sections.Create:ActionInput({
+        Name = "CreateProfile", Icon = "plus", Placeholder = "Profile name", Button = "Create",
+        Hint = "Saves your current settings as a new profile",
+        Validate = function(name)
+            if name:lower() == "default" then return false, "\"Default\" is reserved" end
+            if name:gsub("[%w_%- ]", "") ~= "" then return false, "Letters, numbers, spaces, - and _ only" end
+            if store:Exists(name) then return false, "\"" .. name .. "\" already exists - open it and press Overwrite" end
+            return true, "Saves " .. count(store:Snapshot()) .. " settings as \"" .. name .. "\""
+        end,
+        Callback = function(name)
             if saveProfile(name) then
-                nameInput:Set("", true)
                 open = name
                 say("Created \"" .. name .. "\"")
                 refresh()
             end
         end,
     })
-    local codeInput = create_:Input({ Title = "Share code", Placeholder = "paste QUSTAH1:..." })
-    create_:Button({
-        Title = "Import code",
-        Callback = function()
-            local name, flags = store:Decode(codeInput.Value)
+    sections.Import:ActionInput({
+        Name = "ImportProfile", Icon = "import", Placeholder = "Paste a QUSTAH1: code", Button = "Import",
+        Hint = "Get a code with Share on any profile",
+        Validate = function(code)
+            local name, flags = store:Decode(code)
+            if not name then return false, flags end
+            local target = store:FreeName(name)
+            return true, "\"" .. name .. "\" · " .. count(flags) .. " settings" .. (target ~= name and (" → saved as \"" .. target .. "\"") or "")
+        end,
+        Callback = function(code)
+            local name, flags = store:Decode(code)
             if not name then return say(flags, true) end
-            local typed = nameInput.Value
-            name = store:FreeName(typed ~= nil and typed ~= "" and typed or name)
+            name = store:FreeName(name)
             local ok, err = store:SaveFlags(name, flags)
             if not ok then return say(err, true) end
             touch(name, { saved = os.time(), note = "Imported" })
-            codeInput:Set("", true)
             open = name
             say("Imported as \"" .. name .. "\" - open it and press Load")
             refresh()
         end,
     })
-    feedback = create_:Label("")
 
     ------------------------------------------------------------ saved list
     local listCard = page:Card({ Title = "Saved" })
