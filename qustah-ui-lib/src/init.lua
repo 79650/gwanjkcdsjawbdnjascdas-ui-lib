@@ -5,9 +5,12 @@ local Window = require("window")
 local Notify = require("notify")
 local Settings = require("settings")
 local Dashboard = require("dashboard")
+require("status")(Window)
+require("dialog")(Window)
+require("hud")(Window)
 
 local Lib = {
-    Version = "1.0.2",
+    Version = "1.1.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

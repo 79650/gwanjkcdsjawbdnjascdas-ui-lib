@@ -118,7 +118,7 @@ end
 
 local SHORT_KEYS = {
     LeftShift = "LSHIFT", RightShift = "RSHIFT", LeftControl = "LCTRL", RightControl = "RCTRL",
-    LeftAlt = "LALT", RightAlt = "RALT", MouseButton2 = "M2", MouseButton3 = "M3", Return = "ENTER",
+    LeftAlt = "LALT", RightAlt = "RALT", MouseButton1 = "M1", MouseButton2 = "M2", MouseButton3 = "M3", Return = "ENTER",
     KeypadZero = "NUM 0", KeypadOne = "NUM 1", KeypadTwo = "NUM 2", KeypadThree = "NUM 3", KeypadFour = "NUM 4",
     KeypadFive = "NUM 5", KeypadSix = "NUM 6", KeypadSeven = "NUM 7", KeypadEight = "NUM 8", KeypadNine = "NUM 9",
 }
@@ -133,19 +133,39 @@ end
 function Util.toKey(name)
     if typeof(name) == "EnumItem" then return name end
     if type(name) ~= "string" or name == "" or name == "None" then return nil end
+    if name:match("^MouseButton%d$") then
+        local found, button = pcall(function() return Enum.UserInputType[name] end)
+        if found and button then return button end
+    end
     local ok, key = pcall(function() return Enum.KeyCode[name] end)
     if ok and key then return key end
     ok, key = pcall(function() return Enum.UserInputType[name] end)
     if ok and key then return key end
     return nil
 end
--- The key an input means for binds: the KeyCode for keyboards, the UserInputType for mouse buttons 2/3.
-function Util.inputKey(input)
+-- The key an input means for binds: the KeyCode for keyboards, the UserInputType for mouse buttons 2/3
+-- (and mouse button 1 when allowPrimary is set - only chords like CTRL + M1 use it).
+function Util.inputKey(input, allowPrimary)
     if input.UserInputType == Enum.UserInputType.Keyboard then return input.KeyCode end
     if input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
         return input.UserInputType
     end
+    if allowPrimary and input.UserInputType == Enum.UserInputType.MouseButton1 then return input.UserInputType end
     return nil
+end
+local MODIFIERS = {
+    LeftShift = true, RightShift = true, LeftControl = true, RightControl = true, LeftAlt = true, RightAlt = true,
+}
+function Util.isModifier(key) return typeof(key) == "EnumItem" and MODIFIERS[key.Name] == true end
+-- Is this key (KeyCode or mouse UserInputType) held down right now?
+function Util.isDown(key)
+    if typeof(key) ~= "EnumItem" then return false end
+    local UserInputService = Services.UserInputService
+    local ok, down = pcall(function()
+        if tostring(key):match("^Enum%.KeyCode%.") then return UserInputService:IsKeyDown(key) end
+        return UserInputService:IsMouseButtonPressed(key)
+    end)
+    return ok and down == true
 end
 
 -- Screen position of a pointer input (same space as AbsolutePosition in an IgnoreGuiInset ScreenGui).
@@ -158,6 +178,12 @@ function Util.pointer(input)
 end
 function Util.isPress(input)
     return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
+end
+
+-- HH:MM:SS
+function Util.clock(seconds)
+    seconds = math.max(0, math.floor(seconds))
+    return string.format("%02d:%02d:%02d", seconds // 3600, (seconds // 60) % 60, seconds % 60)
 end
 
 function Util.viewport()

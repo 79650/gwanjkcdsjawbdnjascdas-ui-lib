@@ -5,6 +5,7 @@ local Util = require("util")
 local Theme = require("theme")
 local Card = require("card")
 local Config = require("config")
+local Glow = require("glow")
 
 local Services = Util.Services
 local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
@@ -58,6 +59,29 @@ function Page.new(tab, name, cfg)
         return object
     end
     self.frame, self.wide, self.left, self.right = frame, wide, column("Left", 1), column("Right", 2)
+
+    -- soft fades at the top / bottom edge while there is more to scroll that way
+    local function fade(top)
+        local object = create("Frame", {
+            Name = top and "FadeTop" or "FadeBottom", AnchorPoint = Vector2.new(0, top and 0 or 1),
+            Position = UDim2.new(0, 0, top and 0 or 1, 0), Size = UDim2.new(1, -4, 0, 18), BorderSizePixel = 0,
+            Visible = false, ZIndex = 20, Active = false, Parent = window.pages,
+        })
+        Theme.bind(object, "BackgroundColor3", "base")
+        create("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(top and 0 or 1, top and 1 or 0), Parent = object })
+        return object
+    end
+    local fadeTop, fadeBottom = fade(true), fade(false)
+    local function refreshFades()
+        local shown = frame.Visible
+        local scrolled = frame.CanvasPosition.Y
+        local hidden = frame.AbsoluteCanvasSize.Y - frame.AbsoluteWindowSize.Y - scrolled
+        fadeTop.Visible = shown and scrolled > 2
+        fadeBottom.Visible = shown and hidden > 2
+    end
+    for _, property in ipairs({ "CanvasPosition", "AbsoluteCanvasSize", "AbsoluteWindowSize", "Visible" }) do
+        frame:GetPropertyChangedSignal(property):Connect(refreshFades)
+    end
 
     -- strip button (shown when the tab has more than one page)
     local button = create("TextButton", {
@@ -121,6 +145,7 @@ function Tab.new(window, cfg)
     local self = setmetatable({ window = window, Title = cfg.Title or ("Tab " .. index), Pages = {}, index = index }, Tab)
     self.strip = create("Frame", { Name = self.Title, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, Parent = window.stripHolder })
 
+    self.Header = cfg.Header == true -- also shown as a text tab in the header (Overview / Settings)
     self.Divider = cfg.Divider == true or window._dividerNext == true -- a short line above this tab in the dock
     window._dividerNext = nil
     local button = create("TextButton", {
@@ -222,8 +247,17 @@ function Window.new(Lib, cfg)
     env.__QustahUIWindows[self.Title] = self
 
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
-    self:_build()
     self.Config = Config.new(self, cfg.Folder or self.Title:gsub("[^%w_%- ]", ""))
+    -- window memory: last position / size (SaveWindow = false turns it off)
+    self.memory = cfg.SaveWindow ~= false and self.Config:ReadMemory() or {}
+    local saved = self.memory.window
+    if type(saved) == "table" and tonumber(saved.w) and tonumber(saved.h) then
+        self.width = math.clamp(tonumber(saved.w), self.minSize.X, self.maxSize.X)
+        self.height = math.clamp(tonumber(saved.h), self.minSize.Y, self.maxSize.Y)
+    end
+    Glow.start(Lib.maid)
+    self:_build()
+    self:_refreshStatus()
     Lib.Windows[#Lib.Windows + 1] = self
     return self
 end
@@ -254,6 +288,7 @@ function Window:_build()
     })
     pcall(function() title.FontFace = Font.new(Font.fromEnum(Enum.Font.Gotham).Family, Enum.FontWeight.SemiBold) end)
     Theme.bind(title, "TextColor3", "accent")
+    Glow.add(title, { Base = "accent", Period = 3.6, GlowTransparency = 0.8 })
     if self.Version ~= "" then
         local badge = create("Frame", { Name = "Version", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 16), LayoutOrder = 2, Parent = titleRow })
         Theme.bind(badge, "BackgroundColor3", "card")
@@ -312,6 +347,12 @@ function Window:_build()
     })
     Theme.bind(location, "TextColor3", "muted")
     self.locationLabel = location
+    -- text tabs in the header for tabs created with Header = true (shown while one of them is open)
+    self.headerTabs = create("Frame", {
+        Name = "HeaderTabs", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -90, 0, 0),
+        Size = UDim2.new(0, 0, 0, HEADER), AutomaticSize = Enum.AutomaticSize.X, Visible = false, Parent = main,
+    })
+    Util.list(self.headerTabs, 6, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right)
 
     ---------------------------------------------------------------- body
     local body = create("Frame", {
@@ -338,6 +379,7 @@ function Window:_build()
     corner(dot, 3)
     local status = label(footer, "Connected", 9, { Name = "Status", Position = UDim2.fromOffset(32, 0), Size = UDim2.new(0, 150, 1, 0) })
     Theme.bind(status, "TextColor3", "muted")
+    Glow.add(status, { Base = "muted", Shine = "heading", GlowTransparency = 0.92 })
     local centre = label(footer, tostring(self.cfg.Footer or ""), 9, {
         Name = "Centre", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0), Size = UDim2.new(1, -240, 1, 0),
         TextXAlignment = Enum.TextXAlignment.Center,
@@ -396,7 +438,7 @@ function Window:_build()
         self:_beginDrag(input, function(point)
             self.topLeft = origin + (point - start)
             self:_layout()
-        end)
+        end, function() self:_saveMemory() end)
     end
     maid:connect(header.InputBegan, moveWindow)
     maid:connect(dockGrip.InputBegan, moveWindow)
@@ -410,7 +452,7 @@ function Window:_build()
             self.width = math.clamp(math.floor(width + (point.X - start.X) / s), self.minSize.X, self.maxSize.X)
             self.height = math.clamp(math.floor(height + (point.Y - start.Y) / s), self.minSize.Y, self.maxSize.Y)
             self:_layout()
-        end)
+        end, function() self:_saveMemory() end)
     end)
     maid:connect(minimize.Activated, function() self:Minimize() end)
     -- X closes straight away (no extra popup) and says how to get the menu back.
@@ -443,7 +485,7 @@ function Window:_build()
     maid:connect(UserInputService.InputBegan, function(input, processed)
         -- 1. a keybind waiting for a key takes the next key
         if self._capture then
-            local key = Util.inputKey(input)
+            local key = Util.inputKey(input, self._captureMouse)
             if key then
                 local capture = self._capture
                 self._capture = nil
@@ -461,13 +503,22 @@ function Window:_build()
             end
             if not inside(self._popup.frame) and not inside(self._popup.owner) then self:_closePopup() end
         end
+        -- 3. Escape closes an open dialog
+        if self._dialog and input.KeyCode == Enum.KeyCode.Escape then self._dialog:Close() return end
         if processed or UserInputService:GetFocusedTextBox() then return end
-        local key = Util.inputKey(input)
+        local key = Util.inputKey(input, true)
         if not key then return end
-        -- 3. menu key, then toggle / keybind binds
+        -- 4. menu key, then toggle / keybind binds (chords like CTRL + M1 fire when their modifier is held)
         if key == self.key then self:Toggle() return end
         for element, bound in pairs(self.binds) do
-            if bound == key and element.Row and element.Row.Parent then Util.safe(element._onBind, element) end
+            if element.Row and element.Row.Parent then
+                local chord = element.Chord
+                if chord then
+                    if chord[2] == key and (chord[1] == nil or Util.isDown(chord[1])) then self:_safe(element.Title or "Keybind", element._onBind, element) end
+                elseif bound == key and key ~= Enum.UserInputType.MouseButton1 then
+                    self:_safe(element.Title or "Keybind", element._onBind, element)
+                end
+            end
         end
     end)
 
@@ -477,7 +528,12 @@ function Window:_build()
 
     local function watchCamera()
         local camera = workspace.CurrentCamera
-        if camera then maid:connect(camera:GetPropertyChangedSignal("ViewportSize"), function() self:_layout() end) end
+        if camera then
+            maid:connect(camera:GetPropertyChangedSignal("ViewportSize"), function()
+                self:_layout()
+                for _, place in ipairs(self._placers or {}) do Util.safe(place) end
+            end)
+        end
         self:_layout()
     end
     maid:connect(workspace:GetPropertyChangedSignal("CurrentCamera"), watchCamera)
@@ -494,7 +550,13 @@ function Window:_layout()
     local height = self.folded and HEADER or self.height
     self.main.Size = UDim2.fromOffset(self.width, height)
     if not self.topLeft then
-        self.topLeft = Vector2.new((viewport.X - total * s) / 2, (viewport.Y - self.height * s) / 2)
+        local saved = self.memory and self.memory.window
+        if type(saved) == "table" and tonumber(saved.x) and tonumber(saved.y) then
+            local room = Vector2.new(viewport.X - total * s, viewport.Y - self.height * s)
+            self.topLeft = Vector2.new(tonumber(saved.x) * room.X, tonumber(saved.y) * room.Y)
+        else
+            self.topLeft = Vector2.new((viewport.X - total * s) / 2, (viewport.Y - self.height * s) / 2)
+        end
     end
     local x = math.clamp(self.topLeft.X, 8, math.max(8, viewport.X - total * s - 8))
     local y = math.clamp(self.topLeft.Y, 8, math.max(8, viewport.Y - height * s - 8))
@@ -505,7 +567,24 @@ function Window:_layout()
     self.dock.Visible = self.main.Visible and not self.folded and #self.Tabs > 0
     self.grip.Visible = not self.folded
     for _, tab in ipairs(self.Tabs) do for _, page in ipairs(tab.Pages) do page:_columns(self.width) end end
-    self.locationLabel.Visible = self.width >= 440
+    self:_updateLocation()
+end
+
+-- Saves position (as a 0-1 fraction of the free screen space) and size; written at most twice a second.
+function Window:_saveMemory()
+    if self.cfg.SaveWindow == false or not self.alive then return end
+    local viewport = Util.viewport()
+    local s = self.scale.Scale
+    local room = Vector2.new(math.max(1, viewport.X - (self.width + DOCK_GAP + DOCK_WIDTH) * s), math.max(1, viewport.Y - self.height * s))
+    self.memory.window = {
+        x = math.clamp(self.topLeft.X / room.X, 0, 1), y = math.clamp(self.topLeft.Y / room.Y, 0, 1), w = self.width, h = self.height,
+    }
+    if self._memoryQueued then return end
+    self._memoryQueued = true
+    task.delay(0.5, function()
+        self._memoryQueued = false
+        if self.alive then self.Config:WriteMemory(self.memory) end
+    end)
 end
 
 function Window:_beginDrag(input, move, finish)
@@ -550,12 +629,38 @@ function Window:_layoutBody()
     self.pages.Size = UDim2.new(1, 0, 1, -(top + bottom))
 end
 
+-- Header right side: the header tabs while one of them is open, otherwise "Tab › Page".
 function Window:_updateLocation()
     local tab = self.current
+    local wide = self.width >= 440
+    local onHeaderTab = tab ~= nil and tab.Header and self.cfg.HeaderTabs ~= false
+    self.headerTabs.Visible = onHeaderTab and wide
+    for _, item in ipairs(self._headerButtons or {}) do
+        local selected = item.tab == tab
+        Theme.tweenTo(item.button, "TextColor3", selected and "heading" or "muted", 0.12)
+        item.line.Visible = selected
+    end
     if not tab then self.locationLabel.Text = "" return end
     local page = tab.current
     self.locationLabel.Text = (page and #tab.Pages > 1) and (tab.Title .. " › " .. page.Name) or tab.Title
-    self.locationLabel.Visible = self.width >= 440
+    self.locationLabel.Visible = wide and not self.headerTabs.Visible
+    -- leave room for the header stats in the middle
+    self.locationLabel.Size = UDim2.new(self.monitorMode == "Header" and 0.25 or 0.45, 0, 0, 20)
+end
+
+function Window:_addHeaderTab(tab)
+    local width = math.max(56, Util.textWidth(tab.Title, 11, Enum.Font.GothamMedium) + 14)
+    local button = create("TextButton", {
+        Name = tab.Title, Text = tab.Title, TextSize = 11, Font = Enum.Font.GothamMedium, AutoButtonColor = false,
+        BackgroundTransparency = 1, Size = UDim2.fromOffset(width, HEADER), LayoutOrder = #(self._headerButtons or {}) + 1,
+        Parent = self.headerTabs,
+    })
+    Theme.bind(button, "TextColor3", "muted")
+    local line = create("Frame", { Name = "SelectionLine", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 0), Size = UDim2.new(1, -14, 0, 2), BorderSizePixel = 0, Visible = false, Parent = button })
+    Theme.bind(line, "BackgroundColor3", "accent")
+    button.Activated:Connect(function() tab:Select() end)
+    self._headerButtons = self._headerButtons or {}
+    table.insert(self._headerButtons, { tab = tab, button = button, line = line })
 end
 
 function Window:_dockTip(text, y)
@@ -596,6 +701,7 @@ function Window:Tab(cfg)
     if type(cfg) == "string" then cfg = { Title = cfg } end
     local tab = Tab.new(self, cfg or {})
     self.Tabs[#self.Tabs + 1] = tab
+    if tab.Header then self:_addHeaderTab(tab) end
     self:_layoutDock()
     self:_layout()
     if not self.current then tab:Select() end
@@ -605,6 +711,7 @@ end
 function Window:SetVisible(visible)
     self.visible = visible
     self:_closePopup()
+    if not visible and self._dialog then self._dialog:Close() end
     self:_hideTip()
     self._token = (self._token or 0) + 1
     local token = self._token
@@ -660,7 +767,7 @@ function Window:KeyHint(cfg)
     Theme.bind(caption, "TextColor3", "muted")
 
     local window = self
-    local hint = { Type = "KeyHint", Row = group, Flag = cfg.Flag }
+    local hint = { Type = "KeyHint", Title = cfg.Title, Row = group, Flag = cfg.Flag }
     local function show(text)
         badge.Text = text
         badge.Size = UDim2.fromOffset(math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18), 22)
@@ -672,11 +779,11 @@ function Window:KeyHint(cfg)
         show(Util.keyName(key))
         if not cfg.Menu then window:_bind(self, key) end
         if self.Flag then window.Lib.Flags[self.Flag] = key end
-        if not silent then Util.safe(cfg.Callback, key) end
+        if not silent then window:_safe(tostring(cfg.Title or "Key"), cfg.Callback, key) end
     end
     function hint:Get() return self.Value end
     function hint:SetTitle(text) caption.Text = tostring(text) end
-    function hint:_onBind() Util.safe(cfg.Pressed, self.Value) end
+    function hint:_onBind() window:_safe(tostring(cfg.Title or "Key"), cfg.Pressed, self.Value) end
     function hint:_save() return self.Value and self.Value.Name or "None" end
     function hint:_load(value) self:Set(value) end
     badge.MouseEnter:Connect(function() Util.tween(outline, 0.12, { Transparency = 0.1 }) end)
@@ -709,10 +816,6 @@ function Window:SetToggleKey(key)
     self.key = key
     if self.menuHint and self.menuHint.Value ~= key then self.menuHint:Set(key, true) end
     for _, listener in ipairs(self._menuListeners or {}) do Util.safe(listener, key) end
-end
-function Window:SetStatus(text, color)
-    self.statusLabel.Text = tostring(text)
-    if typeof(color) == "Color3" then self.statusDot.BackgroundColor3 = color end
 end
 function Window:SetFooter(text) self.footerText.Text = tostring(text or "") end
 function Window:Notify(cfg) return self.Lib:Notify(cfg) end

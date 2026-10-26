@@ -43,7 +43,7 @@ end
 
 function Base.element(card, kind, cfg, row, title, desc)
     local window = card.window
-    local element = { Type = kind, Flag = cfg.Flag, Row = row, Card = card, Locked = false, _changed = {} }
+    local element = { Type = kind, Title = cfg.Title, Flag = cfg.Flag, Row = row, Card = card, Locked = false, _changed = {} }
 
     function element:OnChanged(callback)
         self._changed[#self._changed + 1] = callback
@@ -53,10 +53,12 @@ function Base.element(card, kind, cfg, row, title, desc)
     function element:_fire(value, silent)
         if self.Flag then window.Lib.Flags[self.Flag] = value end
         if silent then return end
-        Util.safe(cfg.Callback, value)
-        for _, callback in ipairs(self._changed) do Util.safe(callback, value) end
+        -- errors in user callbacks are reported to the window (footer "Errors: N", Settings › Info)
+        local source = tostring(self.Title or kind)
+        window:_safe(source, cfg.Callback, value)
+        for _, callback in ipairs(self._changed) do window:_safe(source, callback, value) end
     end
-    function element:SetTitle(text) if title then title.Text = tostring(text) end end
+    function element:SetTitle(text) self.Title = text if title then title.Text = tostring(text) end end
     function element:SetDesc(text) if desc then desc.Text = tostring(text) end end
     function element:SetVisible(visible) row.Visible = visible ~= false end
     function element:Lock(reason)

@@ -180,7 +180,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
 
     -- accent
     Lib:SetAccent(E.Color3.fromRGB(61, 151, 219)) wait(0.1)
-    check("accent recolours title", window.titleLabel.TextColor3 == E.Color3.fromRGB(61, 151, 219))
+    local glowStroke = window.titleLabel:FindFirstChild("Glow")
+    check("accent recolours title (glow)", glowStroke and glowStroke.Color == E.Color3.fromRGB(61, 151, 219))
 
     -- menu key hides / shows, minimize
     MOCK.press(Enum.KeyCode.RightShift) wait(0.4)
@@ -212,6 +213,200 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("toast shown", find("Toast", Lib._notifyHolder) ~= nil)
     wait(3.6)
     check("toast removed", find("Toast", Lib._notifyHolder) == nil)
+
+
+    ------------------------------------------------------------------ v1.1
+    local W = window.flags
+    local function tabNamed(title) for _, t in ipairs(window.Tabs) do if t.Title == title then return t end end end
+    tabNamed("Visuals"):Select() wait(0.1)
+    -- range
+    check("range default", type(F.hpBand) == "table" and F.hpBand[1] == 0 and F.hpBand[2] == 100)
+    local rTrack, rHit = findIn("Health filter", "Track"), findIn("Health filter", "Hit")
+    local rp, rs = rTrack.AbsolutePosition, rTrack.AbsoluteSize
+    MOCK.mouseLocation = Vector2.new(rp.X + rs.X * 0.3, rp.Y)
+    MOCK.fire(rHit, "InputBegan", mouseInput(Enum.UserInputType.MouseButton1))
+    uis.InputEnded:Fire(mouseInput(Enum.UserInputType.MouseButton1), false)
+    check("range drag moves nearer handle", F.hpBand[1] == 30 and F.hpBand[2] == 100)
+    local highBox = findIn("Health filter", "High")
+    highBox.Text = "32" MOCK.fire(highBox, "FocusLost", true) wait(0.1)
+    check("range keeps MinGap", F.hpBand[1] == 30 and F.hpBand[2] == 35)
+    W.hpBand:Set({ 80, 10 })
+    check("range sorts low / high", F.hpBand[1] == 10 and F.hpBand[2] == 80)
+    -- toggle marker / badge
+    check("toggle marker", findIn("ESP enabled", "Marker") ~= nil)
+    check("toggle badge", findIn("Highlight", "Badge") ~= nil)
+    -- swatches
+    visuals:Select() visuals.Pages[2]:Select() wait(0.1)
+    MOCK.click(findIn("Name color", "Red")) wait(0.1)
+    check("swatch click", F.nameColor == "Red")
+    -- colour picker rainbow / apply
+    local fill = W.fillColor
+    local before = fill.Value
+    fill:SetRainbow(true) wait(0.5)
+    check("rainbow changes colour", fill.Value ~= before and fill.Rainbow == true)
+    check("rainbow saved", type(fill:_save()) == "table" and fill:_save().Rainbow == true)
+    fill:_load("FF0000") wait(0.1)
+    check("plain load stops rainbow", fill.Rainbow == false and F.fillColor == E.Color3.fromRGB(255, 0, 0))
+    local outline = W.outlineColor
+    local old = outline.Value
+    outline:SetOpen(true)
+    local hexBox = outline.Row.Parent:FindFirstChild("Picker", true)
+    local hex
+    for _, d in ipairs(outline.Row.Parent:GetDescendants()) do if d.Name == "Hex" and d:IsDescendantOf(outline.Row.Parent) then hex = d end end
+    local panel
+    for _, d in ipairs(outline.Row.Parent:GetChildren()) do if d.Name == "Picker" and d.LayoutOrder == outline.Row.LayoutOrder + 1 then panel = d end end
+    hex = panel and panel:FindFirstChild("Hex", true)
+    hex.Text = "#00FF00" MOCK.fire(hex, "FocusLost", true) wait(0.1)
+    check("apply mode waits", outline.Value == old)
+    MOCK.click(panel:FindFirstChild("Done", true)) wait(0.1)
+    local g = outline.Value
+    check("apply button commits", g.G > 0.99 and g.R < 0.01 and not panel.Visible)
+
+    -- chord keybind
+    local silentTab = tabNamed("Silent") silentTab:Select() wait(0.1)
+    local mark = W.markKey
+    check("chord default", mark.Chord and mark.Chord[1] == Enum.KeyCode.LeftControl and mark.Chord[2] == Enum.UserInputType.MouseButton1)
+    check("chord saved", mark:_save() == "LeftControl+MouseButton1")
+    local fired = 0
+    local realBind = mark._onBind
+    mark._onBind = function() fired = fired + 1 end
+    MOCK.keysDown = {}
+    uis.InputBegan:Fire(mouseInput(Enum.UserInputType.MouseButton1), false)
+    check("chord needs modifier", fired == 0)
+    MOCK.keysDown = { [Enum.KeyCode.LeftControl] = true }
+    uis.InputBegan:Fire(mouseInput(Enum.UserInputType.MouseButton1), false)
+    check("chord fires with modifier", fired == 1)
+    MOCK.keysDown = {}
+    mark._onBind = realBind
+    mark:_load("LeftShift+E")
+    check("chord loads from text", mark.Chord[1] == Enum.KeyCode.LeftShift and mark.Chord[2] == Enum.KeyCode.E)
+
+    -- card tabs + player list
+    local filters = find("Section_Filters")
+    check("card tabs: second hidden", filters and filters.Visible == false)
+    MOCK.click(findIn("Targets", "Filters")) wait(0.1)
+    check("card tabs switch", filters.Visible == true and find("Section_Players").Visible == false)
+    MOCK.click(findIn("Targets", "Players")) wait(0.1)
+    local enemyRow = findIn("Whitelist", "Enemy")
+    check("player list row", enemyRow ~= nil and findIn("Whitelist", "Tester") == nil)
+    MOCK.click(enemyRow) wait(0.1)
+    check("player list select", type(F.whitelist) == "table" and F.whitelist[1] == MOCK.other.UserId)
+    check("player list GetPlayers", W.whitelist:GetPlayers()[1] == MOCK.other)
+    local joined = MOCK.makePlayer("Newbie", 5, 5)
+    MOCK.fire(E.game:GetService("Players"), "PlayerAdded", joined) wait(0.1)
+    check("player list adds joiners", findIn("Whitelist", "Newbie") ~= nil)
+    local search = findIn("Whitelist", "Search")
+    search.Text = "newb" wait(0.1)
+    check("player list search", findIn("Whitelist", "Enemy").Visible == false and findIn("Whitelist", "Newbie").Visible == true)
+    search.Text = ""
+    MOCK.leave(joined) wait(0.1)
+    check("player list drops leavers", findIn("Whitelist", "Newbie") == nil)
+
+    -- image picker + graph
+    tabNamed("Misc"):Select() wait(0.1)
+    MOCK.click(findIn("Style", "Image2")) wait(0.1)
+    check("image picker", F.crosshair == "rbxassetid://12614416478")
+    wait(1.2)
+    check("graph shows fps", findIn("FPS", "Value") and findIn("FPS", "Value").Text:find("FPS") ~= nil)
+
+    -- status / errors / safe callbacks
+    check("footer limited", window.statusLabel.Text == "Limited")
+    local boom = tabNamed("Misc").Pages[1]:Card({ Title = "Boom" }):Toggle({ Title = "Explodes", Callback = function() error("kaboom") end })
+    boom:Set(true) wait(0.1)
+    check("callback error reported", window.statusLabel.Text == "Errors: 1" and #window:GetErrors() == 1)
+    boom:Set(false) wait(0.1)
+    check("same error counted", #window:GetErrors() == 1 and window:GetErrors()[1].count == 2)
+    check("error report text", window:GetErrorReport():find("kaboom") ~= nil)
+    window:ClearErrors()
+    check("clear errors", window.statusLabel.Text == "Limited")
+    window:SetStatus("Custom") check("manual status", window.statusLabel.Text == "Custom")
+    window:SetStatus(nil) check("auto status again", window.statusLabel.Text == "Limited")
+
+    -- dialog
+    local confirmed = false
+    window:Confirm("Sure?", "Body", function() confirmed = true end, "Yes")
+    check("dialog shown", find("Dialog") ~= nil)
+    MOCK.press(Enum.KeyCode.Escape) wait(0.1)
+    check("escape closes dialog", find("Dialog") == nil and not confirmed)
+    window:Confirm("Sure?", "Body", function() confirmed = true end, "Yes")
+    MOCK.click(findIn("Dialog", "Yes")) wait(0.1)
+    check("dialog confirm", confirmed and find("Dialog") == nil)
+
+    -- overlays
+    window:KeybindList(true) wait(0.6)
+    check("keybind list", find("Keybinds") and find("Keybinds").Visible)
+    window:KeybindList(false)
+    window:SessionBar(true) wait(0.6)
+    check("session bar", find("SessionBar").Visible and find("SessionBar"):FindFirstChildWhichIsA("TextLabel").Text:find("FPS") ~= nil)
+    window:SessionBar(false)
+    window:StatsMonitor("Floating") wait(0.6)
+    check("stats floating", find("Performance").Visible and not find("HeaderStats").Visible)
+    window:StatsMonitor("Header") wait(0.6)
+    check("stats header", find("HeaderStats").Visible and find("HeaderStats").Text:find("FPS") ~= nil)
+    window:StatsMonitor("Off")
+
+    -- header tabs + settings
+    local settingsTab = tabNamed("Settings")
+    settingsTab:Select() wait(0.1)
+    check("header tabs shown", window.headerTabs.Visible == true and window.locationLabel.Visible == false)
+    tabNamed("Misc"):Select() wait(0.1)
+    check("header tabs hidden elsewhere", window.headerTabs.Visible == false)
+    MOCK.click(window.headerTabs:FindFirstChild("Dashboard")) wait(0.1)
+    check("header tab selects", window.current == tabNamed("Dashboard"))
+    check("dashboard modules", findIn("Modules", "Mark") ~= nil)
+    settingsTab:Select() wait(0.1)
+    W.__ui_glow:Set(false)
+    check("glow off", not window.titleLabel:FindFirstChild("Glow").Enabled)
+    W.__ui_glow:Set(true)
+    MOCK.click(findIn("Accent", "Blue")) wait(0.3)
+    check("accent swatch", Lib.Theme.get("accent") == E.Color3.fromRGB(61, 151, 219))
+
+    -- profiles
+    settingsTab.Pages[2]:Select() wait(0.1)
+    local store = window.Config
+    F.espRange = nil
+    W.espRange:Set(1234)
+    local nameBox = findIn("New profile", "Box") or findIn("New profile", "Input")
+    if not nameBox then for _, d in ipairs(find("New profile"):GetDescendants()) do if d:IsA("TextBox") then nameBox = d end end end
+    nameBox.Text = "pvp" MOCK.fire(nameBox, "FocusLost", true) wait(0.1)
+    MOCK.click(findIn("Create from current settings", "Button")) wait(0.1)
+    check("profile created", store:Exists("pvp") and find("Profile_pvp") ~= nil)
+    W.espRange:Set(99 * 10)
+    MOCK.click(find("Profile_pvp"):FindFirstChild("Head")) wait(0.1)
+    MOCK.click(find("Profile_pvp"):FindFirstChild("Load", true)) wait(0.1)
+    check("profile load", F.espRange == 1230)
+    local rename = find("Profile_pvp"):FindFirstChild("NewName", true)
+    rename.Text = "ranked"
+    MOCK.click(find("Profile_pvp"):FindFirstChild("Rename", true)) wait(0.1)
+    check("profile rename", store:Exists("ranked") and not store:Exists("pvp") and find("Profile_ranked") ~= nil)
+    find("Profile_ranked"):FindFirstChild("NewName", true).Text = "ranked2"
+    MOCK.click(find("Profile_ranked"):FindFirstChild("Duplicate", true)) wait(0.1)
+    check("profile duplicate", store:Exists("ranked2") and store:Exists("ranked"))
+    MOCK.click(find("Profile_ranked2"):FindFirstChild("Autoload", true)) wait(0.1)
+    check("profile autoload", store:GetAutoLoad() == "ranked2")
+    MOCK.click(find("Profile_ranked2"):FindFirstChild("Delete", true)) wait(0.1)
+    MOCK.click(findIn("Dialog", "Delete")) wait(0.1)
+    check("profile delete", not store:Exists("ranked2") and store:GetAutoLoad() == nil)
+    MOCK.click(find("Profile_Default"):FindFirstChild("Head")) wait(0.1)
+    check("default locked", find("Profile_Default"):FindFirstChild("Delete", true) == nil and find("Profile_Default"):FindFirstChild("Rename", true) == nil)
+    MOCK.click(find("Profile_Default"):FindFirstChild("Load", true)) wait(0.1)
+    check("default restores start values", F.espRange == 1500)
+
+    -- info page
+    settingsTab.Pages[3]:Select() wait(0.1)
+    window:ReportError("ESP", "render failed") wait(0.1)
+    check("info lists errors", findIn("Errors", "Content").Text:find("render failed") ~= nil)
+    MOCK.click(find("Copy report"):FindFirstChild("Button")) wait(0.1)
+    check("copy report", type(MOCK.clipboard) == "string" and MOCK.clipboard:find("render failed") ~= nil)
+    window:ClearErrors()
+
+    -- window memory
+    window.width = 600 window:_layout() window:_saveMemory() wait(1.2)
+    check("window memory saved", E.isfile("Qustah/window.json") and E.readfile("Qustah/window.json"):find("600") ~= nil)
+    window.width = 560 window:_layout()
+
+    -- scroll fades exist
+    check("scroll fades", find("FadeTop") ~= nil and find("FadeBottom") ~= nil)
 
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)

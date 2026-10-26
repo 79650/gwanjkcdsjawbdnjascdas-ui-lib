@@ -99,6 +99,44 @@ silent:OnChanged(function(on) if on then pred:Unlock() else pred:Lock("Önce Sil
 
 Config dosyaları `<Folder>/configs/<isim>.json`; autoload adı `<Folder>/autoload.txt`.
 
+
+### v1.1 eklenenler
+
+**Yeni elemanlar**
+
+| Eleman | Örnek | Değer |
+|---|---|---|
+| `Range` | `card:Range({ Title, Flag, Min, Max, Default = { 20, 80 }, Step, MinGap })` | `{ alt, üst }` |
+| `PlayerList` | `card:PlayerList({ Title, Flag, Multi = true, Height = 150 })` - arama, giren/çıkan canlı | UserId listesi, `:GetPlayers()` |
+| `ImagePicker` | `card:ImagePicker({ Title, Flag, Images = { "rbxassetid://..." }, Columns = 4 })` | seçilen resim |
+| `Swatches` | `card:Swatches({ Title, Flag, Colors = { { "Blue", Color3 } }, Default })` | renk adı, Callback(color, name) |
+| `Graph` | `card:Graph({ Title, Source = "FPS" / "Ping" / function, Max })` | `:Push(sayi)` |
+
+- `card:Tabs({ "Players", "Filters" })` -> kart içinde alt sekmeler (`sections.Players:Toggle{...}`).
+- Toggle: `Marker = true` (sol accent çizgi), `Badge = "NEW"`.
+- ColorPicker: içinde **Rainbow** butonu (`Rainbow = true`, `RainbowSpeed`), `Apply = true` -> sadece Apply'a basınca değişir.
+- Keybind: `Chord = true, Default = { Enum.KeyCode.LeftControl, Enum.UserInputType.MouseButton1 }` (CTRL + M1).
+
+**Pencere**
+
+- `Window:Dialog({ Title, Content, Buttons = { { Title, Style = "Primary"/"Danger", Callback } } })`, `Window:Confirm(title, text, fn, buttonText, danger)` - Esc kapatır.
+- `Window:KeybindList(true)`, `Window:SessionBar(true)`, `Window:StatsMonitor("Header"/"Floating"/"Off")` - Settings › Overlays'ten de açılır.
+- Pencere konumu/boyutu ve paneller `Folder/window.json`'a kaydedilir, tekrar açınca aynı yerde.
+- `Tab({ Header = true })` -> header'da yazı sekmesi (Dashboard / Settings varsayılan böyle).
+- Sayfa kayarken üst/alt kenarda yumuşak geçiş.
+
+**Durum / hatalar**
+
+- `Window:SetModule("ESP", "On" | "Off" | "Limited" | "Error", detay)` -> Dashboard "Modules" + Settings › Info.
+- Callback hataları UI'ı bozmaz; footer "Errors: N" olur. `Window:ReportError(src, msg)`, `GetErrorReport()`, `ClearErrors()`.
+- `Window:SetStatus("yazı", renk)` elle; `SetStatus(nil)` otomatiğe döner (Connected / Limited / Errors).
+
+**Settings**
+
+- Interface: accent hazır renkler + özel renk, Text glow aç/kapa, menü tuşu, overlay'ler, Reset window, Unload (onaylı).
+- Profiles: oluştur, Load / Overwrite / Rename / Duplicate / Delete / Autoload. Kilitli **Default** profili scriptin başlangıç değerleri. **SettingsTab'ı en son oluştur.**
+- Info: versiyonlar, modüller, hata listesi, Copy report, Clear.
+
 ## Geliştirme
 
 ```

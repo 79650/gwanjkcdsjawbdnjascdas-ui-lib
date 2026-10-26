@@ -3,6 +3,7 @@
 -- Call it before the other tabs; a divider goes between it and the next tab in the dock.
 local Util = require("util")
 local Theme = require("theme")
+local Glow = require("glow")
 
 local Services = Util.Services
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
@@ -11,7 +12,7 @@ return function(window, cfg)
     cfg = cfg or {}
     local Players = Services.Players
     local player = Players.LocalPlayer
-    local tab = window:Tab({ Title = cfg.Title or "Dashboard", Icon = cfg.Icon or "rbxassetid://111637692403997" })
+    local tab = window:Tab({ Title = cfg.Title or "Dashboard", Icon = cfg.Icon or "rbxassetid://111637692403997", Header = cfg.Header ~= false })
     window._dividerNext = true
     local page = tab:Page(tab.Title)
     local started = os.clock()
@@ -37,6 +38,8 @@ return function(window, cfg)
     Theme.bind(caption, "TextColor3", "muted")
     local uptime = label(body, "00:00:00", 18, { Name = "Uptime", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 28), Size = UDim2.fromOffset(150, 24), TextXAlignment = Enum.TextXAlignment.Right })
     Theme.bind(uptime, "TextColor3", "accent")
+    Glow.add(display, { Base = "heading", Phase = 0.1 })
+    Glow.add(uptime, { Base = "accent", Phase = 0.45 })
     task.spawn(function()
         local ok, image = pcall(function()
             return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
@@ -98,6 +101,26 @@ return function(window, cfg)
         server:Button({ Title = "Rejoin", Callback = function() teleport(false) end })
         server:Button({ Title = "Server hop", Confirm = true, Callback = function() teleport(true) end })
         server:Info({ Title = "Job ID", Value = game.JobId ~= "" and (game.JobId:sub(1, 8) .. "...") or "studio", Copy = function() return game.JobId end })
+    end
+
+    ------------------------------------------------------------ modules (Window:SetModule)
+    if cfg.Modules ~= false then
+        local modulesCard = page:Card({ Title = "Modules", Side = "Left" })
+        local empty = modulesCard:Label("Modules report here with Window:SetModule(name, state)")
+        local rows = {}
+        local COLORS = { On = Color3.fromRGB(110, 200, 130), Limited = Color3.fromRGB(215, 180, 120), Error = Color3.fromRGB(215, 130, 130) }
+        local function update()
+            local order, modules = window:GetModules()
+            empty:SetVisible(#order == 0)
+            for _, name in ipairs(order) do
+                rows[name] = rows[name] or modulesCard:Info({ Title = name })
+                local module = modules[name]
+                rows[name]:Set(module.state)
+                rows[name]:SetColor(COLORS[module.state] or "muted")
+            end
+        end
+        window:OnStatusChanged(update)
+        update()
     end
 
     ------------------------------------------------------------ live values (only while the dashboard is open)

@@ -3,4 +3,4 @@
 HERE="$(cd "$(dirname "$0")" && pwd)"
 TOOLS="${TOOLS:-/home/claude/nova/tools}"
 "$HERE/run.sh" > /dev/null
-"$TOOLS/shot.sh" "$HERE/example_bundled.lua" QustahUI_Qusth "$HERE/shots" dashboard overview:VisualsTab appearance:Appearance silent:SilentTab misc:MiscTab settings:SettingsTab configs:Configs dropdown:MiscTab,VisualsTab,Appearance,Select
+"$TOOLS/shot.sh" "$HERE/example_bundled.lua" QustahUI_Qusth "$HERE/shots" dashboard overview:VisualsTab appearance:Appearance silent:SilentTab misc:MiscTab settings:SettingsTab profiles:Profiles info:SettingsTab,Info dropdown:MiscTab,VisualsTab,Appearance,Select

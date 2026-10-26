@@ -19,6 +19,11 @@ Card.Elements = {
     Divider     = require("elements/divider"),
     Segment     = require("elements/segment"),
     Info        = require("elements/info"),
+    Range       = require("elements/range"),
+    PlayerList  = require("elements/playerlist"),
+    ImagePicker = require("elements/imagepicker"),
+    Swatches    = require("elements/swatches"),
+    Graph       = require("elements/graph"),
 }
 Card.__index = function(_, key)
     local method = rawget(Card, key)
@@ -67,6 +72,55 @@ end
 function Card:_order()
     self.order = self.order + 2
     return self.order
+end
+
+-- card:Tabs({ "Main", "Extra" }) -> { Main = section, Extra = section }, selector
+-- Sub-sections inside one card, switched with a capsule selector in the card header (or a row when the card
+-- has no title). Each section works like a card: section:Toggle({...}).
+function Card:Tabs(names, cfg)
+    cfg = cfg or {}
+    local holder
+    if self.titleLabel then
+        holder = create("Frame", { Name = "Tabs", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 1), Size = UDim2.new(0.6, 0, 0, 18), Parent = self.titleLabel.Parent })
+        self.titleLabel.Size = UDim2.new(0.4, -13, 1, 0)
+    else
+        holder = create("Frame", { Name = "Tabs", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = self:_order(), Parent = self.body })
+    end
+    local layout = Util.list(holder, 4, Enum.FillDirection.Horizontal)
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    local sections, buttons, current = {}, {}, nil
+    local selector = {}
+    local function render()
+        for name, button in pairs(buttons) do
+            local on = name == current
+            Theme.tweenTo(button, "BackgroundColor3", on and "selected" or "input", 0.1)
+            Theme.tweenTo(button, "TextColor3", on and "heading" or "muted", 0.1)
+            sections[name].body.Visible = on
+        end
+    end
+    function selector:Select(name)
+        if not sections[name] then return end
+        current = name
+        render()
+        if cfg.Callback then task.spawn(cfg.Callback, name) end
+    end
+    function selector:Get() return current end
+    for index, name in ipairs(names) do
+        name = tostring(name)
+        local button = create("TextButton", {
+            Name = name, AutoButtonColor = false, BorderSizePixel = 0, Text = name, TextSize = 9, Font = Enum.Font.GothamMedium,
+            Size = UDim2.fromOffset(Util.textWidth(name, 9, Enum.Font.GothamMedium) + 16, 18), LayoutOrder = index, Parent = holder,
+        })
+        corner(button, 9)
+        buttons[name] = button
+        local body = create("Frame", { Name = "Section_" .. name, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Visible = false, Parent = self.body })
+        Util.list(body, 4)
+        sections[name] = setmetatable({ page = self.page, window = self.window, order = 0, body = body, frame = self.frame }, Card)
+        button.Activated:Connect(function() selector:Select(name) end)
+    end
+    current = tostring(cfg.Default or names[1])
+    render()
+    return sections, selector
 end
 
 function Card:SetTitle(text) if self.titleLabel then self.titleLabel.Text = tostring(text) end end

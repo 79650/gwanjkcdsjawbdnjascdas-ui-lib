@@ -1,5 +1,7 @@
 -- card:ColorPicker({ Title, Desc, Flag, Default = Color3, Callback = function(color) end, Locked })
--- Click the swatch to open the picker under the row: saturation / brightness square, hue bar, HEX box, Random.
+-- Click the swatch to open the picker under the row: saturation / brightness square, hue bar, HEX box, Random, Rainbow.
+-- Apply = true: edits only preview until Apply is pressed (closing without Apply reverts).
+-- Rainbow = true / :SetRainbow(on): cycles the hue (RainbowSpeed = seconds per cycle, default 5); saved with the config.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -25,7 +27,7 @@ return function(card, cfg)
 
     -- panel (opens under the row)
     local panel = create("Frame", {
-        Name = "Picker", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 132), LayoutOrder = row.LayoutOrder + 1,
+        Name = "Picker", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 158), LayoutOrder = row.LayoutOrder + 1,
         Visible = false, Parent = card.body,
     })
     local square = create("TextButton", {
@@ -51,7 +53,7 @@ return function(card, cfg)
     local hueCursor = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(4, 14), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 3, Parent = hueBar })
     corner(hueCursor, 2)
 
-    local side = create("Frame", { Name = "Side", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 4), Size = UDim2.fromOffset(92, 122), Parent = panel })
+    local side = create("Frame", { Name = "Side", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 4), Size = UDim2.fromOffset(92, 150), Parent = panel })
     local preview = create("Frame", { Size = UDim2.new(1, 0, 0, 26), BorderSizePixel = 0, Parent = side })
     corner(preview, 6)
     Theme.bind(stroke(preview, nil, 0.2), "Color", "buttonEdge")
@@ -71,9 +73,18 @@ return function(card, cfg)
     Theme.bind(random, "TextColor3", "text")
     corner(random, 6)
     Theme.bind(stroke(random), "Color", "buttonEdge")
+    local rainbow = create("TextButton", {
+        Name = "Rainbow", Position = UDim2.fromOffset(0, 92), Size = UDim2.new(1, 0, 0, 24), BorderSizePixel = 0,
+        Text = "Rainbow", TextSize = 10, Font = Enum.Font.Gotham, AutoButtonColor = false, Parent = side,
+    })
+    Theme.bind(rainbow, "BackgroundColor3", "input")
+    Theme.bind(rainbow, "TextColor3", "text")
+    corner(rainbow, 6)
+    local rainbowEdge = stroke(rainbow)
+    Theme.bind(rainbowEdge, "Color", "buttonEdge")
     local done = create("TextButton", {
-        Name = "Done", Position = UDim2.fromOffset(0, 92), Size = UDim2.new(1, 0, 0, 24), BorderSizePixel = 0,
-        Text = "Done", TextSize = 10, Font = Enum.Font.GothamMedium, AutoButtonColor = false, Parent = side,
+        Name = "Done", Position = UDim2.fromOffset(0, 122), Size = UDim2.new(1, 0, 0, 24), BorderSizePixel = 0,
+        Text = cfg.Apply and "Apply" or "Done", TextSize = 10, Font = Enum.Font.GothamMedium, AutoButtonColor = false, Parent = side,
     })
     Theme.bind(done, "BackgroundColor3", "accentDeep")
     Theme.bind(done, "TextColor3", "accent")
@@ -91,8 +102,10 @@ return function(card, cfg)
         hueCursor.Position = UDim2.fromScale(h, 0.5)
         hex.Text = "#" .. Util.toHex(color)
     end
-    local function commit(silent)
+    local applyMode = cfg.Apply == true
+    local function commit(silent, force)
         local color = Color3.fromHSV(h, s, v)
+        if applyMode and not force and panel.Visible and not silent then render() swatch.BackgroundColor3 = element.Value or color return end
         local changed = color ~= element.Value
         element.Value = color
         render()
@@ -102,12 +115,48 @@ return function(card, cfg)
         if type(color) == "string" then color = Util.fromHex(color) end
         if typeof(color) ~= "Color3" then return end
         h, s, v = color:ToHSV()
-        commit(silent)
+        commit(silent, true)
     end
     function element:Get() return self.Value end
-    function element:_save() return Util.toHex(self.Value) end
-    function element:_load(data) self:Set(data) end
-    function element:SetOpen(open) panel.Visible = open == true end
+    function element:_save() return self.Rainbow and { Color = Util.toHex(self.Value), Rainbow = true } or Util.toHex(self.Value) end
+    function element:_load(data)
+        if type(data) == "table" then self:Set(data.Color) self:SetRainbow(data.Rainbow == true) else self:SetRainbow(false) self:Set(data) end
+    end
+    local function revert()
+        if applyMode and element.Value then h, s, v = element.Value:ToHSV() render() end
+    end
+    function element:SetOpen(open)
+        if not open then revert() end
+        panel.Visible = open == true
+    end
+
+    -- rainbow: hue walks around the wheel; callbacks are throttled to ~20 per second
+    element.Rainbow = false
+    local rainbowConnection
+    local function renderRainbow()
+        Theme.tweenTo(rainbow, "BackgroundColor3", element.Rainbow and "accentDeep" or "input", 0.1)
+        Theme.tweenTo(rainbow, "TextColor3", element.Rainbow and "accent" or "text", 0.1)
+        Theme.tweenTo(rainbowEdge, "Color", element.Rainbow and "accent" or "buttonEdge", 0.1)
+    end
+    function element:SetRainbow(on)
+        on = on == true
+        if on == self.Rainbow then return end
+        self.Rainbow = on
+        if rainbowConnection then rainbowConnection:Disconnect() rainbowConnection = nil end
+        if on then
+            local period = math.max(0.5, tonumber(cfg.RainbowSpeed) or 5)
+            local last = 0
+            rainbowConnection = window.maid:connect(Util.Services.RunService.Heartbeat, function()
+                local now = os.clock()
+                if now - last < 0.05 then return end
+                last = now
+                h = (now / period) % 1
+                if s < 0.05 then s = 0.75 end
+                commit(false, true)
+            end)
+        end
+        renderRainbow()
+    end
 
     local function drag(target, apply)
         target.InputBegan:Connect(function(input)
@@ -126,16 +175,22 @@ return function(card, cfg)
     drag(hueBar, function(x) h = math.min(x, 0.999) end)
     hex.FocusLost:Connect(function()
         local color = Util.fromHex(hex.Text)
-        if color then element:Set(color) else render() end
+        if color then h, s, v = color:ToHSV() commit() else render() end
     end)
-    random.Activated:Connect(function() if not element.Locked then element:Set(Color3.fromHSV(math.random(), 0.45 + math.random() * 0.5, 0.6 + math.random() * 0.4)) end end)
-    done.Activated:Connect(function() panel.Visible = false end)
-    local function toggleOpen() if not element.Locked then panel.Visible = not panel.Visible end end
+    random.Activated:Connect(function() if not element.Locked then h, s, v = math.random(), 0.45 + math.random() * 0.5, 0.6 + math.random() * 0.4 commit() end end)
+    rainbow.Activated:Connect(function() if not element.Locked then element:SetRainbow(not element.Rainbow) end end)
+    done.Activated:Connect(function()
+        if applyMode then commit(false, true) end
+        panel.Visible = false
+    end)
+    local function toggleOpen() if not element.Locked then element:SetOpen(not panel.Visible) end end
     row.Activated:Connect(toggleOpen)
     swatch.Activated:Connect(toggleOpen)
 
     local default = cfg.Default
     if type(default) == "string" then default = Util.fromHex(default) end
     element:Set(typeof(default) == "Color3" and default or Color3.new(1, 1, 1), true)
+    renderRainbow()
+    if cfg.Rainbow then element:SetRainbow(true) end
     return Base.finish(element, cfg)
 end

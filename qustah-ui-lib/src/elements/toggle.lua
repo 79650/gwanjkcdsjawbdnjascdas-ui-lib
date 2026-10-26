@@ -20,6 +20,29 @@ return function(card, cfg)
     local knob = create("Frame", { Name = "Knob", Position = UDim2.fromOffset(2, 2), Size = UDim2.fromOffset(14, 14), BorderSizePixel = 0, Parent = switch })
     corner(knob, 7)
 
+    -- Marker = true: accent bar on the left (a featured setting); Badge = "ANTI BB": small tag after the title
+    if cfg.Marker then
+        local marker = create("Frame", { Name = "Marker", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(3, 24), BorderSizePixel = 0, BackgroundTransparency = 0.15, Parent = row })
+        Theme.bind(marker, "BackgroundColor3", "accent")
+        corner(marker, 2)
+        title.Position = UDim2.new(0, 12, 0, title.Position.Y.Offset)
+        if desc then desc.Position = UDim2.fromOffset(12, desc.Position.Y.Offset) end
+    end
+    if cfg.Badge then
+        local text = tostring(cfg.Badge)
+        local width = Util.textWidth(text, 9, Enum.Font.GothamMedium) + 16
+        local titleWidth = Util.textWidth(tostring(cfg.Title or ""), 11, Enum.Font.Gotham)
+        local badge = create("Frame", {
+            Name = "Badge", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, title.Position.X.Offset + titleWidth + 10, 0, title.Position.Y.Offset + title.Size.Y.Offset / 2),
+            Size = UDim2.fromOffset(width, 18), BorderSizePixel = 0, Parent = row,
+        })
+        Theme.bind(badge, "BackgroundColor3", "input")
+        corner(badge, 6)
+        Theme.bind(Util.stroke(badge, nil, 0.45), "Color", "buttonEdge")
+        local badgeText = Util.label(badge, text, 9, { Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamMedium })
+        Theme.bind(badgeText, "TextColor3", "muted")
+    end
+
     local element = Base.element(card, "Toggle", cfg, row, title, desc)
     element.Value = cfg.Default == true
 

@@ -27,7 +27,7 @@ return function(card, cfg)
     local element = Base.element(card, "Button", cfg, row, button, desc)
     element.Text = button.Text
     function element:SetTitle(text) self.Text = tostring(text) button.Text = self.Text end
-    function element:Fire() Util.safe(cfg.Callback) end
+    function element:Fire() card.window:_safe(element.Text, cfg.Callback) end
 
     button.MouseEnter:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "hover", 0.12) Theme.tweenTo(button, "TextColor3", "heading", 0.12) end)
     button.MouseLeave:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "input", 0.12) Theme.tweenTo(button, "TextColor3", "text", 0.12) end)
@@ -49,7 +49,7 @@ return function(card, cfg)
             button.Text = element.Text
             Theme.tweenTo(outline, "Color", "buttonEdge", 0.1)
         end
-        Util.safe(cfg.Callback)
+        card.window:_safe(element.Text, cfg.Callback)
     end)
     return Base.finish(element, cfg)
 end
