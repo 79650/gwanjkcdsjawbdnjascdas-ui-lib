@@ -31,6 +31,8 @@ Card.Elements = {
     Image       = require("elements/image"),
     Viewport    = require("elements/viewport"),
     ActionInput = require("elements/actioninput"),
+    Stat        = require("elements/stat"),
+    Console     = require("elements/console"),
 }
 Card.__index = function(_, key)
     local method = rawget(Card, key)
@@ -46,7 +48,7 @@ Card.__index = function(_, key)
 end
 
 function Card.new(page, column, cfg, order)
-    local self = setmetatable({ page = page, window = page.window, order = 0 }, Card)
+    local self = setmetatable({ page = page, window = page.window, order = 0, title = cfg.Title }, Card)
     local frame = create("Frame", {
         Name = cfg.Title or "Card", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0, LayoutOrder = order or 0, Parent = column,
@@ -178,7 +180,7 @@ function Card:Tabs(names, cfg)
         buttons[name] = button
         local body = create("Frame", { Name = "Section_" .. name, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Visible = false, Parent = self.body })
         Util.list(body, 4)
-        sections[name] = setmetatable({ page = self.page, window = self.window, order = 0, body = body, frame = self.frame }, Card)
+        sections[name] = setmetatable({ page = self.page, window = self.window, order = 0, body = body, frame = self.frame, title = self.title }, Card)
         button.Activated:Connect(function() selector:Select(name) end)
     end
     current = tostring(cfg.Default or names[1])
@@ -188,7 +190,7 @@ end
 
 -- A pseudo-card: elements go into `body`, ordering is its own.
 local function sub(card, body)
-    return setmetatable({ page = card.page, window = card.window, order = 0, body = body, frame = card.frame }, Card)
+    return setmetatable({ page = card.page, window = card.window, order = 0, body = body, frame = card.frame, title = card.title }, Card)
 end
 
 -- card:Section({ Title, Icon, Desc, Opened = true }) -> a collapsible part of the card (click its header).

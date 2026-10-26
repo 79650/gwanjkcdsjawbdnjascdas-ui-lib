@@ -796,6 +796,255 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local snd = window:Notify({ Title = "Ping", Sound = true })
     check("sound toast", snd ~= nil)
 
+    ------------------------------------------------------------------ v1.6 (Rayfield round)
+    local misc
+    for _, t in ipairs(window.Tabs) do if t.Title == "Misc" then misc = t end end
+    local tc = misc:Card({ Title = "V16" })
+
+    -- secure mode: random gui names
+    Lib:SetSecure(true)
+    local sg = Lib.Util.screenGui("SecureProbe")
+    check("secure: random gui name", sg.Name ~= "SecureProbe" and Lib:IsSecure())
+    sg:Destroy()
+    Lib:SetSecure(false)
+    local sg2 = Lib.Util.screenGui("PlainProbe")
+    check("secure off: plain name", sg2.Name == "PlainProbe")
+    sg2:Destroy()
+
+    -- atomic save + recovery
+    local cfgs = window.Config
+    cfgs:Save("atomic")
+    local apath = cfgs.path .. "/atomic.json"
+    check("atomic save writes, no tmp left", E.isfile(apath) and not E.isfile(apath .. ".tmp"))
+    local good = E.readfile(apath)
+    MOCK.files[apath] = "{broken"
+    MOCK.files[apath .. ".tmp"] = good
+    local recovered
+    cfgs:OnRecovered(function(name) recovered = name end)
+    local lok = cfgs:Load("atomic")
+    check("damaged profile restored from tmp", lok == true and recovered == "atomic" and E.readfile(apath) == good and not E.isfile(apath .. ".tmp"))
+    MOCK.files[apath .. ".tmp"] = "{stale"
+    cfgs:Read("atomic")
+    check("stale tmp removed when the file is fine", not E.isfile(apath .. ".tmp"))
+    MOCK.files[apath] = nil
+    MOCK.files[apath .. ".tmp"] = good
+    check("tmp-only profile is listed", table.find(cfgs:List(), "atomic") ~= nil and cfgs:Exists("atomic"))
+    cfgs:Read("atomic")
+    check("tmp-only profile restored", E.isfile(apath))
+    cfgs:Delete("atomic")
+
+    -- Window.Flags proxy
+    window.Flags.espRange = 2000
+    check("Flags proxy write sets element", F.espRange == 2000 and W.espRange.Value == 2000 and window.Flags.espRange == 2000)
+    local seen = 0
+    for flag, value in window.Flags do if flag == "espRange" and value == 2000 then seen = seen + 1 end end
+    check("Flags proxy iterates", seen == 1)
+    window.Flags.espRange = 1500
+    window:SetFlag("proxyLate", true)
+    local late = tc:Toggle({ Title = "Late", Flag = "proxyLate" }) wait(0.1)
+    check("SetFlag before the element exists", late.Value == true)
+
+    -- auto flags
+    window.cfg.AutoFlags = true
+    local auto1 = tc:Toggle({ Title = "Auto one" })
+    local auto2 = tc:Toggle({ Title = "Auto one" })
+    local autoButton = tc:Button({ Title = "Auto button" })
+    window.cfg.AutoFlags = nil
+    check("auto flag from names", auto1.Flag == "Misc.V16.Auto one" and auto2.Flag == "Misc.V16.Auto one 2" and autoButton.Flag == nil)
+    check("auto flag registered", window.flags["Misc.V16.Auto one"] == auto1)
+
+    -- callback error flash
+    local errorsBefore = #window:GetErrors()
+    local bad = tc:Button({ Title = "Broken", Callback = function() error("boom") end })
+    MOCK.click(bad.Row:FindFirstChild("Button") or bad.Row) wait(0.1)
+    local badTitle = bad.Row:FindFirstChild("Button") or bad.Row
+    check("error reported", #window:GetErrors() == errorsBefore + 1)
+    check("error flash + title", bad.Row:FindFirstChild("Flash", true) ~= nil and (badTitle.Text:find("Error") ~= nil or badTitle:FindFirstChildWhichIsA("TextLabel", true).Text:find("Error") ~= nil))
+    wait(2.6)
+    local restoredText = badTitle.Text ~= "" and badTitle.Text or badTitle:FindFirstChildWhichIsA("TextLabel", true).Text
+    check("title restored after error", restoredText == "Broken")
+    local badToggle = tc:Toggle({ Title = "Bad toggle", Callback = function() error("nope") end })
+    badToggle:Set(true) wait(0.1)
+    check("toggle error title", badToggle.Row:FindFirstChild("Title").Text:find("Error") ~= nil)
+    badToggle:SetTitle("Renamed") wait(2.6)
+    check("rename during error kept", badToggle.Row:FindFirstChild("Title").Text == "Renamed")
+    window:ClearErrors()
+
+    -- accepted flash
+    local inp = tc:Input({ Title = "Flash input" })
+    inp:Set("abc")
+    check("input accepted flash", inp.Row:FindFirstChild("Flash") ~= nil)
+
+    -- move / remove
+    local m1 = tc:Toggle({ Title = "M1" })
+    local m2 = tc:Toggle({ Title = "M2" })
+    local m3 = tc:ColorPicker({ Title = "M3", Flag = "m3color" })
+    local i1 = m1:GetIndex()
+    m3:MoveTo(i1)
+    check("MoveTo", m3:GetIndex() == i1 and m1:GetIndex() == i1 + 1)
+    local panel = tc.body:FindFirstChild("Picker")
+    check("panel follows its row", panel and panel.LayoutOrder == m3.Row.LayoutOrder + 1)
+    m1:MoveDown()
+    check("MoveDown", m1:GetIndex() == i1 + 2 and m2:GetIndex() == i1 + 1)
+    m1:MoveUp()
+    check("MoveUp", m1:GetIndex() == i1 + 1)
+    m3:Remove() wait()
+    check("Remove takes the panel and flag", m3.Row.Parent == nil and window.flags.m3color == nil and tc.body:FindFirstChild("Picker") == nil)
+
+    -- lock reason
+    local lk = tc:Toggle({ Title = "Lockable", Desc = "Normal text" })
+    lk:Lock("Needs premium")
+    check("lock reason replaces desc", lk.Row:FindFirstChild("Desc").Text == "Needs premium" and lk.Locked)
+    lk:SetDesc("Changed")
+    lk:Unlock()
+    check("unlock restores (latest) desc", lk.Row:FindFirstChild("Desc").Text == "Changed")
+    local lk2 = tc:Toggle({ Title = "Lockable 2" })
+    lk2:Lock("Turn on X")
+    local reason = lk2.Row:FindFirstChild("Reason", true)
+    check("lock reason pill without desc", reason and reason.Visible and reason:FindFirstChild("Text").Text == "Turn on X")
+    MOCK.click(lk2.Row) wait()
+    check("locked toggle ignores clicks", lk2.Value == false)
+
+    -- slider dragging argument
+    local dragCalls = {}
+    W.espRange:OnChanged(function(value, dragging) table.insert(dragCalls, { value, dragging }) end)
+    local strack, shit = findIn("Max distance", "Track"), findIn("Max distance", "Hit")
+    local sp, ss = strack.AbsolutePosition, strack.AbsoluteSize
+    MOCK.mouseLocation = Vector2.new(sp.X + ss.X * 0.25, sp.Y)
+    MOCK.fire(shit, "InputBegan", mouseInput(Enum.UserInputType.MouseButton1))
+    MOCK.mouseLocation = Vector2.new(sp.X + ss.X * 0.6, sp.Y)
+    uis.InputChanged:Fire(mouseInput(Enum.UserInputType.MouseMovement), false)
+    uis.InputEnded:Fire(mouseInput(Enum.UserInputType.MouseButton1), false)
+    local last = dragCalls[#dragCalls]
+    check("slider dragging flag", #dragCalls >= 3 and dragCalls[1][2] == true and last[2] == false and last[1] == F.espRange)
+    W.espRange:Set(1500)
+
+    -- keybind hold + toggle hold bind
+    local held = {}
+    local hk = tc:Keybind({ Title = "Hold key", Default = Enum.KeyCode.H, Mode = "Hold", Pressed = function(down) table.insert(held, down) end })
+    uis.InputBegan:Fire(MOCK.input(Enum.KeyCode.H), false)
+    check("hold keybind down", held[1] == true and hk.Held == true)
+    uis.InputEnded:Fire(MOCK.input(Enum.KeyCode.H, nil, Enum.UserInputState.End), false)
+    check("hold keybind up", held[2] == false and hk.Held == false)
+    local ht = tc:Toggle({ Title = "Hold toggle", Bind = Enum.KeyCode.J, BindMode = "Hold" })
+    uis.InputBegan:Fire(MOCK.input(Enum.KeyCode.J), false)
+    check("hold toggle on while held", ht.Value == true)
+    uis.InputEnded:Fire(MOCK.input(Enum.KeyCode.J, nil, Enum.UserInputState.End), false)
+    check("hold toggle off on release", ht.Value == false)
+
+    -- colour picker alpha
+    local alphaSeen
+    local ap = tc:ColorPicker({ Title = "Alpha pick", Alpha = true, Transparency = 0.4, Callback = function(color, t) alphaSeen = t end })
+    check("alpha default", ap.Transparency == 0.4 and ap.Row.Parent and tc.body:FindFirstChild("Picker"):FindFirstChild("Alpha", true) ~= nil)
+    ap:SetTransparency(0.7)
+    check("alpha callback", alphaSeen == 0.7 and type(ap:_save()) == "table" and ap:_save().Alpha == 0.7)
+    ap:_load("FF0000")
+    check("alpha load from plain hex", ap.Transparency == 0 and ap:_save() == "FF0000")
+
+    -- segmented progress
+    local seg = tc:Progress({ Title = "Seg", Steps = 4, Value = 2 }) wait(0.5)
+    local holderSeg = seg.Row:FindFirstChild("Segments")
+    check("segments built", holderSeg and #holderSeg:GetChildren() == 5) -- 4 + list layout
+    check("segments fill", holderSeg:FindFirstChild("Segment2").Fill.Size.X.Scale == 1 and holderSeg:FindFirstChild("Segment3").Fill.Size.X.Scale == 0)
+    check("segment text", seg.Row:FindFirstChild("Value").Text == "2 / 4")
+    seg:Set(3) wait(0.5)
+    check("segment advances", holderSeg:FindFirstChild("Segment3").Fill.Size.X.Scale == 1)
+
+    -- stat
+    local st = tc:Stat({ Title = "Coins", Value = 1234, Prefix = "$", Icon = "coins" })
+    local digitsFrame = st.Row:FindFirstChild("Digits")
+    local count = 0
+    for _, child in ipairs(digitsFrame:GetChildren()) do if child.Name == "Digit" then count = count + 1 end end
+    check("stat digits", count == 4)
+    st:Set(1300) wait(0.8)
+    local chip = st.Row:FindFirstChild("Delta")
+    check("stat delta chip", chip.Visible and chip:FindFirstChild("Text").Text == "+5.3%")
+    local strip
+    for _, child in ipairs(digitsFrame:GetChildren()) do if child.Name == "Digit" and child.LayoutOrder == 4 then strip = child.Strip end end
+    check("stat digit rolled", strip and strip.Position.Y.Offset == -22 * 3)
+    st:Set(25) wait(0.1)
+    count = 0
+    for _, child in ipairs(digitsFrame:GetChildren()) do if child.Name == "Digit" then count = count + 1 end end
+    check("stat rebuilds on new shape", count == 2 and chip:FindFirstChild("Text").Text:sub(1, 1) == "-")
+    local inv = tc:Stat({ Title = "Ping", Value = 50, Delta = "absolute", Invert = true, Suffix = " ms" })
+    inv:Set(40)
+    check("inverted stat: lower is good", inv.Row:FindFirstChild("Delta"):FindFirstChild("Text").Text == "-10 ms")
+
+    -- console
+    local con = tc:Console({ Title = "TestLog", MaxLines = 2, Time = false })
+    con:Append("one") con:Append("two", "warning") con:Print("three", 3)
+    check("console max lines", #con.Lines == 2 and con.Lines[2].text == "three 3")
+    check("console text", con:GetText() == "WARNING: two\nthree 3")
+    con:Clear()
+    check("console clear", #con.Lines == 0 and con.Row:FindFirstChild("Empty", true).Visible)
+
+    -- notifications: hover pause, stack limit, length-based time
+    local ht2 = window:Notify({ Title = "Hover", Duration = 1 })
+    MOCK.fire(ht2.Frame, "MouseEnter")
+    wait(1.6)
+    check("hover pauses toast", ht2:IsOpen())
+    MOCK.fire(ht2.Frame, "MouseLeave")
+    wait(1.6)
+    check("toast closes after hover", not ht2:IsOpen())
+    Lib.MaxNotifications = 3
+    local many = {}
+    for i = 1, 5 do many[i] = window:Notify({ Title = "Stack " .. i, Duration = 30 }) end
+    local openCount = 0
+    for i = 1, 5 do if many[i]:IsOpen() then openCount = openCount + 1 end end
+    check("max notifications", openCount == 3 and not many[1]:IsOpen() and many[5]:IsOpen())
+    for i = 1, 5 do many[i]:Close() end
+    Lib.MaxNotifications = 6
+    local long = window:Notify({ Title = "Long", Content = string.rep("word ", 24) })
+    wait(5)
+    check("long toast stays longer", long:IsOpen())
+    wait(5)
+    check("long toast closes", not long:IsOpen())
+
+    -- pill toast + welcome
+    local pill = Lib:Toast({ Text = "Saved", Icon = "check" })
+    check("pill toast", pill.Frame.Parent ~= nil and pill.Frame:FindFirstChild("Text", true).Text == "Saved")
+    wait(3.5)
+    check("pill toast closes", pill.Frame.Parent == nil)
+    check("welcome remembered", window.memory.welcomed == tostring(E.game:GetService("Players").LocalPlayer.UserId))
+
+    -- tags
+    local betaTag
+    for _, child in ipairs(window.titleRow:GetChildren()) do if child.Name == "Tag" then betaTag = child end end
+    check("title tag", betaTag and betaTag:FindFirstChild("Text").Text == "BETA")
+    local white = window:AddTag("PRO", { Color = E.Color3.new(1, 1, 1) })
+    check("tag auto contrast", white.Frame:FindFirstChild("Text").TextColor3.R < 0.2)
+    local dark = window:AddTag("X", { Color = E.Color3.fromRGB(20, 20, 60) })
+    check("tag auto contrast dark", dark.Frame:FindFirstChild("Text").TextColor3.R > 0.9)
+    white:Remove() dark:Remove()
+    check("tag removed", white.Frame.Parent == nil)
+
+    -- kick watcher
+    local kickInfo
+    window:OnKick(function(info) kickInfo = info end)
+    window:_kicked("You were kicked from this experience: Exploiting\n(Error Code: 267)", 267)
+    check("kick parsed", kickInfo and kickInfo.Reason == "Exploiting" and kickInfo.Kind == "Kicked" and kickInfo.Code == 267)
+    check("kick saved", window:GetKicks()[1].Reason == "Exploiting")
+    window:_kicked("You were kicked from this experience: Exploiting\n(Error Code: 267)", 267)
+    check("kick deduped", #window:GetKicks() == 1)
+    local lost = window._parseKick("Lost connection to the game server, please reconnect (Error Code: 277)")
+    check("connection lost parsed", lost.Code == 277 and lost.Kind == "Connection lost" and lost.Reason == "Lost connection to the game server, please reconnect")
+    wait(0.1)
+    local disc = find("Disconnects")
+    check("kicks listed in Settings", disc and disc:FindFirstChildWhichIsA("TextLabel", true) and (function()
+        for _, o in ipairs(disc:GetDescendants()) do if o:IsA("TextLabel") and o.Text:find("Exploiting") then return true end end
+        return false end)())
+
+    -- live background + edge glow
+    window:SetLiveBackground(true) wait(1)
+    local live = window.main:FindFirstChild("LiveBackground")
+    check("live background", live and live:FindFirstChildWhichIsA("UIGradient").Rotation > 0)
+    window:SetLiveBackground(false)
+    check("live background off", window.main:FindFirstChild("LiveBackground") == nil)
+    window:SetAccentGlow(true) wait(0.5)
+    check("edge glow", window.mainStroke.Thickness == 1.5 and window.mainStroke.Transparency >= 0.29 and window.mainStroke.Transparency <= 0.81)
+    window:SetAccentGlow(false)
+    check("edge glow off", window.mainStroke.Thickness == 1 and window.mainStroke.Transparency == 0)
+
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
     check("old window destroyed on re-run", window.alive == false and gui.Parent == nil)

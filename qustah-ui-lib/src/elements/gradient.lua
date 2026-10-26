@@ -38,12 +38,11 @@ return function(card, cfg)
         element.Value = { a, b }
         element:_fire(element.Value, true)
         if silent then return end
-        local source = tostring(cfg.Title or "Gradient")
-        window:_safe(source, cfg.Callback, ColorSequence.new(a, b), a, b)
-        for _, callback in ipairs(element._changed) do window:_safe(source, callback, ColorSequence.new(a, b), a, b) end
+        element:_call(cfg.Callback, ColorSequence.new(a, b), a, b)
+        for _, callback in ipairs(element._changed) do element:_call(callback, ColorSequence.new(a, b), a, b) end
     end
-    pickers[1] = sub:ColorPicker({ Title = "Start", Default = a, Callback = function(color) if not applying then a = color commit() end end })
-    pickers[2] = sub:ColorPicker({ Title = "End", Default = b, Callback = function(color) if not applying then b = color commit() end end })
+    pickers[1] = sub:ColorPicker({ Title = "Start", Flag = false, Default = a, Callback = function(color) if not applying then a = color commit() end end })
+    pickers[2] = sub:ColorPicker({ Title = "End", Flag = false, Default = b, Callback = function(color) if not applying then b = color commit() end end })
     sub:Button({ Title = "Swap colours", Callback = function() element:Set({ b, a }) end })
 
     function element:Set(value, silent)

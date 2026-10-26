@@ -3,6 +3,7 @@
 -- Pressed runs every time the key is pressed (outside text boxes).
 -- Chord = true: a modifier plus a key or mouse button, e.g. CTRL + M1 (press the modifier first, then the key);
 -- Default = { Enum.KeyCode.LeftControl, Enum.UserInputType.MouseButton1 }. Value is then { modifier, key }.
+-- Mode = "Hold": Pressed(true) when the key goes down and Pressed(false) when it is let go; element.Held.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -60,7 +61,9 @@ return function(card, cfg)
             window:_bind(self, key and key[2] or nil)
             show(chordName(key))
             Theme.tweenTo(outline, "Color", "buttonEdge", 0.1)
+            self._failed = false
             self:_fire(key, silent or not changed)
+            if changed and not silent then self:_accepted("accent") end
             return
         end
         key = Util.toKey(key)
@@ -69,10 +72,29 @@ return function(card, cfg)
         window:_bind(self, key)
         show(Util.keyName(key))
         Theme.tweenTo(outline, "Color", "buttonEdge", 0.1)
+        self._failed = false
         if changed then self:_fire(key, silent) else self:_fire(key, true) end
+        if changed and not silent then self:_accepted("accent") end
     end
     function element:Get() return self.Value end
-    function element:_onBind() window:_safe(tostring(cfg.Title or "Keybind"), cfg.Pressed, self.Value) end
+    element.Mode = cfg.Mode == "Hold" and "Hold" or "Press"
+    element.Held = false
+    function element:_onBind()
+        if self.Locked then return end
+        if self.Mode == "Hold" then
+            if self.Held then return end
+            self.Held = true
+            self:_call(cfg.Pressed, true)
+        else
+            self:_call(cfg.Pressed, self.Value)
+        end
+    end
+    function element:_onRelease()
+        if self.Mode == "Hold" and self.Held then
+            self.Held = false
+            self:_call(cfg.Pressed, false)
+        end
+    end
     function element:_save()
         if chordMode then
             local chord = self.Value

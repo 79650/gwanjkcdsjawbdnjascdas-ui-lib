@@ -1,4 +1,8 @@
--- Toast notifications, bottom-right: Lib:Notify({ Title, Content, Duration = 3 }).
+-- Toast notifications, bottom-right: Lib:Notify({ Title, Content, Duration }).
+-- Without Duration the time follows the text length (3-10 s). Hovering a toast pauses its timer
+-- (PauseOnHover = false turns that off). At most Lib.MaxNotifications (6) are shown; the oldest makes room.
+-- Lib:Toast("Saved") / Lib:Toast({ Text, Icon, Image, Color, Position = "Top" | "Bottom", Duration }): a small pill
+-- at the top (or bottom) centre for quick confirmations.
 local Util = require("util")
 local Theme = require("theme")
 local UIFont = require("font")
@@ -34,12 +38,14 @@ function Notify.show(Lib, cfg)
         for _, listener in ipairs(Lib._historyListeners or {}) do Util.safe(listener) end
     end
     Lib._toastOrder = (Lib._toastOrder or 0) + 1
-    local duration = tonumber(cfg.Duration) or 3
+    -- reading time: about 22 characters a second on top of a short base
+    local length = #tostring(cfg.Title or "") + #tostring(cfg.Content or "")
+    local duration = tonumber(cfg.Duration) or math.clamp(2.5 + length * 0.045, 3, 10)
     -- Progress = 0..1 / Steps = 5 (+ Step) / Persist = true: the toast stays until :Close() or the progress reaches the end
     local tracked = cfg.Progress ~= nil or cfg.Steps ~= nil or cfg.Persist == true
     local hasContent = (cfg.Content ~= nil and cfg.Content ~= "") or cfg.Steps ~= nil
     local buttons = type(cfg.Buttons) == "table" and #cfg.Buttons > 0 and cfg.Buttons or nil
-    if buttons and not cfg.Duration then duration = 6 end
+    if buttons and not cfg.Duration then duration = math.max(duration, 6) end
     local textHeight = hasContent and 50 or 34
     local height = textHeight + (buttons and 32 or 0)
     local toast = create("CanvasGroup", {
@@ -76,12 +82,25 @@ function Notify.show(Lib, cfg)
         Theme.bind(contentLabel, "TextColor3", "muted")
     end
     local closed = false
+    local timer
+    local entry = { toast = toast }
     local function dismiss()
         if closed or not toast.Parent then return end
         closed = true
+        if timer then timer:Disconnect() timer = nil end
+        for index, item in ipairs(Lib._openToasts or {}) do if item == entry then table.remove(Lib._openToasts, index) break end end
         tween(toast, 0.25, { GroupTransparency = 1 })
         task.delay(0.27, function() if toast.Parent then toast:Destroy() end end)
     end
+    entry.dismiss = dismiss
+    -- too many on screen: the oldest one goes
+    Lib._openToasts = Lib._openToasts or {}
+    table.insert(Lib._openToasts, entry)
+    local limit = math.max(1, tonumber(Lib.MaxNotifications) or 6)
+    while #Lib._openToasts > limit do Lib._openToasts[1].dismiss() end
+    local hovered = false
+    toast.MouseEnter:Connect(function() hovered = true end)
+    toast.MouseLeave:Connect(function() hovered = false end)
     -- CanClose (default true): a small x in the corner
     if cfg.CanClose ~= false then
         local close = create("TextButton", {
@@ -159,11 +178,19 @@ function Notify.show(Lib, cfg)
     if tracked then
         progress.Size = UDim2.new(0, 0, 0, 2)
         if steps then handle:SetStep(tonumber(cfg.Step) or 0, cfg.Content) elseif cfg.Progress then handle:SetProgress(cfg.Progress) end
-        if cfg.Duration then task.delay(duration, dismiss) end
-    else
-        tween(progress, duration, { Size = UDim2.new(0, 0, 0, 2) }, Enum.EasingStyle.Linear)
-        task.delay(duration, dismiss)
     end
+    -- countdown (paused while the mouse is over the toast); the bar shows the time left
+    if not tracked or cfg.Duration then
+        local remaining = duration
+        timer = Util.Services.RunService.Heartbeat:Connect(function(dt)
+            if closed then return end
+            if hovered and cfg.PauseOnHover ~= false then return end
+            remaining = remaining - (tonumber(dt) or 0)
+            if not tracked then progress.Size = UDim2.new(math.clamp(remaining / duration, 0, 1), 0, 0, 2) end
+            if remaining <= 0 then dismiss() end
+        end)
+    end
+    handle.Paused = function() return hovered end
     return setmetatable(handle, {
         __index = function(_, key)
             local value = toast[key]
@@ -171,6 +198,87 @@ function Notify.show(Lib, cfg)
             return value
         end,
     })
+end
+
+-------------------------------------------------------------------------------- pill toasts
+function Notify.pillHolder(Lib, bottom)
+    Lib._pillHolders = Lib._pillHolders or {}
+    local key = bottom and "Bottom" or "Top"
+    local existing = Lib._pillHolders[key]
+    if existing and existing.Parent then return existing end
+    local gui = Lib._pillGui
+    if not gui or not gui.Parent then
+        gui = Util.screenGui("QustahUI_Toasts", 61)
+        Lib.maid:give(gui)
+        UIFont.register(gui, Lib.maid)
+        Lib._pillGui = gui
+    end
+    local holder = create("Frame", {
+        Name = key, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, bottom and 1 or 0),
+        Position = UDim2.new(0.5, 0, bottom and 1 or 0, bottom and -70 or 58), Size = UDim2.new(0, 420, 0, 120), Parent = gui,
+    })
+    Util.list(holder, 6, nil, Enum.HorizontalAlignment.Center, bottom and Enum.VerticalAlignment.Bottom or Enum.VerticalAlignment.Top)
+    Lib._pillHolders[key] = holder
+    return holder
+end
+
+function Notify.pill(Lib, cfg)
+    if type(cfg) ~= "table" then cfg = { Text = tostring(cfg) } end
+    local bottom = cfg.Position == "Bottom"
+    local holder = Notify.pillHolder(Lib, bottom)
+    Lib._pillOrder = (Lib._pillOrder or 0) + 1
+    -- three at most: the oldest goes
+    local open = {}
+    for _, child in ipairs(holder:GetChildren()) do if child.Name == "Pill" and child:GetAttribute("Closing") ~= true then open[#open + 1] = child end end
+    table.sort(open, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+    while #open >= 3 do
+        local old = table.remove(open, 1)
+        old:SetAttribute("Closing", true)
+        tween(old, 0.15, { GroupTransparency = 1 })
+        task.delay(0.16, function() if old.Parent then old:Destroy() end end)
+    end
+    local text = tostring(cfg.Text or cfg.Title or "")
+    local pill = create("CanvasGroup", {
+        Name = "Pill", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 30), BorderSizePixel = 0,
+        GroupTransparency = 1, LayoutOrder = bottom and Lib._pillOrder or -Lib._pillOrder, Parent = holder, -- newest next to the edge
+    })
+    Theme.bind(pill, "BackgroundColor3", "card")
+    corner(pill, 15)
+    local tint = (typeof(cfg.Color) == "Color3" or type(cfg.Color) == "string") and cfg.Color or "accent"
+    local edge = stroke(pill, nil, 0.35)
+    Theme.bind(edge, "Color", cfg.Color and tint or "line")
+    local row = create("Frame", { Name = "Row", BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromScale(0, 1), Parent = pill })
+    Util.list(row, 7, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    Util.padding(row, cfg.Image and 4 or 12, 14, 0, 0)
+    if cfg.Image then
+        -- a picture in a circle (avatar: Image = Util.avatar(userId))
+        local image = create("ImageLabel", { Name = "Image", BorderSizePixel = 0, Size = UDim2.fromOffset(22, 22), ScaleType = Enum.ScaleType.Crop, LayoutOrder = 1, Image = tostring(cfg.Image), Parent = row })
+        Theme.bind(image, "BackgroundColor3", "input")
+        corner(image, 11)
+    elseif cfg.Icon and Icons.Get(cfg.Icon) then
+        Icons.themed(row, cfg.Icon, 14, tint, { Name = "Icon", LayoutOrder = 1 })
+    end
+    local caption = label(row, text, 10, { Name = "Text", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 30), Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 2, RichText = true })
+    Theme.bind(caption, "TextColor3", "heading")
+    create("UISizeConstraint", { MaxSize = Vector2.new(320, 30), Parent = caption })
+
+    local scale = create("UIScale", { Scale = 0.92, Parent = pill })
+    tween(pill, 0.18, { GroupTransparency = 0 })
+    tween(scale, 0.22, { Scale = 1 }, Enum.EasingStyle.Back)
+    local closed = false
+    local function close()
+        if closed or not pill.Parent then return end
+        closed = true
+        pill:SetAttribute("Closing", true)
+        tween(pill, 0.2, { GroupTransparency = 1 })
+        tween(scale, 0.2, { Scale = 0.94 })
+        task.delay(0.22, function() if pill.Parent then pill:Destroy() end end)
+    end
+    task.delay(tonumber(cfg.Duration) or math.clamp(1.6 + #text * 0.04, 2, 6), close)
+    local handle = { Frame = pill }
+    function handle:SetText(value) caption.Text = tostring(value) end
+    function handle:Close() close() end
+    return handle
 end
 
 return Notify

@@ -1,4 +1,6 @@
 -- Configs: every element with a Flag is saved to <Folder>/configs/<name>.json.
+-- Writes are crash-safe (Util.writeAtomic): an interrupted save never leaves a broken profile, and a profile caught
+-- half way is restored from its .tmp on the next read (Config.Recovered lists those, the window shows a toast).
 -- Window.Config:Save(name), :Load(name), :Delete(name), :List(), :SetAutoLoad(name), :LoadAutoLoad()
 local Util = require("util")
 
@@ -87,8 +89,8 @@ function Config:Save(name)
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
     local data = { version = 1, flags = self:Snapshot(), custom = self.Custom }
-    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode(data))
-    if not ok then return false, tostring(err) end
+    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", HttpService:JSONEncode(data))
+    if not ok then return false, err end
     self:_setActive(name, data.flags)
     return true
 end
@@ -99,18 +101,38 @@ function Config:SaveFlags(name, flags, custom)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {}, custom = custom }))
-    if not ok then return false, tostring(err) end
+    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {}, custom = custom }))
+    if not ok then return false, err end
     return true
+end
+
+-- Reads <file>; notes a recovery from an interrupted save.
+function Config:_readFile(file, label)
+    local data, info = Util.readJSON(file)
+    if data and info == true then
+        self.Recovered = self.Recovered or {}
+        table.insert(self.Recovered, label or file)
+        for _, listener in ipairs(self._recoverListeners or {}) do Util.safe(listener, label or file) end
+    end
+    return data, info
+end
+-- Config:OnRecovered(function(name) end): a file was restored from an interrupted save
+function Config:OnRecovered(callback)
+    self._recoverListeners = self._recoverListeners or {}
+    table.insert(self._recoverListeners, callback)
+end
+function Config:_readProfile(name)
+    if not can("readfile", "isfile") then return nil, "readfile is not available" end
+    local data, problem = self:_readFile(self.path .. "/" .. name .. ".json", name)
+    if not data then return nil, problem == "missing" and "Config not found" or "Config file is damaged" end
+    if type(data.flags) ~= "table" then return nil, "Config file is damaged" end
+    return data
 end
 
 function Config:Load(name)
     name = cleanName(name)
-    if not can("readfile", "isfile") then return false, "readfile is not available" end
-    local file = self.path .. "/" .. name .. ".json"
-    if not isfile(file) then return false, "Config not found" end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
-    if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return false, "Config file is damaged" end
+    local data, err = self:_readProfile(name)
+    if not data then return false, err end
     local failed = self:Apply(data.flags)
     self:_setCustom(data.custom)
     self:_setActive(name, data.flags)
@@ -120,12 +142,8 @@ end
 
 -- Reads a profile's flags without applying them.
 function Config:Read(name)
-    name = cleanName(name)
-    if not can("readfile", "isfile") then return nil, "readfile is not available" end
-    local file = self.path .. "/" .. name .. ".json"
-    if not isfile(file) then return nil, "Config not found" end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
-    if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return nil, "Config file is damaged" end
+    local data, err = self:_readProfile(cleanName(name))
+    if not data then return nil, err end
     return data.flags, data.custom
 end
 
@@ -204,9 +222,16 @@ function Config:List()
     if not can("listfiles", "isfolder") or not isfolder(self.path) then return names end
     local ok, files = pcall(listfiles, self.path)
     if not ok or type(files) ~= "table" then return names end
+    local seen = {}
     for _, file in ipairs(files) do
-        local name = tostring(file):gsub("\\", "/"):match("([^/]+)%.json$")
-        if name then names[#names + 1] = name end
+        -- (a profile whose first save was cut off only has its .tmp: listed, restored when read)
+        local path = tostring(file):gsub("\\", "/")
+        local name = path:match("([^/]+)%.json$") or path:match("([^/]+)%.json%.tmp$")
+        local parent = path:match("^(.*)/[^/]+$") or ""
+        if name and not seen[name] and (parent == "" or parent:sub(-#self.path) == self.path) then
+            seen[name] = true
+            names[#names + 1] = name
+        end
     end
     table.sort(names)
     return names
@@ -215,7 +240,7 @@ end
 function Config:SetAutoLoad(name)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self:_scopeFile("autoload.txt"), cleanName(name))
+    return Util.writeAtomic(self:_scopeFile("autoload.txt"), cleanName(name))
 end
 function Config:GetAutoLoad()
     if not can("readfile", "isfile") or not isfile(self:_scopeFile("autoload.txt")) then return nil end
@@ -232,39 +257,32 @@ end
 
 -- Window memory: position / size of the window and the floating panels, in <Folder>/window.json.
 function Config:ReadMemory()
-    if not can("readfile", "isfile") or not isfile(self.folder .. "/window.json") then return {} end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(self.folder .. "/window.json")) end)
-    return ok and type(data) == "table" and data or {}
+    return self:_readFile(self.folder .. "/window.json", "window") or {}
 end
 function Config:WriteMemory(data)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self.folder .. "/window.json", HttpService:JSONEncode(data))
+    return Util.writeAtomic(self.folder .. "/window.json", HttpService:JSONEncode(data))
 end
 
 -- Any small JSON file in the folder (custom themes...): Config:ReadJSON("themes"), :WriteJSON("themes", data)
 function Config:ReadJSON(name)
-    local file = self.folder .. "/" .. cleanName(name) .. ".json"
-    if not can("readfile", "isfile") or not isfile(file) then return {} end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
-    return ok and type(data) == "table" and data or {}
+    return self:_readFile(self.folder .. "/" .. cleanName(name) .. ".json", cleanName(name)) or {}
 end
 function Config:WriteJSON(name, data)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self.folder .. "/" .. cleanName(name) .. ".json", HttpService:JSONEncode(data))
+    return Util.writeAtomic(self.folder .. "/" .. cleanName(name) .. ".json", HttpService:JSONEncode(data))
 end
 
 -- Profiles keep extra info (when saved) in <Folder>/profiles.json.
 function Config:ReadMeta()
-    if not can("readfile", "isfile") or not isfile(self:_scopeFile("profiles.json")) then return {} end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(self:_scopeFile("profiles.json"))) end)
-    return ok and type(data) == "table" and data or {}
+    return self:_readFile(self:_scopeFile("profiles.json"), "profiles") or {}
 end
 function Config:WriteMeta(data)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self:_scopeFile("profiles.json"), HttpService:JSONEncode(data))
+    return Util.writeAtomic(self:_scopeFile("profiles.json"), HttpService:JSONEncode(data))
 end
 
 -- Snapshot of every flag right now (used as the locked "Default" profile).
@@ -295,7 +313,9 @@ function Config:Apply(flags)
 end
 function Config:Exists(name)
     name = cleanName(name)
-    return can("isfile") and name ~= "" and isfile(self.path .. "/" .. name .. ".json") or false
+    if not can("isfile") or name == "" then return false end
+    local file = self.path .. "/" .. name .. ".json"
+    return isfile(file) or isfile(file .. ".tmp")
 end
 function Config:Rename(old, new)
     old, new = cleanName(old), cleanName(new)
@@ -304,7 +324,8 @@ function Config:Rename(old, new)
     if not can("readfile", "writefile", "delfile", "isfile") then return false, "File functions are not available" end
     local ok, text = pcall(readfile, self.path .. "/" .. old .. ".json")
     if not ok then return false, "Profile not found" end
-    pcall(writefile, self.path .. "/" .. new .. ".json", text)
+    local written, err = Util.writeAtomic(self.path .. "/" .. new .. ".json", text)
+    if not written then return false, err end
     pcall(delfile, self.path .. "/" .. old .. ".json")
     if self:GetAutoLoad() == old then self:SetAutoLoad(new) end
     if self.Active == old then self:_setActive(new, self.ActiveFlags) end
@@ -316,7 +337,7 @@ function Config:Copy(name, new)
     if not can("readfile", "writefile") then return false, "File functions are not available" end
     local ok, text = pcall(readfile, self.path .. "/" .. name .. ".json")
     if not ok then return false, "Profile not found" end
-    return pcall(writefile, self.path .. "/" .. new .. ".json", text)
+    return Util.writeAtomic(self.path .. "/" .. new .. ".json", text)
 end
 function Config:ClearAutoLoad()
     if can("delfile", "isfile") and isfile(self:_scopeFile("autoload.txt")) then pcall(delfile, self:_scopeFile("autoload.txt")) end

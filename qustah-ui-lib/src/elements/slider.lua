@@ -1,6 +1,8 @@
 -- card:Slider({ Title, Desc, Flag, Min, Max, Default, Step, Suffix, Callback, Locked, Icons = { From = "volume", To = "volume-2" }, Bubble = true })
 -- Drag the track, or click the value and type a number. Icons puts an icon at each end of the track (clicking one
 -- steps the value); while dragging a bubble over the knob shows the value (Bubble = false turns it off).
+-- Callback(value, dragging): dragging is true while the knob is held, and one last call with false comes on
+-- release - do heavy work only when `dragging` is false.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -56,6 +58,8 @@ return function(card, cfg)
 
     local element = Base.element(card, "Slider", cfg, row, title, desc)
     local focused = false
+    local dragging, movedWhileDragging = false, false
+    element.Dragging = false
 
     local function format(value)
         return (decimals > 0 and string.format("%." .. decimals .. "f", value) or tostring(math.floor(value + 0.5))) .. suffix
@@ -75,7 +79,8 @@ return function(card, cfg)
         local changed = value ~= self.Value
         self.Value = value
         render()
-        self:_fire(value, silent or not changed)
+        if changed and dragging then movedWhileDragging = true end
+        self:_fire(value, silent or not changed, dragging)
     end
     function element:Get() return self.Value end
     function element:SetRange(newMin, newMax)
@@ -92,8 +97,15 @@ return function(card, cfg)
     hit.InputBegan:Connect(function(input)
         if not Util.isPress(input) or element.Locked then return end
         bubble.Visible = cfg.Bubble ~= false
+        dragging, movedWhileDragging = true, false
+        element.Dragging = true
         fromPoint(Util.pointer(input))
-        window:_beginDrag(input, fromPoint, function() bubble.Visible = false end)
+        window:_beginDrag(input, fromPoint, function()
+            bubble.Visible = false
+            dragging = false
+            element.Dragging = false
+            if movedWhileDragging then element:_fire(element.Value, false, false) end -- released: the final value
+        end)
     end)
     if sideIcons then
         -- icons at both ends; a click moves one step (or a tenth of the range) that way

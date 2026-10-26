@@ -44,7 +44,7 @@ return function(Window)
             entry = { source = source, message = message, count = 1, first = os.time(), last = os.time() }
             self._errorIndex[key] = entry
             table.insert(self.errors, entry)
-            warn(string.format("[%s / %s] %s", self.Title, source, message))
+            Util.log(string.format("[%s / %s] %s", self.Title, source, message))
             -- Debug mode (CreateWindow{ Debug = true } or Settings › Info): a toast for every new error
             if self.debug == nil then self.debug = self.cfg.Debug == true end
             if self.debug and self.Notify then
@@ -105,9 +105,11 @@ return function(Window)
     end
 
     -- Runs a user callback; an error is reported (footer, Info page) instead of breaking the UI.
+    -- Returns true / false (nil when there was nothing to run).
     function Window:_safe(source, callback, ...)
-        if type(callback) ~= "function" then return end
+        if type(callback) ~= "function" then return nil end
         local ok, err = pcall(callback, ...)
         if not ok then self:ReportError(source, err) end
+        return ok
     end
 end

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.5.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.6.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -46,6 +46,8 @@ Card.Elements = {
     Image       = require("elements/image"),
     Viewport    = require("elements/viewport"),
     ActionInput = require("elements/actioninput"),
+    Stat        = require("elements/stat"),
+    Console     = require("elements/console"),
 }
 Card.__index = function(_, key)
     local method = rawget(Card, key)
@@ -61,7 +63,7 @@ Card.__index = function(_, key)
 end
 
 function Card.new(page, column, cfg, order)
-    local self = setmetatable({ page = page, window = page.window, order = 0 }, Card)
+    local self = setmetatable({ page = page, window = page.window, order = 0, title = cfg.Title }, Card)
     local frame = create("Frame", {
         Name = cfg.Title or "Card", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0, LayoutOrder = order or 0, Parent = column,
@@ -193,7 +195,7 @@ function Card:Tabs(names, cfg)
         buttons[name] = button
         local body = create("Frame", { Name = "Section_" .. name, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Visible = false, Parent = self.body })
         Util.list(body, 4)
-        sections[name] = setmetatable({ page = self.page, window = self.window, order = 0, body = body, frame = self.frame }, Card)
+        sections[name] = setmetatable({ page = self.page, window = self.window, order = 0, body = body, frame = self.frame, title = self.title }, Card)
         button.Activated:Connect(function() selector:Select(name) end)
     end
     current = tostring(cfg.Default or names[1])
@@ -203,7 +205,7 @@ end
 
 -- A pseudo-card: elements go into `body`, ordering is its own.
 local function sub(card, body)
-    return setmetatable({ page = card.page, window = card.window, order = 0, body = body, frame = card.frame }, Card)
+    return setmetatable({ page = card.page, window = card.window, order = 0, body = body, frame = card.frame, title = card.title }, Card)
 end
 
 -- card:Section({ Title, Icon, Desc, Opened = true }) -> a collapsible part of the card (click its header).
@@ -293,6 +295,8 @@ end
 
 __modules["config"] = function()
 -- Configs: every element with a Flag is saved to <Folder>/configs/<name>.json.
+-- Writes are crash-safe (Util.writeAtomic): an interrupted save never leaves a broken profile, and a profile caught
+-- half way is restored from its .tmp on the next read (Config.Recovered lists those, the window shows a toast).
 -- Window.Config:Save(name), :Load(name), :Delete(name), :List(), :SetAutoLoad(name), :LoadAutoLoad()
 local Util = require("util")
 
@@ -381,8 +385,8 @@ function Config:Save(name)
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
     local data = { version = 1, flags = self:Snapshot(), custom = self.Custom }
-    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode(data))
-    if not ok then return false, tostring(err) end
+    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", HttpService:JSONEncode(data))
+    if not ok then return false, err end
     self:_setActive(name, data.flags)
     return true
 end
@@ -393,18 +397,38 @@ function Config:SaveFlags(name, flags, custom)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local ok, err = pcall(writefile, self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {}, custom = custom }))
-    if not ok then return false, tostring(err) end
+    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {}, custom = custom }))
+    if not ok then return false, err end
     return true
+end
+
+-- Reads <file>; notes a recovery from an interrupted save.
+function Config:_readFile(file, label)
+    local data, info = Util.readJSON(file)
+    if data and info == true then
+        self.Recovered = self.Recovered or {}
+        table.insert(self.Recovered, label or file)
+        for _, listener in ipairs(self._recoverListeners or {}) do Util.safe(listener, label or file) end
+    end
+    return data, info
+end
+-- Config:OnRecovered(function(name) end): a file was restored from an interrupted save
+function Config:OnRecovered(callback)
+    self._recoverListeners = self._recoverListeners or {}
+    table.insert(self._recoverListeners, callback)
+end
+function Config:_readProfile(name)
+    if not can("readfile", "isfile") then return nil, "readfile is not available" end
+    local data, problem = self:_readFile(self.path .. "/" .. name .. ".json", name)
+    if not data then return nil, problem == "missing" and "Config not found" or "Config file is damaged" end
+    if type(data.flags) ~= "table" then return nil, "Config file is damaged" end
+    return data
 end
 
 function Config:Load(name)
     name = cleanName(name)
-    if not can("readfile", "isfile") then return false, "readfile is not available" end
-    local file = self.path .. "/" .. name .. ".json"
-    if not isfile(file) then return false, "Config not found" end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
-    if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return false, "Config file is damaged" end
+    local data, err = self:_readProfile(name)
+    if not data then return false, err end
     local failed = self:Apply(data.flags)
     self:_setCustom(data.custom)
     self:_setActive(name, data.flags)
@@ -414,12 +438,8 @@ end
 
 -- Reads a profile's flags without applying them.
 function Config:Read(name)
-    name = cleanName(name)
-    if not can("readfile", "isfile") then return nil, "readfile is not available" end
-    local file = self.path .. "/" .. name .. ".json"
-    if not isfile(file) then return nil, "Config not found" end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
-    if not ok or type(data) ~= "table" or type(data.flags) ~= "table" then return nil, "Config file is damaged" end
+    local data, err = self:_readProfile(cleanName(name))
+    if not data then return nil, err end
     return data.flags, data.custom
 end
 
@@ -498,9 +518,16 @@ function Config:List()
     if not can("listfiles", "isfolder") or not isfolder(self.path) then return names end
     local ok, files = pcall(listfiles, self.path)
     if not ok or type(files) ~= "table" then return names end
+    local seen = {}
     for _, file in ipairs(files) do
-        local name = tostring(file):gsub("\\", "/"):match("([^/]+)%.json$")
-        if name then names[#names + 1] = name end
+        -- (a profile whose first save was cut off only has its .tmp: listed, restored when read)
+        local path = tostring(file):gsub("\\", "/")
+        local name = path:match("([^/]+)%.json$") or path:match("([^/]+)%.json%.tmp$")
+        local parent = path:match("^(.*)/[^/]+$") or ""
+        if name and not seen[name] and (parent == "" or parent:sub(-#self.path) == self.path) then
+            seen[name] = true
+            names[#names + 1] = name
+        end
     end
     table.sort(names)
     return names
@@ -509,7 +536,7 @@ end
 function Config:SetAutoLoad(name)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self:_scopeFile("autoload.txt"), cleanName(name))
+    return Util.writeAtomic(self:_scopeFile("autoload.txt"), cleanName(name))
 end
 function Config:GetAutoLoad()
     if not can("readfile", "isfile") or not isfile(self:_scopeFile("autoload.txt")) then return nil end
@@ -526,39 +553,32 @@ end
 
 -- Window memory: position / size of the window and the floating panels, in <Folder>/window.json.
 function Config:ReadMemory()
-    if not can("readfile", "isfile") or not isfile(self.folder .. "/window.json") then return {} end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(self.folder .. "/window.json")) end)
-    return ok and type(data) == "table" and data or {}
+    return self:_readFile(self.folder .. "/window.json", "window") or {}
 end
 function Config:WriteMemory(data)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self.folder .. "/window.json", HttpService:JSONEncode(data))
+    return Util.writeAtomic(self.folder .. "/window.json", HttpService:JSONEncode(data))
 end
 
 -- Any small JSON file in the folder (custom themes...): Config:ReadJSON("themes"), :WriteJSON("themes", data)
 function Config:ReadJSON(name)
-    local file = self.folder .. "/" .. cleanName(name) .. ".json"
-    if not can("readfile", "isfile") or not isfile(file) then return {} end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
-    return ok and type(data) == "table" and data or {}
+    return self:_readFile(self.folder .. "/" .. cleanName(name) .. ".json", cleanName(name)) or {}
 end
 function Config:WriteJSON(name, data)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self.folder .. "/" .. cleanName(name) .. ".json", HttpService:JSONEncode(data))
+    return Util.writeAtomic(self.folder .. "/" .. cleanName(name) .. ".json", HttpService:JSONEncode(data))
 end
 
 -- Profiles keep extra info (when saved) in <Folder>/profiles.json.
 function Config:ReadMeta()
-    if not can("readfile", "isfile") or not isfile(self:_scopeFile("profiles.json")) then return {} end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(self:_scopeFile("profiles.json"))) end)
-    return ok and type(data) == "table" and data or {}
+    return self:_readFile(self:_scopeFile("profiles.json"), "profiles") or {}
 end
 function Config:WriteMeta(data)
     if not can("writefile") then return false end
     self:_ensure()
-    return pcall(writefile, self:_scopeFile("profiles.json"), HttpService:JSONEncode(data))
+    return Util.writeAtomic(self:_scopeFile("profiles.json"), HttpService:JSONEncode(data))
 end
 
 -- Snapshot of every flag right now (used as the locked "Default" profile).
@@ -589,7 +609,9 @@ function Config:Apply(flags)
 end
 function Config:Exists(name)
     name = cleanName(name)
-    return can("isfile") and name ~= "" and isfile(self.path .. "/" .. name .. ".json") or false
+    if not can("isfile") or name == "" then return false end
+    local file = self.path .. "/" .. name .. ".json"
+    return isfile(file) or isfile(file .. ".tmp")
 end
 function Config:Rename(old, new)
     old, new = cleanName(old), cleanName(new)
@@ -598,7 +620,8 @@ function Config:Rename(old, new)
     if not can("readfile", "writefile", "delfile", "isfile") then return false, "File functions are not available" end
     local ok, text = pcall(readfile, self.path .. "/" .. old .. ".json")
     if not ok then return false, "Profile not found" end
-    pcall(writefile, self.path .. "/" .. new .. ".json", text)
+    local written, err = Util.writeAtomic(self.path .. "/" .. new .. ".json", text)
+    if not written then return false, err end
     pcall(delfile, self.path .. "/" .. old .. ".json")
     if self:GetAutoLoad() == old then self:SetAutoLoad(new) end
     if self.Active == old then self:_setActive(new, self.ActiveFlags) end
@@ -610,7 +633,7 @@ function Config:Copy(name, new)
     if not can("readfile", "writefile") then return false, "File functions are not available" end
     local ok, text = pcall(readfile, self.path .. "/" .. name .. ".json")
     if not ok then return false, "Profile not found" end
-    return pcall(writefile, self.path .. "/" .. new .. ".json", text)
+    return Util.writeAtomic(self.path .. "/" .. new .. ".json", text)
 end
 function Config:ClearAutoLoad()
     if can("delfile", "isfile") and isfile(self:_scopeFile("autoload.txt")) then pcall(delfile, self:_scopeFile("autoload.txt")) end
@@ -957,7 +980,7 @@ return function(card, cfg)
     local function run()
         validate()
         if not ready or element.Locked then return end
-        window:_safe(tostring(cfg.Button or "Action"), cfg.Callback, element.Value)
+        element:_call(cfg.Callback, element.Value)
         if cfg.ClearOnAction ~= false then box.Text = "" end
         validate()
     end
@@ -983,7 +1006,8 @@ end
 
 __modules["elements/base"] = function()
 -- Shared parts of every element: the row (title + optional description), callbacks / OnChanged, flags,
--- Lock / Unlock with a reason tooltip, and the default save / load used by configs.
+-- Lock / Unlock with a reason, Flash, MoveUp / MoveDown / MoveTo / Remove, and the default save / load used by configs.
+-- A callback that errors makes its element flash red and say so for a moment (the error goes to Settings › Info).
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
@@ -991,6 +1015,29 @@ local Icons = require("icons")
 local create, corner, label = Util.create, Util.corner, Util.label
 
 local Base = {}
+
+-- elements that hold a value: they get a flag from their name when the window has AutoFlags = true
+local VALUE = {
+    Toggle = true, Slider = true, Dropdown = true, Keybind = true, ColorPicker = true, Input = true, Segment = true,
+    Range = true, Swatches = true, Gradient = true, ImagePicker = true, PlayerList = true,
+}
+
+-- Rows of a list in display order (rows use even LayoutOrders; an odd one right after a row is its panel).
+local function rowsOf(parent)
+    local list = {}
+    for _, child in ipairs(parent:GetChildren()) do
+        if child:IsA("GuiObject") and child.LayoutOrder >= 2 and child.LayoutOrder % 2 == 0 then list[#list + 1] = child end
+    end
+    table.sort(list, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+    return list
+end
+local function panelOf(row)
+    local parent = row.Parent
+    if not parent then return nil end
+    for _, child in ipairs(parent:GetChildren()) do
+        if child ~= row and child:IsA("GuiObject") and child.LayoutOrder == row.LayoutOrder + 1 then return child end
+    end
+end
 
 -- opts.right: pixels kept free on the right for the control; opts.button: the whole row is clickable.
 function Base.row(card, cfg, height, opts)
@@ -1039,24 +1086,49 @@ end
 
 function Base.element(card, kind, cfg, row, title, desc)
     local window = card.window
+    if cfg.Flag == nil and VALUE[kind] and cfg.Title and window.cfg and window.cfg.AutoFlags and not window._noAutoFlags then
+        cfg.Flag = window:_autoFlag(card, cfg.Title)
+    end
     local element = { Type = kind, Title = cfg.Title, Flag = cfg.Flag, Row = row, Card = card, Locked = false, _changed = {} }
 
     function element:OnChanged(callback)
         self._changed[#self._changed + 1] = callback
         return self
     end
-    -- Stores the flag value; unless silent, runs Callback and the OnChanged listeners.
-    function element:_fire(value, silent)
+    -- Runs a user callback; when it errors the element flashes red and its title says so (Base.failed).
+    function element:_call(callback, ...)
+        if window:_safe(tostring(self.Title or kind), callback, ...) == false then
+            self._failed = true
+            Base.failed(self, title)
+        end
+    end
+    -- Flash = false turns the green / accent "accepted" flash of inputs and keybinds off
+    function element:_accepted(kind)
+        if cfg.Flash ~= false and not self._failed then self:Flash(kind or "success") end
+    end
+    -- Stores the flag value; unless silent, runs Callback and the OnChanged listeners (extra values go along:
+    -- the slider sends (value, dragging)).
+    function element:_fire(value, silent, ...)
         if self.Flag then window.Lib.Flags[self.Flag] = value end
         if silent then return end
         -- errors in user callbacks are reported to the window (footer "Errors: N", Settings › Info)
-        local source = tostring(self.Title or kind)
-        window:_safe(source, cfg.Callback, value)
-        for _, callback in ipairs(self._changed) do window:_safe(source, callback, value) end
+        self:_call(cfg.Callback, value, ...)
+        for _, callback in ipairs(self._changed) do self:_call(callback, value, ...) end
     end
-    function element:SetTitle(text) self.Title = text if title then title.Text = tostring(text) end end
-    function element:SetDesc(text) if desc then desc.Text = tostring(text) end end
+    function element:SetTitle(text)
+        self.Title = text
+        if self._errorShown then self._titleBefore = tostring(text) elseif title then title.Text = tostring(text) end
+    end
+    function element:SetDesc(text)
+        self._descText = tostring(text)
+        if desc and not self.Locked then desc.Text = self._descText end
+    end
     function element:SetVisible(visible) row.Visible = visible ~= false end
+    -- element:Flash("success" | "danger" | "accent" | any role / Color3): a short tint behind the row
+    function element:Flash(kind) Base.flash(row, kind) end
+
+    -- Lock("Needs premium"): the row dims and the reason takes the place of the description
+    -- (without a description it sits over the control, with a lock icon). Unlock() brings everything back.
     function element:Lock(reason)
         self.Locked = true
         self._lockReason = reason
@@ -1070,24 +1142,118 @@ function Base.element(card, kind, cfg, row, title, desc)
             cover.MouseEnter:Connect(function() if self._lockReason then window:_tip(self._lockReason) end end)
             cover.MouseLeave:Connect(function() window:_hideTip() end)
             self._lock = cover
+            -- reason pill over the control (rows without a description)
+            local pill = create("Frame", {
+                Name = "Reason", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0),
+                Size = UDim2.new(0.55, 0, 0, 16), ZIndex = 21, Visible = false, Parent = cover,
+            })
+            local icon = Icons.themed(pill, "lock", 11, "warning", { Name = "LockIcon", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), ZIndex = 22 })
+            local text = label(pill, "", 9, { Name = "Text", Size = UDim2.new(1, icon and -16 or 0, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium, ZIndex = 22 })
+            Theme.bind(text, "TextColor3", "warning")
+            self._lockPill, self._lockText = pill, text
+        end
+        local hasReason = reason ~= nil and reason ~= ""
+        if desc then
+            if self._descText == nil then self._descText = desc.Text end
+            if hasReason then
+                desc.Text = tostring(reason)
+                desc.ZIndex = 21
+                Theme.bind(desc, "TextColor3", "warning")
+            end
+            self._lockPill.Visible = false
+        else
+            self._lockText.Text = hasReason and tostring(reason) or ""
+            self._lockPill.Visible = hasReason
         end
         self._lock.Visible = true
     end
     function element:Unlock()
         self.Locked = false
         if self._lock then self._lock.Visible = false end
+        if desc and self._descText ~= nil then
+            desc.Text = self._descText
+            desc.ZIndex = 1
+            Theme.bind(desc, "TextColor3", "muted")
+        end
         window:_hideTip()
     end
+
+    -- Order inside its card / section: MoveUp(), MoveDown(), MoveTo(index), GetIndex()
+    function element:GetIndex()
+        if not row.Parent then return nil end
+        for index, item in ipairs(rowsOf(row.Parent)) do if item == row then return index end end
+    end
+    function element:MoveTo(index)
+        local parent = row.Parent
+        if not parent then return end
+        local list = rowsOf(parent)
+        local orders, panels = {}, {}
+        for i, item in ipairs(list) do orders[i] = item.LayoutOrder panels[item] = panelOf(item) end
+        for i, item in ipairs(list) do if item == row then table.remove(list, i) break end end
+        index = math.clamp(math.floor(tonumber(index) or 1), 1, #list + 1)
+        table.insert(list, index, row)
+        for i, item in ipairs(list) do
+            item.LayoutOrder = orders[i]
+            if panels[item] then panels[item].LayoutOrder = orders[i] + 1 end
+        end
+    end
+    function element:MoveUp() local index = self:GetIndex() if index then self:MoveTo(index - 1) end end
+    function element:MoveDown() local index = self:GetIndex() if index then self:MoveTo(index + 1) end end
+
     function element:Destroy()
         if self.Flag and window.flags[self.Flag] == self then window.flags[self.Flag] = nil end
         window.binds[self] = nil
+        local panel = panelOf(row) -- (the colour picker's panel lives next to its row)
+        if panel then panel:Destroy() end
         row:Destroy()
     end
+    function element:Remove() self:Destroy() end
     function element:_save() return self.Value end
     function element:_load(value) self:Set(value) end
 
+    element._risky = cfg.Risky and true or false
     if cfg.Flag then window:_register(cfg.Flag, element) end
     return element
+end
+
+-- A soft tint behind a row that fades out (success / error feedback). A new flash restarts it.
+function Base.flash(row, kind)
+    if not row or not row.Parent then return end
+    local flash = row:FindFirstChild("Flash")
+    if not flash then
+        flash = create("Frame", {
+            Name = "Flash", BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(-6, -2),
+            Size = UDim2.new(1, 12, 1, 4), ZIndex = 0, Parent = row,
+        })
+        corner(flash, 6)
+    end
+    Theme.bind(flash, "BackgroundColor3", kind or "accent")
+    local token = (flash:GetAttribute("Token") or 0) + 1
+    flash:SetAttribute("Token", token)
+    flash.BackgroundTransparency = 0.78
+    task.delay(0.12, function()
+        if flash.Parent and flash:GetAttribute("Token") == token then Util.tween(flash, 0.5, { BackgroundTransparency = 1 }) end
+    end)
+end
+
+-- After a callback error: red flash, and the title reads "Error · see Settings › Info" for a moment.
+function Base.failed(element, title)
+    Base.flash(element.Row, "danger")
+    if not title or not title.Parent then return end
+    element._errorToken = (element._errorToken or 0) + 1
+    local token = element._errorToken
+    if not element._errorShown then
+        element._errorShown = true
+        element._titleBefore = tostring(element.Text or element.Title or title.Text)
+        Theme.bind(title, "TextColor3", "danger")
+    end
+    title.Text = "Error · see Settings › Info"
+    task.delay(2.2, function()
+        if element._errorToken ~= token or not title.Parent then return end
+        element._errorShown = false
+        title.Text = element._titleBefore or tostring(element.Title or "")
+        Theme.bind(title, "TextColor3", element._risky and "danger" or "text")
+    end)
 end
 
 -- Applied by every element after its first Set: initial lock state.
@@ -1144,7 +1310,7 @@ return function(card, cfg)
     local element = Base.element(card, "Button", cfg, row, button, desc)
     element.Text = tostring(cfg.Title or "Button")
     function element:SetTitle(text) self.Text = tostring(text) button.Text = self.Text end
-    function element:Fire() card.window:_safe(element.Text, cfg.Callback) end
+    function element:Fire() element:_call(cfg.Callback) end
 
     button.MouseEnter:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "hover", 0.12) Theme.tweenTo(button, "TextColor3", "heading", 0.12) end)
     button.MouseLeave:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "input", 0.12) Theme.tweenTo(button, "TextColor3", cfg.Risky and "danger" or "text", 0.12) end)
@@ -1166,7 +1332,7 @@ return function(card, cfg)
             button.Text = element.Text
             Theme.tweenTo(outline, "Color", "buttonEdge", 0.1)
         end
-        card.window:_safe(element.Text, cfg.Callback)
+        element:_call(cfg.Callback)
     end)
     return Base.finish(element, cfg)
 end
@@ -1309,6 +1475,8 @@ __modules["elements/colorpicker"] = function()
 -- Click the swatch to open the picker under the row: saturation / brightness square, hue bar, HEX box, Random, Rainbow.
 -- Apply = true: edits only preview until Apply is pressed (closing without Apply reverts).
 -- Rainbow = true / :SetRainbow(on): cycles the hue (RainbowSpeed = seconds per cycle, default 5); saved with the config.
+-- Alpha = true (or Transparency = 0.3): a transparency bar under the hue; Callback(color, transparency),
+-- element.Transparency, :SetTransparency(0-1). Saved with the colour.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -1359,6 +1527,23 @@ return function(card, cfg)
     create("UIGradient", { Color = HUE, Parent = hueBar })
     local hueCursor = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(4, 14), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 3, Parent = hueBar })
     corner(hueCursor, 2)
+    -- transparency bar: the colour fading out to the right, over a dark / light split so the fade shows
+    local alphaMode = cfg.Alpha == true or tonumber(cfg.Transparency) ~= nil
+    local alphaBar, alphaCursor
+    if alphaMode then
+        local backing = create("Frame", { Name = "AlphaBacking", BorderSizePixel = 0, Position = UDim2.fromOffset(0, 134), Size = UDim2.new(1, -104, 0, 10), Parent = panel })
+        Theme.bind(backing, "BackgroundColor3", "input")
+        corner(backing, 5)
+        local light = create("Frame", { BorderSizePixel = 0, Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 0.5), BackgroundColor3 = Color3.fromRGB(205, 205, 210), BackgroundTransparency = 0.55, Parent = backing })
+        corner(light, 5)
+        alphaBar = create("TextButton", { Name = "Alpha", Text = "", AutoButtonColor = false, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), Parent = backing })
+        corner(alphaBar, 5)
+        create("UIGradient", { Transparency = NumberSequence.new(0, 1), Parent = alphaBar })
+        Theme.bind(stroke(backing, nil, 0.3), "Color", "buttonEdge")
+        alphaCursor = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(4, 14), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 3, Parent = backing })
+        corner(alphaCursor, 2)
+        Theme.bind(stroke(alphaCursor, nil, 0.2), "Color", "base")
+    end
 
     local side = create("Frame", { Name = "Side", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 4), Size = UDim2.fromOffset(92, 150), Parent = panel })
     local preview = create("Frame", { Size = UDim2.new(1, 0, 0, 26), BorderSizePixel = 0, Parent = side })
@@ -1400,6 +1585,8 @@ return function(card, cfg)
 
     local element = Base.element(card, "ColorPicker", cfg, row, title, desc)
     local h, s, v = 0, 0, 1
+    local alpha = math.clamp(tonumber(cfg.Transparency) or 0, 0, 1)
+    element.Transparency = alpha
 
     local function render()
         local color = Color3.fromHSV(h, s, v)
@@ -1408,15 +1595,22 @@ return function(card, cfg)
         cursor.Position = UDim2.fromScale(s, 1 - v)
         hueCursor.Position = UDim2.fromScale(h, 0.5)
         hex.Text = "#" .. Util.toHex(color)
+        if alphaMode then
+            alphaBar.BackgroundColor3 = color
+            alphaCursor.Position = UDim2.fromScale(alpha, 0.5)
+            preview.BackgroundTransparency = alpha
+            swatch.BackgroundTransparency = alpha * 0.85
+        end
     end
     local applyMode = cfg.Apply == true
     local function commit(silent, force)
         local color = Color3.fromHSV(h, s, v)
         if applyMode and not force and panel.Visible and not silent then render() swatch.BackgroundColor3 = element.Value or color return end
-        local changed = color ~= element.Value
+        local changed = color ~= element.Value or alpha ~= element.Transparency
         element.Value = color
+        element.Transparency = alpha
         render()
-        element:_fire(color, silent or not changed)
+        if alphaMode then element:_fire(color, silent or not changed, alpha) else element:_fire(color, silent or not changed) end
     end
     function element:Set(color, silent)
         if type(color) == "string" then color = Util.fromHex(color) end
@@ -1424,10 +1618,27 @@ return function(card, cfg)
         h, s, v = color:ToHSV()
         commit(silent, true)
     end
-    function element:Get() return self.Value end
-    function element:_save() return self.Rainbow and { Color = Util.toHex(self.Value), Rainbow = true } or Util.toHex(self.Value) end
+    function element:Get() return self.Value, self.Transparency end
+    function element:SetTransparency(value, silent)
+        alpha = math.clamp(tonumber(value) or 0, 0, 1)
+        commit(silent, true)
+    end
+    function element:_save()
+        if self.Rainbow or (alphaMode and self.Transparency > 0) then
+            return { Color = Util.toHex(self.Value), Rainbow = self.Rainbow or nil, Alpha = alphaMode and self.Transparency or nil }
+        end
+        return Util.toHex(self.Value)
+    end
     function element:_load(data)
-        if type(data) == "table" then self:Set(data.Color) self:SetRainbow(data.Rainbow == true) else self:SetRainbow(false) self:Set(data) end
+        if type(data) == "table" then
+            if alphaMode then alpha = math.clamp(tonumber(data.Alpha) or 0, 0, 1) end
+            self:Set(data.Color)
+            self:SetRainbow(data.Rainbow == true)
+        else
+            if alphaMode then alpha = 0 end
+            self:SetRainbow(false)
+            self:Set(data)
+        end
     end
     local function revert()
         if applyMode and element.Value then h, s, v = element.Value:ToHSV() render() end
@@ -1480,6 +1691,7 @@ return function(card, cfg)
     end
     drag(square, function(x, y) s, v = x, 1 - y end)
     drag(hueBar, function(x) h = math.min(x, 0.999) end)
+    if alphaBar then drag(alphaBar, function(x) alpha = math.floor(x * 100 + 0.5) / 100 end) end
     hex.FocusLost:Connect(function()
         local color = Util.fromHex(hex.Text)
         if color then h, s, v = color:ToHSV() commit() else render() end
@@ -1500,6 +1712,181 @@ return function(card, cfg)
     renderRainbow()
     if cfg.Rainbow then element:SetRainbow(true) end
     return Base.finish(element, cfg)
+end
+end
+
+__modules["elements/console"] = function()
+-- card:Console({ Title = "Log", Height = 150, MaxLines = 200, Follow = true, Time = true, Copy = true })
+-- A small log: console:Append("text", "info" | "success" | "warning" | "error"), :Print(...) (like print),
+-- :Clear(), :SetFollow(on), :GetText(). Follow keeps the newest line in view, until you scroll up to read
+-- (scrolling back to the bottom turns it on again). Old lines drop off past MaxLines.
+local Util = require("util")
+local Theme = require("theme")
+local Base = require("elements/base")
+local Icons = require("icons")
+
+local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
+
+local LEVELS = { info = "text", success = "success", warning = "warning", warn = "warning", error = "danger", danger = "danger", debug = "muted" }
+
+local function escape(text) return (tostring(text):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")) end
+
+return function(card, cfg)
+    local maxLines = math.max(1, math.floor(tonumber(cfg.MaxLines) or 200))
+    local height = tonumber(cfg.Height) or 150
+    local holder = create("Frame", { Name = tostring(cfg.Title or "Console"), Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, LayoutOrder = card:_order(), Parent = card.body })
+    Theme.bind(holder, "BackgroundColor3", "base")
+    corner(holder, 7)
+    Theme.bind(stroke(holder), "Color", "line")
+    local head = create("Frame", { Name = "Head", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 26), Parent = holder })
+    Icons.themed(head, cfg.Icon or "terminal", 12, "muted", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 10, 0.5, 0) })
+    local title = label(head, tostring(cfg.Title or "Console"), 10, { Name = "Title", Position = UDim2.fromOffset(28, 0), Size = UDim2.new(1, -150, 1, 0), Font = Enum.Font.GothamMedium })
+    Theme.bind(title, "TextColor3", "text")
+    local line = create("Frame", { Position = UDim2.fromOffset(0, 26), Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, Parent = holder })
+    Theme.bind(line, "BackgroundColor3", "line")
+    local scroller = create("ScrollingFrame", {
+        Name = "Lines", BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(0, 27), Size = UDim2.new(1, 0, 1, -27),
+        CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 3, ScrollingDirection = Enum.ScrollingDirection.Y,
+        Parent = holder,
+    })
+    Theme.bind(scroller, "ScrollBarImageColor3", "muted")
+    local list = create("Frame", { Name = "List", BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = scroller })
+    Util.list(list, 1)
+    Util.padding(list, 0, 0, 0, 8)
+    local empty = label(scroller, cfg.Empty or "Nothing logged yet", 10, { Name = "Empty", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
+    Theme.bind(empty, "TextColor3", "muted")
+
+    local element = Base.element(card, "Console", {}, holder, title, nil)
+    element.Lines = {}
+    element.Follow = cfg.Follow ~= false
+    local order = 0
+
+    -- small header buttons: follow, clear, copy (right to left)
+    local buttons = {}
+    local function headButton(name, icon, tip, index, callback)
+        local button = create("TextButton", {
+            Name = name, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -6 - (index - 1) * 24, 0.5, 0), Size = UDim2.fromOffset(20, 20), Parent = head,
+        })
+        corner(button, 5)
+        Theme.bind(button, "BackgroundColor3", "input")
+        local image = Icons.themed(button, icon, 12, "muted", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+        button.MouseEnter:Connect(function()
+            Util.tween(button, 0.1, { BackgroundTransparency = 0 })
+            card.window:_tip(tip)
+        end)
+        button.MouseLeave:Connect(function()
+            Util.tween(button, 0.1, { BackgroundTransparency = 1 })
+            card.window:_hideTip()
+        end)
+        button.Activated:Connect(callback)
+        buttons[name] = { button = button, icon = image }
+        return button
+    end
+
+    -- (the canvas grows after the layout pass, so following also listens to the canvas size)
+    local autoScrolling = false
+    local function scrollToEnd()
+        if not scroller.Parent then return end
+        autoScrolling = true
+        -- the list's own height (6 px top offset) is known right after the layout, the canvas size may lag
+        local content = math.max(scroller.AbsoluteCanvasSize.Y, list.AbsoluteSize.Y + 6)
+        scroller.CanvasPosition = Vector2.new(0, math.max(0, content - scroller.AbsoluteWindowSize.Y))
+        autoScrolling = false
+    end
+    scroller:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(function() if element.Follow then scrollToEnd() end end)
+    list:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() if element.Follow then scrollToEnd() end end)
+    local function renderFollow()
+        local entry = buttons.Follow
+        if entry and entry.icon then Theme.bind(entry.icon, "ImageColor3", element.Follow and "accent" or "muted") end
+    end
+    function element:SetFollow(on)
+        self.Follow = on ~= false
+        renderFollow()
+        if self.Follow then scrollToEnd() end
+    end
+
+    -- the user scrolling up stops follow; reaching the bottom again starts it
+    scroller:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+        if autoScrolling then return end
+        local bottom = scroller.AbsoluteCanvasSize.Y - scroller.AbsoluteWindowSize.Y
+        if bottom <= 0 then return end
+        local atEnd = scroller.CanvasPosition.Y >= bottom - 4
+        if atEnd ~= element.Follow then element.Follow = atEnd renderFollow() end
+    end)
+
+    function element:Append(text, level)
+        level = LEVELS[tostring(level or "info"):lower()] and tostring(level or "info"):lower() or "info"
+        text = tostring(text == nil and "" or text)
+        local stamp = cfg.Time ~= false and os.date("%H:%M:%S") or nil
+        order = order + 1
+        local entry = { text = text, level = level, time = stamp }
+        table.insert(self.Lines, entry)
+        local row = label(list, "", 10, {
+            Name = "Line", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true,
+            TextTruncate = Enum.TextTruncate.None, RichText = true, Font = Enum.Font.Code, LayoutOrder = order,
+            TextYAlignment = Enum.TextYAlignment.Top,
+        })
+        local function paint()
+            local prefix = stamp and ('<font color="#' .. Util.toHex(Theme.get("muted")) .. '">' .. stamp .. "</font>  ") or ""
+            row.Text = prefix .. escape(text)
+        end
+        paint()
+        entry.label, entry.paint = row, paint
+        Theme.bind(row, "TextColor3", LEVELS[level])
+        empty.Visible = false
+        while #self.Lines > maxLines do
+            local old = table.remove(self.Lines, 1)
+            if old.label then old.label:Destroy() end
+        end
+        if self.Follow then task.defer(scrollToEnd) end
+        return entry
+    end
+    -- console:Print("a", 1, true) joins its values like print
+    function element:Print(...)
+        local parts = table.pack(...)
+        for index = 1, parts.n do parts[index] = tostring(parts[index]) end
+        return self:Append(table.concat(parts, " ", 1, parts.n))
+    end
+    function element:Log(text, level) return self:Append(text, level) end
+    function element:Clear()
+        for _, entry in ipairs(self.Lines) do if entry.label then entry.label:Destroy() end end
+        self.Lines = {}
+        empty.Visible = true
+    end
+    function element:GetText()
+        local out = {}
+        for _, entry in ipairs(self.Lines) do
+            out[#out + 1] = (entry.time and ("[" .. entry.time .. "] ") or "") .. (entry.level ~= "info" and (entry.level:upper() .. ": ") or "") .. entry.text
+        end
+        return table.concat(out, "\n")
+    end
+    function element:SetTitle(text) title.Text = tostring(text) end
+    function element:Get() return self:GetText() end
+
+    if cfg.Copy ~= false then
+        headButton("Copy", "copy", "Copy log", 1, function()
+            local clipboard = setclipboard or toclipboard
+            local ok = type(clipboard) == "function" and pcall(clipboard, element:GetText())
+            local entry = buttons.Copy
+            if entry.icon then
+                Icons.Apply(entry.icon, ok and "check" or "x")
+                task.delay(1.2, function() if entry.icon.Parent then Icons.Apply(entry.icon, "copy") end end)
+            end
+        end)
+    end
+    headButton("Clear", "trash-2", "Clear", cfg.Copy ~= false and 2 or 1, function() element:Clear() end)
+    headButton("Follow", "arrow-down-to-line", "Follow new lines", cfg.Copy ~= false and 3 or 2, function() element:SetFollow(not element.Follow) end)
+    renderFollow()
+    -- timestamps keep the theme's muted colour
+    Theme.onChange(function()
+        if not holder.Parent then return end
+        for _, entry in ipairs(element.Lines) do if entry.paint then entry.paint() end end
+    end)
+    for _, item in ipairs(cfg.Lines or {}) do
+        if type(item) == "table" then element:Append(item[1] or item.Text, item[2] or item.Level) else element:Append(item) end
+    end
+    return element
 end
 end
 
@@ -1927,12 +2314,11 @@ return function(card, cfg)
         element.Value = { a, b }
         element:_fire(element.Value, true)
         if silent then return end
-        local source = tostring(cfg.Title or "Gradient")
-        window:_safe(source, cfg.Callback, ColorSequence.new(a, b), a, b)
-        for _, callback in ipairs(element._changed) do window:_safe(source, callback, ColorSequence.new(a, b), a, b) end
+        element:_call(cfg.Callback, ColorSequence.new(a, b), a, b)
+        for _, callback in ipairs(element._changed) do element:_call(callback, ColorSequence.new(a, b), a, b) end
     end
-    pickers[1] = sub:ColorPicker({ Title = "Start", Default = a, Callback = function(color) if not applying then a = color commit() end end })
-    pickers[2] = sub:ColorPicker({ Title = "End", Default = b, Callback = function(color) if not applying then b = color commit() end end })
+    pickers[1] = sub:ColorPicker({ Title = "Start", Flag = false, Default = a, Callback = function(color) if not applying then a = color commit() end end })
+    pickers[2] = sub:ColorPicker({ Title = "End", Flag = false, Default = b, Callback = function(color) if not applying then b = color commit() end end })
     sub:Button({ Title = "Swap colours", Callback = function() element:Set({ b, a }) end })
 
     function element:Set(value, silent)
@@ -2251,7 +2637,9 @@ return function(card, cfg)
         local changed = text ~= self.Value
         self.Value = text
         if box.Text ~= text then box.Text = text end
+        self._failed = false
         self:_fire(text, silent or not changed)
+        if changed and not silent then self:_accepted("success") end
     end
     function element:Get() return self.Value end
 
@@ -2275,6 +2663,7 @@ __modules["elements/keybind"] = function()
 -- Pressed runs every time the key is pressed (outside text boxes).
 -- Chord = true: a modifier plus a key or mouse button, e.g. CTRL + M1 (press the modifier first, then the key);
 -- Default = { Enum.KeyCode.LeftControl, Enum.UserInputType.MouseButton1 }. Value is then { modifier, key }.
+-- Mode = "Hold": Pressed(true) when the key goes down and Pressed(false) when it is let go; element.Held.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -2332,7 +2721,9 @@ return function(card, cfg)
             window:_bind(self, key and key[2] or nil)
             show(chordName(key))
             Theme.tweenTo(outline, "Color", "buttonEdge", 0.1)
+            self._failed = false
             self:_fire(key, silent or not changed)
+            if changed and not silent then self:_accepted("accent") end
             return
         end
         key = Util.toKey(key)
@@ -2341,10 +2732,29 @@ return function(card, cfg)
         window:_bind(self, key)
         show(Util.keyName(key))
         Theme.tweenTo(outline, "Color", "buttonEdge", 0.1)
+        self._failed = false
         if changed then self:_fire(key, silent) else self:_fire(key, true) end
+        if changed and not silent then self:_accepted("accent") end
     end
     function element:Get() return self.Value end
-    function element:_onBind() window:_safe(tostring(cfg.Title or "Keybind"), cfg.Pressed, self.Value) end
+    element.Mode = cfg.Mode == "Hold" and "Hold" or "Press"
+    element.Held = false
+    function element:_onBind()
+        if self.Locked then return end
+        if self.Mode == "Hold" then
+            if self.Held then return end
+            self.Held = true
+            self:_call(cfg.Pressed, true)
+        else
+            self:_call(cfg.Pressed, self.Value)
+        end
+    end
+    function element:_onRelease()
+        if self.Mode == "Hold" and self.Held then
+            self.Held = false
+            self:_call(cfg.Pressed, false)
+        end
+    end
     function element:_save()
         if chordMode then
             local chord = self.Value
@@ -2606,6 +3016,8 @@ __modules["elements/progress"] = function()
 -- card:Progress({ Title, Desc, Value = 0, Max = 100, Suffix = "%", Format = function(value, max) return "3 / 10" end, Indeterminate })
 -- A progress bar (farm, download, cooldown...). :Set(value), :SetMax(max), :SetIndeterminate(true) shows a moving
 -- stripe for "working, no number yet". No flag (it reports, it does not configure).
+-- Steps = 5: the track is split into 5 segments that fill one by one (Max defaults to Steps: Set(3) = "3 / 5").
+-- :SetSteps(n) (0 = a plain bar again).
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -2628,7 +3040,8 @@ return function(card, cfg)
     create("UIGradient", { Transparency = NumberSequence.new(0.25, 0), Parent = fill })
 
     local element = Base.element(card, "Progress", {}, row, title, desc)
-    local max = math.max(tonumber(cfg.Max) or 100, 1e-9)
+    local max = math.max(tonumber(cfg.Max) or tonumber(cfg.Steps) or 100, 1e-9)
+    local segments, segmentHolder = {}, nil
     local suffix = cfg.Suffix
     local indeterminate = false
     local function text()
@@ -2642,8 +3055,15 @@ return function(card, cfg)
     end
     local function render(animate)
         value.Text = text()
-        if indeterminate then return end
+        if segmentHolder then segmentHolder.Visible = not indeterminate end
+        track.BackgroundTransparency = (#segments > 0 and not indeterminate) and 1 or 0
+        if indeterminate then fill.Visible = true return end
         local ratio = math.clamp(element.Value / max, 0, 1)
+        fill.Visible = #segments == 0
+        for index, segment in ipairs(segments) do
+            local part = math.clamp(ratio * #segments - (index - 1), 0, 1)
+            if animate then Util.tween(segment, 0.25, { Size = UDim2.fromScale(part, 1) }) else segment.Size = UDim2.fromScale(part, 1) end
+        end
         fill.Position = UDim2.fromScale(0, 0)
         if animate then Util.tween(fill, 0.25, { Size = UDim2.fromScale(ratio, 1) }) else fill.Size = UDim2.fromScale(ratio, 1) end
     end
@@ -2665,7 +3085,29 @@ return function(card, cfg)
         end
         render(false)
     end
+    function element:SetSteps(count)
+        count = math.clamp(math.floor(tonumber(count) or 0), 0, 40)
+        if segmentHolder then segmentHolder:Destroy() segmentHolder = nil end
+        segments = {}
+        if count > 0 then
+            -- the track's own frame clips, so the segments sit in a holder over it
+            segmentHolder = create("Frame", { Name = "Segments", BackgroundTransparency = 1, Position = track.Position, Size = track.Size, Parent = row })
+            local gap = count > 12 and 2 or 3
+            Util.list(segmentHolder, gap, Enum.FillDirection.Horizontal)
+            for index = 1, count do
+                local cell = create("Frame", { Name = "Segment" .. index, Size = UDim2.new(1 / count, -gap * (count - 1) / count, 1, 0), BorderSizePixel = 0, LayoutOrder = index, ClipsDescendants = true, Parent = segmentHolder })
+                Theme.bind(cell, "BackgroundColor3", "input")
+                corner(cell, 3)
+                local part = create("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BorderSizePixel = 0, Parent = cell })
+                Theme.bind(part, "BackgroundColor3", "accent")
+                corner(part, 3)
+                segments[index] = part
+            end
+        end
+        render(false)
+    end
     element.Value = math.max(0, tonumber(cfg.Value or cfg.Default) or 0)
+    if tonumber(cfg.Steps) then element:SetSteps(cfg.Steps) end
     render(false)
     if cfg.Indeterminate then element:SetIndeterminate(true) end
     return element
@@ -2888,6 +3330,8 @@ __modules["elements/slider"] = function()
 -- card:Slider({ Title, Desc, Flag, Min, Max, Default, Step, Suffix, Callback, Locked, Icons = { From = "volume", To = "volume-2" }, Bubble = true })
 -- Drag the track, or click the value and type a number. Icons puts an icon at each end of the track (clicking one
 -- steps the value); while dragging a bubble over the knob shows the value (Bubble = false turns it off).
+-- Callback(value, dragging): dragging is true while the knob is held, and one last call with false comes on
+-- release - do heavy work only when `dragging` is false.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -2943,6 +3387,8 @@ return function(card, cfg)
 
     local element = Base.element(card, "Slider", cfg, row, title, desc)
     local focused = false
+    local dragging, movedWhileDragging = false, false
+    element.Dragging = false
 
     local function format(value)
         return (decimals > 0 and string.format("%." .. decimals .. "f", value) or tostring(math.floor(value + 0.5))) .. suffix
@@ -2962,7 +3408,8 @@ return function(card, cfg)
         local changed = value ~= self.Value
         self.Value = value
         render()
-        self:_fire(value, silent or not changed)
+        if changed and dragging then movedWhileDragging = true end
+        self:_fire(value, silent or not changed, dragging)
     end
     function element:Get() return self.Value end
     function element:SetRange(newMin, newMax)
@@ -2979,8 +3426,15 @@ return function(card, cfg)
     hit.InputBegan:Connect(function(input)
         if not Util.isPress(input) or element.Locked then return end
         bubble.Visible = cfg.Bubble ~= false
+        dragging, movedWhileDragging = true, false
+        element.Dragging = true
         fromPoint(Util.pointer(input))
-        window:_beginDrag(input, fromPoint, function() bubble.Visible = false end)
+        window:_beginDrag(input, fromPoint, function()
+            bubble.Visible = false
+            dragging = false
+            element.Dragging = false
+            if movedWhileDragging then element:_fire(element.Value, false, false) end -- released: the final value
+        end)
     end)
     if sideIcons then
         -- icons at both ends; a click moves one step (or a tenth of the range) that way
@@ -3013,6 +3467,157 @@ return function(card, cfg)
     render()
     element:_fire(element.Value, true)
     return Base.finish(element, cfg)
+end
+end
+
+__modules["elements/stat"] = function()
+-- card:Stat({ Title = "Coins", Value = 0, Icon = "coins", Prefix = "$", Suffix = " /h", Decimals = 0, Separator = ",",
+--             Delta = "percent" | "absolute" | false, Invert = false, Format = function(value) return "..." end })
+-- A big number whose digits roll like an odometer when it changes, with a chip showing the last change
+-- (+12.5% green, -3 red; Invert = true when lower is better, e.g. ping). :Set(value), :Add(amount), :Get().
+-- No flag (it shows something, it does not configure).
+local Util = require("util")
+local Theme = require("theme")
+local Base = require("elements/base")
+local Icons = require("icons")
+
+local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
+
+local SIZE, HEIGHT = 18, 22
+local FONT = Enum.Font.GothamBold
+
+local function group(text, separator)
+    if separator == "" then return text end
+    local sign, whole, rest = text:match("^([%-]?)(%d+)(.*)$")
+    if not whole then return text end
+    whole = whole:reverse():gsub("(%d%d%d)", "%1" .. separator:reverse()):reverse()
+    if whole:sub(1, #separator) == separator then whole = whole:sub(#separator + 1) end
+    return sign .. whole .. rest
+end
+
+return function(card, cfg)
+    local hasIcon = cfg.Icon and Icons.Get(cfg.Icon)
+    local x = hasIcon and 44 or 0
+    local holder = create("Frame", { Name = tostring(cfg.Title or "Stat"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), LayoutOrder = card:_order(), Parent = card.body })
+    if hasIcon then
+        local tile = create("Frame", { Name = "IconTile", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(34, 34), BorderSizePixel = 0, Parent = holder })
+        Theme.bind(tile, "BackgroundColor3", "accentDeep")
+        corner(tile, 9)
+        local edge = stroke(tile, nil, 0.6)
+        Theme.bind(edge, "Color", "accent")
+        Icons.themed(tile, cfg.Icon, 16, "accent", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+    end
+    local title = label(holder, tostring(cfg.Title or ""), 9, { Name = "Title", Position = UDim2.fromOffset(x, 2), Size = UDim2.new(1, -x - 80, 0, 14), Font = Enum.Font.GothamMedium })
+    Theme.bind(title, "TextColor3", "muted")
+    local digits = create("Frame", { Name = "Digits", BackgroundTransparency = 1, Position = UDim2.fromOffset(x, 17), Size = UDim2.new(1, -x - 80, 0, HEIGHT), ClipsDescendants = true, Parent = holder })
+    Util.list(digits, 0, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+
+    -- change chip on the right
+    local chip = create("Frame", { Name = "Delta", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(0, 20), AutomaticSize = Enum.AutomaticSize.X, BorderSizePixel = 0, Visible = false, Parent = holder })
+    corner(chip, 10)
+    Util.list(chip, 4, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    Util.padding(chip, 7, 8, 0, 0)
+    local chipIcon = Icons.themed(chip, "trending-up", 11, "success", { Name = "Arrow", LayoutOrder = 1 })
+    local chipText = label(chip, "", 9, { Name = "Text", Size = UDim2.fromOffset(0, 20), AutomaticSize = Enum.AutomaticSize.X, Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 2 })
+
+    local element = Base.element(card, "Stat", {}, holder, title, nil)
+    local decimals = math.max(0, math.floor(tonumber(cfg.Decimals) or 0))
+    local separator = cfg.Separator == nil and "," or tostring(cfg.Separator)
+    local digitWidth = math.max(8, Util.textWidth("0", SIZE, FONT) + 2)
+
+    local function format(value)
+        if type(cfg.Format) == "function" then
+            local ok, result = pcall(cfg.Format, value)
+            if ok then return tostring(result) end
+        end
+        local text = decimals > 0 and string.format("%." .. decimals .. "f", value) or tostring(math.floor(value + 0.5))
+        return tostring(cfg.Prefix or "") .. group(text, separator) .. tostring(cfg.Suffix or "")
+    end
+
+    -- one column per character: digits are a 0-9 strip that slides, everything else a plain label
+    local columns, shape = {}, nil
+    local function build(text)
+        for _, column in ipairs(columns) do column.frame:Destroy() end
+        columns = {}
+        for index = 1, #text do
+            local char = text:sub(index, index)
+            local digit = tonumber(char)
+            if digit then
+                local frame = create("Frame", { Name = "Digit", BackgroundTransparency = 1, Size = UDim2.fromOffset(digitWidth, HEIGHT), ClipsDescendants = true, LayoutOrder = index, Parent = digits })
+                local strip = create("Frame", { Name = "Strip", BackgroundTransparency = 1, Position = UDim2.fromOffset(0, -digit * HEIGHT), Size = UDim2.fromOffset(digitWidth, HEIGHT * 10), Parent = frame })
+                for n = 0, 9 do
+                    local glyph = label(strip, tostring(n), SIZE, { Name = tostring(n), Position = UDim2.fromOffset(0, n * HEIGHT), Size = UDim2.fromOffset(digitWidth, HEIGHT), Font = FONT, TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.None })
+                    Theme.bind(glyph, "TextColor3", "heading")
+                end
+                columns[index] = { frame = frame, strip = strip, digit = digit }
+            else
+                local frame = label(digits, char, SIZE, { Name = "Char", Size = UDim2.fromOffset(char == " " and 4 or 0, HEIGHT), AutomaticSize = char == " " and Enum.AutomaticSize.None or Enum.AutomaticSize.X, Font = FONT, TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.None, LayoutOrder = index })
+                Theme.bind(frame, "TextColor3", "heading")
+                columns[index] = { frame = frame, char = char }
+            end
+        end
+    end
+    -- the layout of digits / other characters, e.g. "$9,999": a change here rebuilds, otherwise digits roll
+    local function shapeOf(text) return (text:gsub("%d", "#")) end
+
+    local function show(text, animate)
+        local newShape = shapeOf(text)
+        if newShape ~= shape then
+            shape = newShape
+            build(text)
+            return
+        end
+        for index = 1, #text do
+            local column, digit = columns[index], tonumber(text:sub(index, index))
+            if column and column.strip and digit and digit ~= column.digit then
+                column.digit = digit
+                local target = UDim2.fromOffset(0, -digit * HEIGHT)
+                if animate then
+                    -- the further right, the quicker (like a real counter)
+                    Util.tween(column.strip, 0.35 + (#text - index) * 0.04, { Position = target }, Enum.EasingStyle.Quint)
+                else
+                    column.strip.Position = target
+                end
+            end
+        end
+    end
+
+    local mode = cfg.Delta == nil and "percent" or cfg.Delta
+    local function renderDelta(old, new)
+        if not mode or old == nil or old == new then return end
+        local change = new - old
+        local good = (change > 0) ~= (cfg.Invert == true)
+        local role = good and "success" or "danger"
+        local text
+        if mode == "absolute" then
+            text = (change > 0 and "+" or "") .. format(change):gsub("^" .. tostring(cfg.Prefix or ""):gsub("%p", "%%%0"), "")
+        else
+            if old == 0 then text = change > 0 and "+new" or "-" else text = string.format("%+.1f%%", change / math.abs(old) * 100) end
+        end
+        chipText.Text = text
+        Theme.bind(chip, "BackgroundColor3", role)
+        chip.BackgroundTransparency = 0.86
+        Theme.bind(chipText, "TextColor3", role)
+        if chipIcon then
+            Icons.Apply(chipIcon, change > 0 and "trending-up" or "trending-down")
+            Theme.bind(chipIcon, "ImageColor3", role)
+        end
+        chip.Visible = true
+    end
+
+    function element:Set(value, silent)
+        value = tonumber(value)
+        if not value then return end
+        local old = self.Value
+        self.Value = value
+        show(format(value), old ~= nil and not silent)
+        renderDelta(old, value)
+    end
+    function element:Add(amount) self:Set((self.Value or 0) + (tonumber(amount) or 0)) end
+    function element:Get() return self.Value end
+    function element:SetTitle(text) title.Text = tostring(text) end
+    element:Set(tonumber(cfg.Value or cfg.Default) or 0, true)
+    return element
 end
 end
 
@@ -3115,9 +3720,8 @@ return function(card, cfg)
         render()
         if self.Flag then card.window.Lib.Flags[self.Flag] = entry.name end
         if not silent and changed then
-            local source = tostring(cfg.Title or "Swatches")
-            card.window:_safe(source, cfg.Callback, entry.color, entry.name)
-            for _, callback in ipairs(self._changed) do card.window:_safe(source, callback, entry.color, entry.name) end
+            self:_call(cfg.Callback, entry.color, entry.name)
+            for _, callback in ipairs(self._changed) do self:_call(callback, entry.color, entry.name) end
         end
     end
     function element:Get() return self.Value, self.Color end
@@ -3139,7 +3743,8 @@ end
 end
 
 __modules["elements/toggle"] = function()
--- card:Toggle({ Title, Desc, Flag, Default, Callback, Bindable, Bind, Locked, LockedTitle })
+-- card:Toggle({ Title, Desc, Flag, Default, Callback, Bindable, Bind, BindMode = "Toggle" | "Hold", Locked, LockedTitle })
+-- BindMode = "Hold": the toggle is on only while its key is held (aim while holding the key). :SetBindMode(mode)
 -- Click the row or the switch to flip it. With Bindable (or a Bind key) right-click the row to assign a key
 -- (Backspace clears, Escape cancels); the key flips the toggle while the menu is closed too.
 local Util = require("util")
@@ -3226,7 +3831,15 @@ return function(card, cfg)
             if desc then desc.Size = UDim2.new(1, -reserve, 0, 14) end
         end
     end
-    function element:_onBind() if not self.Locked then self:Set(not self.Value) end end
+    element.BindMode = cfg.BindMode == "Hold" and "Hold" or "Toggle"
+    function element:SetBindMode(mode) self.BindMode = mode == "Hold" and "Hold" or "Toggle" end
+    function element:_onBind()
+        if self.Locked then return end
+        if self.BindMode == "Hold" then self._held = true self:Set(true) else self:Set(not self.Value) end
+    end
+    function element:_onRelease()
+        if self.BindMode == "Hold" and self._held then self._held = false self:Set(false) end
+    end
     if bindable then
         tag = Util.label(row, "", 9, {
             Name = "Bind", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, cfg.Help and -62 or -42, 0.5, 0), Size = UDim2.fromOffset(48, 18),
@@ -3828,7 +4441,7 @@ function Icons.Load(set)
     end)
     if not ok or type(data) ~= "table" then
         Icons._failed[set] = tostring(data)
-        warn("[qustah-ui-lib] icon set " .. set .. " could not be loaded: " .. tostring(data))
+        require("util").log("[qustah-ui-lib] icon set " .. set .. " could not be loaded: " .. tostring(data))
         return false, Icons._failed[set]
     end
     Icons.Sets[set] = data
@@ -3909,7 +4522,7 @@ local function fetch(url, done)
             Icons._urls[url] = asset
             done(asset)
         else
-            warn("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(asset))
+            require("util").log("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(asset))
         end
     end)
 end
@@ -4442,9 +5055,11 @@ require("dialog")(Window)
 require("hud")(Window)
 require("inbox")(Window)
 require("windowx")(Window)
+require("windowfx")(Window)
+require("kick")(Window)
 
 local Lib = {
-    Version = "1.5.0",
+    Version = "1.6.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -4457,23 +5072,128 @@ Lib.maid = Util.maid()
 function Lib:CreateWindow(cfg) return Window.new(self, cfg) end
 -- Lib:Notify({ Title, Content, Duration, Color })
 function Lib:Notify(cfg) return Notify.show(self, cfg) end
+-- Lib:Toast("Saved") / Lib:Toast({ Text, Icon, Image, Color, Position = "Top" | "Bottom", Duration })
+function Lib:Toast(cfg) return Notify.pill(self, cfg) end
+Lib.MaxNotifications = 6
 function Lib:SetAccent(color) Theme.set("accent", color) end
 -- Any colour role: base, card, input, line, text, muted, heading, accent ...
 function Lib:SetColor(role, color) Theme.set(role, color) end
 function Lib:GetFlag(flag) return self.Flags[flag] end
+-- Secure mode: random gui names, a silent console (also getgenv().QUSTAH_SECURE = true before loading)
+function Lib:SetSecure(on) Util.secure = on ~= false end
+function Lib:IsSecure() return Util.secure == true end
 function Lib:Destroy()
     for index = #self.Windows, 1, -1 do self.Windows[index]:Destroy() end
     self.maid:clean()
 end
 
-function Window:SettingsTab(cfg) return Settings(self, cfg) end
-function Window:DashboardTab(cfg) return Dashboard(self, cfg) end
+-- (the built-in tabs keep their own flags: AutoFlags is off while they are built)
+local function builtIn(window, build, cfg)
+    window._noAutoFlags = true
+    local ok, result = pcall(build, window, cfg)
+    window._noAutoFlags = nil
+    if not ok then error(result, 0) end
+    return result
+end
+function Window:SettingsTab(cfg) return builtIn(self, Settings, cfg) end
+function Window:DashboardTab(cfg) return builtIn(self, Dashboard, cfg) end
 
 return Lib
 end
 
+__modules["kick"] = function()
+-- Kick watcher: notices when the game disconnects you and says why.
+--   Window:OnKick(function(info) end)   info = { Reason, Code, Kind, Message, Time }
+--   Window:GetKicks()                    the last 20, newest first (saved in <Folder>/kicks.json)
+--   Window.LastKick
+-- CreateWindow({ KickLog = false }) turns it off; Rejoin = true teleports back to the same place after a kick.
+-- It reads Roblox's own error prompt (GuiService), so it works for kicks from the server, anti-cheats and
+-- connection drops alike.
+local Util = require("util")
+
+-- Roblox error codes that matter here
+local KINDS = {
+    [267] = "Kicked", [268] = "Unexpected client behaviour", [273] = "Logged in elsewhere", [274] = "Server shut down",
+    [277] = "Connection lost", [278] = "Idle (AFK) disconnect", [279] = "Failed to connect", [282] = "Disconnected",
+    [292] = "Game removed", [517] = "Server full", [524] = "Not allowed", [529] = "Service error", [600] = "Banned",
+}
+
+local function parse(message, code)
+    message = tostring(message or "")
+    code = tonumber(code) or tonumber(message:match("[Ee]rror [Cc]ode:?%s*(%d+)"))
+    -- "You were kicked from this experience: <reason>" / "...game: <reason>"
+    local reason = message:match("[Kk]icked from this [%a]+:%s*(.-)%s*%(?[Ee]rror [Cc]ode")
+        or message:match("[Kk]icked from this [%a]+:%s*(.+)$")
+        or message:match("^(.-)%s*%(?[Ee]rror [Cc]ode") or message
+    reason = reason:gsub("%s+$", ""):gsub("^%s+", "")
+    if reason == "" then reason = KINDS[code] or "Disconnected" end
+    return { Reason = reason, Code = code, Kind = KINDS[code] or (code and ("Error " .. code)) or "Disconnected", Message = message, Time = os.time() }
+end
+
+return function(Window)
+    Window._parseKick = parse
+
+    function Window:OnKick(callback)
+        self._kickListeners = self._kickListeners or {}
+        table.insert(self._kickListeners, callback)
+    end
+    function Window:GetKicks()
+        local data = self.Config:ReadJSON("kicks")
+        return type(data.list) == "table" and data.list or {}
+    end
+
+    function Window:_kicked(message, code)
+        local info = parse(message, code)
+        -- the prompt and the error signal both report the same kick: keep one
+        if self.LastKick and self.LastKick.Message == info.Message and os.time() - self.LastKick.Time < 10 then return end
+        self.LastKick = info
+        local list = self:GetKicks()
+        table.insert(list, 1, { Reason = info.Reason, Code = info.Code, Kind = info.Kind, Time = info.Time, Place = game.PlaceId })
+        while #list > 20 do table.remove(list) end
+        self.Config:WriteJSON("kicks", { list = list })
+        for _, listener in ipairs(self._kickListeners or {}) do self:_safe("OnKick", listener, info) end
+        if self.cfg.Rejoin and info.Code ~= 273 and info.Code ~= 600 then
+            task.delay(tonumber(self.cfg.RejoinDelay) or 2, function()
+                pcall(function() Util.Services.TeleportService:Teleport(game.PlaceId, Util.Services.Players.LocalPlayer) end)
+            end)
+        end
+    end
+
+    function Window:_watchKicks()
+        if self.cfg.KickLog == false then return end
+        local GuiService = Util.Services.GuiService
+        pcall(function()
+            self.maid:connect(GuiService.ErrorMessageChanged, function(message)
+                if not message or message == "" then return end
+                local code
+                pcall(function() code = GuiService:GetErrorCode().Value end)
+                self:_kicked(message, code)
+            end)
+        end)
+        -- the error prompt itself (some executors see this before the signal)
+        task.spawn(function()
+            pcall(function()
+                local prompt = Util.Services.CoreGui:FindFirstChild("RobloxPromptGui")
+                local overlay = prompt and prompt:FindFirstChild("promptOverlay")
+                if not overlay then return end
+                self.maid:connect(overlay.ChildAdded, function(child)
+                    if child.Name ~= "ErrorPrompt" then return end
+                    task.wait(0.1)
+                    local text = child:FindFirstChild("ErrorMessage", true)
+                    if text and text.Text ~= "" then self:_kicked(text.Text) end
+                end)
+            end)
+        end)
+    end
+end
+end
+
 __modules["notify"] = function()
--- Toast notifications, bottom-right: Lib:Notify({ Title, Content, Duration = 3 }).
+-- Toast notifications, bottom-right: Lib:Notify({ Title, Content, Duration }).
+-- Without Duration the time follows the text length (3-10 s). Hovering a toast pauses its timer
+-- (PauseOnHover = false turns that off). At most Lib.MaxNotifications (6) are shown; the oldest makes room.
+-- Lib:Toast("Saved") / Lib:Toast({ Text, Icon, Image, Color, Position = "Top" | "Bottom", Duration }): a small pill
+-- at the top (or bottom) centre for quick confirmations.
 local Util = require("util")
 local Theme = require("theme")
 local UIFont = require("font")
@@ -4509,12 +5229,14 @@ function Notify.show(Lib, cfg)
         for _, listener in ipairs(Lib._historyListeners or {}) do Util.safe(listener) end
     end
     Lib._toastOrder = (Lib._toastOrder or 0) + 1
-    local duration = tonumber(cfg.Duration) or 3
+    -- reading time: about 22 characters a second on top of a short base
+    local length = #tostring(cfg.Title or "") + #tostring(cfg.Content or "")
+    local duration = tonumber(cfg.Duration) or math.clamp(2.5 + length * 0.045, 3, 10)
     -- Progress = 0..1 / Steps = 5 (+ Step) / Persist = true: the toast stays until :Close() or the progress reaches the end
     local tracked = cfg.Progress ~= nil or cfg.Steps ~= nil or cfg.Persist == true
     local hasContent = (cfg.Content ~= nil and cfg.Content ~= "") or cfg.Steps ~= nil
     local buttons = type(cfg.Buttons) == "table" and #cfg.Buttons > 0 and cfg.Buttons or nil
-    if buttons and not cfg.Duration then duration = 6 end
+    if buttons and not cfg.Duration then duration = math.max(duration, 6) end
     local textHeight = hasContent and 50 or 34
     local height = textHeight + (buttons and 32 or 0)
     local toast = create("CanvasGroup", {
@@ -4551,12 +5273,25 @@ function Notify.show(Lib, cfg)
         Theme.bind(contentLabel, "TextColor3", "muted")
     end
     local closed = false
+    local timer
+    local entry = { toast = toast }
     local function dismiss()
         if closed or not toast.Parent then return end
         closed = true
+        if timer then timer:Disconnect() timer = nil end
+        for index, item in ipairs(Lib._openToasts or {}) do if item == entry then table.remove(Lib._openToasts, index) break end end
         tween(toast, 0.25, { GroupTransparency = 1 })
         task.delay(0.27, function() if toast.Parent then toast:Destroy() end end)
     end
+    entry.dismiss = dismiss
+    -- too many on screen: the oldest one goes
+    Lib._openToasts = Lib._openToasts or {}
+    table.insert(Lib._openToasts, entry)
+    local limit = math.max(1, tonumber(Lib.MaxNotifications) or 6)
+    while #Lib._openToasts > limit do Lib._openToasts[1].dismiss() end
+    local hovered = false
+    toast.MouseEnter:Connect(function() hovered = true end)
+    toast.MouseLeave:Connect(function() hovered = false end)
     -- CanClose (default true): a small x in the corner
     if cfg.CanClose ~= false then
         local close = create("TextButton", {
@@ -4634,11 +5369,19 @@ function Notify.show(Lib, cfg)
     if tracked then
         progress.Size = UDim2.new(0, 0, 0, 2)
         if steps then handle:SetStep(tonumber(cfg.Step) or 0, cfg.Content) elseif cfg.Progress then handle:SetProgress(cfg.Progress) end
-        if cfg.Duration then task.delay(duration, dismiss) end
-    else
-        tween(progress, duration, { Size = UDim2.new(0, 0, 0, 2) }, Enum.EasingStyle.Linear)
-        task.delay(duration, dismiss)
     end
+    -- countdown (paused while the mouse is over the toast); the bar shows the time left
+    if not tracked or cfg.Duration then
+        local remaining = duration
+        timer = Util.Services.RunService.Heartbeat:Connect(function(dt)
+            if closed then return end
+            if hovered and cfg.PauseOnHover ~= false then return end
+            remaining = remaining - (tonumber(dt) or 0)
+            if not tracked then progress.Size = UDim2.new(math.clamp(remaining / duration, 0, 1), 0, 0, 2) end
+            if remaining <= 0 then dismiss() end
+        end)
+    end
+    handle.Paused = function() return hovered end
     return setmetatable(handle, {
         __index = function(_, key)
             local value = toast[key]
@@ -4646,6 +5389,87 @@ function Notify.show(Lib, cfg)
             return value
         end,
     })
+end
+
+-------------------------------------------------------------------------------- pill toasts
+function Notify.pillHolder(Lib, bottom)
+    Lib._pillHolders = Lib._pillHolders or {}
+    local key = bottom and "Bottom" or "Top"
+    local existing = Lib._pillHolders[key]
+    if existing and existing.Parent then return existing end
+    local gui = Lib._pillGui
+    if not gui or not gui.Parent then
+        gui = Util.screenGui("QustahUI_Toasts", 61)
+        Lib.maid:give(gui)
+        UIFont.register(gui, Lib.maid)
+        Lib._pillGui = gui
+    end
+    local holder = create("Frame", {
+        Name = key, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, bottom and 1 or 0),
+        Position = UDim2.new(0.5, 0, bottom and 1 or 0, bottom and -70 or 58), Size = UDim2.new(0, 420, 0, 120), Parent = gui,
+    })
+    Util.list(holder, 6, nil, Enum.HorizontalAlignment.Center, bottom and Enum.VerticalAlignment.Bottom or Enum.VerticalAlignment.Top)
+    Lib._pillHolders[key] = holder
+    return holder
+end
+
+function Notify.pill(Lib, cfg)
+    if type(cfg) ~= "table" then cfg = { Text = tostring(cfg) } end
+    local bottom = cfg.Position == "Bottom"
+    local holder = Notify.pillHolder(Lib, bottom)
+    Lib._pillOrder = (Lib._pillOrder or 0) + 1
+    -- three at most: the oldest goes
+    local open = {}
+    for _, child in ipairs(holder:GetChildren()) do if child.Name == "Pill" and child:GetAttribute("Closing") ~= true then open[#open + 1] = child end end
+    table.sort(open, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+    while #open >= 3 do
+        local old = table.remove(open, 1)
+        old:SetAttribute("Closing", true)
+        tween(old, 0.15, { GroupTransparency = 1 })
+        task.delay(0.16, function() if old.Parent then old:Destroy() end end)
+    end
+    local text = tostring(cfg.Text or cfg.Title or "")
+    local pill = create("CanvasGroup", {
+        Name = "Pill", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 30), BorderSizePixel = 0,
+        GroupTransparency = 1, LayoutOrder = bottom and Lib._pillOrder or -Lib._pillOrder, Parent = holder, -- newest next to the edge
+    })
+    Theme.bind(pill, "BackgroundColor3", "card")
+    corner(pill, 15)
+    local tint = (typeof(cfg.Color) == "Color3" or type(cfg.Color) == "string") and cfg.Color or "accent"
+    local edge = stroke(pill, nil, 0.35)
+    Theme.bind(edge, "Color", cfg.Color and tint or "line")
+    local row = create("Frame", { Name = "Row", BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromScale(0, 1), Parent = pill })
+    Util.list(row, 7, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    Util.padding(row, cfg.Image and 4 or 12, 14, 0, 0)
+    if cfg.Image then
+        -- a picture in a circle (avatar: Image = Util.avatar(userId))
+        local image = create("ImageLabel", { Name = "Image", BorderSizePixel = 0, Size = UDim2.fromOffset(22, 22), ScaleType = Enum.ScaleType.Crop, LayoutOrder = 1, Image = tostring(cfg.Image), Parent = row })
+        Theme.bind(image, "BackgroundColor3", "input")
+        corner(image, 11)
+    elseif cfg.Icon and Icons.Get(cfg.Icon) then
+        Icons.themed(row, cfg.Icon, 14, tint, { Name = "Icon", LayoutOrder = 1 })
+    end
+    local caption = label(row, text, 10, { Name = "Text", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 30), Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 2, RichText = true })
+    Theme.bind(caption, "TextColor3", "heading")
+    create("UISizeConstraint", { MaxSize = Vector2.new(320, 30), Parent = caption })
+
+    local scale = create("UIScale", { Scale = 0.92, Parent = pill })
+    tween(pill, 0.18, { GroupTransparency = 0 })
+    tween(scale, 0.22, { Scale = 1 }, Enum.EasingStyle.Back)
+    local closed = false
+    local function close()
+        if closed or not pill.Parent then return end
+        closed = true
+        pill:SetAttribute("Closing", true)
+        tween(pill, 0.2, { GroupTransparency = 1 })
+        tween(scale, 0.2, { Scale = 0.94 })
+        task.delay(0.22, function() if pill.Parent then pill:Destroy() end end)
+    end
+    task.delay(tonumber(cfg.Duration) or math.clamp(1.6 + #text * 0.04, 2, 6), close)
+    local handle = { Frame = pill }
+    function handle:SetText(value) caption.Text = tostring(value) end
+    function handle:Close() close() end
+    return handle
 end
 
 return Notify
@@ -5177,6 +6001,14 @@ return function(window, cfg)
     })
     window._menuListeners = window._menuListeners or {}
     table.insert(window._menuListeners, function(key) if menuKey.Value ~= key then menuKey:Set(key, true) end end)
+    menu:Toggle({
+        Title = "Welcome toast", Desc = "Greets a new account on first open",
+        Default = (window.memory or {}).welcomeToast ~= false and window.cfg.Welcome ~= false,
+        Callback = function(on)
+            window.memory.welcomeToast = on
+            window:_saveMemory()
+        end,
+    })
     menu:Button({
         Title = "Reset window size / position",
         Callback = function()
@@ -5282,6 +6114,10 @@ return function(window, cfg)
         Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
     look2:Toggle({ Title = "Free mouse", Desc = "Unlocks the mouse while the menu is open", Icon = "mouse-pointer-2", Flag = "__ui_mouse",
         Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
+    look2:Toggle({ Title = "Animated background", Desc = "A slow accent glow drifting behind the menu", Icon = "sparkles", Flag = "__ui_live",
+        Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
+    look2:Toggle({ Title = "Edge glow", Desc = "The window border breathes in the accent", Flag = "__ui_edge_glow",
+        Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
     look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
 
     local overlays = interface:Card({ Title = "Overlays", Side = "Right" })
@@ -5304,6 +6140,31 @@ return function(window, cfg)
     for _, entry in ipairs(cfg.Info or {}) do about:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
     local files = type(writefile) == "function" and type(readfile) == "function"
     about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
+    about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
+
+    -- kicks / disconnects seen by the kick watcher (kick.lua)
+    if window.GetKicks and window.cfg.KickLog ~= false then
+        local kicksCard = infoPage:Card({ Title = "Disconnects", Side = "Left", Icon = "log-out", Desc = "Kicks and drops, with Roblox's reason" })
+        local kickText = kicksCard:Paragraph({ Content = "None yet" })
+        local function showKicks()
+            local list = window:GetKicks()
+            local lines = {}
+            for index, entry in ipairs(list) do
+                if index > 5 then break end
+                lines[#lines + 1] = string.format("<font color=\"#%s\">%s</font>  %s  <font color=\"#%s\">%s</font>",
+                    Util.toHex(Theme.get((entry.Code == 277 or entry.Code == 279) and "warning" or "danger")), tostring(entry.Kind or "Kicked"),
+                    (tostring(entry.Reason or ""):gsub("<", "&lt;")), Util.toHex(Theme.get("muted")), Util.ago(entry.Time))
+            end
+            kickText:Set(#lines > 0 and table.concat(lines, "\n") or "None yet")
+        end
+        kicksCard:Button({ Title = "Clear", Icon = "trash-2", Callback = function()
+            window.Config:WriteJSON("kicks", { list = {} })
+            showKicks()
+        end })
+        window:OnKick(showKicks)
+        Theme.onChange(function() if infoPage.frame.Parent then showKicks() end end)
+        showKicks()
+    end
 
     local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left" })
     local moduleRows = {}
@@ -5455,7 +6316,7 @@ return function(Window)
             entry = { source = source, message = message, count = 1, first = os.time(), last = os.time() }
             self._errorIndex[key] = entry
             table.insert(self.errors, entry)
-            warn(string.format("[%s / %s] %s", self.Title, source, message))
+            Util.log(string.format("[%s / %s] %s", self.Title, source, message))
             -- Debug mode (CreateWindow{ Debug = true } or Settings › Info): a toast for every new error
             if self.debug == nil then self.debug = self.cfg.Debug == true end
             if self.debug and self.Notify then
@@ -5516,10 +6377,12 @@ return function(Window)
     end
 
     -- Runs a user callback; an error is reported (footer, Info page) instead of breaking the UI.
+    -- Returns true / false (nil when there was nothing to run).
     function Window:_safe(source, callback, ...)
-        if type(callback) ~= "function" then return end
+        if type(callback) ~= "function" then return nil end
         local ok, err = pcall(callback, ...)
         if not ok then self:ReportError(source, err) end
+        return ok
     end
 end
 end
@@ -5815,6 +6678,15 @@ Util.Services = setmetatable({}, {
 })
 local Services = Util.Services
 
+-- Secure mode (getgenv().QUSTAH_SECURE = true before loading, CreateWindow({ Secure = true }) or Lib:SetSecure(true)):
+-- random ScreenGui names, nothing printed to the console, avatars as rbxthumb content (no web lookup).
+local genv = (getgenv and getgenv()) or _G
+Util.secure = genv.QUSTAH_SECURE == true
+-- Library messages go through here so secure mode can keep the console quiet.
+function Util.log(message)
+    if not Util.secure then warn(message) end
+end
+
 -- create("Frame", { Size = ..., Parent = ... }, { children }) - Parent is applied last.
 function Util.create(class, props, children)
     local object = Instance.new(class)
@@ -5872,7 +6744,7 @@ end
 function Util.safe(callback, ...)
     if type(callback) ~= "function" then return end
     local ok, err = pcall(callback, ...)
-    if not ok then warn("[qustah-ui-lib] callback error: " .. tostring(err)) end
+    if not ok then Util.log("[qustah-ui-lib] callback error: " .. tostring(err)) end
 end
 
 -- A maid owns connections, instances and cleanup functions; clean() releases all of them (newest first).
@@ -5984,6 +6856,12 @@ function Util.isPress(input)
     return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
 end
 
+-- Head shot of a user as rbxthumb content (no web request).
+function Util.avatar(userId, size)
+    size = size or 48
+    return string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=%d&h=%d", tonumber(userId) or 0, size, size)
+end
+
 -- HH:MM:SS
 function Util.clock(seconds)
     seconds = math.max(0, math.floor(seconds))
@@ -6007,12 +6885,53 @@ function Util.guiParent()
 end
 function Util.screenGui(name, order)
     local gui = create("ScreenGui", {
-        Name = name, ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = order or 50,
+        Name = Util.secure and Services.HttpService:GenerateGUID(false) or name, ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = order or 50,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     })
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) elseif protectgui then protectgui(gui) end end)
     gui.Parent = Util.guiParent()
     return gui
+end
+
+-- Crash-safe writes: the text goes to <file>.tmp first, is read back, then written over the file and the .tmp removed.
+-- If the game closes half way, either the old file or a complete .tmp survives (Util.readJSON picks it up).
+function Util.writeAtomic(path, text)
+    if type(writefile) ~= "function" then return false, "writefile is not available" end
+    local tmp = path .. ".tmp"
+    local ok, err = pcall(writefile, tmp, text)
+    if not ok then return false, tostring(err) end
+    if type(readfile) == "function" then
+        local read, back = pcall(readfile, tmp)
+        if not read or back ~= text then return false, "the file could not be written completely" end -- the old file stays
+    end
+    ok, err = pcall(writefile, path, text)
+    if not ok then return false, tostring(err) end
+    if type(delfile) == "function" then pcall(delfile, tmp) end
+    return true
+end
+-- Reads a JSON table. A missing / damaged file falls back to the .tmp of an interrupted save (and the file is repaired).
+-- Returns data, recovered | nil, "missing" | "damaged".
+function Util.readJSON(path)
+    if type(isfile) ~= "function" or type(readfile) ~= "function" then return nil, "missing" end
+    local function decode(file)
+        if not isfile(file) then return nil, "missing" end
+        local ok, data = pcall(function() return Services.HttpService:JSONDecode(readfile(file)) end)
+        if ok and type(data) == "table" then return data end
+        return nil, "damaged"
+    end
+    local tmp = path .. ".tmp"
+    local data, problem = decode(path)
+    if data then
+        if isfile(tmp) and type(delfile) == "function" then pcall(delfile, tmp) end -- leftover of a save that finished
+        return data, false
+    end
+    local saved = decode(tmp)
+    if saved then
+        pcall(function() writefile(path, readfile(tmp)) end)
+        if type(delfile) == "function" then pcall(delfile, tmp) end
+        return saved, true
+    end
+    return nil, problem
 end
 
 -- Base64 (profile share codes).
@@ -6348,7 +7267,15 @@ function Window.new(Lib, cfg)
     env.__QustahUIWindows[self.Title] = self
 
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
+    if cfg.Secure then Util.secure = true end
+    self:_makeFlags()
     self.Config = Config.new(self, cfg.Folder or self.Title:gsub("[^%w_%- ]", ""))
+    -- a file that was being written when the game closed came back from its .tmp copy
+    self.Config:OnRecovered(function(name)
+        task.defer(function()
+            if self.alive then self:Notify({ Title = "Restored " .. tostring(name), Content = "It was saved when the game closed - nothing was lost", Icon = "history", Color = "warning" }) end
+        end)
+    end)
     -- window memory: last position / size (SaveWindow = false turns it off)
     self.memory = cfg.SaveWindow ~= false and self.Config:ReadMemory() or {}
     -- per-game profiles: the choice made in Settings (remembered with the window) wins over CreateWindow's PerGame
@@ -6364,6 +7291,8 @@ function Window.new(Lib, cfg)
     self:_build()
     if self._buildExtras then self:_buildExtras() end
     if self._buildInbox then self:_buildInbox() end
+    if self._buildFx then self:_buildFx() end
+    if self._watchKicks then self:_watchKicks() end
     self:_refreshStatus()
     Lib.Windows[#Lib.Windows + 1] = self
     return self
@@ -6382,7 +7311,8 @@ function Window:_build()
     })
     Theme.bind(main, "BackgroundColor3", "base")
     corner(main, 12)
-    Theme.bind(stroke(main), "Color", "edge")
+    self.mainStroke = stroke(main)
+    Theme.bind(self.mainStroke, "Color", "edge")
     self.main = main
     self.scale = create("UIScale", { Scale = 1, Parent = main })
 
@@ -6414,7 +7344,7 @@ function Window:_build()
         })
         Theme.bind(text, "TextColor3", "accent")
     end
-    self.titleLabel = title
+    self.titleLabel, self.titleRow = title, titleRow
 
     local function windowButton(name, offset, cross, bare)
         local button = create("TextButton", {
@@ -6596,6 +7526,17 @@ function Window:_build()
         if drag and (input.UserInputType == Enum.UserInputType.MouseButton1 or input == drag.input) then
             self._drag = nil
             Util.safe(drag.finish)
+        end
+    end)
+    -- key let go: hold-mode binds (Keybind Mode = "Hold", Toggle BindMode = "Hold")
+    maid:connect(UserInputService.InputEnded, function(input)
+        local key = Util.inputKey(input, true)
+        if not key then return end
+        for element, bound in pairs(self.binds) do
+            if element._onRelease and element.Row and element.Row.Parent then
+                local target = element.Chord and element.Chord[2] or bound
+                if target == key then self:_safe(element.Title or "Keybind", element._onRelease, element) end
+            end
         end
     end)
     maid:connect(UserInputService.InputBegan, function(input, processed)
@@ -6805,13 +7746,58 @@ end
 function Window:_hideTip() self.tip.Visible = false end
 
 function Window:_register(flag, element)
-    if self.flags[flag] then warn("[qustah-ui-lib] duplicate flag: " .. tostring(flag)) end
+    if self.flags[flag] then Util.log("[qustah-ui-lib] duplicate flag: " .. tostring(flag)) end
     self.flags[flag] = element
     -- after the element finished building: record its default, apply a value loaded before it existed
     task.defer(function()
         if self.alive and self.flags[flag] == element then self.Config:_elementReady(flag, element) end
     end)
 end
+-- AutoFlags = true: elements without a Flag get "Tab.Card.Title" (a second one with the same name gets " 2").
+function Window:_autoFlag(card, title)
+    local parts = {}
+    local tab = card.page and card.page.tab
+    if tab and tab.Title then parts[#parts + 1] = tab.Title end
+    if card.title then parts[#parts + 1] = card.title end
+    parts[#parts + 1] = tostring(title)
+    local flag = table.concat(parts, "."):gsub("[^%w_%.%- ]", "")
+    local name, index = flag, 2
+    while self.flags[name] or (self._autoNames and self._autoNames[name]) do name = flag .. " " .. index index = index + 1 end
+    self._autoNames = self._autoNames or {}
+    self._autoNames[name] = true
+    return name
+end
+
+-- Window.Flags.Speed = 50 sets the element (UI and callback); Window.Flags.Speed reads the value; pairs() works.
+-- Window:SetFlag(flag, value), :GetFlag(flag), :GetElement(flag)
+function Window:_makeFlags()
+    local window = self
+    local function snapshot()
+        local values = {}
+        for flag in pairs(window.flags) do values[flag] = window.Lib.Flags[flag] end
+        return values
+    end
+    self.Flags = setmetatable({}, {
+        __index = function(_, flag) return window.Lib.Flags[flag] end,
+        __newindex = function(_, flag, value) window:SetFlag(flag, value) end,
+        __iter = function() return next, snapshot() end,
+        __pairs = function() return next, snapshot() end,
+    })
+end
+function Window:SetFlag(flag, value)
+    local element = self.flags[flag]
+    if element and element.Set then
+        element:Set(value)
+        return true
+    end
+    -- not built yet (or no element): applied when it is created, like a loaded profile
+    self.Config.pending[flag] = value
+    self.Lib.Flags[flag] = value
+    return false
+end
+function Window:GetFlag(flag) return self.Lib.Flags[flag] end
+function Window:GetElement(flag) return self.flags[flag] end
+
 function Window:_bind(element, key)
     self.binds[element] = key
 end
@@ -6939,6 +7925,7 @@ function Window:SetToggleKey(key)
 end
 function Window:SetFooter(text) self.footerText.Text = tostring(text or "") end
 function Window:Notify(cfg) return self.Lib:Notify(cfg) end
+function Window:Toast(cfg) return self.Lib:Toast(cfg) end
 function Window:SelectTab(target)
     for _, tab in ipairs(self.Tabs) do
         if tab == target or tab.Title == target then tab:Select() return tab end
@@ -6959,6 +7946,149 @@ function Window:Destroy()
 end
 
 return Window
+end
+
+__modules["windowfx"] = function()
+-- Window looks and greetings:
+--   Window:AddTag("BETA", { Color = "warning" | Color3, Style = "Solid" | "Soft" }) -> { SetText, SetColor, Remove }
+--   CreateWindow({ Tags = { "BETA", { Text = "PRO", Color = Color3.fromRGB(240, 190, 80) } } })
+--     Solid tags pick black or white text from the fill, so any colour stays readable.
+--   Window:SetLiveBackground(on)  a slow drifting accent gradient behind the content (LiveBackground = true)
+--   Window:SetAccentGlow(on)      the window edge breathes in the accent colour (AccentGlow = true)
+--   Welcome toast: "Signed in as <name>" the first time an account opens this UI (Welcome = false turns it off).
+local Util = require("util")
+local Theme = require("theme")
+
+local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
+
+-- relative luminance (WCAG) -> black or white text
+local function readableOn(color)
+    local function channel(c) return c <= 0.03928 and c / 12.92 or ((c + 0.055) / 1.055) ^ 2.4 end
+    local luminance = 0.2126 * channel(color.R) + 0.7152 * channel(color.G) + 0.0722 * channel(color.B)
+    return luminance > 0.36 and Color3.fromRGB(18, 18, 22) or Color3.new(1, 1, 1)
+end
+
+return function(Window)
+    ------------------------------------------------------------------ tags
+    function Window:AddTag(text, opts)
+        if type(text) == "table" then opts, text = text, text.Text end
+        opts = opts or {}
+        self._tagCount = (self._tagCount or 0) + 1
+        local tag = create("Frame", {
+            Name = "Tag", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 16), BorderSizePixel = 0,
+            LayoutOrder = 10 + self._tagCount, Parent = self.titleRow,
+        })
+        corner(tag, 5)
+        Util.padding(tag, 6, 6, 0, 0)
+        local caption = label(tag, tostring(text or ""), 8, {
+            Name = "Text", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromScale(0, 1), Font = Enum.Font.GothamBold,
+            TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.None,
+        })
+        local edge = stroke(tag, nil, 0.6)
+        local color, style = opts.Color or "accent", opts.Style == "Soft" and "Soft" or "Solid"
+        local function paint()
+            local fill = typeof(color) == "Color3" and color or Theme.get(color)
+            if style == "Soft" then
+                tag.BackgroundColor3, tag.BackgroundTransparency = fill, 0.84
+                caption.TextColor3, edge.Color, edge.Transparency = fill, fill, 0.55
+            else
+                tag.BackgroundColor3, tag.BackgroundTransparency = fill, 0
+                caption.TextColor3, edge.Color, edge.Transparency = readableOn(fill), fill, 1
+            end
+        end
+        paint()
+        local alive = true
+        Theme.onChange(function() if alive and tag.Parent then paint() end end)
+        local handle = { Frame = tag }
+        function handle:SetText(value) caption.Text = tostring(value) end
+        function handle:SetColor(value) color = value or "accent" paint() end
+        function handle:SetVisible(visible) tag.Visible = visible ~= false end
+        function handle:Remove() alive = false tag:Destroy() end
+        return handle
+    end
+
+    ------------------------------------------------------------------ live background
+    function Window:SetLiveBackground(on)
+        self.liveBackground = on == true
+        if self._live then self._live.connection:Disconnect() self._live.frame:Destroy() self._live = nil end
+        if not self.liveBackground then return end
+        local frame = create("Frame", { Name = "LiveBackground", Size = UDim2.fromScale(1, 1), BorderSizePixel = 0, ZIndex = 0, Active = false, Parent = self.main })
+        corner(frame, 12)
+        Theme.bind(frame, "BackgroundColor3", "accent")
+        local gradient = create("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(0.35, 0.985),
+                NumberSequenceKeypoint.new(0.7, 0.95), NumberSequenceKeypoint.new(1, 0.995),
+            }),
+            Parent = frame,
+        })
+        local started, last = os.clock(), 0
+        local connection = Util.Services.RunService.Heartbeat:Connect(function()
+            local now = os.clock()
+            if now - last < 1 / 24 or not self.main.Visible then return end -- 24 updates a second is plenty for a slow drift
+            last = now
+            local t = now - started
+            gradient.Rotation = (t * 9) % 360
+            gradient.Offset = Vector2.new(math.sin(t * 0.21) * 0.25, math.cos(t * 0.17) * 0.25)
+        end)
+        self.maid:give(connection)
+        self._live = { frame = frame, gradient = gradient, connection = connection }
+    end
+
+    ------------------------------------------------------------------ accent glow on the window edge
+    function Window:SetAccentGlow(on)
+        self.accentGlow = on == true
+        if self._glowConnection then self._glowConnection:Disconnect() self._glowConnection = nil end
+        local edge = self.mainStroke
+        if not edge then return end
+        if not self.accentGlow then
+            Theme.bind(edge, "Color", "edge")
+            edge.Transparency, edge.Thickness = 0, 1
+            return
+        end
+        Theme.bind(edge, "Color", "accent")
+        edge.Thickness = 1.5
+        local last = 0
+        self._glowConnection = Util.Services.RunService.Heartbeat:Connect(function()
+            local now = os.clock()
+            if now - last < 1 / 30 then return end
+            last = now
+            edge.Transparency = 0.55 + math.sin(now * 2.1) * 0.25 -- breathes between 0.3 and 0.8
+        end)
+        self.maid:give(self._glowConnection)
+    end
+
+    ------------------------------------------------------------------ welcome
+    function Window:_welcome()
+        if self.cfg.Welcome == false or self.anonymous then return end
+        local memory = self.memory or {}
+        if memory.welcomeToast == false then return end
+        local player = Util.Services.Players.LocalPlayer
+        if not player then return end
+        local id = tostring(player.UserId)
+        if memory.welcomed == id then return end
+        memory.welcomed = id
+        self.memory = memory
+        self:_saveMemory()
+        task.delay(0.6, function()
+            if not self.alive or self.anonymous then return end
+            self:Toast({ Text = "Signed in as <b>" .. tostring(player.DisplayName or player.Name) .. "</b>", Image = Util.avatar(player.UserId), Duration = 3.5 })
+        end)
+    end
+
+    function Window:_buildFx()
+        local cfg = self.cfg
+        for _, item in ipairs(type(cfg.Tags) == "table" and cfg.Tags or {}) do self:AddTag(item) end
+        local memory = self.memory or {}
+        local live = memory.liveBackground
+        if live == nil then live = cfg.LiveBackground == true end
+        if live then self:SetLiveBackground(true) end
+        local glow = memory.accentGlow
+        if glow == nil then glow = cfg.AccentGlow == true end
+        if glow then self:SetAccentGlow(true) end
+        self:_welcome()
+    end
+end
 end
 
 __modules["windowx"] = function()
@@ -7130,13 +8260,9 @@ return function(Window)
             local ring = stroke(button, nil, 0.5, 1.5)
             Theme.bind(ring, "Color", "buttonEdge")
             local mask = Icons.themed(button, "user-round", 14, "muted", { Name = "Anon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 43, Visible = false })
-            local avatar = ""
-            task.spawn(function()
-                local ok, image = pcall(function()
-                    return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-                end)
-                if ok then avatar = image if not self.anonymous then button.Image = image end end
-            end)
+            -- rbxthumb content: no web request (also fine in secure mode)
+            local avatar = Util.avatar(player.UserId)
+            button.Image = avatar
             self._profile, self._profileLine = button, line
             self:OnAnonymousChanged(function(on)
                 button.Image = on and "" or avatar

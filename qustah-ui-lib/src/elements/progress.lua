@@ -1,6 +1,8 @@
 -- card:Progress({ Title, Desc, Value = 0, Max = 100, Suffix = "%", Format = function(value, max) return "3 / 10" end, Indeterminate })
 -- A progress bar (farm, download, cooldown...). :Set(value), :SetMax(max), :SetIndeterminate(true) shows a moving
 -- stripe for "working, no number yet". No flag (it reports, it does not configure).
+-- Steps = 5: the track is split into 5 segments that fill one by one (Max defaults to Steps: Set(3) = "3 / 5").
+-- :SetSteps(n) (0 = a plain bar again).
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -23,7 +25,8 @@ return function(card, cfg)
     create("UIGradient", { Transparency = NumberSequence.new(0.25, 0), Parent = fill })
 
     local element = Base.element(card, "Progress", {}, row, title, desc)
-    local max = math.max(tonumber(cfg.Max) or 100, 1e-9)
+    local max = math.max(tonumber(cfg.Max) or tonumber(cfg.Steps) or 100, 1e-9)
+    local segments, segmentHolder = {}, nil
     local suffix = cfg.Suffix
     local indeterminate = false
     local function text()
@@ -37,8 +40,15 @@ return function(card, cfg)
     end
     local function render(animate)
         value.Text = text()
-        if indeterminate then return end
+        if segmentHolder then segmentHolder.Visible = not indeterminate end
+        track.BackgroundTransparency = (#segments > 0 and not indeterminate) and 1 or 0
+        if indeterminate then fill.Visible = true return end
         local ratio = math.clamp(element.Value / max, 0, 1)
+        fill.Visible = #segments == 0
+        for index, segment in ipairs(segments) do
+            local part = math.clamp(ratio * #segments - (index - 1), 0, 1)
+            if animate then Util.tween(segment, 0.25, { Size = UDim2.fromScale(part, 1) }) else segment.Size = UDim2.fromScale(part, 1) end
+        end
         fill.Position = UDim2.fromScale(0, 0)
         if animate then Util.tween(fill, 0.25, { Size = UDim2.fromScale(ratio, 1) }) else fill.Size = UDim2.fromScale(ratio, 1) end
     end
@@ -60,7 +70,29 @@ return function(card, cfg)
         end
         render(false)
     end
+    function element:SetSteps(count)
+        count = math.clamp(math.floor(tonumber(count) or 0), 0, 40)
+        if segmentHolder then segmentHolder:Destroy() segmentHolder = nil end
+        segments = {}
+        if count > 0 then
+            -- the track's own frame clips, so the segments sit in a holder over it
+            segmentHolder = create("Frame", { Name = "Segments", BackgroundTransparency = 1, Position = track.Position, Size = track.Size, Parent = row })
+            local gap = count > 12 and 2 or 3
+            Util.list(segmentHolder, gap, Enum.FillDirection.Horizontal)
+            for index = 1, count do
+                local cell = create("Frame", { Name = "Segment" .. index, Size = UDim2.new(1 / count, -gap * (count - 1) / count, 1, 0), BorderSizePixel = 0, LayoutOrder = index, ClipsDescendants = true, Parent = segmentHolder })
+                Theme.bind(cell, "BackgroundColor3", "input")
+                corner(cell, 3)
+                local part = create("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BorderSizePixel = 0, Parent = cell })
+                Theme.bind(part, "BackgroundColor3", "accent")
+                corner(part, 3)
+                segments[index] = part
+            end
+        end
+        render(false)
+    end
     element.Value = math.max(0, tonumber(cfg.Value or cfg.Default) or 0)
+    if tonumber(cfg.Steps) then element:SetSteps(cfg.Steps) end
     render(false)
     if cfg.Indeterminate then element:SetIndeterminate(true) end
     return element

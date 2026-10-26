@@ -73,6 +73,14 @@ return function(window, cfg)
     })
     window._menuListeners = window._menuListeners or {}
     table.insert(window._menuListeners, function(key) if menuKey.Value ~= key then menuKey:Set(key, true) end end)
+    menu:Toggle({
+        Title = "Welcome toast", Desc = "Greets a new account on first open",
+        Default = (window.memory or {}).welcomeToast ~= false and window.cfg.Welcome ~= false,
+        Callback = function(on)
+            window.memory.welcomeToast = on
+            window:_saveMemory()
+        end,
+    })
     menu:Button({
         Title = "Reset window size / position",
         Callback = function()
@@ -178,6 +186,10 @@ return function(window, cfg)
         Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
     look2:Toggle({ Title = "Free mouse", Desc = "Unlocks the mouse while the menu is open", Icon = "mouse-pointer-2", Flag = "__ui_mouse",
         Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
+    look2:Toggle({ Title = "Animated background", Desc = "A slow accent glow drifting behind the menu", Icon = "sparkles", Flag = "__ui_live",
+        Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
+    look2:Toggle({ Title = "Edge glow", Desc = "The window border breathes in the accent", Flag = "__ui_edge_glow",
+        Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
     look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
 
     local overlays = interface:Card({ Title = "Overlays", Side = "Right" })
@@ -200,6 +212,31 @@ return function(window, cfg)
     for _, entry in ipairs(cfg.Info or {}) do about:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
     local files = type(writefile) == "function" and type(readfile) == "function"
     about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
+    about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
+
+    -- kicks / disconnects seen by the kick watcher (kick.lua)
+    if window.GetKicks and window.cfg.KickLog ~= false then
+        local kicksCard = infoPage:Card({ Title = "Disconnects", Side = "Left", Icon = "log-out", Desc = "Kicks and drops, with Roblox's reason" })
+        local kickText = kicksCard:Paragraph({ Content = "None yet" })
+        local function showKicks()
+            local list = window:GetKicks()
+            local lines = {}
+            for index, entry in ipairs(list) do
+                if index > 5 then break end
+                lines[#lines + 1] = string.format("<font color=\"#%s\">%s</font>  %s  <font color=\"#%s\">%s</font>",
+                    Util.toHex(Theme.get((entry.Code == 277 or entry.Code == 279) and "warning" or "danger")), tostring(entry.Kind or "Kicked"),
+                    (tostring(entry.Reason or ""):gsub("<", "&lt;")), Util.toHex(Theme.get("muted")), Util.ago(entry.Time))
+            end
+            kickText:Set(#lines > 0 and table.concat(lines, "\n") or "None yet")
+        end
+        kicksCard:Button({ Title = "Clear", Icon = "trash-2", Callback = function()
+            window.Config:WriteJSON("kicks", { list = {} })
+            showKicks()
+        end })
+        window:OnKick(showKicks)
+        Theme.onChange(function() if infoPage.frame.Parent then showKicks() end end)
+        showKicks()
+    end
 
     local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left" })
     local moduleRows = {}

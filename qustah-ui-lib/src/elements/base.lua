@@ -1,5 +1,6 @@
 -- Shared parts of every element: the row (title + optional description), callbacks / OnChanged, flags,
--- Lock / Unlock with a reason tooltip, and the default save / load used by configs.
+-- Lock / Unlock with a reason, Flash, MoveUp / MoveDown / MoveTo / Remove, and the default save / load used by configs.
+-- A callback that errors makes its element flash red and say so for a moment (the error goes to Settings › Info).
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
@@ -7,6 +8,29 @@ local Icons = require("icons")
 local create, corner, label = Util.create, Util.corner, Util.label
 
 local Base = {}
+
+-- elements that hold a value: they get a flag from their name when the window has AutoFlags = true
+local VALUE = {
+    Toggle = true, Slider = true, Dropdown = true, Keybind = true, ColorPicker = true, Input = true, Segment = true,
+    Range = true, Swatches = true, Gradient = true, ImagePicker = true, PlayerList = true,
+}
+
+-- Rows of a list in display order (rows use even LayoutOrders; an odd one right after a row is its panel).
+local function rowsOf(parent)
+    local list = {}
+    for _, child in ipairs(parent:GetChildren()) do
+        if child:IsA("GuiObject") and child.LayoutOrder >= 2 and child.LayoutOrder % 2 == 0 then list[#list + 1] = child end
+    end
+    table.sort(list, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+    return list
+end
+local function panelOf(row)
+    local parent = row.Parent
+    if not parent then return nil end
+    for _, child in ipairs(parent:GetChildren()) do
+        if child ~= row and child:IsA("GuiObject") and child.LayoutOrder == row.LayoutOrder + 1 then return child end
+    end
+end
 
 -- opts.right: pixels kept free on the right for the control; opts.button: the whole row is clickable.
 function Base.row(card, cfg, height, opts)
@@ -55,24 +79,49 @@ end
 
 function Base.element(card, kind, cfg, row, title, desc)
     local window = card.window
+    if cfg.Flag == nil and VALUE[kind] and cfg.Title and window.cfg and window.cfg.AutoFlags and not window._noAutoFlags then
+        cfg.Flag = window:_autoFlag(card, cfg.Title)
+    end
     local element = { Type = kind, Title = cfg.Title, Flag = cfg.Flag, Row = row, Card = card, Locked = false, _changed = {} }
 
     function element:OnChanged(callback)
         self._changed[#self._changed + 1] = callback
         return self
     end
-    -- Stores the flag value; unless silent, runs Callback and the OnChanged listeners.
-    function element:_fire(value, silent)
+    -- Runs a user callback; when it errors the element flashes red and its title says so (Base.failed).
+    function element:_call(callback, ...)
+        if window:_safe(tostring(self.Title or kind), callback, ...) == false then
+            self._failed = true
+            Base.failed(self, title)
+        end
+    end
+    -- Flash = false turns the green / accent "accepted" flash of inputs and keybinds off
+    function element:_accepted(kind)
+        if cfg.Flash ~= false and not self._failed then self:Flash(kind or "success") end
+    end
+    -- Stores the flag value; unless silent, runs Callback and the OnChanged listeners (extra values go along:
+    -- the slider sends (value, dragging)).
+    function element:_fire(value, silent, ...)
         if self.Flag then window.Lib.Flags[self.Flag] = value end
         if silent then return end
         -- errors in user callbacks are reported to the window (footer "Errors: N", Settings › Info)
-        local source = tostring(self.Title or kind)
-        window:_safe(source, cfg.Callback, value)
-        for _, callback in ipairs(self._changed) do window:_safe(source, callback, value) end
+        self:_call(cfg.Callback, value, ...)
+        for _, callback in ipairs(self._changed) do self:_call(callback, value, ...) end
     end
-    function element:SetTitle(text) self.Title = text if title then title.Text = tostring(text) end end
-    function element:SetDesc(text) if desc then desc.Text = tostring(text) end end
+    function element:SetTitle(text)
+        self.Title = text
+        if self._errorShown then self._titleBefore = tostring(text) elseif title then title.Text = tostring(text) end
+    end
+    function element:SetDesc(text)
+        self._descText = tostring(text)
+        if desc and not self.Locked then desc.Text = self._descText end
+    end
     function element:SetVisible(visible) row.Visible = visible ~= false end
+    -- element:Flash("success" | "danger" | "accent" | any role / Color3): a short tint behind the row
+    function element:Flash(kind) Base.flash(row, kind) end
+
+    -- Lock("Needs premium"): the row dims and the reason takes the place of the description
+    -- (without a description it sits over the control, with a lock icon). Unlock() brings everything back.
     function element:Lock(reason)
         self.Locked = true
         self._lockReason = reason
@@ -86,24 +135,118 @@ function Base.element(card, kind, cfg, row, title, desc)
             cover.MouseEnter:Connect(function() if self._lockReason then window:_tip(self._lockReason) end end)
             cover.MouseLeave:Connect(function() window:_hideTip() end)
             self._lock = cover
+            -- reason pill over the control (rows without a description)
+            local pill = create("Frame", {
+                Name = "Reason", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0),
+                Size = UDim2.new(0.55, 0, 0, 16), ZIndex = 21, Visible = false, Parent = cover,
+            })
+            local icon = Icons.themed(pill, "lock", 11, "warning", { Name = "LockIcon", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), ZIndex = 22 })
+            local text = label(pill, "", 9, { Name = "Text", Size = UDim2.new(1, icon and -16 or 0, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium, ZIndex = 22 })
+            Theme.bind(text, "TextColor3", "warning")
+            self._lockPill, self._lockText = pill, text
+        end
+        local hasReason = reason ~= nil and reason ~= ""
+        if desc then
+            if self._descText == nil then self._descText = desc.Text end
+            if hasReason then
+                desc.Text = tostring(reason)
+                desc.ZIndex = 21
+                Theme.bind(desc, "TextColor3", "warning")
+            end
+            self._lockPill.Visible = false
+        else
+            self._lockText.Text = hasReason and tostring(reason) or ""
+            self._lockPill.Visible = hasReason
         end
         self._lock.Visible = true
     end
     function element:Unlock()
         self.Locked = false
         if self._lock then self._lock.Visible = false end
+        if desc and self._descText ~= nil then
+            desc.Text = self._descText
+            desc.ZIndex = 1
+            Theme.bind(desc, "TextColor3", "muted")
+        end
         window:_hideTip()
     end
+
+    -- Order inside its card / section: MoveUp(), MoveDown(), MoveTo(index), GetIndex()
+    function element:GetIndex()
+        if not row.Parent then return nil end
+        for index, item in ipairs(rowsOf(row.Parent)) do if item == row then return index end end
+    end
+    function element:MoveTo(index)
+        local parent = row.Parent
+        if not parent then return end
+        local list = rowsOf(parent)
+        local orders, panels = {}, {}
+        for i, item in ipairs(list) do orders[i] = item.LayoutOrder panels[item] = panelOf(item) end
+        for i, item in ipairs(list) do if item == row then table.remove(list, i) break end end
+        index = math.clamp(math.floor(tonumber(index) or 1), 1, #list + 1)
+        table.insert(list, index, row)
+        for i, item in ipairs(list) do
+            item.LayoutOrder = orders[i]
+            if panels[item] then panels[item].LayoutOrder = orders[i] + 1 end
+        end
+    end
+    function element:MoveUp() local index = self:GetIndex() if index then self:MoveTo(index - 1) end end
+    function element:MoveDown() local index = self:GetIndex() if index then self:MoveTo(index + 1) end end
+
     function element:Destroy()
         if self.Flag and window.flags[self.Flag] == self then window.flags[self.Flag] = nil end
         window.binds[self] = nil
+        local panel = panelOf(row) -- (the colour picker's panel lives next to its row)
+        if panel then panel:Destroy() end
         row:Destroy()
     end
+    function element:Remove() self:Destroy() end
     function element:_save() return self.Value end
     function element:_load(value) self:Set(value) end
 
+    element._risky = cfg.Risky and true or false
     if cfg.Flag then window:_register(cfg.Flag, element) end
     return element
+end
+
+-- A soft tint behind a row that fades out (success / error feedback). A new flash restarts it.
+function Base.flash(row, kind)
+    if not row or not row.Parent then return end
+    local flash = row:FindFirstChild("Flash")
+    if not flash then
+        flash = create("Frame", {
+            Name = "Flash", BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(-6, -2),
+            Size = UDim2.new(1, 12, 1, 4), ZIndex = 0, Parent = row,
+        })
+        corner(flash, 6)
+    end
+    Theme.bind(flash, "BackgroundColor3", kind or "accent")
+    local token = (flash:GetAttribute("Token") or 0) + 1
+    flash:SetAttribute("Token", token)
+    flash.BackgroundTransparency = 0.78
+    task.delay(0.12, function()
+        if flash.Parent and flash:GetAttribute("Token") == token then Util.tween(flash, 0.5, { BackgroundTransparency = 1 }) end
+    end)
+end
+
+-- After a callback error: red flash, and the title reads "Error · see Settings › Info" for a moment.
+function Base.failed(element, title)
+    Base.flash(element.Row, "danger")
+    if not title or not title.Parent then return end
+    element._errorToken = (element._errorToken or 0) + 1
+    local token = element._errorToken
+    if not element._errorShown then
+        element._errorShown = true
+        element._titleBefore = tostring(element.Text or element.Title or title.Text)
+        Theme.bind(title, "TextColor3", "danger")
+    end
+    title.Text = "Error · see Settings › Info"
+    task.delay(2.2, function()
+        if element._errorToken ~= token or not title.Parent then return end
+        element._errorShown = false
+        title.Text = element._titleBefore or tostring(element.Title or "")
+        Theme.bind(title, "TextColor3", element._risky and "danger" or "text")
+    end)
 end
 
 -- Applied by every element after its first Set: initial lock state.

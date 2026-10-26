@@ -286,7 +286,15 @@ function Window.new(Lib, cfg)
     env.__QustahUIWindows[self.Title] = self
 
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
+    if cfg.Secure then Util.secure = true end
+    self:_makeFlags()
     self.Config = Config.new(self, cfg.Folder or self.Title:gsub("[^%w_%- ]", ""))
+    -- a file that was being written when the game closed came back from its .tmp copy
+    self.Config:OnRecovered(function(name)
+        task.defer(function()
+            if self.alive then self:Notify({ Title = "Restored " .. tostring(name), Content = "It was saved when the game closed - nothing was lost", Icon = "history", Color = "warning" }) end
+        end)
+    end)
     -- window memory: last position / size (SaveWindow = false turns it off)
     self.memory = cfg.SaveWindow ~= false and self.Config:ReadMemory() or {}
     -- per-game profiles: the choice made in Settings (remembered with the window) wins over CreateWindow's PerGame
@@ -302,6 +310,8 @@ function Window.new(Lib, cfg)
     self:_build()
     if self._buildExtras then self:_buildExtras() end
     if self._buildInbox then self:_buildInbox() end
+    if self._buildFx then self:_buildFx() end
+    if self._watchKicks then self:_watchKicks() end
     self:_refreshStatus()
     Lib.Windows[#Lib.Windows + 1] = self
     return self
@@ -320,7 +330,8 @@ function Window:_build()
     })
     Theme.bind(main, "BackgroundColor3", "base")
     corner(main, 12)
-    Theme.bind(stroke(main), "Color", "edge")
+    self.mainStroke = stroke(main)
+    Theme.bind(self.mainStroke, "Color", "edge")
     self.main = main
     self.scale = create("UIScale", { Scale = 1, Parent = main })
 
@@ -352,7 +363,7 @@ function Window:_build()
         })
         Theme.bind(text, "TextColor3", "accent")
     end
-    self.titleLabel = title
+    self.titleLabel, self.titleRow = title, titleRow
 
     local function windowButton(name, offset, cross, bare)
         local button = create("TextButton", {
@@ -534,6 +545,17 @@ function Window:_build()
         if drag and (input.UserInputType == Enum.UserInputType.MouseButton1 or input == drag.input) then
             self._drag = nil
             Util.safe(drag.finish)
+        end
+    end)
+    -- key let go: hold-mode binds (Keybind Mode = "Hold", Toggle BindMode = "Hold")
+    maid:connect(UserInputService.InputEnded, function(input)
+        local key = Util.inputKey(input, true)
+        if not key then return end
+        for element, bound in pairs(self.binds) do
+            if element._onRelease and element.Row and element.Row.Parent then
+                local target = element.Chord and element.Chord[2] or bound
+                if target == key then self:_safe(element.Title or "Keybind", element._onRelease, element) end
+            end
         end
     end)
     maid:connect(UserInputService.InputBegan, function(input, processed)
@@ -743,13 +765,58 @@ end
 function Window:_hideTip() self.tip.Visible = false end
 
 function Window:_register(flag, element)
-    if self.flags[flag] then warn("[qustah-ui-lib] duplicate flag: " .. tostring(flag)) end
+    if self.flags[flag] then Util.log("[qustah-ui-lib] duplicate flag: " .. tostring(flag)) end
     self.flags[flag] = element
     -- after the element finished building: record its default, apply a value loaded before it existed
     task.defer(function()
         if self.alive and self.flags[flag] == element then self.Config:_elementReady(flag, element) end
     end)
 end
+-- AutoFlags = true: elements without a Flag get "Tab.Card.Title" (a second one with the same name gets " 2").
+function Window:_autoFlag(card, title)
+    local parts = {}
+    local tab = card.page and card.page.tab
+    if tab and tab.Title then parts[#parts + 1] = tab.Title end
+    if card.title then parts[#parts + 1] = card.title end
+    parts[#parts + 1] = tostring(title)
+    local flag = table.concat(parts, "."):gsub("[^%w_%.%- ]", "")
+    local name, index = flag, 2
+    while self.flags[name] or (self._autoNames and self._autoNames[name]) do name = flag .. " " .. index index = index + 1 end
+    self._autoNames = self._autoNames or {}
+    self._autoNames[name] = true
+    return name
+end
+
+-- Window.Flags.Speed = 50 sets the element (UI and callback); Window.Flags.Speed reads the value; pairs() works.
+-- Window:SetFlag(flag, value), :GetFlag(flag), :GetElement(flag)
+function Window:_makeFlags()
+    local window = self
+    local function snapshot()
+        local values = {}
+        for flag in pairs(window.flags) do values[flag] = window.Lib.Flags[flag] end
+        return values
+    end
+    self.Flags = setmetatable({}, {
+        __index = function(_, flag) return window.Lib.Flags[flag] end,
+        __newindex = function(_, flag, value) window:SetFlag(flag, value) end,
+        __iter = function() return next, snapshot() end,
+        __pairs = function() return next, snapshot() end,
+    })
+end
+function Window:SetFlag(flag, value)
+    local element = self.flags[flag]
+    if element and element.Set then
+        element:Set(value)
+        return true
+    end
+    -- not built yet (or no element): applied when it is created, like a loaded profile
+    self.Config.pending[flag] = value
+    self.Lib.Flags[flag] = value
+    return false
+end
+function Window:GetFlag(flag) return self.Lib.Flags[flag] end
+function Window:GetElement(flag) return self.flags[flag] end
+
 function Window:_bind(element, key)
     self.binds[element] = key
 end
@@ -877,6 +944,7 @@ function Window:SetToggleKey(key)
 end
 function Window:SetFooter(text) self.footerText.Text = tostring(text or "") end
 function Window:Notify(cfg) return self.Lib:Notify(cfg) end
+function Window:Toast(cfg) return self.Lib:Toast(cfg) end
 function Window:SelectTab(target)
     for _, tab in ipairs(self.Tabs) do
         if tab == target or tab.Title == target then tab:Select() return tab end

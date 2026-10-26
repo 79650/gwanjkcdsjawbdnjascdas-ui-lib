@@ -11,6 +11,15 @@ Util.Services = setmetatable({}, {
 })
 local Services = Util.Services
 
+-- Secure mode (getgenv().QUSTAH_SECURE = true before loading, CreateWindow({ Secure = true }) or Lib:SetSecure(true)):
+-- random ScreenGui names, nothing printed to the console, avatars as rbxthumb content (no web lookup).
+local genv = (getgenv and getgenv()) or _G
+Util.secure = genv.QUSTAH_SECURE == true
+-- Library messages go through here so secure mode can keep the console quiet.
+function Util.log(message)
+    if not Util.secure then warn(message) end
+end
+
 -- create("Frame", { Size = ..., Parent = ... }, { children }) - Parent is applied last.
 function Util.create(class, props, children)
     local object = Instance.new(class)
@@ -68,7 +77,7 @@ end
 function Util.safe(callback, ...)
     if type(callback) ~= "function" then return end
     local ok, err = pcall(callback, ...)
-    if not ok then warn("[qustah-ui-lib] callback error: " .. tostring(err)) end
+    if not ok then Util.log("[qustah-ui-lib] callback error: " .. tostring(err)) end
 end
 
 -- A maid owns connections, instances and cleanup functions; clean() releases all of them (newest first).
@@ -180,6 +189,12 @@ function Util.isPress(input)
     return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
 end
 
+-- Head shot of a user as rbxthumb content (no web request).
+function Util.avatar(userId, size)
+    size = size or 48
+    return string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=%d&h=%d", tonumber(userId) or 0, size, size)
+end
+
 -- HH:MM:SS
 function Util.clock(seconds)
     seconds = math.max(0, math.floor(seconds))
@@ -203,12 +218,53 @@ function Util.guiParent()
 end
 function Util.screenGui(name, order)
     local gui = create("ScreenGui", {
-        Name = name, ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = order or 50,
+        Name = Util.secure and Services.HttpService:GenerateGUID(false) or name, ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = order or 50,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     })
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) elseif protectgui then protectgui(gui) end end)
     gui.Parent = Util.guiParent()
     return gui
+end
+
+-- Crash-safe writes: the text goes to <file>.tmp first, is read back, then written over the file and the .tmp removed.
+-- If the game closes half way, either the old file or a complete .tmp survives (Util.readJSON picks it up).
+function Util.writeAtomic(path, text)
+    if type(writefile) ~= "function" then return false, "writefile is not available" end
+    local tmp = path .. ".tmp"
+    local ok, err = pcall(writefile, tmp, text)
+    if not ok then return false, tostring(err) end
+    if type(readfile) == "function" then
+        local read, back = pcall(readfile, tmp)
+        if not read or back ~= text then return false, "the file could not be written completely" end -- the old file stays
+    end
+    ok, err = pcall(writefile, path, text)
+    if not ok then return false, tostring(err) end
+    if type(delfile) == "function" then pcall(delfile, tmp) end
+    return true
+end
+-- Reads a JSON table. A missing / damaged file falls back to the .tmp of an interrupted save (and the file is repaired).
+-- Returns data, recovered | nil, "missing" | "damaged".
+function Util.readJSON(path)
+    if type(isfile) ~= "function" or type(readfile) ~= "function" then return nil, "missing" end
+    local function decode(file)
+        if not isfile(file) then return nil, "missing" end
+        local ok, data = pcall(function() return Services.HttpService:JSONDecode(readfile(file)) end)
+        if ok and type(data) == "table" then return data end
+        return nil, "damaged"
+    end
+    local tmp = path .. ".tmp"
+    local data, problem = decode(path)
+    if data then
+        if isfile(tmp) and type(delfile) == "function" then pcall(delfile, tmp) end -- leftover of a save that finished
+        return data, false
+    end
+    local saved = decode(tmp)
+    if saved then
+        pcall(function() writefile(path, readfile(tmp)) end)
+        if type(delfile) == "function" then pcall(delfile, tmp) end
+        return saved, true
+    end
+    return nil, problem
 end
 
 -- Base64 (profile share codes).

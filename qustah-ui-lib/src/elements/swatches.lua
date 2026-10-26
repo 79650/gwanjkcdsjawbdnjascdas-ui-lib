@@ -96,9 +96,8 @@ return function(card, cfg)
         render()
         if self.Flag then card.window.Lib.Flags[self.Flag] = entry.name end
         if not silent and changed then
-            local source = tostring(cfg.Title or "Swatches")
-            card.window:_safe(source, cfg.Callback, entry.color, entry.name)
-            for _, callback in ipairs(self._changed) do card.window:_safe(source, callback, entry.color, entry.name) end
+            self:_call(cfg.Callback, entry.color, entry.name)
+            for _, callback in ipairs(self._changed) do self:_call(callback, entry.color, entry.name) end
         end
     end
     function element:Get() return self.Value, self.Color end

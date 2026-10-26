@@ -1,4 +1,5 @@
--- card:Toggle({ Title, Desc, Flag, Default, Callback, Bindable, Bind, Locked, LockedTitle })
+-- card:Toggle({ Title, Desc, Flag, Default, Callback, Bindable, Bind, BindMode = "Toggle" | "Hold", Locked, LockedTitle })
+-- BindMode = "Hold": the toggle is on only while its key is held (aim while holding the key). :SetBindMode(mode)
 -- Click the row or the switch to flip it. With Bindable (or a Bind key) right-click the row to assign a key
 -- (Backspace clears, Escape cancels); the key flips the toggle while the menu is closed too.
 local Util = require("util")
@@ -85,7 +86,15 @@ return function(card, cfg)
             if desc then desc.Size = UDim2.new(1, -reserve, 0, 14) end
         end
     end
-    function element:_onBind() if not self.Locked then self:Set(not self.Value) end end
+    element.BindMode = cfg.BindMode == "Hold" and "Hold" or "Toggle"
+    function element:SetBindMode(mode) self.BindMode = mode == "Hold" and "Hold" or "Toggle" end
+    function element:_onBind()
+        if self.Locked then return end
+        if self.BindMode == "Hold" then self._held = true self:Set(true) else self:Set(not self.Value) end
+    end
+    function element:_onRelease()
+        if self.BindMode == "Hold" and self._held then self._held = false self:Set(false) end
+    end
     if bindable then
         tag = Util.label(row, "", 9, {
             Name = "Bind", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, cfg.Help and -62 or -42, 0.5, 0), Size = UDim2.fromOffset(48, 18),

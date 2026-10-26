@@ -10,6 +10,12 @@ local Window = Lib:CreateWindow({
     Folder    = "Qustah",                 -- configs go to Qustah/configs/*.json
     ToggleKey = Enum.KeyCode.RightShift,
     Size      = Vector2.new(540, 390),
+    Tags      = { "BETA" },               -- small chips after the title ({ Text = "PRO", Color = Color3.fromRGB(240, 190, 80) })
+    -- LiveBackground = true,             -- slow accent glow behind the content (Settings › Window has the switch)
+    -- AccentGlow = true,                 -- the window edge breathes in the accent
+    -- Secure = true,                     -- random gui names + silent console (or getgenv().QUSTAH_SECURE = true before loading)
+    -- AutoFlags = true,                  -- elements without a Flag get "Tab.Card.Title" and are saved in profiles too
+    -- Rejoin = true,                     -- teleport back after a kick (Settings › Info lists the kicks either way)
     -- Accent = Color3.fromRGB(61, 151, 219), -- default is Qustah's neutral grey
 })
 
@@ -39,6 +45,8 @@ Info:Toggle({ Title = "Distance", Desc = "Show distance to players.", Flag = "sh
 local Colors = Appearance:Card({ Title = "Colors" })
 Colors:ColorPicker({ Title = "Fill color", Flag = "fillColor", Default = Color3.fromRGB(215, 120, 120) })          -- Rainbow button inside
 Colors:ColorPicker({ Title = "Outline color", Flag = "outlineColor", Default = Color3.fromRGB(240, 240, 240), Apply = true }) -- changes only on Apply
+Colors:ColorPicker({ Title = "Glow color", Flag = "glowColor", Default = Color3.fromRGB(120, 170, 255), Alpha = true, Transparency = 0.35,
+    Callback = function(color, transparency) print("glow", color, transparency) end })   -- Alpha: a transparency bar too
 Colors:Gradient({ Title = "Chams gradient", Flag = "chams", Default = { Color3.fromRGB(215, 120, 120), Color3.fromRGB(120, 140, 230) },
     Callback = function(sequence, a, b) print("gradient", a, b) end })
 Colors:Slider({ Title = "Fill transparency", Flag = "fill", Min = 0, Max = 100, Default = 60, Suffix = "%",
@@ -67,7 +75,9 @@ Aim:Dropdown({ Title = "Target priority", Flag = "priority", AllowNone = true, D
     { Title = "Highest bounty", Icon = "gem", Desc = "Premium only", Locked = true },
 } })
 local Fov = Silent:Card({ Title = "FOV" })
-Fov:Slider({ Title = "Radius", Flag = "fovRadius", Min = 10, Max = 600, Default = 120, Suffix = "px" })
+Fov:Slider({ Title = "Radius", Flag = "fovRadius", Min = 10, Max = 600, Default = 120, Suffix = "px",
+    Callback = function(value, dragging) if not dragging then print("radius", value) end end })   -- dragging = true while the knob is held
+Fov:Toggle({ Title = "Aim assist", Desc = "On while right mouse is held", Flag = "aimAssist", Bind = Enum.UserInputType.MouseButton2, BindMode = "Hold" })
 Fov:Keybind({ Title = "Aim key", Icon = "target", Flag = "aimKey", Default = Enum.KeyCode.Q, Pressed = function() print("aim key") end })
 Fov:Keybind({ Title = "Mark target", Desc = "Modifier + key or mouse", Chord = true, Flag = "markKey",
     Default = { Enum.KeyCode.LeftControl, Enum.UserInputType.MouseButton1 }, Pressed = function() print("mark") end })
@@ -94,6 +104,23 @@ local farm = Perf:Progress({ Title = "Auto farm", Desc = "Quests this session", 
 local loading = Perf:Progress({ Title = "Loading assets", Indeterminate = true })
 task.delay(4, function() loading:SetIndeterminate(false) loading:Set(100) end)
 
+-- live numbers (digits roll, the chip shows the change) and a log
+local Session = Misc:Card({ Title = "Session", Icon = "activity" })
+local coins = Session:Stat({ Title = "Coins", Icon = "coins", Value = 12450, Prefix = "$" })
+local pingStat = Session:Stat({ Title = "Ping", Icon = "wifi", Value = 48, Suffix = " ms", Delta = "absolute", Invert = true }) -- lower is better
+local quests = Session:Progress({ Title = "Daily quests", Steps = 5, Value = 2 })   -- 5 segments
+local log = Session:Console({ Title = "Log", Height = 130, MaxLines = 100 })
+log:Append("Script loaded", "success")
+task.spawn(function()
+    while task.wait(4) do
+        if not Window.alive then break end
+        local earned = math.random(20, 400)
+        coins:Add(earned)
+        pingStat:Set(math.random(35, 90))
+        log:Print("Sold loot for", earned, "coins")
+    end
+end)
+
 -- collapsible section, buttons side by side, a boxed group, a code block, a 3D preview
 local Extras = Misc:Card({ Title = "Extras" })
 local advanced = Extras:Section({ Title = "Advanced", Icon = "settings-2", Opened = false })
@@ -111,7 +138,8 @@ Preview:Viewport({ Object = game.Players.LocalPlayer.Character, Height = 150, Sp
 local About = Misc:Card({ Title = "About" })
 About:Paragraph({ Title = "qustah-ui-lib", Content = "Every element on these pages comes from the library; the script only adds its features." })
 About:Divider()
-About:Button({ Title = "Notify", Callback = function() Window:Notify({ Title = "Hello", Content = "This is a notification", Duration = 3 }) end })
+About:Button({ Title = "Notify", Callback = function() Window:Notify({ Title = "Hello", Content = "This is a notification" }) end }) -- time follows the text, hover pauses
+About:Button({ Title = "Toast", Icon = "check", Callback = function() Window:Toast({ Text = "Saved", Icon = "check" }) end })   -- small pill at the top
 About:Button({ Title = "Progress toast", Icon = "loader", Callback = function()
     local toast = Window:Notify({ Title = "Farming", Steps = 5, Content = "Starting", Icon = "sprout", Sound = true })
     for step = 1, 5 do task.wait(0.6) toast:SetStep(step, step == 5 and "Done" or "Quest " .. step) end
@@ -136,6 +164,9 @@ Window.Config:OnDataLoaded(function(data) print("waypoints", data.waypoints and 
 -- header button (left of the bell)
 Window:HeaderButton({ Icon = "refresh-cw", Tooltip = "Rejoin", Callback = function() print("rejoin") end })
 
+-- kicks: reason + code (also listed in Settings › Info)
+Window:OnKick(function(info) print("kicked:", info.Kind, info.Reason, info.Code) end)
+
 Window.Config:LoadAutoLoad() -- may also run before the tabs exist: values wait for their elements
 Window:Notify({ Title = "Qustāh", Content = "Loaded · RSHIFT to toggle", Icon = "sparkles" })
-print(Lib.Flags.espRange) -- current value of any flag
+print(Window.Flags.espRange) -- current value of any flag; Window.Flags.espRange = 2000 sets it (UI + callback)

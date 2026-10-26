@@ -33,7 +33,7 @@ function Icons.Load(set)
     end)
     if not ok or type(data) ~= "table" then
         Icons._failed[set] = tostring(data)
-        warn("[qustah-ui-lib] icon set " .. set .. " could not be loaded: " .. tostring(data))
+        require("util").log("[qustah-ui-lib] icon set " .. set .. " could not be loaded: " .. tostring(data))
         return false, Icons._failed[set]
     end
     Icons.Sets[set] = data
@@ -114,7 +114,7 @@ local function fetch(url, done)
             Icons._urls[url] = asset
             done(asset)
         else
-            warn("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(asset))
+            require("util").log("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(asset))
         end
     end)
 end

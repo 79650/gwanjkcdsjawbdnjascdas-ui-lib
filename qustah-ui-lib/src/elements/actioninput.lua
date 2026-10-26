@@ -84,7 +84,7 @@ return function(card, cfg)
     local function run()
         validate()
         if not ready or element.Locked then return end
-        window:_safe(tostring(cfg.Button or "Action"), cfg.Callback, element.Value)
+        element:_call(cfg.Callback, element.Value)
         if cfg.ClearOnAction ~= false then box.Text = "" end
         validate()
     end

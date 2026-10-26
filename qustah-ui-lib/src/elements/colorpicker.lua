@@ -2,6 +2,8 @@
 -- Click the swatch to open the picker under the row: saturation / brightness square, hue bar, HEX box, Random, Rainbow.
 -- Apply = true: edits only preview until Apply is pressed (closing without Apply reverts).
 -- Rainbow = true / :SetRainbow(on): cycles the hue (RainbowSpeed = seconds per cycle, default 5); saved with the config.
+-- Alpha = true (or Transparency = 0.3): a transparency bar under the hue; Callback(color, transparency),
+-- element.Transparency, :SetTransparency(0-1). Saved with the colour.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -52,6 +54,23 @@ return function(card, cfg)
     create("UIGradient", { Color = HUE, Parent = hueBar })
     local hueCursor = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(4, 14), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 3, Parent = hueBar })
     corner(hueCursor, 2)
+    -- transparency bar: the colour fading out to the right, over a dark / light split so the fade shows
+    local alphaMode = cfg.Alpha == true or tonumber(cfg.Transparency) ~= nil
+    local alphaBar, alphaCursor
+    if alphaMode then
+        local backing = create("Frame", { Name = "AlphaBacking", BorderSizePixel = 0, Position = UDim2.fromOffset(0, 134), Size = UDim2.new(1, -104, 0, 10), Parent = panel })
+        Theme.bind(backing, "BackgroundColor3", "input")
+        corner(backing, 5)
+        local light = create("Frame", { BorderSizePixel = 0, Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 0.5), BackgroundColor3 = Color3.fromRGB(205, 205, 210), BackgroundTransparency = 0.55, Parent = backing })
+        corner(light, 5)
+        alphaBar = create("TextButton", { Name = "Alpha", Text = "", AutoButtonColor = false, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), Parent = backing })
+        corner(alphaBar, 5)
+        create("UIGradient", { Transparency = NumberSequence.new(0, 1), Parent = alphaBar })
+        Theme.bind(stroke(backing, nil, 0.3), "Color", "buttonEdge")
+        alphaCursor = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(4, 14), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 3, Parent = backing })
+        corner(alphaCursor, 2)
+        Theme.bind(stroke(alphaCursor, nil, 0.2), "Color", "base")
+    end
 
     local side = create("Frame", { Name = "Side", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 4), Size = UDim2.fromOffset(92, 150), Parent = panel })
     local preview = create("Frame", { Size = UDim2.new(1, 0, 0, 26), BorderSizePixel = 0, Parent = side })
@@ -93,6 +112,8 @@ return function(card, cfg)
 
     local element = Base.element(card, "ColorPicker", cfg, row, title, desc)
     local h, s, v = 0, 0, 1
+    local alpha = math.clamp(tonumber(cfg.Transparency) or 0, 0, 1)
+    element.Transparency = alpha
 
     local function render()
         local color = Color3.fromHSV(h, s, v)
@@ -101,15 +122,22 @@ return function(card, cfg)
         cursor.Position = UDim2.fromScale(s, 1 - v)
         hueCursor.Position = UDim2.fromScale(h, 0.5)
         hex.Text = "#" .. Util.toHex(color)
+        if alphaMode then
+            alphaBar.BackgroundColor3 = color
+            alphaCursor.Position = UDim2.fromScale(alpha, 0.5)
+            preview.BackgroundTransparency = alpha
+            swatch.BackgroundTransparency = alpha * 0.85
+        end
     end
     local applyMode = cfg.Apply == true
     local function commit(silent, force)
         local color = Color3.fromHSV(h, s, v)
         if applyMode and not force and panel.Visible and not silent then render() swatch.BackgroundColor3 = element.Value or color return end
-        local changed = color ~= element.Value
+        local changed = color ~= element.Value or alpha ~= element.Transparency
         element.Value = color
+        element.Transparency = alpha
         render()
-        element:_fire(color, silent or not changed)
+        if alphaMode then element:_fire(color, silent or not changed, alpha) else element:_fire(color, silent or not changed) end
     end
     function element:Set(color, silent)
         if type(color) == "string" then color = Util.fromHex(color) end
@@ -117,10 +145,27 @@ return function(card, cfg)
         h, s, v = color:ToHSV()
         commit(silent, true)
     end
-    function element:Get() return self.Value end
-    function element:_save() return self.Rainbow and { Color = Util.toHex(self.Value), Rainbow = true } or Util.toHex(self.Value) end
+    function element:Get() return self.Value, self.Transparency end
+    function element:SetTransparency(value, silent)
+        alpha = math.clamp(tonumber(value) or 0, 0, 1)
+        commit(silent, true)
+    end
+    function element:_save()
+        if self.Rainbow or (alphaMode and self.Transparency > 0) then
+            return { Color = Util.toHex(self.Value), Rainbow = self.Rainbow or nil, Alpha = alphaMode and self.Transparency or nil }
+        end
+        return Util.toHex(self.Value)
+    end
     function element:_load(data)
-        if type(data) == "table" then self:Set(data.Color) self:SetRainbow(data.Rainbow == true) else self:SetRainbow(false) self:Set(data) end
+        if type(data) == "table" then
+            if alphaMode then alpha = math.clamp(tonumber(data.Alpha) or 0, 0, 1) end
+            self:Set(data.Color)
+            self:SetRainbow(data.Rainbow == true)
+        else
+            if alphaMode then alpha = 0 end
+            self:SetRainbow(false)
+            self:Set(data)
+        end
     end
     local function revert()
         if applyMode and element.Value then h, s, v = element.Value:ToHSV() render() end
@@ -173,6 +218,7 @@ return function(card, cfg)
     end
     drag(square, function(x, y) s, v = x, 1 - y end)
     drag(hueBar, function(x) h = math.min(x, 0.999) end)
+    if alphaBar then drag(alphaBar, function(x) alpha = math.floor(x * 100 + 0.5) / 100 end) end
     hex.FocusLost:Connect(function()
         local color = Util.fromHex(hex.Text)
         if color then h, s, v = color:ToHSV() commit() else render() end

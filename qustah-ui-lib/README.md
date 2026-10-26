@@ -243,6 +243,27 @@ Lib.Icons.List("lucide")           -- bütün isimler
 - **Dropdown:** anahtar/etiket değerleri (`Options = { pvp = "PvP mode" }` ya da `{ Value = "pvp", Title = "PvP mode" }`; Value anahtar), `Image` (renkli küçük resim), binlerce seçenek (parça parça çizilir, arama hepsinde), çoklu listede sürükleyerek seçme (`DragSelect = false` kapatır), `:GetLabel()`.
 - **Bildirim ilerlemesi:** `local t = Notify({ Title, Steps = 5, Content })` -> `t:SetStep(2, "Quest 2")`, ya da `Progress = 0` -> `t:SetProgress(0.5)`; sonuna gelince kapanır, `Persist = true` -> `t:Close()`. `Sound = true` (yerleşik kısa ses) ya da ses id, `Volume`.
 
+### v1.6 (Rayfield'dan fikirler)
+
+- **Secure mode:** `getgenv().QUSTAH_SECURE = true` (yüklemeden önce), `CreateWindow({ Secure = true })` ya da `Lib:SetSecure(true)` -> ScreenGui isimleri rastgele GUID, konsola hiçbir şey yazılmaz, avatarlar web isteği olmadan `rbxthumb://`. (İkonlar asset id olarak kalır: Roblox asset indirmeyi giriş istediği için Rayfield bunu kendi proxy sunucusuyla yapıyor.)
+- **Güvenli kayıt:** bütün dosyalar önce `.tmp`'ye yazılıp geri okunur, sonra asıl dosyaya yazılır. Oyun yazarken kapanırsa profil bozulmaz; yarım kalan kayıt bir sonraki okumada `.tmp`'den geri gelir (toast çıkar). `Config:OnRecovered(fn)`, `Config.Recovered`.
+- **`Window.Flags`:** `Window.Flags.Speed = 50` elemanı günceller ve callback'i çalıştırır, `Window.Flags.Speed` okur, `for flag, value in Window.Flags` döner. `Window:SetFlag(flag, value)` (eleman daha yoksa oluşunca uygulanır), `:GetFlag`, `:GetElement`.
+- **AutoFlags:** `CreateWindow({ AutoFlags = true })` -> Flag verilmeyen değer elemanları `"Sekme.Kart.Başlık"` flag'i alır (profillere girer; aynı isim `" 2"` alır).
+- **Hata flaşı:** callback hata verirse eleman kırmızı yanıp sönüp başlığında 2 sn "Error · see Settings › Info" yazar. Input kabul edilince yeşil, keybind seçilince accent flaş (`Flash = false` kapatır). Elle: `element:Flash("success" | "danger" | "accent")`.
+- **Stat:** `card:Stat({ Title = "Coins", Value = 0, Icon, Prefix = "$", Suffix, Decimals, Separator = ",", Delta = "percent" | "absolute" | false, Invert })` -> rakamlar sayaç gibi döner, yanında değişim çipi (+%5.3 yeşil, düşüşte kırmızı; `Invert` = düşük iyi, ping gibi). `:Set(v)`, `:Add(n)`.
+- **Console:** `card:Console({ Title, Height = 150, MaxLines = 200, Follow = true, Time = true, Copy = true })` -> `:Append("metin", "info" | "success" | "warning" | "error")`, `:Print(...)`, `:Clear()`, `:GetText()`. Yukarı kaydırınca takip durur, en alta inince devam eder; başlıkta Takip / Temizle / Kopyala.
+- **Bölmeli progress:** `card:Progress({ Steps = 5, Value = 2 })` -> 5 parçalı çubuk, "2 / 5"; `:SetSteps(n)`.
+- **Slider `(value, dragging)`:** sürüklerken `dragging = true`, bırakınca son değerle bir kez `false` -> ağır işi sadece `not dragging` iken yap.
+- **Basılı tutma:** `Keybind({ Mode = "Hold", Pressed = function(down) end })` (basınca `true`, bırakınca `false`, `.Held`); `Toggle({ Bind = ..., BindMode = "Hold" })` tuş basılıyken açık.
+- **Renk saydamlığı:** `ColorPicker({ Alpha = true, Transparency = 0.3 })` -> hue altında saydamlık çubuğu, `Callback(color, transparency)`, `:SetTransparency(t)`, profille kaydedilir.
+- **Eleman sırası:** `element:MoveUp()`, `:MoveDown()`, `:MoveTo(index)`, `:GetIndex()`, `:Remove()` (renk paneli de taşınır / silinir).
+- **Lock sebebi:** `element:Lock("Premium gerekli")` -> sebep açıklamanın yerine sarı yazılır (açıklama yoksa kontrolün üstünde kilit ikonuyla). `Unlock()` geri getirir.
+- **Bildirimler:** süre verilmezse yazı uzunluğuna göre (3-10 sn); üstüne gelince süre durur (`PauseOnHover = false`); ekranda en fazla `Lib.MaxNotifications` (6), fazlası en eskiyi kapatır.
+- **Toast:** `Lib:Toast("Kaydedildi")` / `Window:Toast({ Text, Icon, Image, Color, Position = "Top" | "Bottom", Duration })` -> üstte ortada küçük hap. İlk açılışta (yeni hesap) "Signed in as <isim>" + avatar (`Welcome = false` ya da Settings › Menu › Welcome toast; anonim modda çıkmaz).
+- **Başlık etiketleri:** `CreateWindow({ Tags = { "BETA", { Text = "PRO", Color = Color3.fromRGB(240, 190, 80) } } })`, `Window:AddTag("NEW", { Color = "warning", Style = "Solid" | "Soft" })` -> `SetText`, `SetColor`, `Remove`. Solid etiketin yazısı dolgu rengine göre siyah/beyaz seçilir.
+- **Kick yakalayıcı:** `Window:OnKick(function(info) end)` -> `info.Reason`, `.Code` (267...), `.Kind` ("Kicked", "Connection lost", "Banned"...), `.Message`. Son 20'si `<Folder>/kicks.json`'da, Settings › Info › Disconnects'te listelenir. `Rejoin = true` kick sonrası aynı yere ışınlar (`RejoinDelay`). `KickLog = false` kapatır.
+- **Canlı arka plan / kenar parlaması:** `CreateWindow({ LiveBackground = true, AccentGlow = true })`, `Window:SetLiveBackground(bool)`, `:SetAccentGlow(bool)`; Settings › Window'da düğmeleri var.
+
 ## Geliştirme
 
 ```
@@ -252,10 +273,12 @@ src/            kaynak (modüller)
   theme.lua       renk rolleri + bağlama (SetAccent bütün objeleri günceller)
   window.lua      pencere, dock, sekmeler, sayfalar, sürükleme / boyutlandırma / katlama
   card.lua        kart + eleman kayıt listesi
-  elements/       toggle, slider, dropdown, keybind, colorpicker, input, button, label, paragraph, divider, base
+  elements/       toggle, slider, dropdown, keybind, colorpicker, input, button, stat, console, ... + base (ortak satır, flaş, lock, sıra)
   notify.lua      bildirimler
   config.lua      config kaydet / yükle
   settings.lua    hazır Settings sekmesi
+  windowfx.lua    etiketler, canlı arka plan, kenar parlaması, hoş geldin toast'ı
+  kick.lua        kick yakalayıcı
 build.py        src/ -> dist/qustah-ui-lib.lua (tek dosya)
 example.lua     bütün elemanlarla örnek
 test/           mock testleri (run.sh) ve ekran görüntüleri (shot.sh)

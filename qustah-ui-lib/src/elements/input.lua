@@ -36,7 +36,9 @@ return function(card, cfg)
         local changed = text ~= self.Value
         self.Value = text
         if box.Text ~= text then box.Text = text end
+        self._failed = false
         self:_fire(text, silent or not changed)
+        if changed and not silent then self:_accepted("success") end
     end
     function element:Get() return self.Value end
 
