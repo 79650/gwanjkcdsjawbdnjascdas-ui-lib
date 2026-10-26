@@ -10,11 +10,14 @@ local Window = Lib:CreateWindow({
     -- Accent = Color3.fromRGB(61, 151, 219), -- default is Qustah's neutral grey
 })
 
+-- Dock icons: lucide outline (built in, no download) - Dashboard "layout-dashboard", Visuals "eye", Silent "crosshair",
+-- Misc "blocks", Settings "settings". Softer look (downloads the solar set once): "solar:widget-5-linear", "solar:eye-linear",
+-- "solar:gps-linear", "solar:box-linear", "solar:settings-linear" (Dashboard / SettingsTab take Icon = too).
 ------------------------------------------------------------------------ Dashboard first (profile, session, info, server tools)
 Window:DashboardTab({ Info = { { "Code revision", "571" } } })
 
 ------------------------------------------------------------------------ Visuals: two pages
-local Visuals = Window:Tab({ Title = "Visuals", Icon = "eye" })            -- icon names (lucide), "solar:eye-bold", or "rbxassetid://..."
+local Visuals = Window:Tab({ Title = "Visuals", Icon = "eye" })            -- icon names (lucide), "solar:eye-linear", or "rbxassetid://..."
 local Overview = Visuals:Page("Overview")
 local Appearance = Visuals:Page("Appearance")
 
@@ -64,7 +67,7 @@ sections.Filters:Toggle({ Title = "Ignore squad", Flag = "ignoreSquad", Default 
 sections.Filters:Toggle({ Title = "Ignore friends", Flag = "ignoreFriends" })
 
 ------------------------------------------------------------------------ Misc: input, buttons, paragraph
-local Misc = Window:Tab({ Title = "Misc", Icon = "wrench" })
+local Misc = Window:Tab({ Title = "Misc", Icon = "blocks" })
 local Tools = Misc:Card({ Title = "Tools" })
 Tools:Input({ Title = "Target name", Placeholder = "player name", Flag = "targetName" })
 Tools:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() print("rejoin") end })
