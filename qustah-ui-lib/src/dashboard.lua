@@ -40,13 +40,9 @@ return function(window, cfg)
     Theme.bind(uptime, "TextColor3", "accent")
     Glow.add(display, { Base = "heading", Phase = 0.1 })
     Glow.add(uptime, { Base = "accent", Phase = 0.45 })
-    local avatarImage = ""
-    task.spawn(function()
-        local ok, image = pcall(function()
-            return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
-        end)
-        if ok then avatarImage = image if avatar.Parent and not window.anonymous then avatar.Image = image end end
-    end)
+    -- rbxthumb content: shows at once, no web request (fine in secure mode)
+    local avatarImage = Util.avatar(player.UserId, 150)
+    if not window.anonymous then avatar.Image = avatarImage end
     -- anonymous mode (dock profile button): no name, no id, no avatar
     if window.OnAnonymousChanged then
         window:OnAnonymousChanged(function(on)

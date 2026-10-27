@@ -122,12 +122,7 @@ return function(card, cfg)
             end
             commit()
         end)
-        task.spawn(function()
-            local ok, image = pcall(function()
-                return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-            end)
-            if ok and avatar.Parent then avatar.Image = image end
-        end)
+        avatar.Image = Util.avatar(player.UserId) -- rbxthumb: no web request
         renderRow(entry)
         filter()
     end

@@ -1,6 +1,6 @@
 <div align="center">
 
-![Qustah UI](qustah-ui-lib/assets/banner.svg)
+![Qustah UI](qustah-ui-lib/assets/banner.png)
 
 ![version](https://img.shields.io/badge/version-1.7.0-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
@@ -77,6 +77,23 @@ Main:Slider({ Title = "Distance", Flag = "range", Min = 100, Max = 5000, Default
 Window:SettingsTab()          -- theme, font, menu key, profiles...
 Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 ```
+
+## Screenshots
+
+<table>
+<tr>
+<td width="50%"><img src="qustah-ui-lib/assets/screens/visuals.png" alt="Visuals tab"><br><sub>Cards, toggles, sliders, page strip, key hints</sub></td>
+<td width="50%"><img src="qustah-ui-lib/assets/screens/silent.png" alt="Silent tab"><br><sub>Page warning, risky toggle, DependsOn locks</sub></td>
+</tr>
+<tr>
+<td><img src="qustah-ui-lib/assets/screens/misc.png" alt="Misc tab"><br><sub>Live stats, graphs, segmented progress, console</sub></td>
+<td><img src="qustah-ui-lib/assets/screens/dashboard.png" alt="Dashboard"><br><sub>Built-in Dashboard</sub></td>
+</tr>
+<tr>
+<td><img src="qustah-ui-lib/assets/screens/tokyo.png" alt="Tokyo Night theme"><br><sub>Tokyo Night theme</sub></td>
+<td><img src="qustah-ui-lib/assets/screens/light.png" alt="Light theme"><br><sub>Light theme</sub></td>
+</tr>
+</table>
 
 ## All elements
 

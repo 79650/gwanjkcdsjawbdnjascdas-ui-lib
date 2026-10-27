@@ -601,13 +601,8 @@ local uptime=label(body,"00:00:00",18,{Name="Uptime",AnchorPoint=Vector2.new(1,0
 Theme.bind(uptime,"TextColor3","accent")
 Glow.add(display,{Base="heading",Phase=0.1})
 Glow.add(uptime,{Base="accent",Phase=0.45})
-local avatarImage=""
-task.spawn(function()
-local ok,image=pcall(function()
-return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size150x150)
-end)
-if ok then avatarImage=image if avatar.Parent and not window.anonymous then avatar.Image=image end end
-end)
+local avatarImage=Util.avatar(player.UserId,150)
+if not window.anonymous then avatar.Image=avatarImage end
 if window.OnAnonymousChanged then
 window:OnAnonymousChanged(function(on)
 display.Text=on and"Anonymous"or player.DisplayName
@@ -2883,12 +2878,7 @@ if not was then chosen[id]=true end
 end
 commit()
 end)
-task.spawn(function()
-local ok,image=pcall(function()
-return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size48x48)
-end)
-if ok and avatar.Parent then avatar.Image=image end
-end)
+avatar.Image=Util.avatar(player.UserId)
 renderRow(entry)
 filter()
 end
