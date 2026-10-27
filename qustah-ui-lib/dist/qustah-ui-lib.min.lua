@@ -6909,8 +6909,12 @@ text,color="Limited",YELLOW
 else
 text,color="Connected",GREEN
 end
-self.statusLabel.Text=text
-if color~=nil then Theme.bind(self.statusDot,"TextColor3",color)end
+if color~=nil then self._statusColor=color end
+color=self._statusColor or GREEN
+local rgb=typeof(color)=="Color3"and color or Theme.get(color)or Theme.get(GREEN)
+local safe=text:gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;")
+self.statusText=text
+self.statusLabel.Text='<font color="#'..Util.toHex(rgb)..'">◉</font> '..safe
 end
 function Window:_safe(source,callback,...)
 if type(callback)~="function"then return nil end
@@ -7903,12 +7907,7 @@ local footer=create("Frame",{Name="Footer",Position=UDim2.new(0,0,1,-FOOTER),Siz
 Theme.bind(footer,"BackgroundColor3","footer")
 local footerLine=create("Frame",{Size=UDim2.new(1,0,0,1),BorderSizePixel=0,BackgroundTransparency=0.45,Parent=footer})
 Theme.bind(footerLine,"BackgroundColor3","line")
-local dot=label(footer,"◉",11,{
-Name="StatusDot",Position=UDim2.fromOffset(19,0),Size=UDim2.new(0,14,1,0),
-TextXAlignment=Enum.TextXAlignment.Center,TextTruncate=Enum.TextTruncate.None,
-})
-Theme.bind(dot,"TextColor3","success")
-local status=label(footer,"Connected",9,{Name="Status",Position=UDim2.fromOffset(35,0),Size=UDim2.new(0,150,1,0)})
+local status=label(footer,"◉ Connected",9,{Name="Status",Position=UDim2.fromOffset(19,0),Size=UDim2.new(0,170,1,0),RichText=true})
 Theme.bind(status,"TextColor3","muted")
 Glow.add(status,{Base="muted",Shine="heading",GlowTransparency=0.92})
 local centre=label(footer,tostring(self.cfg.Footer or""),9,{
@@ -7916,7 +7915,8 @@ Name="Centre",AnchorPoint=Vector2.new(0.5,0),Position=UDim2.fromScale(0.5,0),Siz
 TextXAlignment=Enum.TextXAlignment.Center,
 })
 Theme.bind(centre,"TextColor3","muted")
-self.footer,self.statusDot,self.statusLabel,self.footerText=footer,dot,status,centre
+self.footer,self.statusLabel,self.footerText=footer,status,centre
+Theme.onChange(function()if status.Parent then self:_refreshStatus()end end)
 if self.cfg.Footer==nil then
 task.spawn(function()
 local ok,info=pcall(function()return Services.MarketplaceService:GetProductInfo(game.PlaceId)end)

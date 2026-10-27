@@ -100,8 +100,12 @@ return function(Window)
         else
             text, color = "Connected", GREEN
         end
-        self.statusLabel.Text = text
-        if color ~= nil then Theme.bind(self.statusDot, "TextColor3", color) end
+        if color ~= nil then self._statusColor = color end
+        color = self._statusColor or GREEN
+        local rgb = typeof(color) == "Color3" and color or Theme.get(color) or Theme.get(GREEN)
+        local safe = text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+        self.statusText = text
+        self.statusLabel.Text = '<font color="#' .. Util.toHex(rgb) .. '">◉</font> ' .. safe
     end
 
     -- Runs a user callback; an error is reported (footer, Info page) instead of breaking the UI.

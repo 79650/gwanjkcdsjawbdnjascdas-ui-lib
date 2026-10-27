@@ -329,17 +329,17 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("graph shows fps", findIn("FPS", "Value") and findIn("FPS", "Value").Text:find("FPS") ~= nil)
 
     -- status / errors / safe callbacks
-    check("footer limited", window.statusLabel.Text == "Limited")
+    check("footer limited", window.statusText == "Limited")
     local boom = tabNamed("Misc").Pages[1]:Card({ Title = "Boom" }):Toggle({ Title = "Explodes", Callback = function() error("kaboom") end })
     boom:Set(true) wait(0.1)
-    check("callback error reported", window.statusLabel.Text == "Errors: 1" and #window:GetErrors() == 1)
+    check("callback error reported", window.statusText == "Errors: 1" and #window:GetErrors() == 1)
     boom:Set(false) wait(0.1)
     check("same error counted", #window:GetErrors() == 1 and window:GetErrors()[1].count == 2)
     check("error report text", window:GetErrorReport():find("kaboom") ~= nil)
     window:ClearErrors()
-    check("clear errors", window.statusLabel.Text == "Limited")
-    window:SetStatus("Custom") check("manual status", window.statusLabel.Text == "Custom")
-    window:SetStatus(nil) check("auto status again", window.statusLabel.Text == "Limited")
+    check("clear errors", window.statusText == "Limited")
+    window:SetStatus("Custom") check("manual status", window.statusText == "Custom" and window.statusLabel.Text:find("◉</font> Custom", 1, true) ~= nil)
+    window:SetStatus(nil) check("auto status again", window.statusText == "Limited")
 
     -- dialog
     local confirmed = false
