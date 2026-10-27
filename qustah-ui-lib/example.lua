@@ -98,7 +98,7 @@ sections.Filters:Toggle({ Title = "Ignore friends", Flag = "ignoreFriends" })
 sections.Filters:Radio({ Title = "When two are close", Flag = "tieBreak", Options = { "Lower health", "Closer to mouse", { Title = "Random", Desc = "Harder to spot" } } })
 
 ------------------------------------------------------------------------ Misc: input, buttons, paragraph
-local Misc = Window:Tab({ Title = "Misc", Icon = "blocks" })
+local Misc = Window:Tab({ Title = "Misc", Icon = "layers" })
 -- (a big tab can also be built on first open: Window:Tab({ Title = "Misc", Build = function(tab) ... end }))
 local Tools = Misc:Card({ Title = "Tools" })
 Tools:Input({ Title = "Target name", Placeholder = "player name", Flag = "targetName" })
@@ -159,6 +159,16 @@ About:Button({ Title = "Progress toast", Icon = "loader", Callback = function()
     local toast = Window:Notify({ Title = "Farming", Steps = 5, Content = "Starting", Icon = "sprout", Sound = true })
     for step = 1, 5 do task.wait(0.6) toast:SetStep(step, step == 5 and "Done" or "Quest " .. step) end
 end })
+
+------------------------------------------------------------------------ World: teleports
+local World = Window:Tab({ Title = "World", Icon = "earth" })
+local Teleport = World:Card({ Title = "Teleport", Icon = "map-pin" })
+Teleport:Dropdown({ Title = "Location", Flag = "tpSpot", Options = { "Spawn", "Shop", "Arena", "Boss room" }, Default = "Spawn" })
+Teleport:Button({ Title = "Teleport", Icon = "navigation", Callback = function() print("teleport to", Window.Flags.tpSpot) end })
+Teleport:Toggle({ Title = "Tween instead of instant", Desc = "Slower but safer", Flag = "tpTween", Default = true })
+local Waypoints = World:Card({ Title = "Waypoints", Side = "Right" })
+Waypoints:Input({ Title = "Name", Placeholder = "waypoint name", Flag = "wpName" })
+Waypoints:Button({ Title = "Save here", Icon = "plus", Callback = function() print("saved", Window.Flags.wpName) end })
 
 ------------------------------------------------------------------------ key hint above the footer (MENU hint on the right is automatic)
 Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Side = "Left", Flag = "espKey",
