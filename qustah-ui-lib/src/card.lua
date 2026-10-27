@@ -33,6 +33,9 @@ Card.Elements = {
     ActionInput = require("elements/actioninput"),
     Stat        = require("elements/stat"),
     Console     = require("elements/console"),
+    Checkbox    = require("elements/checkbox"),
+    Radio       = require("elements/radio"),
+    Table       = require("elements/table"),
 }
 Card.__index = function(_, key)
     local method = rawget(Card, key)
@@ -98,6 +101,8 @@ function Card.new(page, column, cfg, order)
         self._key = tostring(page.tab and page.tab.Title or "") .. "/" .. tostring(page.Name or "") .. "/" .. tostring(cfg.Title)
     end
     self.frame, self.body = frame, frame
+    -- DependsOn: the whole card shows only while the condition holds (see elements/base)
+    if cfg.DependsOn then require("elements/base").depend(self.window, cfg.DependsOn, function(ok) frame.Visible = ok return frame.Parent ~= nil end) end
     -- restore the folded state from the window memory
     local memory = self.window.memory and self.window.memory.collapsed
     if self._chevron and ((memory and memory[self._key]) or cfg.Collapsed) then
@@ -222,6 +227,7 @@ function Card:Section(cfg)
     Util.list(body, 4)
     Util.padding(body, 0, 0, 2, 4)
     local section = sub(self, body)
+    if cfg.DependsOn then require("elements/base").depend(self.window, cfg.DependsOn, function(ok) holder.Visible = ok return holder.Parent ~= nil end) end
     function section:SetOpen(open)
         self.Opened = open ~= false
         body.Visible = self.Opened
@@ -249,7 +255,11 @@ function Card:Row(cfg)
             child.Size = UDim2.new(1 / n, -gap * (n - 1) / n, child.Size.Y.Scale, child.Size.Y.Offset)
         end
     end
-    holder.ChildAdded:Connect(function() task.defer(share) end)
+    -- widths are shared again when a child comes, goes, or is shown / hidden (DependsOn Mode = "Hide")
+    holder.ChildAdded:Connect(function(child)
+        if child:IsA("GuiObject") then child:GetPropertyChangedSignal("Visible"):Connect(function() task.defer(share) end) end
+        task.defer(share)
+    end)
     holder.ChildRemoved:Connect(function() task.defer(share) end)
     return sub(self, holder)
 end

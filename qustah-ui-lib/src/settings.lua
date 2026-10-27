@@ -9,7 +9,6 @@ local Glow = require("glow")
 local UIFont = require("font")
 local Profiles = require("profiles")
 
-local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 local RED, GREEN = "danger", "success" -- theme roles
 
 return function(window, cfg)
@@ -75,11 +74,13 @@ return function(window, cfg)
     table.insert(window._menuListeners, function(key) if menuKey.Value ~= key then menuKey:Set(key, true) end end)
     menu:Toggle({
         Title = "Welcome toast", Desc = "Greets a new account on first open",
-        Default = (window.memory or {}).welcomeToast ~= false and window.cfg.Welcome ~= false,
-        Callback = function(on)
-            window.memory.welcomeToast = on
-            window:_saveMemory()
-        end,
+        Default = window:_state("welcomeToast") ~= false and window.cfg.Welcome ~= false,
+        Callback = function(on) window:_state("welcomeToast", on) end,
+    })
+    local Sounds = require("sounds")
+    menu:Toggle({
+        Title = "UI sounds", Desc = "Soft clicks on buttons and switches", Flag = "__ui_sounds", Default = Sounds.Enabled,
+        Callback = function(on) Sounds.Enabled = on end,
     })
     menu:Button({
         Title = "Reset window size / position",
@@ -190,6 +191,8 @@ return function(window, cfg)
         Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
     look2:Toggle({ Title = "Edge glow", Desc = "The window border breathes in the accent", Flag = "__ui_edge_glow",
         Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
+    look2:Toggle({ Title = "Blur game", Desc = "Blurs the game behind the open menu", Flag = "__ui_blur",
+        Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
     look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
 
     local overlays = interface:Card({ Title = "Overlays", Side = "Right" })
@@ -212,6 +215,9 @@ return function(window, cfg)
     for _, entry in ipairs(cfg.Info or {}) do about:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
     local files = type(writefile) == "function" and type(readfile) == "function"
     about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
+    if type(window.cfg.Changelog) == "table" then
+        about:Button({ Title = "What's new", Icon = "scroll-text", Callback = function() window:ShowChangelog() end })
+    end
     about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
 
     -- kicks / disconnects seen by the kick watcher (kick.lua)

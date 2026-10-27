@@ -1005,7 +1005,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("pill toast", pill.Frame.Parent ~= nil and pill.Frame:FindFirstChild("Text", true).Text == "Saved")
     wait(3.5)
     check("pill toast closes", pill.Frame.Parent == nil)
-    check("welcome remembered", window.memory.welcomed == tostring(E.game:GetService("Players").LocalPlayer.UserId))
+    check("welcome remembered", window:_state("welcomed") == tostring(E.game:GetService("Players").LocalPlayer.UserId))
 
     -- tags
     local betaTag
@@ -1044,6 +1044,193 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("edge glow", window.mainStroke.Thickness == 1.5 and window.mainStroke.Transparency >= 0.29 and window.mainStroke.Transparency <= 0.81)
     window:SetAccentGlow(false)
     check("edge glow off", window.mainStroke.Thickness == 1 and window.mainStroke.Transparency == 0)
+
+    ------------------------------------------------------------------ v1.7
+    local t7 = misc:Card({ Title = "V17" })
+
+    -- checkbox
+    local cb = t7:Checkbox({ Title = "Tick me", Flag = "tickMe" })
+    MOCK.click(cb.Row) wait(0.2)
+    check("checkbox click", F.tickMe == true and cb.Row:FindFirstChild("Box"):FindFirstChild("Tick").Visible)
+    MOCK.click(cb.Row) wait(0.2)
+    check("checkbox off", F.tickMe == false)
+
+    -- radio
+    local picked
+    local rd = t7:Radio({ Title = "Target", Flag = "radioTarget", Options = { "Closest", { Title = "Lowest HP", Value = "hp", Desc = "Weakest first" }, { Title = "Locked", Locked = true } }, Callback = function(v) picked = v end })
+    check("radio default", F.radioTarget == "Closest")
+    MOCK.click(rd.Row:FindFirstChild("Lowest HP", true)) wait(0.1)
+    check("radio click uses Value", F.radioTarget == "hp" and picked == "hp")
+    MOCK.click(rd.Row:FindFirstChild("Locked", true)) wait(0.1)
+    check("radio locked option ignored", F.radioTarget == "hp")
+    rd:Set("Closest")
+    check("radio set by title", F.radioTarget == "Closest")
+    rd:SetOptions({ "A", "B" })
+    check("radio options swapped", F.radioTarget == "A")
+
+    -- table
+    local clicked
+    local tb = t7:Table({ Title = "Players", Search = true, Columns = { "Name", { Title = "Kills", Align = "Right" }, "Team" },
+        Rows = { { "Zed", 3, "Red" }, { "Amy", 12, "Blue" }, { "Bob", nil, "Red" } }, OnRowClick = function(row) clicked = row[1] end })
+    check("table rows", #tb:GetRows() == 3 and tb:GetRows()[3][3] == "Red" and tb.Row:FindFirstChild("Count").Text == "3 rows")
+    tb:Sort("Kills", true)
+    local body = tb.Row:FindFirstChild("Rows", true)
+    local function firstName()
+        local best
+        for _, child in ipairs(body:GetChildren()) do if child:IsA("TextButton") and (not best or child.LayoutOrder < best.LayoutOrder) then best = child end end
+        return best and best:FindFirstChild("Cell1").Text
+    end
+    check("table sort desc by number", firstName() == "Amy")
+    tb:Sort(1)
+    check("table sort by name", firstName() == "Amy")
+    tb:Sort(2, false)
+    check("table numbers before blanks", firstName() == "Zed")
+    tb.Row:FindFirstChild("Search").Text = "red" wait()
+    check("table search", tb.Row:FindFirstChild("Count").Text == "2 / 3")
+    tb.Row:FindFirstChild("Search").Text = ""
+    for _, child in ipairs(body:GetChildren()) do if child:IsA("TextButton") and child:FindFirstChild("Cell1").Text == "Bob" then MOCK.click(child) end end
+    check("table row click", clicked == "Bob")
+    tb:AddRow({ "Cat", 5, "Blue" }) tb:RemoveRow(1)
+    check("table add / remove", #tb:GetRows() == 3 and tb:GetRows()[1][1] == "Amy")
+    tb:Clear()
+    check("table clear", tb.Row:FindFirstChild("Empty", true).Visible)
+
+    -- line graph with two series
+    local lg = t7:Graph({ Title = "Net", Style = "Line", Points = 10, Series = { { Name = "In" }, { Name = "Out", Color = "warning" } } })
+    for i = 1, 6 do lg:Push(i * 10, "In") lg:Push(30, "Out") end
+    wait()
+    local legend = lg.Row:FindFirstChild("Legend")
+    check("line graph legend", legend and legend:FindFirstChild("In"):FindFirstChild("Text").Text == "In 60")
+    local shownSegments = 0
+    for _, child in ipairs(lg.Row:FindFirstChild("Area"):GetChildren()) do if child.Name == "Segment" and child.Visible then shownSegments = shownSegments + 1 end end
+    check("line graph segments", shownSegments == 10) -- 5 per series
+    local bars = t7:Graph({ Title = "Bars" }) bars:Push(5)
+    check("bar graph still works", bars.Row:FindFirstChild("Value").Text == "5")
+
+    -- DependsOn
+    local master = t7:Toggle({ Title = "Master", Flag = "depMaster" })
+    local follower = t7:Slider({ Title = "Follower", Flag = "depFollower", DependsOn = "depMaster" })
+    local hiddenOne = t7:Toggle({ Title = "Hidden one", DependsOn = { Flag = "depMaster", Mode = "Hide" } })
+    local inverse = t7:Toggle({ Title = "Inverse", DependsOn = { Flag = "depMaster", Not = true } })
+    local byValue = t7:Toggle({ Title = "By value", DependsOn = { Flag = "radioTarget", Value = "B" } })
+    local byFn = t7:Toggle({ Title = "By fn", DependsOn = function(flags) return flags.depMaster == true and flags.tickMe == true end })
+    local depCard = misc:Card({ Title = "DepCard", DependsOn = "depMaster" })
+    wait()
+    check("depends: locked with reason", follower.Locked and follower.Row:FindFirstChild("Reason", true).Visible and follower.Row:FindFirstChild("Reason", true):FindFirstChild("Text").Text == "Turn on Master first")
+    check("depends: hide / not / card", hiddenOne.Row.Visible == false and not inverse.Locked and depCard.frame.Visible == false)
+    master:Set(true) wait()
+    check("depends: unlock on change", not follower.Locked and hiddenOne.Row.Visible and inverse.Locked and depCard.frame.Visible)
+    check("depends: value", byValue.Locked)
+    rd:Set("B") wait()
+    check("depends: value match", not byValue.Locked)
+    check("depends: function", byFn.Locked)
+    cb:Set(true) wait()
+    check("depends: function true", not byFn.Locked)
+    follower:Lock("Mine") master:Set(false) master:Set(true) wait()
+    check("depends: keeps a manual lock", follower.Locked and follower._lockReason == "Mine")
+    follower:Unlock()
+
+    local depRow = t7:Row()
+    depRow:Button({ Title = "RowA" })
+    local rowB = depRow:Button({ Title = "RowB", DependsOn = { Flag = "depMaster", Mode = "Hide" } })
+    wait()
+    check("row shares width while visible", rowB.Row.Visible and rowB.Row.Size.X.Scale == 0.5)
+    master:Set(false) wait()
+    local rowA = t7.body:FindFirstChild("RowA", true)
+    check("row gives the room back when hidden", not rowB.Row.Visible and rowA.Size.X.Scale == 1)
+    master:Set(true) wait()
+
+    -- tooltip
+    local tipped = t7:Toggle({ Title = "Tipped", Tooltip = "Hello tip" })
+    MOCK.fire(tipped.Row, "MouseEnter") wait(0.5)
+    check("tooltip shows", window.tip.Visible and window.tipText.Text == "Hello tip")
+    MOCK.fire(tipped.Row, "MouseLeave") wait()
+    check("tooltip hides", not window.tip.Visible)
+    MOCK.fire(tipped.Row, "MouseEnter") wait(4.6)
+    check("tooltip hides by itself", not window.tip.Visible)
+
+    -- sounds
+    Lib.Sounds.Enabled = true
+    local soundService = E.game:GetService("SoundService")
+    local before = #soundService:GetChildren()
+    t7:Button({ Title = "Beep" }) MOCK.click(t7.body:FindFirstChild("Beep", true):FindFirstChild("Button") or t7.body:FindFirstChild("Beep", true))
+    check("ui sound plays", #soundService:GetChildren() > before)
+    Lib.Sounds.Enabled = false
+
+    -- blur
+    local lighting = E.game:GetService("Lighting")
+    window:SetBlur(true) wait(0.5)
+    check("blur on", lighting:FindFirstChild("QustahUIBlur") ~= nil)
+    window:SetVisible(false)
+    wait(0.5)
+    check("blur off when hidden", lighting:FindFirstChild("QustahUIBlur") == nil)
+    window:SetVisible(true) wait(0.5)
+    check("blur back when shown", lighting:FindFirstChild("QustahUIBlur") ~= nil)
+    lighting:FindFirstChild("QustahUIBlur"):Destroy()
+    window:SetVisible(false) window:SetVisible(true) wait(0.5)
+    check("blur recreated after the game removed it", lighting:FindFirstChild("QustahUIBlur") ~= nil)
+    window:SetBlur(false) wait(0.5)
+    check("blur removed", lighting:FindFirstChild("QustahUIBlur") == nil)
+
+    -- changelog once per version
+    window.cfg.Changelog = { Version = "9.9", Items = { "Added tables" }, Delay = 0 }
+    window:_changelog() wait(0.3)
+    check("changelog shown", window._dialog ~= nil and window._dialog.Frame:FindFirstChild("Content", true).Text:find("Added tables") ~= nil)
+    window._dialog:Close() wait()
+    window:_changelog() wait(0.3)
+    check("changelog only once", window._dialog == nil)
+    window.cfg.Changelog = nil
+
+    -- lock closes an open colour panel; toggle can't take the menu key
+    local lp = t7:ColorPicker({ Title = "LockPick" })
+    lp:SetOpen(true) lp:Lock("no")
+    local lpPanel
+    for _, child in ipairs(t7.body:GetChildren()) do if child.Name == "Picker" and child.LayoutOrder == lp.Row.LayoutOrder + 1 then lpPanel = child end end
+    check("lock closes colour panel", lpPanel and lpPanel.Visible == false)
+    local mk = t7:Toggle({ Title = "MenuKeyTest", Bindable = true })
+    MOCK.fire(mk.Row, "MouseButton2Click") wait() MOCK.press(window.key) wait()
+    check("toggle can't take the menu key", mk.BindKey == nil)
+    if not window.visible then window:SetVisible(true) end
+
+    -- stale toasts don't block the stack limit
+    local stale = {}
+    for i = 1, 8 do stale[i] = window:Notify({ Title = "Stale " .. i, Duration = 30 }) stale[i].Frame:Destroy() end
+    local fresh = window:Notify({ Title = "Fresh", Duration = 30 })
+    check("stack limit with stale toasts", fresh:IsOpen() and #Lib._openToasts <= Lib.MaxNotifications)
+    fresh:Close()
+
+    -- a newer complete .tmp wins
+    local jpath = window.Config.folder .. "/probe.json"
+    E.writefile(jpath, '{"v":1}') E.writefile(jpath .. ".tmp", '{"v":2}')
+    check("newer tmp wins", window.Config:ReadJSON("probe").v == 2 and E.readfile(jpath) == '{"v":2}' and not E.isfile(jpath .. ".tmp"))
+
+    -- key system
+    local keyWindow
+    task.spawn(function() keyWindow = Lib:CreateWindow({ Title = "KeyTest", Folder = "KeyTest", KeySystem = { Keys = { "abc" }, Url = "https://example.com" } }) end)
+    wait(0.5)
+    local keyGui = Lib.Util.guiParent():FindFirstChild("QustahUI_Key")
+    check("key screen opens", keyGui ~= nil and keyWindow == nil)
+    local keyBox = keyGui and keyGui:FindFirstChild("Box", true)
+    keyBox.Text = "nope" MOCK.click(keyGui:FindFirstChild("Check", true)) wait(0.3)
+    check("wrong key", keyGui:FindFirstChild("Status", true).Text == "Wrong key" and keyWindow == nil)
+    keyBox.Text = "  abc " MOCK.click(keyGui:FindFirstChild("Check", true)) wait(0.6)
+    check("right key opens the window", keyWindow ~= nil and E.isfile("KeyTest/key.txt") and E.readfile("KeyTest/key.txt") == "abc")
+    if keyWindow then keyWindow:Destroy() end
+    local again
+    task.spawn(function() again = Lib:CreateWindow({ Title = "KeyTest", Folder = "KeyTest", KeySystem = { Keys = { "abc" } } }) end)
+    wait(0.2)
+    check("remembered key skips the screen", again ~= nil)
+    if again then again:Destroy() end
+    Lib:ForgetKey("KeyTest")
+    check("forget key", not E.isfile("KeyTest/key.txt"))
+    local stopped
+    task.spawn(function()
+        local ok = pcall(function() Lib:CreateWindow({ Title = "KeyTest2", Folder = "KeyTest2", KeySystem = { Keys = { "x" } } }) end)
+        stopped = not ok
+    end)
+    wait(0.3)
+    MOCK.click(Lib.Util.guiParent():FindFirstChild("QustahUI_Key"):FindFirstChild("Close", true)) wait(0.5)
+    check("closing the key screen stops the script", stopped == true)
 
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)

@@ -220,7 +220,11 @@ function Tab.new(window, cfg)
         self:_render(true)
         window:_hideTip()
     end)
-    button.Activated:Connect(function() window:_hideTip() self:Select() end)
+    button.Activated:Connect(function()
+        window:_hideTip()
+        if window.current ~= self then require("sounds").Play("tab") end
+        self:Select()
+    end)
     return self
 end
 
@@ -282,11 +286,17 @@ function Window.new(Lib, cfg)
     local env = (getgenv and getgenv()) or _G
     env.__QustahUIWindows = env.__QustahUIWindows or {}
     local previous = env.__QustahUIWindows[self.Title]
-    if previous and previous.Destroy then pcall(previous.Destroy, previous) end
+    if previous and previous.Destroy then
+        pcall(previous.Destroy, previous)
+        -- a re-run loads a new copy of the library: the old copy's loops and toast guis go too
+        local oldLib = previous.Lib
+        if oldLib and oldLib ~= Lib and type(oldLib.Windows) == "table" and #oldLib.Windows == 0 and oldLib.Destroy then pcall(oldLib.Destroy, oldLib) end
+    end
     env.__QustahUIWindows[self.Title] = self
 
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
     if cfg.Secure then Util.secure = true end
+    if cfg.Sounds ~= nil then require("sounds").Enabled = cfg.Sounds == true end
     self:_makeFlags()
     self.Config = Config.new(self, cfg.Folder or self.Title:gsub("[^%w_%- ]", ""))
     -- a file that was being written when the game closed came back from its .tmp copy
@@ -761,6 +771,10 @@ function Window:_tip(text)
     self.tip.AnchorPoint = Vector2.new(mouse.X > viewport.X - 220 and 1 or 0, 0)
     self.tip.Position = UDim2.fromOffset(mouse.X + (mouse.X > viewport.X - 220 and -12 or 14), math.min(mouse.Y + 14, viewport.Y - 30))
     self.tip.Visible = true
+    -- touch screens never send MouseLeave: the tip goes away by itself
+    local token = {}
+    self._tipToken = token
+    task.delay(4, function() if self._tipToken == token and self.alive then self.tip.Visible = false end end)
 end
 function Window:_hideTip() self.tip.Visible = false end
 
@@ -812,10 +826,23 @@ function Window:SetFlag(flag, value)
     -- not built yet (or no element): applied when it is created, like a loaded profile
     self.Config.pending[flag] = value
     self.Lib.Flags[flag] = value
+    self:_flagChanged(flag)
     return false
 end
 function Window:GetFlag(flag) return self.Lib.Flags[flag] end
 function Window:GetElement(flag) return self.flags[flag] end
+
+-- A flag changed: elements / cards with DependsOn re-check (watchers whose object is gone drop out).
+function Window:_flagChanged()
+    local list = self._dependents
+    if not list or self._checkingDependents then return end
+    self._checkingDependents = true -- (a dependent locking an element must not re-enter)
+    for index = #list, 1, -1 do
+        local ok, keep = pcall(list[index])
+        if ok and keep == false then table.remove(list, index) end
+    end
+    self._checkingDependents = false
+end
 
 function Window:_bind(element, key)
     self.binds[element] = key
@@ -903,7 +930,7 @@ function Window:KeyHint(cfg)
         self.Value = key
         show(Util.keyName(key))
         if not cfg.Menu then window:_bind(self, key) end
-        if self.Flag then window.Lib.Flags[self.Flag] = key end
+        if self.Flag then window.Lib.Flags[self.Flag] = key window:_flagChanged(self.Flag) end
         if not silent then window:_safe(tostring(cfg.Title or "Key"), cfg.Callback, key) end
     end
     function hint:Get() return self.Value end
@@ -916,9 +943,9 @@ function Window:KeyHint(cfg)
     badge.Activated:Connect(function()
         show("...")
         window._capture = function(key)
-            if key == Enum.KeyCode.Escape then hint:Set(hint.Value, true)
+            -- Escape cancels; another hint can't take the menu key
+            if key == Enum.KeyCode.Escape or (not cfg.Menu and key == window.key) then hint:Set(hint.Value, true)
             elseif key == Enum.KeyCode.Backspace and not cfg.Menu then hint:Set(nil)
-            elseif not cfg.Menu and key == window.key then hint:Set(hint.Value, true)
             else hint:Set(key) end
         end
     end)

@@ -1,0 +1,116 @@
+---
+base: luau
+name: qustah
+globals:
+  game:
+    any: true
+  workspace:
+    any: true
+  script:
+    any: true
+  Instance:
+    any: true
+  Enum:
+    any: true
+  Color3:
+    any: true
+  Vector2:
+    any: true
+  Vector3:
+    any: true
+  UDim2:
+    any: true
+  UDim:
+    any: true
+  TweenInfo:
+    any: true
+  NumberSequence:
+    any: true
+  NumberSequenceKeypoint:
+    any: true
+  ColorSequence:
+    any: true
+  ColorSequenceKeypoint:
+    any: true
+  Font:
+    any: true
+  CFrame:
+    any: true
+  Rect:
+    any: true
+  RaycastParams:
+    any: true
+  BrickColor:
+    any: true
+  PhysicalProperties:
+    any: true
+  NumberRange:
+    any: true
+  Random:
+    any: true
+  DateTime:
+    any: true
+  typeof:
+    any: true
+  task:
+    any: true
+  tick:
+    any: true
+  time:
+    any: true
+  wait:
+    any: true
+  delay:
+    any: true
+  spawn:
+    any: true
+  warn:
+    any: true
+  settings:
+    any: true
+  shared:
+    any: true
+  getgenv:
+    any: true
+  gethui:
+    any: true
+  cloneref:
+    any: true
+  clonereference:
+    any: true
+  syn:
+    any: true
+  protectgui:
+    any: true
+  setclipboard:
+    any: true
+  toclipboard:
+    any: true
+  writefile:
+    any: true
+  readfile:
+    any: true
+  isfile:
+    any: true
+  delfile:
+    any: true
+  listfiles:
+    any: true
+  isfolder:
+    any: true
+  makefolder:
+    any: true
+  getcustomasset:
+    any: true
+  getsynasset:
+    any: true
+  request:
+    any: true
+  http_request:
+    any: true
+  loadstring:
+    any: true
+  identifyexecutor:
+    any: true
+  getexecutorname:
+    any: true

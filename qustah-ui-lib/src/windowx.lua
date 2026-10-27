@@ -8,7 +8,7 @@ local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
 
-local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
+local create, corner, stroke = Util.create, Util.corner, Util.stroke
 local SLOT = 34
 
 return function(Window)

@@ -11,7 +11,6 @@ local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Uti
 local GREEN, RED = "success", "danger" -- theme roles
 
 return function(card, cfg)
-    local window = card.window
     local holder = create("Frame", { Name = tostring(cfg.Name or cfg.Button or "ActionInput"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = card:_order(), Parent = card.body })
     Util.list(holder, 5)
     local field = create("Frame", { Name = "Field", Size = UDim2.new(1, 0, 0, 34), BorderSizePixel = 0, LayoutOrder = 1, Parent = holder })

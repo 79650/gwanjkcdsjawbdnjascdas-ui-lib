@@ -2,7 +2,7 @@
 
 ![Qustah UI](qustah-ui-lib/assets/banner.svg)
 
-![version](https://img.shields.io/badge/version-1.6.0-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.7.0-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-343_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![icons](https://img.shields.io/badge/icons-MIT-2b2b2f?style=flat-square&labelColor=18181a)
@@ -81,17 +81,18 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 | | | | | |
 |---|---|---|---|---|
-| Toggle | Slider | Range | Dropdown | Segment |
-| Keybind | ColorPicker | Gradient | Swatches | Input |
-| ActionInput | Button | Label | Paragraph | Info |
-| Divider | Code | Progress | Stat | Graph |
-| Console | Image | ImagePicker | PlayerList | Viewport |
+| Toggle | Checkbox | Slider | Range | Dropdown |
+| Radio | Segment | Keybind | ColorPicker | Gradient |
+| Swatches | Input | ActionInput | Button | Label |
+| Paragraph | Info | Divider | Code | Progress |
+| Stat | Graph | Console | Table | Image |
+| ImagePicker | PlayerList | Viewport | | |
 
-<sub>All elements share Flags, Lock with a reason, Help hints, Risky styling, MoveUp/MoveDown and error flashes. You lay them out with Tabs, Sections, Rows and Groups inside a card.</sub>
+<sub>All elements share Flags, DependsOn, Tooltips, Lock with a reason, Help hints, Risky styling, MoveUp/MoveDown and error flashes. You lay them out with Tabs, Sections, Rows and Groups inside a card.</sub>
 
 ---
 
-**Documentation:** [Window](#window) · [Tabs, pages and cards](#tabs-pages-and-cards) · [Elements](#elements) · [Flags](#flags) · [Notifications](#notifications) · [Dialogs](#dialogs) · [Configs and profiles](#configs-and-profiles) · [Built-in tabs](#built-in-tabs) · [Overlays](#overlays) · [Themes](#themes) · [Icons](#icons) · [Status, errors and kicks](#status-errors-and-kicks) · [Window extras](#window-extras) · [Secure mode](#secure-mode) · [Development](#development)
+**Documentation:** [Window](#window) · [Tabs, pages and cards](#tabs-pages-and-cards) · [Elements](#elements) · [Flags](#flags) · [Notifications](#notifications) · [Dialogs](#dialogs) · [Configs and profiles](#configs-and-profiles) · [Built-in tabs](#built-in-tabs) · [Overlays](#overlays) · [Themes](#themes) · [Icons](#icons) · [Status, errors and kicks](#status-errors-and-kicks) · [Window extras](#window-extras) · [Key system](#key-system) · [Changelog](#changelog) · [Secure mode](#secure-mode) · [Development](#development)
 
 ## Window
 
@@ -124,6 +125,10 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Debug` | `false` | a notification for every new error |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
 | `Secure` | `false` | [Secure mode](#secure-mode) |
+| `Blur`, `BlurSize` | `false`, `12` | blur the game behind the open menu |
+| `Sounds` | `false` | soft UI clicks (`Lib.Sounds`) |
+| `KeySystem` | — | key screen before the window opens ([Key system](#key-system)) |
+| `Changelog` | — | "What's new" dialog, shown once per version ([Changelog](#changelog)) |
 | `OnClose` | — | function that runs when the window is destroyed |
 
 | Method | |
@@ -191,6 +196,8 @@ Each element is a method of a card, or of a Section, Row, Group or Tabs section:
 - `Icon`: an icon left of the title
 - `Help`: an "i" in the row that shows this text when clicked
 - `Risky`: red title; if you pass text, it becomes the "i" hint
+- `Tooltip`: text shown next to the mouse after a short hover
+- `DependsOn`: follow another flag (see below)
 - `Locked`, `LockedTitle`
 
 **Common methods:**
@@ -203,7 +210,20 @@ Each element is a method of a card, or of a Section, Row, Group or Tabs section:
 | `:SetTitle(text)`, `:SetDesc(text)`, `:SetVisible(bool)` | |
 | `:MoveUp()`, `:MoveDown()`, `:MoveTo(index)`, `:GetIndex()` | position inside the card |
 | `:Flash("success" \| "danger" \| "accent")` | a short tint behind the row |
+| `:SetTooltip(text)` | |
 | `:Remove()` / `:Destroy()` | removes the element and its flag |
+
+**DependsOn:** an element (or a whole card / section) follows other flags and updates by itself.
+
+```lua
+Card:Toggle({ Title = "Prediction", DependsOn = "silentAim" })                     -- locked until silentAim is on
+Card:Slider({ Title = "Head offset", DependsOn = { Flag = "aimPart", Value = "Head" } })
+Card:Toggle({ Title = "Legit mode", DependsOn = { Flag = "rage", Not = true, Mode = "Hide" } })   -- "Hide" instead of lock
+Card:Button({ Title = "Farm", DependsOn = function(flags) return flags.esp and flags.range > 500 end })
+Page:Card({ Title = "Rage settings", DependsOn = "rage" })                            -- the card shows only while rage is on
+```
+
+The lock reason is written for you ("Turn on Silent Aim first"); `Reason = "..."` sets your own. A lock you put on yourself is kept.
 
 If a callback errors:
 - the element flashes red;
@@ -211,7 +231,7 @@ If a callback errors:
 - the error is listed in Settings › Info;
 - the UI keeps working.
 
-### Toggle
+### Toggle and Checkbox
 
 ```lua
 local esp = Card:Toggle({
@@ -223,6 +243,8 @@ local esp = Card:Toggle({
     Callback = function(on) end,
 })
 esp:SetBind(Enum.KeyCode.G)
+
+Card:Checkbox({ Title = "Visible only", Flag = "visibleOnly", Default = false, Callback = function(on) end })  -- a plain tick box
 ```
 
 ### Slider and Range
@@ -241,7 +263,7 @@ Card:Range({ Title = "Health filter", Flag = "hp", Min = 0, Max = 100, Default =
 
 Click the value to type a number. `slider:SetRange(min, max)`.
 
-### Dropdown and Segment
+### Dropdown, Segment and Radio
 
 ```lua
 Card:Dropdown({ Title = "Font", Flag = "font", Options = { "Gotham", "Code", "Arcade" }, Default = "Gotham" })
@@ -257,6 +279,12 @@ Card:Dropdown({ Title = "Target", Flag = "priority", AllowNone = true, Options =
 Card:Dropdown({ Title = "Mode", Options = { pvp = "PvP mode", farm = "Auto farm" } })   -- the value is the key ("pvp")
 
 Card:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body", "Closest" }, Default = "Head" })
+
+Card:Radio({ Title = "Priority", Flag = "priority", Options = {         -- every option visible, one chosen
+    "Closest",
+    { Title = "Lowest HP", Value = "hp", Desc = "Finish weak targets" },
+    { Title = "Bounty", Locked = true },
+} })
 ```
 
 - Lists with more than 8 options get a search box (`Search = true/false`).
@@ -329,7 +357,7 @@ Card:Divider()
 Card:Code({ Title = "loader.lua", Code = 'print("hi")', Copy = true, MaxHeight = 200 })   -- Lua highlighting
 ```
 
-### Live data: Progress, Stat, Graph and Console
+### Live data: Progress, Stat, Graph, Console and Table
 
 ```lua
 local farm  = Card:Progress({ Title = "Auto farm", Value = 3, Max = 10, Suffix = "quests" })
@@ -341,11 +369,22 @@ local coins = Card:Stat({ Title = "Coins", Icon = "coins", Value = 12450, Prefix
 local ping  = Card:Stat({ Title = "Ping", Value = 48, Suffix = " ms", Delta = "absolute", Invert = true })
 coins:Add(250)     -- digits roll like an odometer, with a "+2.0%" chip
 
-Card:Graph({ Title = "FPS", Source = "FPS", Max = 60 })     -- or "Ping", or function() return n end
+Card:Graph({ Title = "FPS", Source = "FPS", Max = 60 })     -- bars; Source = "Ping", or function() return n end
+Card:Graph({ Title = "Network", Style = "Line", Series = {   -- lines, several in one chart with a legend
+    { Name = "FPS", Source = "FPS" },
+    { Name = "Ping", Source = "Ping", Color = "warning" },
+} })
 
 local log = Card:Console({ Title = "Log", Height = 140, MaxLines = 200 })
 log:Append("Loaded", "success")        -- "info" | "success" | "warning" | "error"
 log:Print("Sold", 3, "items")
+
+local board = Card:Table({ Title = "Top players", Height = 160, Search = true,
+    Columns = { "Name", { Title = "Kills", Align = "Right", Width = 0.25 }, "Team" },
+    Rows = { { "Nova", 31, "Red" }, { "Kite", 24, "Blue" } },
+    SortBy = "Kills", Descending = true,
+    OnRowClick = function(row, index) print(row[1]) end })
+board:AddRow({ "Ash", 12, "Red" })
 ```
 
 **Stat options**
@@ -357,6 +396,10 @@ log:Print("Sold", 3, "items")
 - Scrolling up pauses follow; scrolling back to the bottom resumes it.
 - The header has Follow, Clear and Copy buttons.
 - Methods: `:Clear()`, `:GetText()`, `:SetFollow(bool)`.
+
+**Table**
+- Click a column header to sort, click again to flip; numbers sort as numbers, empty cells go last.
+- Methods: `:SetRows(rows)`, `:AddRow(row)`, `:UpdateRow(i, row)`, `:RemoveRow(i)`, `:Clear()`, `:Sort(column, descending)`, `:GetRows()`.
 
 ### Visual: Image, ImagePicker, PlayerList and Viewport
 
@@ -484,7 +527,8 @@ Window:SettingsTab()                                                            
 - theme, accent (presets and custom colour), font, text glow
 - theme editor
 - menu key, welcome toast
-- window: anonymous mode, transparency, background, free mouse, live background, edge glow, fullscreen
+- menu: UI sounds
+- window: anonymous mode, transparency, background, free mouse, live background, edge glow, blur, fullscreen
 - overlays
 - Unload
 
@@ -599,9 +643,43 @@ Window:SetBackgroundTransparency(0.2)
 Window:SetLiveBackground(true)                  -- slow accent light drifting behind the content
 Window:SetAccentGlow(true)                      -- the window edge pulses in the accent colour
 
+Window:SetBlur(true)                            -- blurs the game behind the open menu
 Window:SetAnonymous(true)                       -- hides your name and avatar everywhere (the avatar button in the dock)
 Window:SetMouseUnlock(false)
+
+Lib.Sounds.Enabled = true                       -- soft clicks on buttons, switches and tabs
+Lib.Sounds.Set("click", "rbxassetid://123")     -- your own sound for "click" | "toggle" | "tab" | "error"
 ```
+
+## Key system
+
+```lua
+local Window = Lib:CreateWindow({
+    Title = "Qustāh",
+    KeySystem = {
+        Keys = { "QUSTAH-1234" },                         -- or Check = function(key) return ok, message end
+        Url = "https://discord.gg/yourserver",            -- the "Get key" button copies it
+        Note = "Keys reset every 24 hours",
+        Remember = true,                                  -- saved in <Folder>/key.txt and checked again next time
+    },
+})
+```
+
+- `CreateWindow` waits until a key is accepted, then the window opens as usual.
+- A wrong key shakes the box and says why; `Check` can return its own message (e.g. "Key expired").
+- Closing the key screen stops the script (`OnCancel` runs first).
+- `Lib:ForgetKey("Folder")` deletes the saved key.
+
+## Changelog
+
+```lua
+Lib:CreateWindow({
+    Title = "Qustāh", Version = "V1.2",
+    Changelog = { Version = "1.2", Items = { "Added auto farm", "Fixed ESP flicker" } },
+})
+```
+
+The "What's new" dialog opens once for each new version. `Window:ShowChangelog()` (and Settings › Info › What's new) opens it again.
 
 ## Secure mode
 
@@ -635,8 +713,17 @@ qustah-ui-lib/
   dist/             single-file bundle (built by build.py)
   icons/            downloadable icon sets
   test/             mock tests and screenshots
+  types/qustah.luau type definitions for autocomplete
+  tools/lint.sh     selene lint (and a StyLua check with --format)
   build.py          src/ -> dist/qustah-ui-lib.lua + .min.lua
   example.lua       example that uses every element
+```
+
+**Autocomplete:** with luau-lsp (VS Code) copy `types/qustah.luau` into your project:
+
+```lua
+local Types = require(path.to.qustah)
+local Lib = loadstring(game:HttpGet(URL))() :: Types.Lib   -- Window, tabs, cards and elements are typed from here
 ```
 
 To change the library:

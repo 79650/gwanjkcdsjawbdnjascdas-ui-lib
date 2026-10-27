@@ -106,7 +106,7 @@ return function(card, cfg)
             tag.Text, tag.Visible = "[...]", true
             title.Size = UDim2.new(1, -(100 + (cfg.Help and 16 or 0)), 0, title.Size.Y.Offset)
             window._capture = function(key)
-                if key == Enum.KeyCode.Escape then element:SetBind(element.BindKey)
+                if key == Enum.KeyCode.Escape or key == window.key then element:SetBind(element.BindKey) -- (the menu key stays the menu key)
                 elseif key == Enum.KeyCode.Backspace then element:SetBind(nil)
                 else element:SetBind(key) end
             end

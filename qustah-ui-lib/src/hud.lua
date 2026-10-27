@@ -120,7 +120,14 @@ return function(Window)
                     if editing then
                         if not entry.menu then hidden[entry.title] = not hidden[entry.title] or nil remember() end
                     elseif entry.element and entry.element._onBind then
-                        self:_safe(entry.title, entry.element._onBind, entry.element)
+                        local element = entry.element
+                        -- a hold bind clicked here works like a switch (there is no key to let go of)
+                        if element.BindMode == "Hold" and element.Set then
+                            element:Set(not element.Value)
+                        else
+                            self:_safe(entry.title, element._onBind, element)
+                            if element.Mode == "Hold" and element._onRelease then task.delay(0.15, function() self:_safe(entry.title, element._onRelease, element) end) end
+                        end
                     end
                     refresh()
                 end)

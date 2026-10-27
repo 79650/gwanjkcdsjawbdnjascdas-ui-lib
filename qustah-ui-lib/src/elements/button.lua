@@ -48,6 +48,7 @@ return function(card, cfg)
     button.MouseLeave:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "input", 0.12) Theme.tweenTo(button, "TextColor3", cfg.Risky and "danger" or "text", 0.12) end)
     local armed = 0
     button.Activated:Connect(function()
+        require("sounds").Play("click")
         if element.Locked then return end
         if cfg.Confirm then
             if armed == 0 then

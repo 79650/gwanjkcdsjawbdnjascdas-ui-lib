@@ -16,6 +16,9 @@ local Window = Lib:CreateWindow({
     -- Secure = true,                     -- random gui names + silent console (or getgenv().QUSTAH_SECURE = true before loading)
     -- AutoFlags = true,                  -- elements without a Flag get "Tab.Card.Title" and are saved in profiles too
     -- Rejoin = true,                     -- teleport back after a kick (Settings › Info lists the kicks either way)
+    -- Blur = true, Sounds = true,        -- blur the game behind the menu, soft UI clicks (both also in Settings)
+    -- KeySystem = { Keys = { "QUSTAH-KEY" }, Url = "https://discord.gg/yourserver", Note = "Keys reset daily" },
+    Changelog = { Version = "1.00", Items = { "New Session card with live stats", "Tables, radio lists and line graphs" } }, -- shown once per version
     -- Accent = Color3.fromRGB(61, 151, 219), -- default is Qustah's neutral grey
 })
 
@@ -66,6 +69,8 @@ local prediction = Aim:Toggle({ Title = "Prediction", Desc = "Predicts target mo
     Locked = true, LockedTitle = "Turn on Silent Aim first" })
 silentToggle:OnChanged(function(on) if on then prediction:Unlock() else prediction:Lock("Turn on Silent Aim first") end end)
 Aim:Slider({ Title = "Hit chance", Flag = "hitChance", Min = 0, Max = 100, Default = 100, Suffix = "%" })
+Aim:Checkbox({ Title = "Visible only", Flag = "visibleOnly", DependsOn = "silentAim",   -- locked until Silent Aim is on
+    Tooltip = "Skips targets behind walls" })
 Aim:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body", "Closest" }, Default = "Head" })
 -- dropdown options can carry an icon, a description, or be locked; AllowNone lets it be cleared
 Aim:Dropdown({ Title = "Target priority", Flag = "priority", AllowNone = true, Default = "Closest", Options = {
@@ -88,6 +93,7 @@ local sections = Targets:Tabs({ "Players", "Filters" })
 sections.Players:PlayerList({ Title = "Whitelist", Flag = "whitelist", Height = 120, Callback = function(ids) print(#ids, "whitelisted") end })
 sections.Filters:Toggle({ Title = "Ignore squad", Flag = "ignoreSquad", Default = true })
 sections.Filters:Toggle({ Title = "Ignore friends", Flag = "ignoreFriends" })
+sections.Filters:Radio({ Title = "When two are close", Flag = "tieBreak", Options = { "Lower health", "Closer to mouse", { Title = "Random", Desc = "Harder to spot" } } })
 
 ------------------------------------------------------------------------ Misc: input, buttons, paragraph
 local Misc = Window:Tab({ Title = "Misc", Icon = "blocks" })
@@ -100,6 +106,7 @@ Crosshair:ImagePicker({ Title = "Style", Flag = "crosshair", Columns = 4,
     Images = { "rbxassetid://9943168532", "rbxassetid://12614416478", "rbxassetid://6764432408", "rbxassetid://7072721682" } })
 local Perf = Misc:Card({ Title = "Performance" })
 Perf:Graph({ Title = "FPS", Source = "FPS", Max = 60 })
+Perf:Graph({ Title = "Network", Style = "Line", Series = { { Name = "FPS", Source = "FPS" }, { Name = "Ping", Source = "Ping", Color = "warning" } } })
 local farm = Perf:Progress({ Title = "Auto farm", Desc = "Quests this session", Value = 3, Max = 10, Suffix = "quests" })
 local loading = Perf:Progress({ Title = "Loading assets", Indeterminate = true })
 task.delay(4, function() loading:SetIndeterminate(false) loading:Set(100) end)
@@ -110,6 +117,9 @@ local coins = Session:Stat({ Title = "Coins", Icon = "coins", Value = 12450, Pre
 local pingStat = Session:Stat({ Title = "Ping", Icon = "wifi", Value = 48, Suffix = " ms", Delta = "absolute", Invert = true }) -- lower is better
 local quests = Session:Progress({ Title = "Daily quests", Steps = 5, Value = 2 })   -- 5 segments
 local log = Session:Console({ Title = "Log", Height = 130, MaxLines = 100 })
+Session:Table({ Title = "Top players", Height = 120, Columns = { "Name", { Title = "Kills", Align = "Right", Width = 0.25 }, { Title = "Team", Width = 0.25 } },
+    Rows = { { "Nova", 31, "Red" }, { "Kite", 24, "Blue" }, { "Ash", 12, "Red" } }, SortBy = "Kills", Descending = true,
+    OnRowClick = function(row) print("spectate", row[1]) end })   -- click a header to sort
 log:Append("Script loaded", "success")
 task.spawn(function()
     while task.wait(4) do

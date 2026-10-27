@@ -1,9 +1,16 @@
 -- Shared parts of every element: the row (title + optional description), callbacks / OnChanged, flags,
 -- Lock / Unlock with a reason, Flash, MoveUp / MoveDown / MoveTo / Remove, and the default save / load used by configs.
 -- A callback that errors makes its element flash red and say so for a moment (the error goes to Settings › Info).
+-- DependsOn: the element follows another flag -
+--   DependsOn = "silentAim"                                   locked while silentAim is off
+--   DependsOn = { Flag = "aimPart", Value = "Head" }          ... unless aimPart is "Head" (in a list for multi dropdowns)
+--   DependsOn = { Flag = "esp", Not = true, Mode = "Hide", Reason = "..." }   Mode "Hide" hides instead of locking
+--   DependsOn = function(flags) return flags.esp and flags.range > 500 end
+-- Tooltip = "text": shown next to the mouse after a short hover (:SetTooltip(text)).
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
+local Sounds = require("sounds")
 
 local create, corner, label = Util.create, Util.corner, Util.label
 
@@ -12,8 +19,46 @@ local Base = {}
 -- elements that hold a value: they get a flag from their name when the window has AutoFlags = true
 local VALUE = {
     Toggle = true, Slider = true, Dropdown = true, Keybind = true, ColorPicker = true, Input = true, Segment = true,
-    Range = true, Swatches = true, Gradient = true, ImagePicker = true, PlayerList = true,
+    Range = true, Swatches = true, Gradient = true, ImagePicker = true, PlayerList = true, Checkbox = true, Radio = true,
 }
+
+-- Is a flag value "on"? (false, nil, "", empty lists and "None" keys are off)
+local function truthy(value)
+    if value == nil or value == false or value == "" then return false end
+    if type(value) == "table" then return next(value) ~= nil end
+    if typeof(value) == "EnumItem" then return value.Name ~= "None" and value.Name ~= "Unknown" end
+    return true
+end
+Base.truthy = truthy
+
+-- Runs apply(ok) now (deferred, so the flags it reads exist) and whenever any flag changes.
+-- apply returns false once its object is gone, which drops the watcher.
+function Base.depend(window, spec, apply)
+    local check
+    if type(spec) == "function" then
+        check = function() return spec(window.Lib.Flags) end
+    else
+        if type(spec) ~= "table" then spec = { Flag = spec } end
+        check = function()
+            local value = window.Lib.Flags[spec.Flag]
+            local ok
+            if type(spec.Value) == "function" then ok = spec.Value(value)
+            elseif spec.Value ~= nil then
+                if type(value) == "table" then ok = table.find(value, spec.Value) ~= nil else ok = value == spec.Value end
+            else ok = truthy(value) end
+            if spec.Not then ok = not ok end
+            return ok
+        end
+    end
+    local function run()
+        local ok, result = pcall(check)
+        return apply(ok and result and true or false) ~= false
+    end
+    window._dependents = window._dependents or {}
+    table.insert(window._dependents, run)
+    task.defer(run)
+    return run
+end
 
 -- Rows of a list in display order (rows use even LayoutOrders; an odd one right after a row is its panel).
 local function rowsOf(parent)
@@ -102,8 +147,14 @@ function Base.element(card, kind, cfg, row, title, desc)
     -- Stores the flag value; unless silent, runs Callback and the OnChanged listeners (extra values go along:
     -- the slider sends (value, dragging)).
     function element:_fire(value, silent, ...)
-        if self.Flag then window.Lib.Flags[self.Flag] = value end
+        if self.Flag then
+            window.Lib.Flags[self.Flag] = value
+            window:_flagChanged(self.Flag)
+        end
         if silent then return end
+        -- UI sound (a dragged slider only clicks when it is let go)
+        local dragging = ...
+        if not (kind == "Slider" and dragging == true) then Sounds.Play((kind == "Toggle" or kind == "Checkbox") and "toggle" or "click") end
         -- errors in user callbacks are reported to the window (footer "Errors: N", Settings › Info)
         self:_call(cfg.Callback, value, ...)
         for _, callback in ipairs(self._changed) do self:_call(callback, value, ...) end
@@ -125,6 +176,10 @@ function Base.element(card, kind, cfg, row, title, desc)
     function element:Lock(reason)
         self.Locked = true
         self._lockReason = reason
+        -- an open colour panel / dropdown list of this element closes
+        if self.SetOpen then pcall(self.SetOpen, self, false) end
+        local popup = window._popup
+        if popup and popup.owner and (popup.owner == row or popup.owner:IsDescendantOf(row)) then window:_closePopup() end
         if not self._lock then
             local cover = create("TextButton", {
                 Name = "Lock", Text = "", AutoButtonColor = false, BackgroundTransparency = 0.45, BorderSizePixel = 0,
@@ -199,6 +254,7 @@ function Base.element(card, kind, cfg, row, title, desc)
         local panel = panelOf(row) -- (the colour picker's panel lives next to its row)
         if panel then panel:Destroy() end
         row:Destroy()
+        window:_hideTip()
     end
     function element:Remove() self:Destroy() end
     function element:_save() return self.Value end
@@ -206,6 +262,56 @@ function Base.element(card, kind, cfg, row, title, desc)
 
     element._risky = cfg.Risky and true or false
     if cfg.Flag then window:_register(cfg.Flag, element) end
+
+    -- tooltip after a short hover
+    element._tooltip = cfg.Tooltip
+    function element:SetTooltip(text) self._tooltip = text end
+    local hoverToken = 0
+    row.MouseEnter:Connect(function()
+        if not element._tooltip then return end
+        hoverToken = hoverToken + 1
+        local token = hoverToken
+        task.delay(0.35, function()
+            if token == hoverToken and element._tooltip and not element.Locked and row.Parent then window:_tip(element._tooltip) end
+        end)
+    end)
+    row.MouseLeave:Connect(function()
+        hoverToken = hoverToken + 1
+        if element._tooltip then window:_hideTip() end
+    end)
+
+    -- dependency on other flags
+    if cfg.DependsOn then
+        local spec = cfg.DependsOn
+        local mode = type(spec) == "table" and spec.Mode or "Lock"
+        local function reason()
+            if type(spec) == "table" and spec.Reason then return spec.Reason end
+            local flag = type(spec) == "table" and spec.Flag or (type(spec) == "string" and spec)
+            local source = flag and window.flags[flag]
+            local name = tostring(source and source.Title or flag or "another setting")
+            if type(spec) == "table" and spec.Value ~= nil and type(spec.Value) ~= "function" then return "Needs " .. name .. ": " .. tostring(spec.Value) end
+            if type(spec) == "table" and spec.Not then return "Turn off " .. name .. " first" end
+            return flag and ("Turn on " .. name .. " first") or "Not available right now"
+        end
+        Base.depend(window, spec, function(ok)
+            if not row.Parent then return false end
+            if mode == "Hide" then
+                -- inside a folded card the row stays hidden; unfolding shows it only if the condition holds
+                if card.Collapsed and row.Parent == card.frame then
+                    card._hidden = card._hidden or {}
+                    card._hidden[row] = ok or nil
+                    row.Visible = false
+                else
+                    row.Visible = ok
+                end
+            elseif ok then
+                if element._depLocked then element._depLocked = false element:Unlock() end
+            elseif not element.Locked or element._depLocked then
+                element._depLocked = true
+                element:Lock(reason())
+            end
+        end)
+    end
     return element
 end
 
@@ -232,6 +338,7 @@ end
 -- After a callback error: red flash, and the title reads "Error · see Settings › Info" for a moment.
 function Base.failed(element, title)
     Base.flash(element.Row, "danger")
+    Sounds.Play("error")
     if not title or not title.Parent then return end
     element._errorToken = (element._errorToken or 0) + 1
     local token = element._errorToken

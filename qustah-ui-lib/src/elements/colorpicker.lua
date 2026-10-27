@@ -8,7 +8,7 @@ local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
 
-local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
+local create, corner, stroke = Util.create, Util.corner, Util.stroke
 
 local HUE = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 1, 1)), ColorSequenceKeypoint.new(1 / 6, Color3.fromHSV(1 / 6, 1, 1)),

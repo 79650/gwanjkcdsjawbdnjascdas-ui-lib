@@ -97,7 +97,7 @@ function Notify.show(Lib, cfg)
     Lib._openToasts = Lib._openToasts or {}
     table.insert(Lib._openToasts, entry)
     local limit = math.max(1, tonumber(Lib.MaxNotifications) or 6)
-    while #Lib._openToasts > limit do Lib._openToasts[1].dismiss() end
+    while #Lib._openToasts > limit do table.remove(Lib._openToasts, 1).dismiss() end -- (removed first: a toast whose gui is gone can't remove itself)
     local hovered = false
     toast.MouseEnter:Connect(function() hovered = true end)
     toast.MouseLeave:Connect(function() hovered = false end)

@@ -6,6 +6,8 @@ local Notify = require("notify")
 local Settings = require("settings")
 local Dashboard = require("dashboard")
 local Icons = require("icons")
+local Sounds = require("sounds")
+local Gate = require("gate")
 require("status")(Window)
 require("dialog")(Window)
 require("hud")(Window)
@@ -15,17 +17,27 @@ require("windowfx")(Window)
 require("kick")(Window)
 
 local Lib = {
-    Version = "1.6.0",
+    Version = "1.7.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
     Icons = Icons, -- Lib.Icons.Get("house"), "solar:home-bold", Lib.Icons.SetDefault("solar")
+    Sounds = Sounds, -- Lib.Sounds.Enabled = true, Lib.Sounds.Set("click", id)
     Util = Util,
 }
 Lib.maid = Util.maid()
 
 -- Lib:CreateWindow({ Title, Version, Size = Vector2, ToggleKey = Enum.KeyCode, Accent = Color3, Folder, Footer, OnClose })
-function Lib:CreateWindow(cfg) return Window.new(self, cfg) end
+-- With KeySystem the call waits until a key is accepted; closing the key screen stops the script.
+function Lib:CreateWindow(cfg)
+    cfg = cfg or {}
+    if cfg.Secure then Util.secure = true end
+    if type(cfg.KeySystem) == "table" and not Gate.run(self, cfg) then
+        error("[qustah-ui-lib] no key entered - the script was stopped", 0)
+    end
+    return Window.new(self, cfg)
+end
+function Lib:ForgetKey(folder) Gate.forget(folder) end
 -- Lib:Notify({ Title, Content, Duration, Color })
 function Lib:Notify(cfg) return Notify.show(self, cfg) end
 -- Lib:Toast("Saved") / Lib:Toast({ Text, Icon, Image, Color, Position = "Top" | "Bottom", Duration })

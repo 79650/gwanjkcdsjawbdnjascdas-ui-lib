@@ -64,7 +64,9 @@ return function(Window)
             corner(button, 6)
             local outline = stroke(button)
             if style == "Danger" then
-                button.BackgroundColor3, button.TextColor3, outline.Color = Color3.fromRGB(150, 52, 58), Color3.new(1, 1, 1), Color3.fromRGB(226, 101, 107)
+                Theme.bind(button, "BackgroundColor3", "dangerDeep")
+                Theme.bind(button, "TextColor3", "dangerText")
+                Theme.bind(outline, "Color", "dangerEdge")
             elseif style == "Primary" then
                 Theme.bind(button, "BackgroundColor3", "accentDeep")
                 Theme.bind(button, "TextColor3", "accent")
@@ -88,7 +90,7 @@ return function(Window)
 
     function Window:Confirm(title, content, onConfirm, confirmText, danger)
         return self:Dialog({
-            Title = title, Content = content, Icon = danger and "triangle-alert" or nil, IconColor = danger and Color3.fromRGB(226, 101, 107) or nil,
+            Title = title, Content = content, Icon = danger and "triangle-alert" or nil, IconColor = danger and Theme.get("danger") or nil,
             Buttons = { { Title = "Cancel" }, { Title = confirmText or "Confirm", Style = danger and "Danger" or "Primary", Callback = onConfirm } },
         })
     end

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.6.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.7.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -42,6 +42,9 @@ Viewport=require("elements/viewport"),
 ActionInput=require("elements/actioninput"),
 Stat=require("elements/stat"),
 Console=require("elements/console"),
+Checkbox=require("elements/checkbox"),
+Radio=require("elements/radio"),
+Table=require("elements/table"),
 }
 Card.__index=function(_,key)
 local method=rawget(Card,key)
@@ -103,6 +106,7 @@ end
 self._key=tostring(page.tab and page.tab.Title or"").."/"..tostring(page.Name or"").."/"..tostring(cfg.Title)
 end
 self.frame,self.body=frame,frame
+if cfg.DependsOn then require("elements/base").depend(self.window,cfg.DependsOn,function(ok)frame.Visible=ok return frame.Parent~=nil end)end
 local memory=self.window.memory and self.window.memory.collapsed
 if self._chevron and((memory and memory[self._key])or cfg.Collapsed)then
 task.defer(function()self:SetCollapsed(true,true)end)
@@ -212,6 +216,7 @@ local body=create("Frame",{Name="Body",BackgroundTransparency=1,Size=UDim2.new(1
 Util.list(body,4)
 Util.padding(body,0,0,2,4)
 local section=sub(self,body)
+if cfg.DependsOn then require("elements/base").depend(self.window,cfg.DependsOn,function(ok)holder.Visible=ok return holder.Parent~=nil end)end
 function section:SetOpen(open)
 self.Opened=open~=false
 body.Visible=self.Opened
@@ -236,7 +241,10 @@ for _,child in ipairs(children)do
 child.Size=UDim2.new(1/n,-gap*(n-1)/n,child.Size.Y.Scale,child.Size.Y.Offset)
 end
 end
-holder.ChildAdded:Connect(function()task.defer(share)end)
+holder.ChildAdded:Connect(function(child)
+if child:IsA("GuiObject")then child:GetPropertyChangedSignal("Visible"):Connect(function()task.defer(share)end)end
+task.defer(share)
+end)
 holder.ChildRemoved:Connect(function()task.defer(share)end)
 return sub(self,holder)
 end
@@ -752,7 +760,9 @@ Util.padding(button,14,14,0,0)
 corner(button,6)
 local outline=stroke(button)
 if style=="Danger"then
-button.BackgroundColor3,button.TextColor3,outline.Color=Color3.fromRGB(150,52,58),Color3.new(1,1,1),Color3.fromRGB(226,101,107)
+Theme.bind(button,"BackgroundColor3","dangerDeep")
+Theme.bind(button,"TextColor3","dangerText")
+Theme.bind(outline,"Color","dangerEdge")
 elseif style=="Primary"then
 Theme.bind(button,"BackgroundColor3","accentDeep")
 Theme.bind(button,"TextColor3","accent")
@@ -775,7 +785,7 @@ return dialog
 end
 function Window:Confirm(title,content,onConfirm,confirmText,danger)
 return self:Dialog({
-Title=title,Content=content,Icon=danger and"triangle-alert"or nil,IconColor=danger and Color3.fromRGB(226,101,107)or nil,
+Title=title,Content=content,Icon=danger and"triangle-alert"or nil,IconColor=danger and Theme.get("danger")or nil,
 Buttons={{Title="Cancel"},{Title=confirmText or"Confirm",Style=danger and"Danger"or"Primary",Callback=onConfirm}},
 })
 end
@@ -789,7 +799,6 @@ local Icons=require("icons")
 local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
 local GREEN,RED="success","danger"
 return function(card,cfg)
-local window=card.window
 local holder=create("Frame",{Name=tostring(cfg.Name or cfg.Button or"ActionInput"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=card:_order(),Parent=card.body})
 Util.list(holder,5)
 local field=create("Frame",{Name="Field",Size=UDim2.new(1,0,0,34),BorderSizePixel=0,LayoutOrder=1,Parent=holder})
@@ -883,12 +892,46 @@ __modules["elements/base"]=function()
 local Util=require("util")
 local Theme=require("theme")
 local Icons=require("icons")
+local Sounds=require("sounds")
 local create,corner,label=Util.create,Util.corner,Util.label
 local Base={}
 local VALUE={
 Toggle=true,Slider=true,Dropdown=true,Keybind=true,ColorPicker=true,Input=true,Segment=true,
-Range=true,Swatches=true,Gradient=true,ImagePicker=true,PlayerList=true,
+Range=true,Swatches=true,Gradient=true,ImagePicker=true,PlayerList=true,Checkbox=true,Radio=true,
 }
+local function truthy(value)
+if value==nil or value==false or value==""then return false end
+if type(value)=="table"then return next(value)~=nil end
+if typeof(value)=="EnumItem"then return value.Name~="None"and value.Name~="Unknown"end
+return true
+end
+Base.truthy=truthy
+function Base.depend(window,spec,apply)
+local check
+if type(spec)=="function"then
+check=function()return spec(window.Lib.Flags)end
+else
+if type(spec)~="table"then spec={Flag=spec}end
+check=function()
+local value=window.Lib.Flags[spec.Flag]
+local ok
+if type(spec.Value)=="function"then ok=spec.Value(value)
+elseif spec.Value~=nil then
+if type(value)=="table"then ok=table.find(value,spec.Value)~=nil else ok=value==spec.Value end
+else ok=truthy(value)end
+if spec.Not then ok=not ok end
+return ok
+end
+end
+local function run()
+local ok,result=pcall(check)
+return apply(ok and result and true or false)~=false
+end
+window._dependents=window._dependents or{}
+table.insert(window._dependents,run)
+task.defer(run)
+return run
+end
 local function rowsOf(parent)
 local list={}
 for _,child in ipairs(parent:GetChildren())do
@@ -964,8 +1007,13 @@ function element:_accepted(kind)
 if cfg.Flash~=false and not self._failed then self:Flash(kind or"success")end
 end
 function element:_fire(value,silent,...)
-if self.Flag then window.Lib.Flags[self.Flag]=value end
+if self.Flag then
+window.Lib.Flags[self.Flag]=value
+window:_flagChanged(self.Flag)
+end
 if silent then return end
+local dragging=...
+if not(kind=="Slider"and dragging==true)then Sounds.Play((kind=="Toggle"or kind=="Checkbox")and"toggle"or"click")end
 self:_call(cfg.Callback,value,...)
 for _,callback in ipairs(self._changed)do self:_call(callback,value,...)end
 end
@@ -982,6 +1030,9 @@ function element:Flash(kind)Base.flash(row,kind)end
 function element:Lock(reason)
 self.Locked=true
 self._lockReason=reason
+if self.SetOpen then pcall(self.SetOpen,self,false)end
+local popup=window._popup
+if popup and popup.owner and(popup.owner==row or popup.owner:IsDescendantOf(row))then window:_closePopup()end
 if not self._lock then
 local cover=create("TextButton",{
 Name="Lock",Text="",AutoButtonColor=false,BackgroundTransparency=0.45,BorderSizePixel=0,
@@ -1052,12 +1103,58 @@ window.binds[self]=nil
 local panel=panelOf(row)
 if panel then panel:Destroy()end
 row:Destroy()
+window:_hideTip()
 end
 function element:Remove()self:Destroy()end
 function element:_save()return self.Value end
 function element:_load(value)self:Set(value)end
 element._risky=cfg.Risky and true or false
 if cfg.Flag then window:_register(cfg.Flag,element)end
+element._tooltip=cfg.Tooltip
+function element:SetTooltip(text)self._tooltip=text end
+local hoverToken=0
+row.MouseEnter:Connect(function()
+if not element._tooltip then return end
+hoverToken=hoverToken+1
+local token=hoverToken
+task.delay(0.35,function()
+if token==hoverToken and element._tooltip and not element.Locked and row.Parent then window:_tip(element._tooltip)end
+end)
+end)
+row.MouseLeave:Connect(function()
+hoverToken=hoverToken+1
+if element._tooltip then window:_hideTip()end
+end)
+if cfg.DependsOn then
+local spec=cfg.DependsOn
+local mode=type(spec)=="table"and spec.Mode or"Lock"
+local function reason()
+if type(spec)=="table"and spec.Reason then return spec.Reason end
+local flag=type(spec)=="table"and spec.Flag or(type(spec)=="string"and spec)
+local source=flag and window.flags[flag]
+local name=tostring(source and source.Title or flag or"another setting")
+if type(spec)=="table"and spec.Value~=nil and type(spec.Value)~="function"then return"Needs "..name..": "..tostring(spec.Value)end
+if type(spec)=="table"and spec.Not then return"Turn off "..name.." first"end
+return flag and("Turn on "..name.." first")or"Not available right now"
+end
+Base.depend(window,spec,function(ok)
+if not row.Parent then return false end
+if mode=="Hide"then
+if card.Collapsed and row.Parent==card.frame then
+card._hidden=card._hidden or{}
+card._hidden[row]=ok or nil
+row.Visible=false
+else
+row.Visible=ok
+end
+elseif ok then
+if element._depLocked then element._depLocked=false element:Unlock()end
+elseif not element.Locked or element._depLocked then
+element._depLocked=true
+element:Lock(reason())
+end
+end)
+end
 return element
 end
 function Base.flash(row,kind)
@@ -1080,6 +1177,7 @@ end)
 end
 function Base.failed(element,title)
 Base.flash(element.Row,"danger")
+Sounds.Play("error")
 if not title or not title.Parent then return end
 element._errorToken=(element._errorToken or 0)+1
 local token=element._errorToken
@@ -1144,6 +1242,7 @@ button.MouseEnter:Connect(function()Theme.tweenTo(button,"BackgroundColor3","hov
 button.MouseLeave:Connect(function()Theme.tweenTo(button,"BackgroundColor3","input",0.12)Theme.tweenTo(button,"TextColor3",cfg.Risky and"danger"or"text",0.12)end)
 local armed=0
 button.Activated:Connect(function()
+require("sounds").Play("click")
 if element.Locked then return end
 if cfg.Confirm then
 if armed==0 then
@@ -1162,6 +1261,47 @@ Theme.tweenTo(outline,"Color","buttonEdge",0.1)
 end
 element:_call(cfg.Callback)
 end)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/checkbox"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
+return function(card,cfg)
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 28,{button=true,noIcon=true})
+local box=create("Frame",{Name="Box",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,cfg.Desc and 12 or 14),Size=UDim2.fromOffset(16,16),BorderSizePixel=0,Parent=row})
+corner(box,4)
+local edge=stroke(box)
+local tick=Icons.themed(box,"check",12,"onAccent",{Name="Tick",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+title.Position=UDim2.new(0,26,0,title.Position.Y.Offset)
+title.Size=UDim2.new(1,-26-(cfg.Help and 16 or 0),0,title.Size.Y.Offset)
+if desc then desc.Position=UDim2.fromOffset(26,23)desc.Size=UDim2.new(1,-26,0,14)end
+local element=Base.element(card,"Checkbox",cfg,row,title,desc)
+element.Value=cfg.Default==true
+local hovered=false
+local function render(animate)
+local on=element.Value
+local duration=animate and 0.12 or nil
+Theme.tweenTo(box,"BackgroundColor3",on and"accent"or(hovered and"hover"or"input"),duration)
+Theme.tweenTo(edge,"Color",on and"accent"or"buttonEdge",duration)
+if tick then tick.Visible=on end
+end
+function element:Set(value,silent)
+value=value==true
+local changed=value~=self.Value
+self.Value=value
+render(true)
+self:_fire(value,silent or not changed)
+end
+function element:Get()return self.Value end
+row.Activated:Connect(function()if not element.Locked then element:Set(not element.Value)end end)
+row.MouseEnter:Connect(function()hovered=true render(true)Theme.tweenTo(title,"TextColor3",cfg.Risky and"danger"or"heading",0.12)end)
+row.MouseLeave:Connect(function()hovered=false render(true)Theme.tweenTo(title,"TextColor3",cfg.Risky and"danger"or"text",0.12)end)
+render(false)
+element:_fire(element.Value,true)
 return Base.finish(element,cfg)
 end
 end
@@ -1288,7 +1428,7 @@ __modules["elements/colorpicker"]=function()
 local Util=require("util")
 local Theme=require("theme")
 local Base=require("elements/base")
-local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
 local HUE=ColorSequence.new({
 ColorSequenceKeypoint.new(0,Color3.fromHSV(0,1,1)),ColorSequenceKeypoint.new(1/6,Color3.fromHSV(1/6,1,1)),
 ColorSequenceKeypoint.new(2/6,Color3.fromHSV(2/6,1,1)),ColorSequenceKeypoint.new(3/6,Color3.fromHSV(3/6,1,1)),
@@ -2080,48 +2220,159 @@ local Theme=require("theme")
 local Base=require("elements/base")
 local Stats=require("stats")
 local create,corner,label=Util.create,Util.corner,Util.label
+local PALETTE={"accent","warning","success","danger","codeGlobal","codeKeyword"}
 return function(card,cfg)
 local window=card.window
 local points=math.clamp(tonumber(cfg.Points)or 40,5,120)
 local height=tonumber(cfg.Height)or 70
-local suffix=cfg.Suffix or(cfg.Source=="Ping"and" ms"or(cfg.Source=="FPS"and" FPS"or""))
+local function suffixFor(source,given)
+return given or(source=="Ping"and" ms"or(source=="FPS"and" FPS"or""))
+end
+local series={}
+if type(cfg.Series)=="table"and#cfg.Series>0 then
+for index,spec in ipairs(cfg.Series)do
+series[index]={
+name=tostring(spec.Name or spec.Source or("Series "..index)),source=spec.Source,
+color=spec.Color or PALETTE[(index-1)%#PALETTE+1],suffix=suffixFor(spec.Source,spec.Suffix),samples={},
+}
+end
+else
+series[1]={name=tostring(cfg.Title or cfg.Source or"Graph"),source=cfg.Source,color=cfg.Color or"accent",suffix=suffixFor(cfg.Source,cfg.Suffix),samples={}}
+end
+local line=cfg.Style=="Line"or#series>1
 local holder=create("Frame",{Name=tostring(cfg.Title or"Graph"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,height+24),LayoutOrder=card:_order(),Parent=card.body})
 local title=label(holder,tostring(cfg.Title or cfg.Source or"Graph"),11,{Name="Title",Size=UDim2.new(1,-90,0,20)})
 Theme.bind(title,"TextColor3","text")
-local value=label(holder,"--",10,{Name="Value",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(90,20),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium})
+local value,legend
+if#series==1 then
+value=label(holder,"--",10,{Name="Value",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(90,20),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium})
 Theme.bind(value,"TextColor3","heading")
+else
+title.Size=UDim2.new(0.35,0,0,20)
+legend=create("Frame",{Name="Legend",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.new(0.65,0,0,20),Parent=holder})
+Util.list(legend,10,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Right,Enum.VerticalAlignment.Center)
+for index,entry in ipairs(series)do
+local item=create("Frame",{Name=entry.name,BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,20),LayoutOrder=index,Parent=legend})
+Util.list(item,4,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+local dot=create("Frame",{Name="Dot",Size=UDim2.fromOffset(6,6),BorderSizePixel=0,Parent=item})
+corner(dot,3)
+Theme.bind(dot,"BackgroundColor3",entry.color)
+entry.legend=label(item,entry.name.." --",9,{Name="Text",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,20),TextTruncate=Enum.TextTruncate.None,LayoutOrder=2})
+Theme.bind(entry.legend,"TextColor3","muted")
+end
+end
 local area=create("Frame",{Name="Area",Position=UDim2.fromOffset(0,24),Size=UDim2.new(1,0,0,height),BorderSizePixel=0,BackgroundTransparency=0.4,ClipsDescendants=true,Parent=holder})
 Theme.bind(area,"BackgroundColor3","base")
 corner(area,6)
 local bars={}
+if line then
+for _,y in ipairs({0.25,0.5,0.75})do
+local guide=create("Frame",{Name="Guide",Position=UDim2.fromScale(0,y),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,BackgroundTransparency=0.6,Parent=area})
+Theme.bind(guide,"BackgroundColor3","line")
+end
+for _,entry in ipairs(series)do
+entry.segments={}
+for index=1,points-1 do
+local segment=create("Frame",{Name="Segment",AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(0,2),BorderSizePixel=0,Visible=false,ZIndex=2,Parent=area})
+corner(segment,1)
+Theme.bind(segment,"BackgroundColor3",entry.color)
+entry.segments[index]=segment
+end
+entry.head=create("Frame",{Name="Head",AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(5,5),BorderSizePixel=0,Visible=false,ZIndex=3,Parent=area})
+corner(entry.head,3)
+Theme.bind(entry.head,"BackgroundColor3",entry.color)
+end
+else
 for index=1,points do
 local bar=create("Frame",{
 AnchorPoint=Vector2.new(0,1),Position=UDim2.new((index-1)/points,1,1,0),Size=UDim2.new(1/points,-2,0,0),
 BorderSizePixel=0,BackgroundTransparency=0.3,Parent=area,
 })
-Theme.bind(bar,"BackgroundColor3","accent")
+Theme.bind(bar,"BackgroundColor3",series[1].color)
 bars[index]=bar
 end
+end
 local element=Base.element(card,"Graph",{},holder,title,nil)
-local samples={}
+local function top()
+local highest=tonumber(cfg.Max)or 1
+for _,entry in ipairs(series)do for _,sample in ipairs(entry.samples)do highest=math.max(highest,sample)end end
+return highest
+end
+local function text(entry)
+local last=entry.samples[#entry.samples]
+return last and(tostring(math.floor(last+0.5))..entry.suffix)or"--"
+end
 local function render()
-local top=tonumber(cfg.Max)or 1
-for _,sample in ipairs(samples)do top=math.max(top,sample)end
+local highest=top()
+if line then
+local size=area.AbsoluteSize
+local width,tall=size.X,size.Y
+for _,entry in ipairs(series)do
+local samples=entry.samples
+local count=#samples
+local function point(i)
+local sample=samples[i]
+local x=width*((points-(count-i)-1)/(points-1))
+local y=tall-3-math.clamp(sample/highest,0,1)*(tall-6)
+return x,y
+end
+for index,segment in ipairs(entry.segments)do
+local i=count-(points-1)+index
+if i>=2 and width>0 then
+local x1,y1=point(i-1)
+local x2,y2=point(i)
+local dx,dy=x2-x1,y2-y1
+segment.Position=UDim2.fromOffset((x1+x2)/2,(y1+y2)/2)
+segment.Size=UDim2.fromOffset(math.sqrt(dx*dx+dy*dy)+1,2)
+segment.Rotation=math.deg(math.atan2(dy,dx))
+segment.Visible=true
+else
+segment.Visible=false
+end
+end
+if count>0 and width>0 then
+local x,y=point(count)
+entry.head.Position=UDim2.fromOffset(x-2,y)
+entry.head.Visible=true
+end
+if entry.legend then entry.legend.Text=entry.name.." "..text(entry)end
+end
+else
+local samples=series[1].samples
 for index=1,points do
 local sample=samples[#samples-points+index]
-bars[index].Size=UDim2.new(1/points,-2,sample and math.clamp(sample/top,0.02,1)or 0,0)
+bars[index].Size=UDim2.new(1/points,-2,sample and math.clamp(sample/highest,0.02,1)or 0,0)
 end
-local last=samples[#samples]
-value.Text=last and(tostring(math.floor(last+0.5))..suffix)or"--"
 end
-function element:Push(sample)
+if value then value.Text=text(series[1])end
+end
+local function find(name)
+if name==nil then return series[1]end
+for _,entry in ipairs(series)do if entry.name==name then return entry end end
+end
+function element:Push(sample,name)
 sample=tonumber(sample)
-if not sample then return end
-samples[#samples+1]=sample
-if#samples>points then table.remove(samples,1)end
+local entry=find(name)
+if not sample or not entry then return end
+entry.samples[#entry.samples+1]=sample
+if#entry.samples>points then table.remove(entry.samples,1)end
 render()
 end
-function element:Set(list)samples={}for _,sample in ipairs(list or{})do self:Push(sample)end render()end
+function element:Set(list,name)
+local entry=find(name)
+if not entry then return end
+entry.samples={}
+for _,sample in ipairs(list or{})do
+sample=tonumber(sample)
+if sample then
+entry.samples[#entry.samples+1]=sample
+if#entry.samples>points then table.remove(entry.samples,1)end
+end
+end
+render()
+end
+function element:Get(name)local entry=find(name)return entry and entry.samples end
+area:GetPropertyChangedSignal("AbsoluteSize"):Connect(render)
 local function onScreen()
 local object=holder
 while object and object~=window.gui do
@@ -2130,16 +2381,24 @@ object=object.Parent
 end
 return window.visible
 end
-if cfg.Source=="FPS"or cfg.Source=="Ping"then
+local polled={}
+for _,entry in ipairs(series)do
+if entry.source=="FPS"or entry.source=="Ping"then
 Stats.start(window.Lib.maid)
-local key=cfg.Source=="FPS"and"fps"or"ping"
-window.maid:give(Stats.listen(function(stats)if holder.Parent then element:Push(stats[key])end end))
-elseif type(cfg.Source)=="function"then
+local key=entry.source=="FPS"and"fps"or"ping"
+window.maid:give(Stats.listen(function(stats)if holder.Parent then element:Push(stats[key],entry.name)end end))
+elseif type(entry.source)=="function"then
+polled[#polled+1]=entry
+end
+end
+if#polled>0 then
 task.spawn(function()
 while window.alive and holder.Parent do
 if onScreen()then
-local ok,sample=pcall(cfg.Source)
-if ok then element:Push(sample)end
+for _,entry in ipairs(polled)do
+local ok,sample=pcall(entry.source)
+if ok then element:Push(sample,entry.name)end
+end
 end
 task.wait(tonumber(cfg.Interval)or 0.5)
 end
@@ -2756,6 +3015,100 @@ if cfg.Indeterminate then element:SetIndeterminate(true)end
 return element
 end
 end
+__modules["elements/radio"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local function normalize(list)
+local out={}
+for _,option in ipairs(list or{})do
+if type(option)=="table"then
+local text=tostring(option.Title or option.Value or"")
+out[#out+1]={value=option.Value~=nil and option.Value or text,title=text,desc=option.Desc,locked=option.Locked==true}
+else
+out[#out+1]={value=option,title=tostring(option)}
+end
+end
+return out
+end
+return function(card,cfg)
+local holder=create("Frame",{Name=tostring(cfg.Title or"Radio"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=card:_order(),Parent=card.body})
+Util.list(holder,2)
+local title
+if cfg.Title then
+title=label(holder,tostring(cfg.Title),11,{Name="Title",Size=UDim2.new(1,0,0,22),LayoutOrder=0})
+Theme.bind(title,"TextColor3",cfg.Risky and"danger"or"text")
+end
+local list=create("Frame",{Name="Options",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=1,Parent=holder})
+Util.list(list,2)
+local element=Base.element(card,"Radio",cfg,holder,title,nil)
+local options,rows={},{}
+local function render(animate)
+local duration=animate and 0.12 or nil
+for _,entry in ipairs(rows)do
+local on=entry.option.value==element.Value
+Theme.tweenTo(entry.ring,"Color",on and"accent"or"buttonEdge",duration)
+entry.dot.Visible=on
+Theme.tweenTo(entry.text,"TextColor3",entry.option.locked and"muted"or(on and"heading"or"text"),duration)
+end
+end
+local function build()
+for _,entry in ipairs(rows)do entry.button:Destroy()end
+rows={}
+for index,option in ipairs(options)do
+local height=option.desc and 36 or 26
+local button=create("TextButton",{Name=tostring(option.title),Text="",AutoButtonColor=false,BackgroundTransparency=1,Size=UDim2.new(1,0,0,height),LayoutOrder=index,Parent=list})
+local circle=create("Frame",{Name="Circle",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,1,0,option.desc and 12 or height/2),Size=UDim2.fromOffset(14,14),BorderSizePixel=0,Parent=button})
+corner(circle,7)
+Theme.bind(circle,"BackgroundColor3","input")
+local ring=stroke(circle)
+local dot=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(6,6),BorderSizePixel=0,Visible=false,Parent=circle})
+corner(dot,3)
+Theme.bind(dot,"BackgroundColor3","accent")
+local text=label(button,option.title,10,{Name="Text",Position=UDim2.fromOffset(24,option.desc and 3 or 0),Size=UDim2.new(1,-24,0,option.desc and 18 or height)})
+if option.desc then
+local sub=label(button,tostring(option.desc),9,{Name="Desc",Position=UDim2.fromOffset(24,20),Size=UDim2.new(1,-24,0,13)})
+Theme.bind(sub,"TextColor3","muted")
+end
+button.Activated:Connect(function()
+if element.Locked or option.locked then return end
+element:Set(option.value)
+end)
+button.MouseEnter:Connect(function()if option.value~=element.Value and not option.locked then Theme.tweenTo(text,"TextColor3","heading",0.1)end end)
+button.MouseLeave:Connect(function()render(true)end)
+rows[index]={option=option,button=button,ring=ring,dot=dot,text=text}
+end
+render(false)
+end
+local function has(value)
+for _,option in ipairs(options)do if option.value==value then return true end end
+return false
+end
+function element:Set(value,silent)
+if not has(value)then
+for _,option in ipairs(options)do if option.title==value then value=option.value break end end
+end
+if not has(value)then return end
+local changed=value~=self.Value
+self.Value=value
+render(true)
+self:_fire(value,silent or not changed)
+end
+function element:Get()return self.Value end
+function element:SetOptions(list)
+options=normalize(list)
+build()
+if not has(self.Value)then self.Value=options[1]and options[1].value or nil self:_fire(self.Value,true)end
+end
+options=normalize(cfg.Options)
+build()
+element.Value=has(cfg.Default)and cfg.Default or(options[1]and options[1].value)
+render(false)
+element:_fire(element.Value,true)
+return Base.finish(element,cfg)
+end
+end
 __modules["elements/range"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -3288,7 +3641,7 @@ local changed=entry.name~=self.Value
 self.Value=entry.name
 self.Color=entry.color
 render()
-if self.Flag then card.window.Lib.Flags[self.Flag]=entry.name end
+if self.Flag then card.window.Lib.Flags[self.Flag]=entry.name card.window:_flagChanged(self.Flag)end
 if not silent and changed then
 self:_call(cfg.Callback,entry.color,entry.name)
 for _,callback in ipairs(self._changed)do self:_call(callback,entry.color,entry.name)end
@@ -3307,6 +3660,197 @@ end
 end
 element:Set(cfg.Default or(entries[1]and entries[1].name),true)
 return Base.finish(element,cfg)
+end
+end
+__modules["elements/table"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local ROW=24
+return function(card,cfg)
+local columns,fixed,open={},0,0
+for index,spec in ipairs(cfg.Columns or{"Value"})do
+if type(spec)~="table"then spec={Title=spec}end
+local width=tonumber(spec.Width)
+columns[index]={title=tostring(spec.Title or("Column "..index)),width=width,align=spec.Align=="Right"and Enum.TextXAlignment.Right or(spec.Align=="Center"and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left)}
+if width then fixed=fixed+width else open=open+1 end
+end
+for _,column in ipairs(columns)do
+if not column.width then column.width=open>0 and math.max(0.05,(1-fixed)/open)or 0.1 end
+end
+local height=tonumber(cfg.Height)or 160
+local top=(cfg.Title and 22 or 0)+(cfg.Search and 30 or 0)
+local holder=create("Frame",{Name=tostring(cfg.Title or"Table"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,top+height),LayoutOrder=card:_order(),Parent=card.body})
+local title
+if cfg.Title then
+title=label(holder,tostring(cfg.Title),11,{Name="Title",Size=UDim2.new(1,-80,0,20)})
+Theme.bind(title,"TextColor3","text")
+end
+local count=label(holder,"",9,{Name="Count",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(80,20),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(count,"TextColor3","muted")
+local search
+if cfg.Search then
+search=create("TextBox",{
+Name="Search",Position=UDim2.fromOffset(0,cfg.Title and 22 or 0),Size=UDim2.new(1,0,0,24),BorderSizePixel=0,
+Text="",PlaceholderText="Search...",TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,
+ClearTextOnFocus=false,Parent=holder,
+})
+Theme.bind(search,"BackgroundColor3","input")
+Theme.bind(search,"TextColor3","text")
+Theme.bind(search,"PlaceholderColor3","muted")
+corner(search,6)
+Theme.bind(stroke(search),"Color","buttonEdge")
+Util.padding(search,8,8,0,0)
+end
+local box=create("Frame",{Name="Box",Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,0,height),BorderSizePixel=0,ClipsDescendants=true,Parent=holder})
+Theme.bind(box,"BackgroundColor3","base")
+corner(box,7)
+Theme.bind(stroke(box),"Color","line")
+local head=create("Frame",{Name="Head",Size=UDim2.new(1,0,0,ROW),BorderSizePixel=0,Parent=box})
+Theme.bind(head,"BackgroundColor3","input")
+local headLine=create("Frame",{Position=UDim2.new(0,0,1,-1),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,Parent=head})
+Theme.bind(headLine,"BackgroundColor3","line")
+local body=create("ScrollingFrame",{
+Name="Rows",BackgroundTransparency=1,BorderSizePixel=0,Position=UDim2.fromOffset(0,ROW),Size=UDim2.new(1,0,1,-ROW),
+CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollBarThickness=3,ScrollingDirection=Enum.ScrollingDirection.Y,Parent=box,
+})
+Theme.bind(body,"ScrollBarImageColor3","muted")
+Util.list(body,0)
+local empty=label(box,cfg.Empty or"No rows",10,{Name="Empty",Position=UDim2.fromOffset(0,ROW),Size=UDim2.new(1,0,1,-ROW),TextXAlignment=Enum.TextXAlignment.Center})
+Theme.bind(empty,"TextColor3","muted")
+local element=Base.element(card,"Table",{},holder,title,nil)
+local rows={}
+local sortColumn,descending=nil,false
+local headers={}
+local function starts()
+local out,x={},0
+for index,column in ipairs(columns)do out[index]=x x=x+column.width end
+return out
+end
+local function cell(parent,index,text,x,bold)
+local column=columns[index]
+local object=label(parent,tostring(text==nil and""or text),10,{
+Name="Cell"..index,Position=UDim2.new(x,8,0,0),Size=UDim2.new(column.width,-16,1,0),
+TextXAlignment=column.align,Font=bold and Enum.Font.GothamMedium or Enum.Font.Gotham,
+})
+return object
+end
+local sortable=cfg.Sortable~=false
+for index,column in ipairs(columns)do
+local x=starts()[index]
+local button=create("TextButton",{Name=column.title,Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.fromScale(x,0),Size=UDim2.new(column.width,0,1,0),Parent=head})
+local text=label(button,column.title,9,{Name="Text",Position=UDim2.fromOffset(8,0),Size=UDim2.new(1,-16,1,0),TextXAlignment=column.align,Font=Enum.Font.GothamMedium})
+Theme.bind(text,"TextColor3","muted")
+local arrow=Icons.themed(button,"chevron-down",10,"accent",{Name="Arrow",AnchorPoint=Vector2.new(column.align==Enum.TextXAlignment.Right and 0 or 1,0.5),Position=UDim2.new(column.align==Enum.TextXAlignment.Right and 0 or 1,column.align==Enum.TextXAlignment.Right and 2 or-2,0.5,0),Visible=false})
+headers[index]={text=text,arrow=arrow}
+if sortable then
+button.MouseEnter:Connect(function()Theme.tweenTo(text,"TextColor3","heading",0.1)end)
+button.MouseLeave:Connect(function()Theme.tweenTo(text,"TextColor3",sortColumn==index and"accent"or"muted",0.1)end)
+button.Activated:Connect(function()element:Sort(index,sortColumn==index and not descending)end)
+end
+end
+local function matches(row)
+local query=search and search.Text:lower()or""
+if query==""then return true end
+for index=1,#columns do
+local value=row[index]
+if value~=nil and tostring(value):lower():find(query,1,true)then return true end
+end
+return false
+end
+local function ordered()
+local list={}
+for index,row in ipairs(rows)do list[#list+1]={row=row,index=index}end
+if sortColumn then
+table.sort(list,function(a,b)
+local x,y=a.row[sortColumn],b.row[sortColumn]
+local emptyX,emptyY=x==nil or x=="",y==nil or y==""
+if emptyX or emptyY then
+if emptyX and emptyY then return a.index<b.index end
+return emptyY
+end
+if tostring(x)==tostring(y)then return a.index<b.index end
+local nx,ny=tonumber(x),tonumber(y)
+local less
+if nx and ny then less=nx<ny
+elseif nx or ny then less=nx~=nil
+else less=tostring(x):lower()<tostring(y):lower()end
+if descending then return not less end
+return less
+end)
+end
+return list
+end
+local drawn={}
+local function render()
+for _,object in ipairs(drawn)do object:Destroy()end
+drawn={}
+local x=starts()
+local shown=0
+for position,item in ipairs(ordered())do
+if matches(item.row)then
+shown=shown+1
+local line=create("TextButton",{Name="Row"..item.index,Text="",AutoButtonColor=false,BorderSizePixel=0,Size=UDim2.new(1,0,0,ROW),LayoutOrder=position,Parent=body})
+Theme.bind(line,"BackgroundColor3","card")
+local stripe=shown%2==0 and 0.4 or 1
+line.BackgroundTransparency=stripe
+for index=1,#columns do
+local object=cell(line,index,item.row[index],x[index],index==1)
+Theme.bind(object,"TextColor3",index==1 and"heading"or"text")
+end
+line.MouseEnter:Connect(function()Theme.tweenTo(line,"BackgroundColor3","hover",0.08)line.BackgroundTransparency=0 end)
+line.MouseLeave:Connect(function()Theme.tweenTo(line,"BackgroundColor3","card",0.08)line.BackgroundTransparency=stripe end)
+if cfg.OnRowClick then
+local rowData,rowIndex=item.row,item.index
+line.Activated:Connect(function()element:_call(cfg.OnRowClick,rowData,rowIndex)end)
+end
+drawn[#drawn+1]=line
+end
+end
+empty.Visible=shown==0
+empty.Text=#rows>0 and"No matches"or(cfg.Empty or"No rows")
+count.Text=(shown==#rows)and(#rows..(#rows==1 and" row"or" rows"))or(shown.." / "..#rows)
+for index,header in ipairs(headers)do
+local on=sortColumn==index
+Theme.bind(header.text,"TextColor3",on and"accent"or"muted")
+if header.arrow then
+header.arrow.Visible=on
+header.arrow.Rotation=descending and 0 or 180
+end
+end
+end
+local function copy(row)
+local out={}
+row=row or{}
+for index=1,math.max(#columns,#row)do out[index]=row[index]end
+return out
+end
+function element:SetRows(list)
+rows={}
+for _,row in ipairs(list or{})do rows[#rows+1]=copy(row)end
+render()
+end
+function element:AddRow(row)rows[#rows+1]=copy(row)render()return#rows end
+function element:RemoveRow(index)if rows[index]then table.remove(rows,index)render()end end
+function element:UpdateRow(index,row)if rows[index]then rows[index]=copy(row)render()end end
+function element:Clear()rows={}render()end
+function element:GetRows()return rows end
+function element:Sort(column,desc)
+if column~=nil and not columns[column]then
+for index,item in ipairs(columns)do if item.title==column then column=index break end end
+end
+sortColumn=columns[column]and column or nil
+descending=desc==true
+render()
+end
+function element:Get()return rows end
+function element:Set(list)self:SetRows(list)end
+if search then search:GetPropertyChangedSignal("Text"):Connect(render)end
+element:SetRows(cfg.Rows)
+if cfg.SortBy then element:Sort(cfg.SortBy,cfg.Descending)end
+return element
 end
 end
 __modules["elements/toggle"]=function()
@@ -3402,7 +3946,7 @@ if element.Locked then return end
 tag.Text,tag.Visible="[...]",true
 title.Size=UDim2.new(1,-(100+(cfg.Help and 16 or 0)),0,title.Size.Y.Offset)
 window._capture=function(key)
-if key==Enum.KeyCode.Escape then element:SetBind(element.BindKey)
+if key==Enum.KeyCode.Escape or key==window.key then element:SetBind(element.BindKey)
 elseif key==Enum.KeyCode.Backspace then element:SetBind(nil)
 else element:SetBind(key)end
 end
@@ -3558,6 +4102,171 @@ if maid then maid:give(connection)end
 if UIFont.current~="Gotham"then task.defer(UIFont.refresh)end
 end
 return UIFont
+end
+__modules["gate"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local UIFont=require("font")
+local create,corner,stroke,label,tween=Util.create,Util.corner,Util.stroke,Util.label,Util.tween
+local Gate={}
+local function trim(text)return(tostring(text or""):gsub("^%s+",""):gsub("%s+$",""))end
+local function check(spec,key)
+key=trim(key)
+if key==""then return false,"Enter a key"end
+if type(spec.Check)=="function"then
+local ran,ok,message=pcall(spec.Check,key)
+if not ran then return false,"The key could not be checked"end
+return ok==true,message
+end
+for _,valid in ipairs(spec.Keys or{})do
+if key==trim(valid)then return true end
+end
+return false,"Wrong key"
+end
+Gate.check=check
+function Gate.file(folder)return folder.."/key.txt"end
+function Gate.run(Lib,cfg)
+local spec=cfg.KeySystem
+local folder=trim((tostring(cfg.Folder or cfg.Title or"QustahUI"):gsub("[^%w_%- ]","")))
+if folder==""then folder="QustahUI"end
+local file=Gate.file(folder)
+if spec.Remember~=false and type(isfile)=="function"and type(readfile)=="function"and isfile(file)then
+local ok,saved=pcall(readfile,file)
+if ok and check(spec,saved)then return true end
+end
+local genv=(getgenv and getgenv())or _G
+if genv.__QustahKeyGate then pcall(genv.__QustahKeyGate)end
+local gui=Util.screenGui("QustahUI_Key",70)
+UIFont.register(gui,Lib.maid)
+local shade=create("Frame",{Name="Shade",Size=UDim2.fromScale(1,1),BorderSizePixel=0,BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=1,Parent=gui})
+local panel=create("CanvasGroup",{
+Name="KeySystem",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(340,232),
+BorderSizePixel=0,GroupTransparency=1,Parent=gui,
+})
+Theme.bind(panel,"BackgroundColor3","base")
+corner(panel,12)
+Theme.bind(stroke(panel),"Color","edge")
+local scale=create("UIScale",{Scale=0.96,Parent=panel})
+local tile=create("Frame",{Name="IconTile",Position=UDim2.fromOffset(20,20),Size=UDim2.fromOffset(36,36),BorderSizePixel=0,Parent=panel})
+Theme.bind(tile,"BackgroundColor3","accentDeep")
+corner(tile,10)
+Theme.bind(stroke(tile,nil,0.6),"Color","accent")
+Icons.themed(tile,spec.Icon or"key-round",17,"accent",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+local title=label(panel,tostring(spec.Title or cfg.Title or"Key system"),15,{Name="Title",Position=UDim2.fromOffset(68,19),Size=UDim2.new(1,-110,0,20),Font=Enum.Font.GothamBold})
+Theme.bind(title,"TextColor3","heading")
+local subtitle=label(panel,tostring(spec.Subtitle or"Enter your key to continue"),10,{Name="Subtitle",Position=UDim2.fromOffset(68,39),Size=UDim2.new(1,-110,0,16)})
+Theme.bind(subtitle,"TextColor3","muted")
+local close=create("TextButton",{Name="Close",Text="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-14,0,14),Size=UDim2.fromOffset(26,26),Parent=panel})
+corner(close,6)
+Theme.bind(close,"BackgroundColor3","input")
+Icons.themed(close,"x",14,"muted",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+local field=create("Frame",{Name="Field",Position=UDim2.fromOffset(20,74),Size=UDim2.new(1,-40,0,34),BorderSizePixel=0,Parent=panel})
+Theme.bind(field,"BackgroundColor3","input")
+corner(field,8)
+local fieldEdge=stroke(field)
+Theme.bind(fieldEdge,"Color","buttonEdge")
+local box=create("TextBox",{
+Name="Box",BackgroundTransparency=1,Position=UDim2.fromOffset(12,0),Size=UDim2.new(1,-96,1,0),Text="",
+PlaceholderText="Paste your key",TextSize=11,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,
+ClearTextOnFocus=false,Parent=field,
+})
+Theme.bind(box,"TextColor3","heading")
+Theme.bind(box,"PlaceholderColor3","muted")
+local submit=create("TextButton",{
+Name="Check",Text="Check",TextSize=10,Font=Enum.Font.GothamMedium,AutoButtonColor=false,BorderSizePixel=0,
+AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-4,0.5,0),Size=UDim2.fromOffset(76,26),Parent=field,
+})
+corner(submit,6)
+Theme.bind(submit,"BackgroundColor3","accentDeep")
+Theme.bind(submit,"TextColor3","accent")
+local submitEdge=stroke(submit,nil,0.45)
+Theme.bind(submitEdge,"Color","accent")
+local status=label(panel,"",10,{Name="Status",Position=UDim2.fromOffset(20,112),Size=UDim2.new(1,-40,0,16)})
+Theme.bind(status,"TextColor3","muted")
+local note=label(panel,tostring(spec.Note or""),9,{
+Name="Note",Position=UDim2.fromOffset(20,132),Size=UDim2.new(1,-40,0,30),TextWrapped=true,
+TextTruncate=Enum.TextTruncate.None,TextYAlignment=Enum.TextYAlignment.Top,
+})
+Theme.bind(note,"TextColor3","muted")
+local line=create("Frame",{Position=UDim2.new(0,0,1,-54),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,Parent=panel})
+Theme.bind(line,"BackgroundColor3","line")
+local getKey=create("TextButton",{
+Name="GetKey",Text="",AutoButtonColor=false,BorderSizePixel=0,Position=UDim2.new(0,20,1,-42),Size=UDim2.new(1,-40,0,30),
+Visible=spec.Url~=nil,Parent=panel,
+})
+corner(getKey,7)
+Theme.bind(getKey,"BackgroundColor3","input")
+Theme.bind(stroke(getKey),"Color","buttonEdge")
+local getRow=create("Frame",{BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Parent=getKey})
+Util.list(getRow,6,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Center,Enum.VerticalAlignment.Center)
+Icons.themed(getRow,"link",12,"text",{LayoutOrder=1})
+local getText=label(getRow,"Get key",10,{AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,30),Font=Enum.Font.GothamMedium,TextTruncate=Enum.TextTruncate.None,LayoutOrder=2})
+Theme.bind(getText,"TextColor3","text")
+if not spec.Url then panel.Size=UDim2.fromOffset(340,178)line.Visible=false end
+tween(shade,0.2,{BackgroundTransparency=0.45})
+tween(panel,0.2,{GroupTransparency=0})
+tween(scale,0.25,{Scale=1},Enum.EasingStyle.Back)
+local result,busy=nil,false
+local function say(text,role)
+status.Text=tostring(text or"")
+Theme.bind(status,"TextColor3",role or"muted")
+end
+local function attempt()
+if busy or result~=nil then return end
+busy=true
+submit.Text="..."
+local key=trim(box.Text)
+local ok,message=check(spec,key)
+busy=false
+submit.Text="Check"
+if ok then
+say(message or"Key accepted","success")
+Theme.bind(fieldEdge,"Color","success")
+if spec.Remember~=false and type(writefile)=="function"then
+pcall(function()if type(isfolder)=="function"and not isfolder(folder)then makefolder(folder)end end)
+Util.writeAtomic(file,key)
+end
+result=true
+else
+say(message or"Wrong key","danger")
+Theme.bind(fieldEdge,"Color","danger")
+local x=panel.Position
+task.spawn(function()
+for _,dx in ipairs({-6,6,-4,4,0})do
+panel.Position=x+UDim2.fromOffset(dx,0)
+task.wait(0.03)
+end
+end)
+end
+end
+submit.Activated:Connect(attempt)
+box.FocusLost:Connect(function(enter)if enter then attempt()end end)
+box:GetPropertyChangedSignal("Text"):Connect(function()
+if result==nil and status.Text~=""then say("")Theme.bind(fieldEdge,"Color","buttonEdge")end
+end)
+getKey.Activated:Connect(function()
+local clipboard=setclipboard or toclipboard
+local ok=type(clipboard)=="function"and pcall(clipboard,tostring(spec.Url))
+say(ok and"Link copied - open it in your browser"or tostring(spec.Url),ok and"accent"or"muted")
+end)
+close.Activated:Connect(function()result=false end)
+local function replaced()if result==nil then result=false end end
+genv.__QustahKeyGate=replaced
+while result==nil and gui.Parent do task.wait(0.05)end
+if result==nil then result=false end
+if genv.__QustahKeyGate==replaced then genv.__QustahKeyGate=nil end
+tween(shade,0.18,{BackgroundTransparency=1})
+tween(panel,0.18,{GroupTransparency=1})
+task.delay(0.2,function()gui:Destroy()end)
+if result==false then Util.safe(spec.OnCancel)end
+return result
+end
+function Gate.forget(folder)
+local file=Gate.file(tostring(folder or"QustahUI"):gsub("[^%w_%- ]",""))
+if type(isfile)=="function"and type(delfile)=="function"and isfile(file)then pcall(delfile,file)end
+end
+return Gate
 end
 __modules["glow"]=function()
 local Util=require("util")
@@ -3736,7 +4445,13 @@ if not entry then return end
 if editing then
 if not entry.menu then hidden[entry.title]=not hidden[entry.title]or nil remember()end
 elseif entry.element and entry.element._onBind then
-self:_safe(entry.title,entry.element._onBind,entry.element)
+local element=entry.element
+if element.BindMode=="Hold"and element.Set then
+element:Set(not element.Value)
+else
+self:_safe(entry.title,element._onBind,element)
+if element.Mode=="Hold"and element._onRelease then task.delay(0.15,function()self:_safe(entry.title,element._onRelease,element)end)end
+end
 end
 refresh()
 end)
@@ -4491,6 +5206,8 @@ local Notify=require("notify")
 local Settings=require("settings")
 local Dashboard=require("dashboard")
 local Icons=require("icons")
+local Sounds=require("sounds")
+local Gate=require("gate")
 require("status")(Window)
 require("dialog")(Window)
 require("hud")(Window)
@@ -4499,15 +5216,24 @@ require("windowx")(Window)
 require("windowfx")(Window)
 require("kick")(Window)
 local Lib={
-Version="1.6.0",
+Version="1.7.0",
 Flags={},
 Windows={},
 Theme=Theme,
 Icons=Icons,
+Sounds=Sounds,
 Util=Util,
 }
 Lib.maid=Util.maid()
-function Lib:CreateWindow(cfg)return Window.new(self,cfg)end
+function Lib:CreateWindow(cfg)
+cfg=cfg or{}
+if cfg.Secure then Util.secure=true end
+if type(cfg.KeySystem)=="table"and not Gate.run(self,cfg)then
+error("[qustah-ui-lib] no key entered - the script was stopped",0)
+end
+return Window.new(self,cfg)
+end
+function Lib:ForgetKey(folder)Gate.forget(folder)end
 function Lib:Notify(cfg)return Notify.show(self,cfg)end
 function Lib:Toast(cfg)return Notify.pill(self,cfg)end
 Lib.MaxNotifications=6
@@ -4685,7 +5411,7 @@ entry.dismiss=dismiss
 Lib._openToasts=Lib._openToasts or{}
 table.insert(Lib._openToasts,entry)
 local limit=math.max(1,tonumber(Lib.MaxNotifications)or 6)
-while#Lib._openToasts>limit do Lib._openToasts[1].dismiss()end
+while#Lib._openToasts>limit do table.remove(Lib._openToasts,1).dismiss()end
 local hovered=false
 toast.MouseEnter:Connect(function()hovered=true end)
 toast.MouseLeave:Connect(function()hovered=false end)
@@ -5274,7 +6000,6 @@ local Theme=require("theme")
 local Glow=require("glow")
 local UIFont=require("font")
 local Profiles=require("profiles")
-local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
 local RED,GREEN="danger","success"
 return function(window,cfg)
 cfg=cfg or{}
@@ -5333,11 +6058,13 @@ window._menuListeners=window._menuListeners or{}
 table.insert(window._menuListeners,function(key)if menuKey.Value~=key then menuKey:Set(key,true)end end)
 menu:Toggle({
 Title="Welcome toast",Desc="Greets a new account on first open",
-Default=(window.memory or{}).welcomeToast~=false and window.cfg.Welcome~=false,
-Callback=function(on)
-window.memory.welcomeToast=on
-window:_saveMemory()
-end,
+Default=window:_state("welcomeToast")~=false and window.cfg.Welcome~=false,
+Callback=function(on)window:_state("welcomeToast",on)end,
+})
+local Sounds=require("sounds")
+menu:Toggle({
+Title="UI sounds",Desc="Soft clicks on buttons and switches",Flag="__ui_sounds",Default=Sounds.Enabled,
+Callback=function(on)Sounds.Enabled=on end,
 })
 menu:Button({
 Title="Reset window size / position",
@@ -5445,6 +6172,8 @@ look2:Toggle({Title="Animated background",Desc="A slow accent glow drifting behi
 Default=window.liveBackground==true,Callback=function(on)window:SetLiveBackground(on)end})
 look2:Toggle({Title="Edge glow",Desc="The window border breathes in the accent",Flag="__ui_edge_glow",
 Default=window.accentGlow==true,Callback=function(on)window:SetAccentGlow(on)end})
+look2:Toggle({Title="Blur game",Desc="Blurs the game behind the open menu",Flag="__ui_blur",
+Default=window.blur==true,Callback=function(on)window:SetBlur(on)end})
 look2:Button({Title="Fullscreen",Icon="maximize-2",Callback=function()window:ToggleFullscreen()end})
 local overlays=interface:Card({Title="Overlays",Side="Right"})
 overlays:Toggle({Title="Watermark",Desc="Name · FPS · ping · clock",Flag="__ui_hud_watermark",Callback=function(on)window:Watermark(on)end})
@@ -5461,6 +6190,9 @@ about:Info({Title="qustah-ui-lib",Value="v"..tostring(window.Lib.Version)})
 for _,entry in ipairs(cfg.Info or{})do about:Info({Title=entry[1],Value=entry[2],Copy=entry.Copy})end
 local files=type(writefile)=="function"and type(readfile)=="function"
 about:Info({Title="File access",Value=files and"Yes"or"No (profiles off)"})
+if type(window.cfg.Changelog)=="table"then
+about:Button({Title="What's new",Icon="scroll-text",Callback=function()window:ShowChangelog()end})
+end
 about:Info({Title="Secure mode",Value=Util.secure and"On"or"Off",Help="Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })"})
 if window.GetKicks and window.cfg.KickLog~=false then
 local kicksCard=infoPage:Card({Title="Disconnects",Side="Left",Icon="log-out",Desc="Kicks and drops, with Roblox's reason"})
@@ -5536,6 +6268,44 @@ Theme.onChange(function()if infoPage.frame.Parent then update()end end)
 update()
 return tab
 end
+end
+__modules["sounds"]=function()
+local Util=require("util")
+local PING="rbxasset://sounds/electronicpingshort.wav"
+local Sounds={
+Enabled=false,
+Volume=0.35,
+Map={
+click={PING,2.2,0.35},
+toggle={PING,1.8,0.4},
+tab={PING,2.6,0.25},
+error={PING,0.7,0.5},
+},
+}
+local last={}
+function Sounds.Play(name)
+if not Sounds.Enabled then return end
+local entry=Sounds.Map[name]
+if not entry then return end
+local now=os.clock()
+if last[name]and now-last[name]<0.06 then return end
+last[name]=now
+pcall(function()
+local sound=Instance.new("Sound")
+sound.SoundId=entry[1]
+sound.PlaybackSpeed=entry[2]or 1
+sound.Volume=math.clamp((tonumber(Sounds.Volume)or 0.35)*(entry[3]or 1),0,1)
+sound.Parent=Util.Services.SoundService
+sound:Play()
+task.delay(2,function()sound:Destroy()end)
+end)
+end
+function Sounds.Set(name,id,speed,volume)
+local value=tostring(id or"")
+if value:match("^%d+$")then value="rbxassetid://"..value end
+Sounds.Map[name]={value,tonumber(speed)or 1,tonumber(volume)or 1}
+end
+return Sounds
 end
 __modules["stats"]=function()
 local Util=require("util")
@@ -6119,7 +6889,9 @@ local ok,err=pcall(writefile,tmp,text)
 if not ok then return false,tostring(err)end
 if type(readfile)=="function"then
 local read,back=pcall(readfile,tmp)
-if not read or back~=text then return false,"the file could not be written completely"end
+if not read or(back~=text and(tostring(back):gsub("\r\n","\n"))~=(text:gsub("\r\n","\n")))then
+return false,"the file could not be written completely"
+end
 end
 ok,err=pcall(writefile,path,text)
 if not ok then return false,tostring(err)end
@@ -6137,7 +6909,16 @@ end
 local tmp=path..".tmp"
 local data,problem=decode(path)
 if data then
-if isfile(tmp)and type(delfile)=="function"then pcall(delfile,tmp)end
+if isfile(tmp)then
+local newer=decode(tmp)
+local read,saved,current=pcall(function()return readfile(tmp),readfile(path)end)
+if newer and read and saved~=current then
+pcall(function()writefile(path,readfile(tmp))end)
+if type(delfile)=="function"then pcall(delfile,tmp)end
+return newer,true
+end
+if type(delfile)=="function"then pcall(delfile,tmp)end
+end
 return data,false
 end
 local saved=decode(tmp)
@@ -6380,7 +7161,11 @@ self.hovered=false
 self:_render(true)
 window:_hideTip()
 end)
-button.Activated:Connect(function()window:_hideTip()self:Select()end)
+button.Activated:Connect(function()
+window:_hideTip()
+if window.current~=self then require("sounds").Play("tab")end
+self:Select()
+end)
 return self
 end
 function Tab:_render(animate)
@@ -6431,10 +7216,15 @@ key=cfg.ToggleKey or Enum.KeyCode.RightShift,visible=true,folded=false,alive=tru
 local env=(getgenv and getgenv())or _G
 env.__QustahUIWindows=env.__QustahUIWindows or{}
 local previous=env.__QustahUIWindows[self.Title]
-if previous and previous.Destroy then pcall(previous.Destroy,previous)end
+if previous and previous.Destroy then
+pcall(previous.Destroy,previous)
+local oldLib=previous.Lib
+if oldLib and oldLib~=Lib and type(oldLib.Windows)=="table"and#oldLib.Windows==0 and oldLib.Destroy then pcall(oldLib.Destroy,oldLib)end
+end
 env.__QustahUIWindows[self.Title]=self
 if typeof(cfg.Accent)=="Color3"then Theme.set("accent",cfg.Accent)end
 if cfg.Secure then Util.secure=true end
+if cfg.Sounds~=nil then require("sounds").Enabled=cfg.Sounds==true end
 self:_makeFlags()
 self.Config=Config.new(self,cfg.Folder or self.Title:gsub("[^%w_%- ]",""))
 self.Config:OnRecovered(function(name)
@@ -6858,6 +7648,9 @@ self.tipText.Text=tostring(text)
 self.tip.AnchorPoint=Vector2.new(mouse.X>viewport.X-220 and 1 or 0,0)
 self.tip.Position=UDim2.fromOffset(mouse.X+(mouse.X>viewport.X-220 and-12 or 14),math.min(mouse.Y+14,viewport.Y-30))
 self.tip.Visible=true
+local token={}
+self._tipToken=token
+task.delay(4,function()if self._tipToken==token and self.alive then self.tip.Visible=false end end)
 end
 function Window:_hideTip()self.tip.Visible=false end
 function Window:_register(flag,element)
@@ -6902,10 +7695,21 @@ return true
 end
 self.Config.pending[flag]=value
 self.Lib.Flags[flag]=value
+self:_flagChanged(flag)
 return false
 end
 function Window:GetFlag(flag)return self.Lib.Flags[flag]end
 function Window:GetElement(flag)return self.flags[flag]end
+function Window:_flagChanged()
+local list=self._dependents
+if not list or self._checkingDependents then return end
+self._checkingDependents=true
+for index=#list,1,-1 do
+local ok,keep=pcall(list[index])
+if ok and keep==false then table.remove(list,index)end
+end
+self._checkingDependents=false
+end
 function Window:_bind(element,key)
 self.binds[element]=key
 end
@@ -6983,7 +7787,7 @@ if cfg.Menu and not key then key=window.key end
 self.Value=key
 show(Util.keyName(key))
 if not cfg.Menu then window:_bind(self,key)end
-if self.Flag then window.Lib.Flags[self.Flag]=key end
+if self.Flag then window.Lib.Flags[self.Flag]=key window:_flagChanged(self.Flag)end
 if not silent then window:_safe(tostring(cfg.Title or"Key"),cfg.Callback,key)end
 end
 function hint:Get()return self.Value end
@@ -6996,9 +7800,8 @@ badge.MouseLeave:Connect(function()Util.tween(outline,0.12,{Transparency=0.25})e
 badge.Activated:Connect(function()
 show("...")
 window._capture=function(key)
-if key==Enum.KeyCode.Escape then hint:Set(hint.Value,true)
+if key==Enum.KeyCode.Escape or(not cfg.Menu and key==window.key)then hint:Set(hint.Value,true)
 elseif key==Enum.KeyCode.Backspace and not cfg.Menu then hint:Set(nil)
-elseif not cfg.Menu and key==window.key then hint:Set(hint.Value,true)
 else hint:Set(key)end
 end
 end)
@@ -7135,17 +7938,83 @@ edge.Transparency=0.55+math.sin(now*2.1)*0.25
 end)
 self.maid:give(self._glowConnection)
 end
+function Window:SetBlur(on,size)
+self.blur=on==true
+if size then self.blurSize=math.clamp(tonumber(size)or 12,2,40)end
+self:_applyBlur()
+end
+function Window:_applyBlur()
+local want=self.blur and self.alive and self.visible
+local effect=self._blurEffect
+if effect and not effect.Parent then effect=nil self._blurEffect=nil end
+if want and not effect then
+pcall(function()
+effect=Instance.new("BlurEffect")
+effect.Name=Util.secure and Util.Services.HttpService:GenerateGUID(false)or"QustahUIBlur"
+effect.Size=0
+effect.Parent=Util.Services.Lighting
+end)
+self._blurEffect=effect
+end
+if not effect then return end
+local target=want and(self.blurSize or 12)or 0
+tween(effect,0.2,{Size=target})
+if not want then
+local token={}
+self._blurToken=token
+task.delay(0.22,function()
+if self._blurToken==token and self._blurEffect==effect and not(self.blur and self.alive and self.visible)then
+effect:Destroy()
+self._blurEffect=nil
+end
+end)
+else
+self._blurToken=nil
+end
+end
+local setVisible=Window.SetVisible
+function Window:SetVisible(visible)
+setVisible(self,visible)
+if self.blur or self._blurEffect then self:_applyBlur()end
+end
+function Window:_state(key,value)
+self._stateData=self._stateData or self.Config:ReadJSON("state")
+if value~=nil then
+self._stateData[key]=value
+self.Config:WriteJSON("state",self._stateData)
+end
+return self._stateData[key]
+end
+function Window:ShowChangelog()
+local log=self.cfg.Changelog
+if type(log)~="table"then return nil end
+local lines={}
+for _,item in ipairs(log.Items or{})do lines[#lines+1]="•  "..tostring(item)end
+if log.Content then table.insert(lines,1,tostring(log.Content)..(#lines>0 and"\n"or""))end
+return self:Dialog({
+Title=tostring(log.Title or("What's new"..(log.Version and(" in "..tostring(log.Version))or""))),
+Icon=log.Icon or"sparkles",Content=table.concat(lines,"\n"),
+Buttons={{Title=log.Button or"Got it",Style="Primary"}},
+})
+end
+function Window:_changelog()
+local log=self.cfg.Changelog
+if type(log)~="table"then return end
+local version=tostring(log.Version or self.Version or"")
+if self:_state("changelogSeen")==version then return end
+self:_state("changelogSeen",version)
+task.delay(tonumber(log.Delay)or 1,function()
+if self.alive and not self._dialog then self:ShowChangelog()end
+end)
+end
 function Window:_welcome()
 if self.cfg.Welcome==false or self.anonymous then return end
-local memory=self.memory or{}
-if memory.welcomeToast==false then return end
+if self:_state("welcomeToast")==false then return end
 local player=Util.Services.Players.LocalPlayer
 if not player then return end
 local id=tostring(player.UserId)
-if memory.welcomed==id then return end
-memory.welcomed=id
-self.memory=memory
-self:_saveMemory()
+if self:_state("welcomed")==id then return end
+self:_state("welcomed",id)
 task.delay(0.6,function()
 if not self.alive or self.anonymous then return end
 self:Toast({Text="Signed in as <b>"..tostring(player.DisplayName or player.Name).."</b>",Image=Util.avatar(player.UserId),Duration=3.5})
@@ -7161,7 +8030,12 @@ if live then self:SetLiveBackground(true)end
 local glow=memory.accentGlow
 if glow==nil then glow=cfg.AccentGlow==true end
 if glow then self:SetAccentGlow(true)end
+local blur=memory.blur
+if blur==nil then blur=cfg.Blur==true end
+if blur then self:SetBlur(true,tonumber(cfg.BlurSize))end
+self.maid:give(function()self.blur=false self:_applyBlur()end)
 self:_welcome()
+self:_changelog()
 end
 end
 end
@@ -7169,7 +8043,7 @@ __modules["windowx"]=function()
 local Util=require("util")
 local Theme=require("theme")
 local Icons=require("icons")
-local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
 local SLOT=34
 return function(Window)
 function Window:_headerSlot()

@@ -94,7 +94,7 @@ return function(card, cfg)
         self.Value = entry.name
         self.Color = entry.color
         render()
-        if self.Flag then card.window.Lib.Flags[self.Flag] = entry.name end
+        if self.Flag then card.window.Lib.Flags[self.Flag] = entry.name card.window:_flagChanged(self.Flag) end
         if not silent and changed then
             self:_call(cfg.Callback, entry.color, entry.name)
             for _, callback in ipairs(self._changed) do self:_call(callback, entry.color, entry.name) end

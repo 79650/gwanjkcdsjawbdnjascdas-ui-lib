@@ -235,7 +235,10 @@ function Util.writeAtomic(path, text)
     if not ok then return false, tostring(err) end
     if type(readfile) == "function" then
         local read, back = pcall(readfile, tmp)
-        if not read or back ~= text then return false, "the file could not be written completely" end -- the old file stays
+        -- (some executors turn \n into \r\n on Windows)
+        if not read or (back ~= text and (tostring(back):gsub("\r\n", "\n")) ~= (text:gsub("\r\n", "\n"))) then
+            return false, "the file could not be written completely" -- the old file stays
+        end
     end
     ok, err = pcall(writefile, path, text)
     if not ok then return false, tostring(err) end
@@ -255,7 +258,18 @@ function Util.readJSON(path)
     local tmp = path .. ".tmp"
     local data, problem = decode(path)
     if data then
-        if isfile(tmp) and type(delfile) == "function" then pcall(delfile, tmp) end -- leftover of a save that finished
+        if isfile(tmp) then
+            -- both complete but different: the game closed after the .tmp was checked and before the file was
+            -- written, so the .tmp is the newer save
+            local newer = decode(tmp)
+            local read, saved, current = pcall(function() return readfile(tmp), readfile(path) end)
+            if newer and read and saved ~= current then
+                pcall(function() writefile(path, readfile(tmp)) end)
+                if type(delfile) == "function" then pcall(delfile, tmp) end
+                return newer, true
+            end
+            if type(delfile) == "function" then pcall(delfile, tmp) end -- leftover of a save that finished
+        end
         return data, false
     end
     local saved = decode(tmp)

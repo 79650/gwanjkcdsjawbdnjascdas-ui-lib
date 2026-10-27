@@ -1,0 +1,11 @@
+# selene (https://github.com/Kampfkarren/selene): `selene src` - run by tools/lint.sh
+std = "qustah"
+
+[lints]
+# the library keeps long one-line UI builders on purpose
+shadowing = "allow"
+unused_variable = "warn"
+global_usage = "allow"
+# one-line `if x then a() return end` is the house style
+multiple_statements = "allow"
+manual_table_clone = "allow"

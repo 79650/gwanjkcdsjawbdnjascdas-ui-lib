@@ -5,6 +5,9 @@
 --   Window:SetLiveBackground(on)  a slow drifting accent gradient behind the content (LiveBackground = true)
 --   Window:SetAccentGlow(on)      the window edge breathes in the accent colour (AccentGlow = true)
 --   Welcome toast: "Signed in as <name>" the first time an account opens this UI (Welcome = false turns it off).
+--   Window:SetBlur(on, size)      blurs the game behind while the menu is open (Blur = true / Settings)
+--   Changelog = { Version = "1.2", Title = "What's new", Items = { "Added ...", "Fixed ..." } }: shown once per
+--     version, in a dialog; Window:ShowChangelog() opens it again (Settings › Info has a button).
 local Util = require("util")
 local Theme = require("theme")
 
@@ -107,18 +110,91 @@ return function(Window)
         self.maid:give(self._glowConnection)
     end
 
+    ------------------------------------------------------------------ background blur
+    function Window:SetBlur(on, size)
+        self.blur = on == true
+        if size then self.blurSize = math.clamp(tonumber(size) or 12, 2, 40) end
+        self:_applyBlur()
+    end
+    function Window:_applyBlur()
+        local want = self.blur and self.alive and self.visible
+        local effect = self._blurEffect
+        if effect and not effect.Parent then effect = nil self._blurEffect = nil end -- the game cleared Lighting: make a new one
+        if want and not effect then
+            pcall(function()
+                effect = Instance.new("BlurEffect")
+                effect.Name = Util.secure and Util.Services.HttpService:GenerateGUID(false) or "QustahUIBlur"
+                effect.Size = 0
+                effect.Parent = Util.Services.Lighting
+            end)
+            self._blurEffect = effect
+        end
+        if not effect then return end
+        local target = want and (self.blurSize or 12) or 0
+        tween(effect, 0.2, { Size = target })
+        if not want then
+            local token = {}
+            self._blurToken = token
+            task.delay(0.22, function()
+                if self._blurToken == token and self._blurEffect == effect and not (self.blur and self.alive and self.visible) then
+                    effect:Destroy()
+                    self._blurEffect = nil
+                end
+            end)
+        else
+            self._blurToken = nil
+        end
+    end
+    local setVisible = Window.SetVisible
+    function Window:SetVisible(visible)
+        setVisible(self, visible)
+        if self.blur or self._blurEffect then self:_applyBlur() end
+    end
+
+    ------------------------------------------------------------------ small state kept on this PC
+    -- (in <Folder>/state.json, so it works with SaveWindow = false too): welcome / changelog seen, welcome toast on
+    function Window:_state(key, value)
+        self._stateData = self._stateData or self.Config:ReadJSON("state")
+        if value ~= nil then
+            self._stateData[key] = value
+            self.Config:WriteJSON("state", self._stateData)
+        end
+        return self._stateData[key]
+    end
+
+    ------------------------------------------------------------------ changelog
+    function Window:ShowChangelog()
+        local log = self.cfg.Changelog
+        if type(log) ~= "table" then return nil end
+        local lines = {}
+        for _, item in ipairs(log.Items or {}) do lines[#lines + 1] = "•  " .. tostring(item) end
+        if log.Content then table.insert(lines, 1, tostring(log.Content) .. (#lines > 0 and "\n" or "")) end
+        return self:Dialog({
+            Title = tostring(log.Title or ("What's new" .. (log.Version and (" in " .. tostring(log.Version)) or ""))),
+            Icon = log.Icon or "sparkles", Content = table.concat(lines, "\n"),
+            Buttons = { { Title = log.Button or "Got it", Style = "Primary" } },
+        })
+    end
+    function Window:_changelog()
+        local log = self.cfg.Changelog
+        if type(log) ~= "table" then return end
+        local version = tostring(log.Version or self.Version or "")
+        if self:_state("changelogSeen") == version then return end
+        self:_state("changelogSeen", version)
+        task.delay(tonumber(log.Delay) or 1, function()
+            if self.alive and not self._dialog then self:ShowChangelog() end
+        end)
+    end
+
     ------------------------------------------------------------------ welcome
     function Window:_welcome()
         if self.cfg.Welcome == false or self.anonymous then return end
-        local memory = self.memory or {}
-        if memory.welcomeToast == false then return end
+        if self:_state("welcomeToast") == false then return end
         local player = Util.Services.Players.LocalPlayer
         if not player then return end
         local id = tostring(player.UserId)
-        if memory.welcomed == id then return end
-        memory.welcomed = id
-        self.memory = memory
-        self:_saveMemory()
+        if self:_state("welcomed") == id then return end
+        self:_state("welcomed", id)
         task.delay(0.6, function()
             if not self.alive or self.anonymous then return end
             self:Toast({ Text = "Signed in as <b>" .. tostring(player.DisplayName or player.Name) .. "</b>", Image = Util.avatar(player.UserId), Duration = 3.5 })
@@ -135,6 +211,11 @@ return function(Window)
         local glow = memory.accentGlow
         if glow == nil then glow = cfg.AccentGlow == true end
         if glow then self:SetAccentGlow(true) end
+        local blur = memory.blur
+        if blur == nil then blur = cfg.Blur == true end
+        if blur then self:SetBlur(true, tonumber(cfg.BlurSize)) end
+        self.maid:give(function() self.blur = false self:_applyBlur() end)
         self:_welcome()
+        self:_changelog()
     end
 end
