@@ -84,7 +84,7 @@ return function(Window)
         self:_refreshStatus()
     end
 
-    -- Footer: manual text > "Errors: N" > "Limited" > "Connected" (with a ◉ in green / yellow / red).
+    -- Footer: manual text > "Errors: N" > "Limited" > "Connected" (with a dot in green / yellow / red).
     function Window:_refreshStatus()
         if not self.statusLabel then return end
         local text, color
@@ -100,12 +100,9 @@ return function(Window)
         else
             text, color = "Connected", GREEN
         end
-        if color ~= nil then self._statusColor = color end
-        color = self._statusColor or GREEN
-        local rgb = typeof(color) == "Color3" and color or Theme.get(color) or Theme.get(GREEN)
-        local safe = text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
         self.statusText = text
-        self.statusLabel.Text = '<font color="#' .. Util.toHex(rgb) .. '">◉</font> ' .. safe
+        self.statusLabel.Text = text
+        if color ~= nil and self.statusDot then Theme.bind(self.statusDot, "ImageColor3", color) end
     end
 
     -- Runs a user callback; an error is reported (footer, Info page) instead of breaking the UI.

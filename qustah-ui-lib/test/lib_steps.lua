@@ -338,7 +338,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("error report text", window:GetErrorReport():find("kaboom") ~= nil)
     window:ClearErrors()
     check("clear errors", window.statusText == "Limited")
-    window:SetStatus("Custom") check("manual status", window.statusText == "Custom" and window.statusLabel.Text:find("◉</font> Custom", 1, true) ~= nil)
+    window:SetStatus("Custom") check("manual status", window.statusText == "Custom")
     window:SetStatus(nil) check("auto status again", window.statusText == "Limited")
 
     -- dialog
