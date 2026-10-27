@@ -81,6 +81,7 @@ return function(card, cfg)
         CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.XY, ScrollBarThickness = 3, Parent = holder,
     })
     Theme.bind(scroller, "ScrollBarImageColor3", "muted")
+    Util.fadeScrollbar(scroller)
     local text = create("TextLabel", {
         Name = "Code", BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 8), Size = UDim2.fromOffset(0, 0), AutomaticSize = Enum.AutomaticSize.XY,
         Font = Enum.Font.Code, TextSize = 11, RichText = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,

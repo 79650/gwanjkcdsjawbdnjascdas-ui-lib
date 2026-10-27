@@ -47,7 +47,8 @@ return function(card, cfg)
         return object
     end
     local lowKnob, highKnob = knob("LowKnob"), knob("HighKnob")
-    local hit = create("TextButton", { Name = "Hit", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.new(0, -6, 0, top), Size = UDim2.new(1, 12, 0, 18), ZIndex = 3, Parent = row })
+    local reach = Util.isTouch() and 8 or 0 -- (taller on touch screens)
+    local hit = create("TextButton", { Name = "Hit", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.new(0, -6, 0, top - reach), Size = UDim2.new(1, 12, 0, 18 + reach * 2), ZIndex = 3, Parent = row })
 
     local element = Base.element(card, "Range", cfg, row, title, desc)
     local focused = {}

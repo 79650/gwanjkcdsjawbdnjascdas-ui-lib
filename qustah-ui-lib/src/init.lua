@@ -15,14 +15,16 @@ require("inbox")(Window)
 require("windowx")(Window)
 require("windowfx")(Window)
 require("kick")(Window)
+require("mobile")(Window)
 
 local Lib = {
-    Version = "1.7.1",
+    Version = "1.8.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
     Icons = Icons, -- Lib.Icons.Get("house"), "solar:home-bold", Lib.Icons.SetDefault("solar")
     Sounds = Sounds, -- Lib.Sounds.Enabled = true, Lib.Sounds.Set("click", id)
+    Haptics = require("haptics"), -- Lib.Haptics.Enabled (on for touch screens)
     Util = Util,
 }
 Lib.maid = Util.maid()

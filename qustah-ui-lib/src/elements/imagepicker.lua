@@ -50,6 +50,12 @@ return function(card, cfg)
         -- icon names work too ("crosshair", "solar:target-bold")
         if not tostring(image):match("^%d+$") and not tostring(image):match("^rbxasset") then Icons.Apply(preview, image) end
         buttons[key] = { button = button, outline = outline }
+        -- hover: a slight grow and a brighter edge
+        Util.hoverPop(button, 1.05)
+        button.MouseEnter:Connect(function()
+            if key ~= element.Value then Theme.tweenTo(outline, "Color", "buttonEdge", 0.1) outline.Transparency = 0.1 end
+        end)
+        button.MouseLeave:Connect(render)
         button.Activated:Connect(function() if not element.Locked then element:Set(key) end end)
     end
 

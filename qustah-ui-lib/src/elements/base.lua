@@ -19,7 +19,7 @@ local Base = {}
 -- elements that hold a value: they get a flag from their name when the window has AutoFlags = true
 local VALUE = {
     Toggle = true, Slider = true, Dropdown = true, Keybind = true, ColorPicker = true, Input = true, Segment = true,
-    Range = true, Swatches = true, Gradient = true, ImagePicker = true, PlayerList = true, Checkbox = true, Radio = true,
+    Range = true, Swatches = true, Gradient = true, ImagePicker = true, PlayerList = true, Checkbox = true, Radio = true, Stepper = true, TextArea = true,
 }
 
 -- Is a flag value "on"? (false, nil, "", empty lists and "None" keys are off)

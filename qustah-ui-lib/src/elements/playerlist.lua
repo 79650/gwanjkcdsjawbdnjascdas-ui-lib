@@ -43,6 +43,7 @@ return function(card, cfg)
     })
     Theme.bind(list, "BackgroundColor3", "base")
     Theme.bind(list, "ScrollBarImageColor3", "muted")
+    Util.fadeScrollbar(list)
     list.BackgroundTransparency = 0.4
     corner(list, 6)
     Theme.bind(stroke(list), "Color", "line")

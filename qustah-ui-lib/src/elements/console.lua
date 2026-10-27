@@ -32,6 +32,7 @@ return function(card, cfg)
         Parent = holder,
     })
     Theme.bind(scroller, "ScrollBarImageColor3", "muted")
+    Util.fadeScrollbar(scroller)
     local list = create("Frame", { Name = "List", BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = scroller })
     Util.list(list, 1)
     Util.padding(list, 0, 0, 0, 8)

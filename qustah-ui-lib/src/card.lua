@@ -36,6 +36,8 @@ Card.Elements = {
     Checkbox    = require("elements/checkbox"),
     Radio       = require("elements/radio"),
     Table       = require("elements/table"),
+    Stepper     = require("elements/stepper"),
+    TextArea    = require("elements/textarea"),
 }
 Card.__index = function(_, key)
     local method = rawget(Card, key)
@@ -101,6 +103,38 @@ function Card.new(page, column, cfg, order)
         self._key = tostring(page.tab and page.tab.Title or "") .. "/" .. tostring(page.Name or "") .. "/" .. tostring(cfg.Title)
     end
     self.frame, self.body = frame, frame
+    -- an empty card (nothing added yet, or everything hidden by DependsOn / SetVisible) says so; Empty = false turns it off
+    if cfg.Empty ~= false then
+        local empty = label(frame, tostring(cfg.Empty or "Nothing here"), 10, {
+            Name = "Empty", Size = UDim2.new(1, 0, 0, 30), TextXAlignment = Enum.TextXAlignment.Center, Visible = false, LayoutOrder = 1,
+        })
+        Theme.bind(empty, "TextColor3", "muted")
+        local queued = false
+        local function check()
+            queued = false
+            if not frame.Parent then return end
+            local any = false
+            for _, child in ipairs(frame:GetChildren()) do
+                if child:IsA("GuiObject") and child ~= empty and child.Name ~= "Heading" and child.Name ~= "CardDesc" and (child.Visible or (self._hidden and self._hidden[child])) then
+                    any = true
+                    break
+                end
+            end
+            empty.Visible = not any and not self.Collapsed
+        end
+        local function queue()
+            if queued then return end
+            queued = true
+            task.defer(check)
+        end
+        frame.ChildAdded:Connect(function(child)
+            if child:IsA("GuiObject") and child ~= empty then child:GetPropertyChangedSignal("Visible"):Connect(queue) end
+            queue()
+        end)
+        frame.ChildRemoved:Connect(queue)
+        self._checkEmpty = queue
+        queue()
+    end
     -- DependsOn: the whole card shows only while the condition holds (see elements/base)
     if cfg.DependsOn then require("elements/base").depend(self.window, cfg.DependsOn, function(ok) frame.Visible = ok return frame.Parent ~= nil end) end
     -- restore the folded state from the window memory
@@ -118,7 +152,7 @@ function Card:SetCollapsed(collapsed, quiet)
     self.Collapsed = collapsed
     self._hidden = self._hidden or {}
     for _, child in ipairs(self.frame:GetChildren()) do
-        if child:IsA("GuiObject") and child.Name ~= "Heading" and child.Name ~= "CardDesc" then
+        if child:IsA("GuiObject") and child.Name ~= "Heading" and child.Name ~= "CardDesc" and child.Name ~= "Empty" then
             if collapsed then
                 if child.Visible then self._hidden[child] = true child.Visible = false end
             elseif self._hidden[child] then
@@ -127,6 +161,7 @@ function Card:SetCollapsed(collapsed, quiet)
         end
     end
     if not collapsed then self._hidden = {} end
+    if self._checkEmpty then self._checkEmpty() end
     if self._chevron then Util.tween(self._chevron, 0.15, { Rotation = collapsed and -90 or 0 }) end
     local window = self.window
     if self._key and window.memory and not quiet then

@@ -44,7 +44,9 @@ return function(card, cfg)
     local knob = create("Frame", { Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(10, 10), BorderSizePixel = 0, ZIndex = 2, Parent = track })
     Theme.bind(knob, "BackgroundColor3", "accent")
     corner(knob, 5)
-    local hit = create("TextButton", { Name = "Hit", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.new(0, inset - 6, 0, top), Size = UDim2.new(1, 12 - inset * 2, 0, 18), ZIndex = 3, Parent = row })
+    -- (taller on touch screens: easier to catch with a finger)
+    local reach = Util.isTouch() and 8 or 0
+    local hit = create("TextButton", { Name = "Hit", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.new(0, inset - 6, 0, top - reach), Size = UDim2.new(1, 12 - inset * 2, 0, 18 + reach * 2), ZIndex = 3, Parent = row })
     -- value bubble over the knob while dragging
     local bubble = create("TextLabel", {
         Name = "Bubble", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -6), Size = UDim2.fromOffset(0, 18), AutomaticSize = Enum.AutomaticSize.X,

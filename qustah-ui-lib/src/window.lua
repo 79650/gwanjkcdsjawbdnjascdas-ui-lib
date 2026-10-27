@@ -35,6 +35,7 @@ function Page.new(tab, name, cfg)
         VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar, Visible = false, Parent = window.pages,
     })
     Theme.bind(frame, "ScrollBarImageColor3", "muted")
+    Util.fadeScrollbar(frame, 0.4)
     -- Margins come from the content frame's position / size, not from a UIPadding on the ScrollingFrame:
     -- Roblox sizes scale children of a padded ScrollingFrame from the unpadded width, which pushed the right
     -- column past the window edge.
@@ -185,6 +186,14 @@ function Tab.new(window, cfg)
     self.strip = create("Frame", { Name = self.Title, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, Parent = window.stripHolder })
 
     self.Header = cfg.Header == true -- also shown as a text tab in the header (Overview / Settings)
+    -- Build = function(tab) ... end: the tab's content is made the first time it opens (faster start for big scripts)
+    -- (it also builds itself a moment after start, so its key binds work without opening it; BuildDelay = false: only on open)
+    self._build = type(cfg.Build) == "function" and cfg.Build or nil
+    if self._build and cfg.BuildDelay ~= false then
+        task.delay(tonumber(cfg.BuildDelay) or 1.5, function()
+            if self._build and window.alive then self:Build() end
+        end)
+    end
     self.Divider = cfg.Divider == true or window._dividerNext == true -- a short line above this tab in the dock
     window._dividerNext = nil
     local button = create("TextButton", {
@@ -257,8 +266,17 @@ function Tab:Card(cfg)
     return self.Pages[1]:Card(cfg)
 end
 
+-- Makes a lazy tab's content now (Tab({ Build = fn })); later calls do nothing.
+function Tab:Build()
+    local build = self._build
+    if not build then return end
+    self._build = nil
+    self.window:_safe("Build " .. self.Title, build, self)
+end
+
 function Tab:Select()
     local window = self.window
+    if self._build then self:Build() end
     window.current = self
     for _, tab in ipairs(window.Tabs) do
         tab.strip.Visible = tab == self and #tab.Pages > 1
@@ -316,12 +334,14 @@ function Window.new(Lib, cfg)
         self.width = math.clamp(tonumber(saved.w), self.minSize.X, self.maxSize.X)
         self.height = math.clamp(tonumber(saved.h), self.minSize.Y, self.maxSize.Y)
     end
+    self.uiScale = math.clamp(tonumber(self.memory.uiScale or cfg.Scale) or 1, 0.6, 1.5)
     Glow.start(Lib.maid)
     self:_build()
     if self._buildExtras then self:_buildExtras() end
     if self._buildInbox then self:_buildInbox() end
     if self._buildFx then self:_buildFx() end
     if self._watchKicks then self:_watchKicks() end
+    if self._buildMobile then self:_buildMobile() end
     self:_refreshStatus()
     Lib.Windows[#Lib.Windows + 1] = self
     return self
@@ -539,7 +559,8 @@ function Window:_build()
             return
         end
         self:SetVisible(false)
-        self:Notify({ Title = self.Title .. " hidden", Content = "Press " .. Util.keyName(self.key) .. " to open it again" })
+        local how = self.mobileButton and "Tap the " .. self.Title .. " button to open it again" or ("Press " .. Util.keyName(self.key) .. " to open it again")
+        self:Notify({ Title = self.Title .. " hidden", Content = how })
     end)
 
     local UserInputService = Services.UserInputService
@@ -631,7 +652,8 @@ function Window:_layout()
     if not self.alive then return end
     local viewport = Util.viewport()
     local total = self.width + DOCK_GAP + DOCK_WIDTH
-    local s = math.clamp(math.min(1, (viewport.X - 24) / total, (viewport.Y - 24) / self.height), 0.4, 1)
+    -- the chosen UI scale (Settings / Window:SetUIScale), made smaller when the screen can't fit it
+    local s = math.clamp(math.min(self.uiScale or 1, (viewport.X - 24) / total, (viewport.Y - 24) / self.height), 0.4, 1.5)
     self.scale.Scale, self.dockScale.Scale = s, s
     local height = self.folded and HEADER or self.height
     self.main.Size = UDim2.fromOffset(self.width, height)
@@ -909,6 +931,19 @@ function Window:SetVisible(visible)
 end
 function Window:Toggle() self:SetVisible(not self.visible) end
 
+-- Window:SetUIScale(1.1): the whole menu bigger / smaller (0.6 - 1.5); remembered on this PC.
+function Window:SetUIScale(value)
+    value = math.clamp(tonumber(value) or 1, 0.6, 1.5)
+    self.uiScale = value
+    self:_closePopup()
+    self:_layout()
+    if self.memory then
+        self.memory.uiScale = value ~= 1 and value or nil
+        self:_saveMemory()
+    end
+end
+function Window:GetUIScale() return self.uiScale or 1 end
+
 function Window:Minimize()
     self.folded = not self.folded
     self:_closePopup()
@@ -981,6 +1016,11 @@ function Window:KeyHint(cfg)
 end
 
 -- Changes the menu key everywhere (menu key hint, Settings tab).
+-- Builds every lazy tab now (before a full profile export, for example).
+function Window:BuildAll()
+    for _, tab in ipairs(self.Tabs) do if tab._build then tab:Build() end end
+end
+
 function Window:SetToggleKey(key)
     key = Util.toKey(key)
     if not key then -- the menu always needs a key: put the current one back on every display

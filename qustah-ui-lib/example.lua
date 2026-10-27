@@ -17,6 +17,8 @@ local Window = Lib:CreateWindow({
     -- AutoFlags = true,                  -- elements without a Flag get "Tab.Card.Title" and are saved in profiles too
     -- Rejoin = true,                     -- teleport back after a kick (Settings › Info lists the kicks either way)
     -- Blur = true, Sounds = true,        -- blur the game behind the menu, soft UI clicks (both also in Settings)
+    -- Scale = 1.1,                       -- the whole menu bigger / smaller (Settings › Menu › UI scale)
+    -- MobileButton = "Auto",             -- reopen button while hidden: "Auto" = phones / tablets, true, false
     -- KeySystem = { Keys = { "QUSTAH-KEY" }, Url = "https://discord.gg/yourserver", Note = "Keys reset daily" },
     Changelog = { Version = "1.00", Items = { "New Session card with live stats", "Tables, radio lists and line graphs" } }, -- shown once per version
     -- Accent = Color3.fromRGB(61, 151, 219), -- default is Qustah's neutral grey
@@ -97,8 +99,10 @@ sections.Filters:Radio({ Title = "When two are close", Flag = "tieBreak", Option
 
 ------------------------------------------------------------------------ Misc: input, buttons, paragraph
 local Misc = Window:Tab({ Title = "Misc", Icon = "blocks" })
+-- (a big tab can also be built on first open: Window:Tab({ Title = "Misc", Build = function(tab) ... end }))
 local Tools = Misc:Card({ Title = "Tools" })
 Tools:Input({ Title = "Target name", Placeholder = "player name", Flag = "targetName" })
+Tools:Stepper({ Title = "Clicks per second", Flag = "cps", Min = 1, Max = 20, Default = 8 })   -- [-] 8 [+], hold to repeat
 Tools:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() print("rejoin") end })
 Tools:Button({ Title = "Server hop", Icon = "shuffle", Confirm = true, Callback = function() print("hop") end })
 local Crosshair = Misc:Card({ Title = "Crosshair" })
@@ -136,6 +140,7 @@ local Extras = Misc:Card({ Title = "Extras" })
 local advanced = Extras:Section({ Title = "Advanced", Icon = "settings-2", Opened = false })
 advanced:Toggle({ Title = "Bypass checks", Flag = "bypass" })
 advanced:Slider({ Title = "Delay", Flag = "delay", Min = 0, Max = 1, Step = 0.05, Default = 0.2, Suffix = "s" })
+advanced:TextArea({ Title = "Auto chat message", Flag = "chatMessage", Placeholder = "gg, good game", Height = 60, MaxLength = 120 })
 local buttons = Extras:Row()
 buttons:Button({ Title = "Start", Icon = "play", Callback = function() farm:Set(farm.Value + 1) end })
 buttons:Button({ Title = "Stop", Icon = "square", Callback = function() print("stop") end })

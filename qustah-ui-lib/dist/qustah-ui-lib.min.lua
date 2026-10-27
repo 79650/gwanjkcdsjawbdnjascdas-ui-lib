@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.7.1 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.8.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -45,6 +45,8 @@ Console=require("elements/console"),
 Checkbox=require("elements/checkbox"),
 Radio=require("elements/radio"),
 Table=require("elements/table"),
+Stepper=require("elements/stepper"),
+TextArea=require("elements/textarea"),
 }
 Card.__index=function(_,key)
 local method=rawget(Card,key)
@@ -106,6 +108,37 @@ end
 self._key=tostring(page.tab and page.tab.Title or"").."/"..tostring(page.Name or"").."/"..tostring(cfg.Title)
 end
 self.frame,self.body=frame,frame
+if cfg.Empty~=false then
+local empty=label(frame,tostring(cfg.Empty or"Nothing here"),10,{
+Name="Empty",Size=UDim2.new(1,0,0,30),TextXAlignment=Enum.TextXAlignment.Center,Visible=false,LayoutOrder=1,
+})
+Theme.bind(empty,"TextColor3","muted")
+local queued=false
+local function check()
+queued=false
+if not frame.Parent then return end
+local any=false
+for _,child in ipairs(frame:GetChildren())do
+if child:IsA("GuiObject")and child~=empty and child.Name~="Heading"and child.Name~="CardDesc"and(child.Visible or(self._hidden and self._hidden[child]))then
+any=true
+break
+end
+end
+empty.Visible=not any and not self.Collapsed
+end
+local function queue()
+if queued then return end
+queued=true
+task.defer(check)
+end
+frame.ChildAdded:Connect(function(child)
+if child:IsA("GuiObject")and child~=empty then child:GetPropertyChangedSignal("Visible"):Connect(queue)end
+queue()
+end)
+frame.ChildRemoved:Connect(queue)
+self._checkEmpty=queue
+queue()
+end
 if cfg.DependsOn then require("elements/base").depend(self.window,cfg.DependsOn,function(ok)frame.Visible=ok return frame.Parent~=nil end)end
 local memory=self.window.memory and self.window.memory.collapsed
 if self._chevron and((memory and memory[self._key])or cfg.Collapsed)then
@@ -119,7 +152,7 @@ if collapsed==(self.Collapsed==true)then return end
 self.Collapsed=collapsed
 self._hidden=self._hidden or{}
 for _,child in ipairs(self.frame:GetChildren())do
-if child:IsA("GuiObject")and child.Name~="Heading"and child.Name~="CardDesc"then
+if child:IsA("GuiObject")and child.Name~="Heading"and child.Name~="CardDesc"and child.Name~="Empty"then
 if collapsed then
 if child.Visible then self._hidden[child]=true child.Visible=false end
 elseif self._hidden[child]then
@@ -128,6 +161,7 @@ end
 end
 end
 if not collapsed then self._hidden={}end
+if self._checkEmpty then self._checkEmpty()end
 if self._chevron then Util.tween(self._chevron,0.15,{Rotation=collapsed and-90 or 0})end
 local window=self.window
 if self._key and window.memory and not quiet then
@@ -899,7 +933,7 @@ local create,corner,label=Util.create,Util.corner,Util.label
 local Base={}
 local VALUE={
 Toggle=true,Slider=true,Dropdown=true,Keybind=true,ColorPicker=true,Input=true,Segment=true,
-Range=true,Swatches=true,Gradient=true,ImagePicker=true,PlayerList=true,Checkbox=true,Radio=true,
+Range=true,Swatches=true,Gradient=true,ImagePicker=true,PlayerList=true,Checkbox=true,Radio=true,Stepper=true,TextArea=true,
 }
 local function truthy(value)
 if value==nil or value==false or value==""then return false end
@@ -1393,6 +1427,7 @@ Name="Body",BackgroundTransparency=1,BorderSizePixel=0,Position=UDim2.fromOffset
 CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.XY,ScrollBarThickness=3,Parent=holder,
 })
 Theme.bind(scroller,"ScrollBarImageColor3","muted")
+Util.fadeScrollbar(scroller)
 local text=create("TextLabel",{
 Name="Code",BackgroundTransparency=1,Position=UDim2.fromOffset(10,8),Size=UDim2.fromOffset(0,0),AutomaticSize=Enum.AutomaticSize.XY,
 Font=Enum.Font.Code,TextSize=11,RichText=true,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,
@@ -1690,6 +1725,7 @@ CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollBarThickne
 Parent=holder,
 })
 Theme.bind(scroller,"ScrollBarImageColor3","muted")
+Util.fadeScrollbar(scroller)
 local list=create("Frame",{Name="List",BackgroundTransparency=1,Position=UDim2.fromOffset(10,6),Size=UDim2.new(1,-20,0,0),AutomaticSize=Enum.AutomaticSize.Y,Parent=scroller})
 Util.list(list,1)
 Util.padding(list,0,0,0,8)
@@ -2002,6 +2038,7 @@ Position=UDim2.fromOffset(0,bodyTop),Size=UDim2.new(1,0,0,listHeight),
 CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollingDirection=Enum.ScrollingDirection.Y,Parent=popup,
 })
 Theme.bind(scroller,"ScrollBarImageColor3","muted")
+Util.fadeScrollbar(scroller)
 Util.padding(scroller,4,4,4,4)
 Util.list(scroller,0)
 local empty=label(scroller,"No matches",10,{Name="Empty",Size=UDim2.new(1,0,0,ITEM),TextXAlignment=Enum.TextXAlignment.Center,Visible=false,ZIndex=262,LayoutOrder=1e6})
@@ -2506,6 +2543,11 @@ BackgroundTransparency=1,Image=asset(image),ScaleType=Enum.ScaleType.Fit,Parent=
 })
 if not tostring(image):match("^%d+$")and not tostring(image):match("^rbxasset")then Icons.Apply(preview,image)end
 buttons[key]={button=button,outline=outline}
+Util.hoverPop(button,1.05)
+button.MouseEnter:Connect(function()
+if key~=element.Value then Theme.tweenTo(outline,"Color","buttonEdge",0.1)outline.Transparency=0.1 end
+end)
+button.MouseLeave:Connect(render)
 button.Activated:Connect(function()if not element.Locked then element:Set(key)end end)
 end
 function element:Set(image,silent)
@@ -2843,6 +2885,7 @@ Parent=holder,
 })
 Theme.bind(list,"BackgroundColor3","base")
 Theme.bind(list,"ScrollBarImageColor3","muted")
+Util.fadeScrollbar(list)
 list.BackgroundTransparency=0.4
 corner(list,6)
 Theme.bind(stroke(list),"Color","line")
@@ -3184,7 +3227,8 @@ corner(object,5)
 return object
 end
 local lowKnob,highKnob=knob("LowKnob"),knob("HighKnob")
-local hit=create("TextButton",{Name="Hit",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.new(0,-6,0,top),Size=UDim2.new(1,12,0,18),ZIndex=3,Parent=row})
+local reach=Util.isTouch()and 8 or 0
+local hit=create("TextButton",{Name="Hit",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.new(0,-6,0,top-reach),Size=UDim2.new(1,12,0,18+reach*2),ZIndex=3,Parent=row})
 local element=Base.element(card,"Range",cfg,row,title,desc)
 local focused={}
 local function format(value)
@@ -3367,7 +3411,8 @@ corner(fill,1)
 local knob=create("Frame",{Name="Knob",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(10,10),BorderSizePixel=0,ZIndex=2,Parent=track})
 Theme.bind(knob,"BackgroundColor3","accent")
 corner(knob,5)
-local hit=create("TextButton",{Name="Hit",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.new(0,inset-6,0,top),Size=UDim2.new(1,12-inset*2,0,18),ZIndex=3,Parent=row})
+local reach=Util.isTouch()and 8 or 0
+local hit=create("TextButton",{Name="Hit",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.new(0,inset-6,0,top-reach),Size=UDim2.new(1,12-inset*2,0,18+reach*2),ZIndex=3,Parent=row})
 local bubble=create("TextLabel",{
 Name="Bubble",AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,0,-6),Size=UDim2.fromOffset(0,18),AutomaticSize=Enum.AutomaticSize.X,
 BorderSizePixel=0,Text="",TextSize=9,Font=Enum.Font.GothamMedium,Visible=false,ZIndex=6,Parent=knob,
@@ -3587,6 +3632,110 @@ element:Set(tonumber(cfg.Value or cfg.Default)or 0,true)
 return element
 end
 end
+__modules["elements/stepper"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
+return function(card,cfg)
+local min,max=tonumber(cfg.Min)or 0,tonumber(cfg.Max)or 10
+if max<min then min,max=max,min end
+local step=tonumber(cfg.Step)or 1
+if step<=0 then step=1 end
+local decimals=Util.decimals(step)
+local suffix=cfg.Suffix and(" "..tostring(cfg.Suffix))or""
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=106,helpRight=100})
+local box=create("Frame",{Name="Stepper",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(96,24),BorderSizePixel=0,Parent=row})
+Theme.bind(box,"BackgroundColor3","input")
+corner(box,6)
+Theme.bind(stroke(box),"Color","buttonEdge")
+local function sideButton(name,icon,side)
+local button=create("TextButton",{
+Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundTransparency=1,
+AnchorPoint=Vector2.new(side,0.5),Position=UDim2.new(side,0,0.5,0),Size=UDim2.fromOffset(24,24),Parent=box,
+})
+Theme.bind(button,"BackgroundColor3","hover")
+corner(button,6)
+local image=Icons.themed(button,icon,12,"text",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+button.MouseEnter:Connect(function()Util.tween(button,0.1,{BackgroundTransparency=0})if image then Theme.tweenTo(image,"ImageColor3","heading",0.1)end end)
+button.MouseLeave:Connect(function()Util.tween(button,0.1,{BackgroundTransparency=1})if image then Theme.tweenTo(image,"ImageColor3","text",0.1)end end)
+return button,image
+end
+local minus=sideButton("Minus","minus",0)
+local plus=sideButton("Plus","plus",1)
+local value=create("TextBox",{
+Name="Value",BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),
+Size=UDim2.new(1,-48,1,0),Text="",TextSize=10,Font=Enum.Font.GothamMedium,ClearTextOnFocus=false,
+TextTruncate=Enum.TextTruncate.AtEnd,Parent=box,
+})
+Theme.bind(value,"TextColor3","heading")
+Theme.bind(value,"PlaceholderColor3","muted")
+local element=Base.element(card,"Stepper",cfg,row,title,desc)
+local focused=false
+local function format(number)
+return(decimals>0 and string.format("%."..decimals.."f",number)or tostring(math.floor(number+0.5)))..suffix
+end
+local function render()
+if not focused then value.Text=format(element.Value)end
+minus.Active,plus.Active=element.Value>min,element.Value<max
+for _,button in ipairs({minus,plus})do
+local icon=button:FindFirstChildWhichIsA("ImageLabel")
+if icon then icon.ImageTransparency=button.Active and 0 or 0.6 end
+end
+end
+function element:Set(number,silent)
+number=tonumber(number)
+if not number or number~=number then render()return end
+number=math.clamp(Util.round(number-min,step)+min,min,max)
+if decimals>0 then number=tonumber(string.format("%."..decimals.."f",number))end
+local changed=number~=self.Value
+self.Value=number
+render()
+self:_fire(number,silent or not changed)
+end
+function element:Get()return self.Value end
+function element:SetRange(newMin,newMax)
+min,max=tonumber(newMin)or min,tonumber(newMax)or max
+self:Set(self.Value)
+end
+local function hold(button,direction)
+local holding=0
+button.InputBegan:Connect(function(input)
+if not Util.isPress(input)or element.Locked then return end
+holding=holding+1
+local mine=holding
+element:Set(element.Value+step*direction)
+task.spawn(function()
+task.wait(0.4)
+local delay=0.12
+while holding==mine and button.Parent and not element.Locked do
+local before=element.Value
+element:Set(element.Value+step*direction)
+if element.Value==before then break end
+task.wait(delay)
+delay=math.max(0.03,delay*0.85)
+end
+end)
+end)
+button.InputEnded:Connect(function(input)if Util.isPress(input)then holding=holding+1 end end)
+button.MouseLeave:Connect(function()holding=holding+1 end)
+end
+hold(minus,-1)
+hold(plus,1)
+value.Focused:Connect(function()focused=true value.Text=format(element.Value):gsub(suffix:gsub("%p","%%%0").."$","")end)
+value.FocusLost:Connect(function()
+focused=false
+local number=tonumber((value.Text:gsub("[^%d%.%-]","")))
+if number then element:Set(number)else render()end
+render()
+end)
+element.Value=math.clamp(tonumber(cfg.Default)or min,min,max)
+render()
+element:_fire(element.Value,true)
+return Base.finish(element,cfg)
+end
+end
 __modules["elements/swatches"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -3637,7 +3786,13 @@ local text=label(button,name,10,{Position=UDim2.fromOffset(28,0),Size=UDim2.new(
 local entry={name=name,color=color,button=button,text=text,outline=outline}
 entries[#entries+1]=entry
 byName[name]=entry
-button.MouseEnter:Connect(function()if element.Value~=name then Theme.tweenTo(button,"BackgroundColor3","input",0.1)end end)
+Util.hoverPop(button,1.04)
+button.MouseEnter:Connect(function()
+if element.Value~=name then
+Theme.tweenTo(button,"BackgroundColor3","input",0.1)
+Theme.tweenTo(text,"TextColor3","heading",0.1)
+end
+end)
 button.MouseLeave:Connect(render)
 button.Activated:Connect(function()if not element.Locked then element:Set(name)end end)
 end
@@ -3750,6 +3905,7 @@ Name="Rows",BackgroundTransparency=1,BorderSizePixel=0,Position=UDim2.fromOffset
 CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollBarThickness=3,ScrollingDirection=Enum.ScrollingDirection.Y,Parent=box,
 })
 Theme.bind(body,"ScrollBarImageColor3","muted")
+Util.fadeScrollbar(body)
 Util.list(body,0)
 local empty=label(box,cfg.Empty or"No rows",10,{Name="Empty",Position=UDim2.fromOffset(0,ROW),Size=UDim2.new(1,0,1,-ROW),TextXAlignment=Enum.TextXAlignment.Center})
 Theme.bind(empty,"TextColor3","muted")
@@ -3884,6 +4040,77 @@ if search then search:GetPropertyChangedSignal("Text"):Connect(render)end
 element:SetRows(cfg.Rows)
 if cfg.SortBy then element:Sort(cfg.SortBy,cfg.Descending)end
 return element
+end
+end
+__modules["elements/textarea"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+return function(card,cfg)
+local height=math.max(40,tonumber(cfg.Height)or 80)
+local maxLength=tonumber(cfg.MaxLength)
+local top=(cfg.Title and 20 or 0)+(cfg.Desc and 16 or 0)+(cfg.Title and 4 or 0)
+local holder=create("Frame",{Name=tostring(cfg.Title or"TextArea"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,top+height),LayoutOrder=card:_order(),Parent=card.body})
+local title,desc
+if cfg.Title then
+title=label(holder,tostring(cfg.Title),11,{Name="Title",Size=UDim2.new(1,maxLength and-70 or 0,0,20)})
+Theme.bind(title,"TextColor3",cfg.Risky and"danger"or"text")
+end
+if cfg.Desc then
+desc=label(holder,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(0,cfg.Title and 20 or 0),Size=UDim2.new(1,0,0,14)})
+Theme.bind(desc,"TextColor3","muted")
+end
+local counter
+if maxLength then
+counter=label(holder,"",9,{Name="Counter",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(70,20),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(counter,"TextColor3","muted")
+end
+local box=create("TextBox",{
+Name="Box",Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,0,height),BorderSizePixel=0,Text="",
+PlaceholderText=tostring(cfg.Placeholder or""),TextSize=10,Font=Enum.Font.Gotham,MultiLine=true,TextWrapped=true,
+TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,ClearTextOnFocus=false,ClipsDescendants=true,
+Parent=holder,
+})
+Theme.bind(box,"BackgroundColor3","input")
+Theme.bind(box,"TextColor3","text")
+Theme.bind(box,"PlaceholderColor3","muted")
+corner(box,7)
+local outline=stroke(box)
+Theme.bind(outline,"Color","buttonEdge")
+Util.padding(box,10,10,8,8)
+local element=Base.element(card,"TextArea",cfg,holder,title,desc)
+local function count()
+if counter then
+counter.Text=#box.Text.." / "..maxLength
+Theme.bind(counter,"TextColor3",#box.Text>=maxLength and"warning"or"muted")
+end
+end
+function element:Set(text,silent)
+text=tostring(text==nil and""or text)
+if maxLength and#text>maxLength then text=text:sub(1,maxLength)end
+local changed=text~=self.Value
+self.Value=text
+if box.Text~=text then box.Text=text end
+count()
+self._failed=false
+self:_fire(text,silent or not changed)
+if changed and not silent then self:_accepted("success")end
+end
+function element:Get()return self.Value end
+box:GetPropertyChangedSignal("Text"):Connect(function()
+if maxLength and#box.Text>maxLength then box.Text=box.Text:sub(1,maxLength)return end
+count()
+if cfg.Finished==false then element:Set(box.Text)end
+end)
+box.Focused:Connect(function()Theme.tweenTo(outline,"Color","accent",0.1)end)
+box.FocusLost:Connect(function()
+Theme.tweenTo(outline,"Color","buttonEdge",0.1)
+element:Set(box.Text)
+end)
+element:Set(cfg.Default or"",true)
+if cfg.Locked then box.TextEditable=false end
+return Base.finish(element,cfg)
 end
 end
 __modules["elements/toggle"]=function()
@@ -4367,6 +4594,45 @@ maid:give(function()Glow.started=false end)
 Theme.onChange(function()for _,fx in ipairs(Glow.items)do if fx.label.Parent then apply(fx)end end end)
 end
 return Glow
+end
+__modules["haptics"]=function()
+local Util=require("util")
+local Haptics={Enabled=Util.isTouch()}
+local TYPES
+local function types()
+if TYPES~=nil then return TYPES end
+TYPES=false
+pcall(function()
+Instance.new("HapticEffect"):Destroy()
+TYPES={click=Enum.HapticEffectType.UIHover,notify=Enum.HapticEffectType.UIClick}
+end)
+return TYPES
+end
+local pool={}
+local last=0
+function Haptics.Play(kind)
+if not Haptics.Enabled then return end
+local list=types()
+local hapticType=list and list[kind or"click"]
+if not hapticType then return end
+local now=os.clock()
+if now-last<0.04 then return end
+last=now
+pcall(function()
+local effect=pool[kind]
+if not(effect and effect.Parent)then
+effect=Instance.new("HapticEffect")
+effect.Type=hapticType
+effect.Parent=Util.guiParent()
+pool[kind]=effect
+end
+effect:Play()
+end)
+end
+function Haptics.Clear()
+for kind,effect in pairs(pool)do pcall(effect.Destroy,effect)pool[kind]=nil end
+end
+return Haptics
 end
 __modules["hud"]=function()
 local Util=require("util")
@@ -5186,7 +5452,7 @@ corner(mark,1)
 Theme.bind(mark,"BackgroundColor3",entry.Color or"accent")
 local entryIcon=entry.Icon and Icons.themed(item,entry.Icon,12,"accent",{Position=UDim2.fromOffset(10,5),ZIndex=233})
 if entryIcon and entry.Color then Theme.bind(entryIcon,"ImageColor3",entry.Color)end
-local title=label(item,entry.Title,10,{Position=UDim2.fromOffset(entryIcon and 28 or 10,3),Size=UDim2.new(1,entryIcon and-82 or-64,0,16),Font=Enum.Font.GothamMedium,ZIndex=233})
+local title=label(item,entry.Title..((entry.Count or 1)>1 and("  ×"..entry.Count)or""),10,{Position=UDim2.fromOffset(entryIcon and 28 or 10,3),Size=UDim2.new(1,entryIcon and-82 or-64,0,16),Font=Enum.Font.GothamMedium,ZIndex=233})
 Theme.bind(title,"TextColor3","heading")
 local time=label(item,Util.ago(entry.Time),9,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,3),Size=UDim2.fromOffset(54,16),TextXAlignment=Enum.TextXAlignment.Right,ZIndex=233})
 Theme.bind(time,"TextColor3","muted")
@@ -5225,6 +5491,7 @@ CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollBarThickne
 ZIndex=231,Parent=panel,
 })
 Theme.bind(list,"ScrollBarImageColor3","muted")
+Util.fadeScrollbar(list)
 Util.list(list,2)
 local empty=label(panel,"No notifications yet",10,{Name="Empty",Position=UDim2.fromOffset(0,40),Size=UDim2.new(1,0,1,-48),TextXAlignment=Enum.TextXAlignment.Center,ZIndex=231})
 Theme.bind(empty,"TextColor3","muted")
@@ -5273,13 +5540,15 @@ require("inbox")(Window)
 require("windowx")(Window)
 require("windowfx")(Window)
 require("kick")(Window)
+require("mobile")(Window)
 local Lib={
-Version="1.7.1",
+Version="1.8.0",
 Flags={},
 Windows={},
 Theme=Theme,
 Icons=Icons,
 Sounds=Sounds,
+Haptics=require("haptics"),
 Util=Util,
 }
 Lib.maid=Util.maid()
@@ -5384,6 +5653,102 @@ end)
 end
 end
 end
+__modules["mobile"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local create,corner,stroke,label,tween=Util.create,Util.corner,Util.stroke,Util.label,Util.tween
+return function(Window)
+function Window:SetMobileButton(on,remember)
+self.mobileButton=on==true
+if remember and self.memory then self.memory.mobileButton=self.mobileButton self:_saveMemory()end
+if self.mobileButton and not self._pill then self:_makePill()end
+self:_showPill()
+end
+function Window:_showPill()
+local pill=self._pill
+if not pill then return end
+local show=self.mobileButton and self.alive and not self.visible
+if show then
+pill.Visible=true
+tween(pill,0.18,{GroupTransparency=0})
+else
+tween(pill,0.12,{GroupTransparency=1})
+task.delay(0.13,function()
+if pill.Parent and not(self.mobileButton and self.alive and not self.visible)then pill.Visible=false end
+end)
+end
+end
+function Window:_makePill()
+local pill=create("CanvasGroup",{
+Name="MobileButton",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,40),BorderSizePixel=0,
+GroupTransparency=1,Visible=false,ZIndex=80,Parent=self.gui,
+})
+Theme.bind(pill,"BackgroundColor3","base")
+corner(pill,20)
+local edge=stroke(pill,nil,0.3)
+Theme.bind(edge,"Color","accentEdge")
+local row=create("Frame",{Name="Row",BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromScale(0,1),Parent=pill})
+Util.list(row,8,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+Util.padding(row,12,16,0,0)
+Icons.themed(row,self.cfg.Icon or self.cfg.MobileIcon or"layout-grid",16,"accent",{Name="Icon",LayoutOrder=1})
+local text=label(row,self.Title,12,{Name="Text",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,40),Font=Enum.Font.GothamMedium,TextTruncate=Enum.TextTruncate.None,LayoutOrder=2})
+Theme.bind(text,"TextColor3","heading")
+create("UISizeConstraint",{MaxSize=Vector2.new(150,40),Parent=text})
+local hit=create("TextButton",{Name="Hit",Text="",AutoButtonColor=false,BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=81,Parent=pill})
+self._pill=pill
+local saved=self.memory and self.memory.mobilePill
+local fraction=type(saved)=="table"and Vector2.new(tonumber(saved[1])or 0.5,tonumber(saved[2])or 0.1)or Vector2.new(0.5,0.1)
+local function place()
+local viewport=Util.viewport()
+local room=Vector2.new(math.max(0,viewport.X-pill.AbsoluteSize.X),math.max(0,viewport.Y-pill.AbsoluteSize.Y))
+pill.Position=UDim2.fromOffset(math.floor(fraction.X*room.X),math.floor(fraction.Y*room.Y))
+end
+self.maid:connect(pill:GetPropertyChangedSignal("AbsoluteSize"),place)
+self._placers=self._placers or{}
+table.insert(self._placers,place)
+place()
+hit.InputBegan:Connect(function(input)
+if not Util.isPress(input)then return end
+local start=Util.pointer(input)
+local origin=Vector2.new(pill.Position.X.Offset,pill.Position.Y.Offset)
+local dragged=false
+self:_beginDrag(input,function(point)
+local delta=point-start
+if not dragged and delta.Magnitude<6 then return end
+dragged=true
+local viewport=Util.viewport()
+local room=Vector2.new(math.max(1,viewport.X-pill.AbsoluteSize.X),math.max(1,viewport.Y-pill.AbsoluteSize.Y))
+local target=origin+delta
+fraction=Vector2.new(math.clamp(target.X/room.X,0,1),math.clamp(target.Y/room.Y,0,1))
+place()
+end,function()
+if dragged then
+self.memory.mobilePill={fraction.X,fraction.Y}
+self:_saveMemory()
+else
+require("haptics").Play("click")
+self:SetVisible(true)
+end
+end)
+end)
+end
+local setVisible=Window.SetVisible
+function Window:SetVisible(visible)
+setVisible(self,visible)
+if self._pill then self:_showPill()end
+end
+function Window:_buildMobile()
+local mode=self.cfg.MobileButton
+if mode==nil then mode="Auto"end
+local saved=self.memory and self.memory.mobileButton
+if saved~=nil then mode=saved end
+local on=mode==true or(mode=="Auto"and Util.isTouch())
+if on then self:SetMobileButton(true)end
+self.maid:give(function()if self._pill then self._pill:Destroy()end end)
+end
+end
+end
 __modules["notify"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -5408,6 +5773,23 @@ function Notify.show(Lib,cfg)
 if type(cfg)=="string"then cfg={Title=cfg}end
 cfg=cfg or{}
 local holder=Notify.holder(Lib)
+local simple=cfg.Merge~=false and not(type(cfg.Buttons)=="table"and#cfg.Buttons>0)and cfg.Progress==nil and cfg.Steps==nil and cfg.Persist~=true
+local mergeKey=simple and(tostring(cfg.Title or"").."\0"..tostring(cfg.Content or""))or nil
+if mergeKey then
+for _,item in ipairs(Lib._openToasts or{})do
+if item.key==mergeKey and item.handle and item.handle:IsOpen()then
+item.bump()
+local last=Lib.NotifyHistory and Lib.NotifyHistory[1]
+if last and last.Title==tostring(cfg.Title or"")and last.Content==(cfg.Content and tostring(cfg.Content)or nil)then
+last.Count=(last.Count or 1)+1
+last.Time=os.time()
+for _,listener in ipairs(Lib._historyListeners or{})do Util.safe(listener)end
+end
+return item.handle
+end
+end
+end
+require("haptics").Play("notify")
 if cfg.History~=false then
 Lib.NotifyHistory=Lib.NotifyHistory or{}
 table.insert(Lib.NotifyHistory,1,{Title=tostring(cfg.Title or""),Content=cfg.Content and tostring(cfg.Content)or nil,Color=cfg.Color,Icon=cfg.Icon,Time=os.time()})
@@ -5456,7 +5838,7 @@ Theme.bind(contentLabel,"TextColor3","muted")
 end
 local closed=false
 local timer
-local entry={toast=toast}
+local entry={toast=toast,key=mergeKey,count=1}
 local function dismiss()
 if closed or not toast.Parent then return end
 closed=true
@@ -5555,8 +5937,19 @@ if tracked then
 progress.Size=UDim2.new(0,0,0,2)
 if steps then handle:SetStep(tonumber(cfg.Step)or 0,cfg.Content)elseif cfg.Progress then handle:SetProgress(cfg.Progress)end
 end
-if not tracked or cfg.Duration then
 local remaining=duration
+function entry.bump()
+entry.count=entry.count+1
+remaining=duration
+local muted=Util.toHex(Theme.get("muted"))
+local plain=tostring(cfg.Title or""):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;")
+title.RichText=true
+title.Text=plain..'  <font color="#'..muted..'">×'..entry.count.."</font>"
+local scale=toast:FindFirstChildOfClass("UIScale")or create("UIScale",{Parent=toast})
+scale.Scale=1.03
+tween(scale,0.18,{Scale=1})
+end
+if not tracked or cfg.Duration then
 timer=Util.Services.RunService.Heartbeat:Connect(function(dt)
 if closed then return end
 if hovered and cfg.PauseOnHover~=false then return end
@@ -5566,13 +5959,15 @@ if remaining<=0 then dismiss()end
 end)
 end
 handle.Paused=function()return hovered end
-return setmetatable(handle,{
+function handle:GetCount()return entry.count end
+entry.handle=setmetatable(handle,{
 __index=function(_,key)
 local value=toast[key]
 if type(value)=="function"then return function(_,...)return value(toast,...)end end
 return value
 end,
 })
+return entry.handle
 end
 function Notify.pillHolder(Lib,bottom)
 Lib._pillHolders=Lib._pillHolders or{}
@@ -6130,11 +6525,21 @@ Title="Welcome toast",Desc="Greets a new account on first open",
 Default=window:_state("welcomeToast")~=false and window.cfg.Welcome~=false,
 Callback=function(on)window:_state("welcomeToast",on)end,
 })
+local SCALES={"80%","90%","100%","110%","125%","150%"}
+local current=math.floor((window:GetUIScale()*100)+0.5).."%"
+menu:Dropdown({
+Title="UI scale",Desc="Bigger or smaller menu",Options=SCALES,Default=table.find(SCALES,current)and current or"100%",
+Callback=function(text)window:SetUIScale((tonumber(text:match("%d+"))or 100)/100)end,
+})
 local Sounds=require("sounds")
 menu:Toggle({
 Title="UI sounds",Desc="Soft clicks on buttons and switches",Flag="__ui_sounds",Default=Sounds.Enabled,
 Callback=function(on)Sounds.Enabled=on end,
 })
+local Haptics=require("haptics")
+menu:Toggle({Title="Haptics",Desc="Buzz on taps (phones)",Default=Haptics.Enabled,Callback=function(on)Haptics.Enabled=on end})
+menu:Toggle({Title="Mobile button",Desc="Reopen button while hidden",Default=window.mobileButton==true,
+Callback=function(on)window:SetMobileButton(on,true)end})
 menu:Button({
 Title="Reset window size / position",
 Callback=function()
@@ -6351,8 +6756,10 @@ tab={PING,2.6,0.25},
 error={PING,0.7,0.5},
 },
 }
+local Haptics=require("haptics")
 local last={}
 function Sounds.Play(name)
+Haptics.Play(name=="error"and"notify"or"click")
 if not Sounds.Enabled then return end
 local entry=Sounds.Map[name]
 if not entry then return end
@@ -6948,6 +7355,34 @@ function Util.avatar(userId,size)
 size=size or 48
 return string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=%d&h=%d",tonumber(userId)or 0,size,size)
 end
+function Util.fadeScrollbar(scroller,shown)
+shown=shown or 0.35
+local hovering,token=false,0
+scroller.ScrollBarImageTransparency=1
+local function show()
+token=token+1
+local mine=token
+Util.tween(scroller,0.12,{ScrollBarImageTransparency=shown})
+task.delay(1.2,function()
+if mine==token and not hovering and scroller.Parent then Util.tween(scroller,0.35,{ScrollBarImageTransparency=1})end
+end)
+end
+scroller:GetPropertyChangedSignal("CanvasPosition"):Connect(show)
+scroller.MouseEnter:Connect(function()hovering=true show()end)
+scroller.MouseLeave:Connect(function()hovering=false show()end)
+return scroller
+end
+function Util.isTouch()
+local UserInputService=Services.UserInputService
+local ok,touch=pcall(function()return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled end)
+return ok and touch==true
+end
+function Util.hoverPop(button,amount)
+local scale=create("UIScale",{Scale=1,Parent=button})
+button.MouseEnter:Connect(function()Util.tween(scale,0.12,{Scale=amount or 1.05})end)
+button.MouseLeave:Connect(function()Util.tween(scale,0.15,{Scale=1})end)
+return scale
+end
 function Util.clock(seconds)
 seconds=math.max(0,math.floor(seconds))
 return string.format("%02d:%02d:%02d",seconds//3600,(seconds//60)%60,seconds%60)
@@ -7090,6 +7525,7 @@ ScrollBarThickness=2,ScrollBarImageTransparency=0.4,ElasticBehavior=Enum.Elastic
 VerticalScrollBarInset=Enum.ScrollBarInset.ScrollBar,Visible=false,Parent=window.pages,
 })
 Theme.bind(frame,"ScrollBarImageColor3","muted")
+Util.fadeScrollbar(frame,0.4)
 local content=create("Frame",{
 Name="Content",BackgroundTransparency=1,Position=UDim2.fromOffset(16,2),Size=UDim2.new(1,-30,0,0),
 AutomaticSize=Enum.AutomaticSize.Y,Parent=frame,
@@ -7219,6 +7655,12 @@ local index=#window.Tabs+1
 local self=setmetatable({window=window,Title=cfg.Title or("Tab "..index),Pages={},index=index},Tab)
 self.strip=create("Frame",{Name=self.Title,BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Visible=false,Parent=window.stripHolder})
 self.Header=cfg.Header==true
+self._build=type(cfg.Build)=="function"and cfg.Build or nil
+if self._build and cfg.BuildDelay~=false then
+task.delay(tonumber(cfg.BuildDelay)or 1.5,function()
+if self._build and window.alive then self:Build()end
+end)
+end
 self.Divider=cfg.Divider==true or window._dividerNext==true
 window._dividerNext=nil
 local button=create("TextButton",{
@@ -7283,8 +7725,15 @@ function Tab:Card(cfg)
 if#self.Pages==0 then self:Page(self.Title)end
 return self.Pages[1]:Card(cfg)
 end
+function Tab:Build()
+local build=self._build
+if not build then return end
+self._build=nil
+self.window:_safe("Build "..self.Title,build,self)
+end
 function Tab:Select()
 local window=self.window
+if self._build then self:Build()end
 window.current=self
 for _,tab in ipairs(window.Tabs)do
 tab.strip.Visible=tab==self and#tab.Pages>1
@@ -7333,12 +7782,14 @@ if type(saved)=="table"and tonumber(saved.w)and tonumber(saved.h)then
 self.width=math.clamp(tonumber(saved.w),self.minSize.X,self.maxSize.X)
 self.height=math.clamp(tonumber(saved.h),self.minSize.Y,self.maxSize.Y)
 end
+self.uiScale=math.clamp(tonumber(self.memory.uiScale or cfg.Scale)or 1,0.6,1.5)
 Glow.start(Lib.maid)
 self:_build()
 if self._buildExtras then self:_buildExtras()end
 if self._buildInbox then self:_buildInbox()end
 if self._buildFx then self:_buildFx()end
 if self._watchKicks then self:_watchKicks()end
+if self._buildMobile then self:_buildMobile()end
 self:_refreshStatus()
 Lib.Windows[#Lib.Windows+1]=self
 return self
@@ -7532,7 +7983,8 @@ self:Destroy()
 return
 end
 self:SetVisible(false)
-self:Notify({Title=self.Title.." hidden",Content="Press "..Util.keyName(self.key).." to open it again"})
+local how=self.mobileButton and"Tap the "..self.Title.." button to open it again"or("Press "..Util.keyName(self.key).." to open it again")
+self:Notify({Title=self.Title.." hidden",Content=how})
 end)
 local UserInputService=Services.UserInputService
 maid:connect(UserInputService.InputChanged,function(input)
@@ -7614,7 +8066,7 @@ function Window:_layout()
 if not self.alive then return end
 local viewport=Util.viewport()
 local total=self.width+DOCK_GAP+DOCK_WIDTH
-local s=math.clamp(math.min(1,(viewport.X-24)/total,(viewport.Y-24)/self.height),0.4,1)
+local s=math.clamp(math.min(self.uiScale or 1,(viewport.X-24)/total,(viewport.Y-24)/self.height),0.4,1.5)
 self.scale.Scale,self.dockScale.Scale=s,s
 local height=self.folded and HEADER or self.height
 self.main.Size=UDim2.fromOffset(self.width,height)
@@ -7859,6 +8311,17 @@ end)
 end
 end
 function Window:Toggle()self:SetVisible(not self.visible)end
+function Window:SetUIScale(value)
+value=math.clamp(tonumber(value)or 1,0.6,1.5)
+self.uiScale=value
+self:_closePopup()
+self:_layout()
+if self.memory then
+self.memory.uiScale=value~=1 and value or nil
+self:_saveMemory()
+end
+end
+function Window:GetUIScale()return self.uiScale or 1 end
 function Window:Minimize()
 self.folded=not self.folded
 self:_closePopup()
@@ -7922,6 +8385,9 @@ self.hintBar.Visible=true
 self:_layoutBody()
 hint:Set(cfg.Key,true)
 return hint
+end
+function Window:BuildAll()
+for _,tab in ipairs(self.Tabs)do if tab._build then tab:Build()end end
 end
 function Window:SetToggleKey(key)
 key=Util.toKey(key)

@@ -193,6 +193,7 @@ return function(card, cfg)
             CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollingDirection = Enum.ScrollingDirection.Y, Parent = popup,
         })
         Theme.bind(scroller, "ScrollBarImageColor3", "muted")
+        Util.fadeScrollbar(scroller)
         Util.padding(scroller, 4, 4, 4, 4)
         Util.list(scroller, 0)
         local empty = label(scroller, "No matches", 10, { Name = "Empty", Size = UDim2.new(1, 0, 0, ITEM), TextXAlignment = Enum.TextXAlignment.Center, Visible = false, ZIndex = 262, LayoutOrder = 1e6 })

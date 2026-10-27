@@ -2,10 +2,10 @@
 
 ![Qustah UI](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.7.1-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.8.0-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-378_KB-2b2b2f?style=flat-square&labelColor=18181a)
-![elements](https://img.shields.io/badge/elements-28-2b2b2f?style=flat-square&labelColor=18181a)
+![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
 ![themes](https://img.shields.io/badge/themes-20-2b2b2f?style=flat-square&labelColor=18181a)
 
 **[Install](#install)** · **[Quick start](#quick-start)** · **[Elements](#elements)** · **[Docs](#window)** · **[Example](example.lua)**
@@ -99,12 +99,12 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 | | | | | |
 |---|---|---|---|---|
-| Toggle | Checkbox | Slider | Range | Dropdown |
-| Radio | Segment | Keybind | ColorPicker | Gradient |
-| Swatches | Input | ActionInput | Button | Label |
-| Paragraph | Info | Divider | Code | Progress |
-| Stat | Graph | Console | Table | Image |
-| ImagePicker | PlayerList | Viewport | | |
+| Toggle | Checkbox | Slider | Range | Stepper |
+| Dropdown | Radio | Segment | Keybind | ColorPicker |
+| Gradient | Swatches | Input | TextArea | ActionInput |
+| Button | Label | Paragraph | Info | Divider |
+| Code | Progress | Stat | Graph | Console |
+| Table | Image | ImagePicker | PlayerList | Viewport |
 
 <sub>All elements share Flags, DependsOn, Tooltips, Lock with a reason, Help hints, Risky styling, MoveUp/MoveDown and error flashes. You lay them out with Tabs, Sections, Rows and Groups inside a card.</sub>
 
@@ -144,6 +144,8 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
 | `Secure` | `false` | [Secure mode](#secure-mode) |
 | `Blur`, `BlurSize` | `false`, `12` | blur the game behind the open menu |
+| `Scale` | `1` | the whole menu bigger / smaller (0.6 – 1.5; also Settings › Menu › UI scale) |
+| `MobileButton` | `"Auto"` | reopen button while the menu is hidden: `"Auto"` = phones / tablets, `true`, `false` |
 | `Sounds` | `false` | soft UI clicks (`Lib.Sounds`) |
 | `KeySystem` | — | key screen before the window opens ([Key system](#key-system)) |
 | `Changelog` | — | "What's new" dialog, shown once per version ([Changelog](#changelog)) |
@@ -151,7 +153,8 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 
 | Method | |
 |---|---|
-| `Window:Tab({ Title, Icon, Divider, Header })` | adds a tab to the dock |
+| `Window:Tab({ Title, Icon, Divider, Header, Build })` | adds a tab to the dock (`Build`: see below) |
+| `Window:SetUIScale(1.1)`, `:GetUIScale()` | menu size; smaller screens still fit |
 | `Window:SetVisible(bool)`, `:Toggle()`, `:Minimize()` | show, hide, or fold to the title bar |
 | `Window:SetToggleKey(key)` | changes the menu key (the badge and Settings update too) |
 | `Window:SelectTab(tab or "Title")` | opens a tab |
@@ -176,6 +179,7 @@ local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both c
 - `Divider = true` puts a line above the tab.
 - `Header = true` also shows the tab as a text tab in the header.
 - `Tab:Card()` adds a card to the first page without creating one.
+- `Build = function(tab) ... end`: the tab's content is made later, so a big script starts faster. It builds itself 1.5 s after start (its key binds work without opening it); `BuildDelay = false` waits until the tab is opened. `Window:BuildAll()` builds every lazy tab now.
 
 **Pages**
 - `Columns = 1` gives a single column.
@@ -185,6 +189,7 @@ local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both c
 **Cards**
 - The arrow in the header folds the card. `Collapsible = false` removes the arrow, `Collapsed = true` starts folded, and the folded state is remembered.
 - Methods: `card:SetCollapsed(bool)`, `card:SetTitle()`, `card:SetDesc()`, `card:SetVisible()`.
+- A card with nothing visible in it shows "Nothing here" (`Empty = "your text"`, or `Empty = false`).
 
 Layout inside a card:
 
@@ -281,6 +286,12 @@ Card:Range({ Title = "Health filter", Flag = "hp", Min = 0, Max = 100, Default =
 
 Click the value to type a number. `slider:SetRange(min, max)`.
 
+```lua
+Card:Stepper({ Title = "Clicks per second", Flag = "cps", Min = 1, Max = 20, Step = 1, Default = 8, Suffix = "" })
+```
+
+`[-] 8 [+]`: exact numbers without a slider. Hold a button to repeat (it speeds up); click the number to type one.
+
 ### Dropdown, Segment and Radio
 
 ```lua
@@ -342,12 +353,15 @@ Card:Swatches({ Title = "Name color", Flag = "nameColor", Default = "Blue",
 
 The picker has a saturation square, a hue bar, a HEX box, Random and Rainbow. It also accepts `"RRGGBB"` strings.
 
-### Input and ActionInput
+### Input, TextArea and ActionInput
 
 ```lua
 Card:Input({ Title = "Target", Flag = "target", Placeholder = "player name", Numeric = false,
     Finished = true,                          -- false: the callback runs on every keystroke
     Callback = function(text) end })
+
+Card:TextArea({ Title = "Auto chat message", Flag = "chat", Placeholder = "gg", Height = 80, MaxLength = 200,
+    Callback = function(text) end })         -- multi-line; a "12 / 200" counter with MaxLength
 
 Card:ActionInput({ Icon = "plus", Placeholder = "Profile name", Button = "Create",
     Validate = function(text)                 -- live hint: ok = green, false = red
@@ -472,7 +486,7 @@ t:SetStep(2, "Quest 2")             -- closes itself at the end
 | `Sound`, `Volume` | `true` (a short ping) or a sound id |
 | `History` | `false`: kept out of the bell history |
 
-At most `Lib.MaxNotifications` (6) notifications stay on screen. A new one closes the oldest. The bell in the header keeps the last 50.
+At most `Lib.MaxNotifications` (6) notifications stay on screen, fewer when the screen is short; a new one closes the oldest. The same notification again while it is open counts up ("×3") and restarts its time instead of stacking (`Merge = false` turns it off). The bell in the header keeps the last 50.
 
 **Toast:** a small pill at the top centre of the screen.
 
@@ -545,7 +559,7 @@ Window:SettingsTab()                                                            
 - theme, accent (presets and custom colour), font, text glow
 - theme editor
 - menu key, welcome toast
-- menu: UI sounds
+- menu: UI scale, UI sounds, haptics, mobile button
 - window: anonymous mode, transparency, background, free mouse, live background, edge glow, blur, fullscreen
 - overlays
 - Unload
@@ -651,6 +665,8 @@ Window:GetKicks()
 
 ## Window extras
 
+On phones and tablets the menu adapts: a reopen button while it is hidden, taller slider hit areas, haptics on, and the window scales down to fit the screen. Scroll bars appear only while scrolling; grid cells grow slightly on hover.
+
 ```lua
 Window:HeaderButton({ Icon = "refresh-cw", Tooltip = "Rejoin", Callback = rejoin })
 Window:AddTag("NEW", { Color = "warning", Style = "Solid" | "Soft" })   -- text colour is picked to read on the fill
@@ -665,7 +681,11 @@ Window:SetBlur(true)                            -- blurs the game behind the ope
 Window:SetAnonymous(true)                       -- hides your name and avatar everywhere (the avatar button in the dock)
 Window:SetMouseUnlock(false)
 
+Window:SetUIScale(1.25)                         -- bigger menu (Settings › Menu › UI scale)
+Window:SetMobileButton(true)                    -- the reopen button (tap: open, drag: move) while the menu is hidden
+
 Lib.Sounds.Enabled = true                       -- soft clicks on buttons, switches and tabs
+Lib.Haptics.Enabled = true                      -- a short buzz on taps and notifications (on by default for phones)
 Lib.Sounds.Set("click", "rbxassetid://123")     -- your own sound for "click" | "toggle" | "tab" | "error"
 ```
 

@@ -65,6 +65,7 @@ return function(card, cfg)
         CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 3, ScrollingDirection = Enum.ScrollingDirection.Y, Parent = box,
     })
     Theme.bind(body, "ScrollBarImageColor3", "muted")
+    Util.fadeScrollbar(body)
     Util.list(body, 0)
     local empty = label(box, cfg.Empty or "No rows", 10, { Name = "Empty", Position = UDim2.fromOffset(0, ROW), Size = UDim2.new(1, 0, 1, -ROW), TextXAlignment = Enum.TextXAlignment.Center })
     Theme.bind(empty, "TextColor3", "muted")

@@ -30,6 +30,25 @@ function Notify.show(Lib, cfg)
     if type(cfg) == "string" then cfg = { Title = cfg } end
     cfg = cfg or {}
     local holder = Notify.holder(Lib)
+    -- the same simple notification again while it is still open: it counts up ("×3") instead of stacking
+    -- (Merge = false turns this off; toasts with buttons / progress never merge)
+    local simple = cfg.Merge ~= false and not (type(cfg.Buttons) == "table" and #cfg.Buttons > 0) and cfg.Progress == nil and cfg.Steps == nil and cfg.Persist ~= true
+    local mergeKey = simple and (tostring(cfg.Title or "") .. "\0" .. tostring(cfg.Content or "")) or nil
+    if mergeKey then
+        for _, item in ipairs(Lib._openToasts or {}) do
+            if item.key == mergeKey and item.handle and item.handle:IsOpen() then
+                item.bump()
+                local last = Lib.NotifyHistory and Lib.NotifyHistory[1]
+                if last and last.Title == tostring(cfg.Title or "") and last.Content == (cfg.Content and tostring(cfg.Content) or nil) then
+                    last.Count = (last.Count or 1) + 1
+                    last.Time = os.time()
+                    for _, listener in ipairs(Lib._historyListeners or {}) do Util.safe(listener) end
+                end
+                return item.handle
+            end
+        end
+    end
+    require("haptics").Play("notify")
     -- history (the bell in the window header); History = false keeps a toast out of it
     if cfg.History ~= false then
         Lib.NotifyHistory = Lib.NotifyHistory or {}
@@ -83,7 +102,7 @@ function Notify.show(Lib, cfg)
     end
     local closed = false
     local timer
-    local entry = { toast = toast }
+    local entry = { toast = toast, key = mergeKey, count = 1 }
     local function dismiss()
         if closed or not toast.Parent then return end
         closed = true
@@ -192,8 +211,20 @@ function Notify.show(Lib, cfg)
         if steps then handle:SetStep(tonumber(cfg.Step) or 0, cfg.Content) elseif cfg.Progress then handle:SetProgress(cfg.Progress) end
     end
     -- countdown (paused while the mouse is over the toast); the bar shows the time left
+    local remaining = duration
+    -- a merged repeat: "×N" after the title and the time starts again
+    function entry.bump()
+        entry.count = entry.count + 1
+        remaining = duration
+        local muted = Util.toHex(Theme.get("muted"))
+        local plain = tostring(cfg.Title or ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+        title.RichText = true
+        title.Text = plain .. '  <font color="#' .. muted .. '">×' .. entry.count .. "</font>"
+        local scale = toast:FindFirstChildOfClass("UIScale") or create("UIScale", { Parent = toast })
+        scale.Scale = 1.03
+        tween(scale, 0.18, { Scale = 1 })
+    end
     if not tracked or cfg.Duration then
-        local remaining = duration
         timer = Util.Services.RunService.Heartbeat:Connect(function(dt)
             if closed then return end
             if hovered and cfg.PauseOnHover ~= false then return end
@@ -203,13 +234,15 @@ function Notify.show(Lib, cfg)
         end)
     end
     handle.Paused = function() return hovered end
-    return setmetatable(handle, {
+    function handle:GetCount() return entry.count end
+    entry.handle = setmetatable(handle, {
         __index = function(_, key)
             local value = toast[key]
             if type(value) == "function" then return function(_, ...) return value(toast, ...) end end
             return value
         end,
     })
+    return entry.handle
 end
 
 -------------------------------------------------------------------------------- pill toasts

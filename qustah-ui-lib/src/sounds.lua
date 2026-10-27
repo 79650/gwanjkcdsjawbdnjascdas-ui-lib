@@ -20,8 +20,12 @@ local Sounds = {
     },
 }
 
+local Haptics = require("haptics")
+
 local last = {}
 function Sounds.Play(name)
+    -- every UI sound moment is also a haptic tick (phones; Lib.Haptics.Enabled)
+    Haptics.Play(name == "error" and "notify" or "click")
     if not Sounds.Enabled then return end
     local entry = Sounds.Map[name]
     if not entry then return end

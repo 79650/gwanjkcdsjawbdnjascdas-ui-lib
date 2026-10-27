@@ -77,11 +77,22 @@ return function(window, cfg)
         Default = window:_state("welcomeToast") ~= false and window.cfg.Welcome ~= false,
         Callback = function(on) window:_state("welcomeToast", on) end,
     })
+    -- UI scale: this PC only (not part of profiles)
+    local SCALES = { "80%", "90%", "100%", "110%", "125%", "150%" }
+    local current = math.floor((window:GetUIScale() * 100) + 0.5) .. "%"
+    menu:Dropdown({
+        Title = "UI scale", Desc = "Bigger or smaller menu", Options = SCALES, Default = table.find(SCALES, current) and current or "100%",
+        Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
+    })
     local Sounds = require("sounds")
     menu:Toggle({
         Title = "UI sounds", Desc = "Soft clicks on buttons and switches", Flag = "__ui_sounds", Default = Sounds.Enabled,
         Callback = function(on) Sounds.Enabled = on end,
     })
+    local Haptics = require("haptics")
+    menu:Toggle({ Title = "Haptics", Desc = "Buzz on taps (phones)", Default = Haptics.Enabled, Callback = function(on) Haptics.Enabled = on end })
+    menu:Toggle({ Title = "Mobile button", Desc = "Reopen button while hidden", Default = window.mobileButton == true,
+        Callback = function(on) window:SetMobileButton(on, true) end })
     menu:Button({
         Title = "Reset window size / position",
         Callback = function()

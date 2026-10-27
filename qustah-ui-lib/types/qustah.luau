@@ -109,6 +109,8 @@ export type Container = {
 	Toggle: (self: Container, cfg: ElementConfig & { Default: boolean?, Callback: Callback<boolean>?, Bindable: boolean?, Bind: Key?, BindMode: ("Toggle" | "Hold")?, Marker: boolean?, Badge: string? }) -> Toggle,
 	Checkbox: (self: Container, cfg: ElementConfig & { Default: boolean?, Callback: Callback<boolean>? }) -> Element<boolean>,
 	Slider: (self: Container, cfg: ElementConfig & { Min: number?, Max: number?, Default: number?, Step: number?, Suffix: string?, Callback: ((value: number, dragging: boolean?) -> ())?, Icons: { From: string?, To: string? }?, Bubble: boolean? }) -> Slider,
+	Stepper: (self: Container, cfg: ElementConfig & { Min: number?, Max: number?, Step: number?, Default: number?, Suffix: string?, Callback: Callback<number>? }) -> Slider,
+	TextArea: (self: Container, cfg: ElementConfig & { Placeholder: string?, Default: string?, Height: number?, MaxLength: number?, Finished: boolean?, Callback: Callback<string>? }) -> Element<string>,
 	Range: (self: Container, cfg: ElementConfig & { Min: number?, Max: number?, Default: { number }?, Step: number?, Suffix: string?, MinGap: number?, Callback: Callback<{ number }>? }) -> Element<{ number }>,
 	Dropdown: (self: Container, cfg: ElementConfig & { Options: { any } | { [string]: string }, Default: any?, Multi: boolean?, AllowNone: boolean?, Search: boolean?, DragSelect: boolean?, Callback: Callback<any>? }) -> Dropdown,
 	Segment: (self: Container, cfg: ElementConfig & { Options: { string }, Default: string?, Callback: Callback<string>? }) -> Element<string>,
@@ -158,6 +160,7 @@ export type CardConfig = {
 	Collapsible: boolean?,
 	Collapsed: boolean?,
 	DependsOn: Dependency?,
+	Empty: (string | false)?,
 }
 
 export type Page = {
@@ -170,6 +173,7 @@ export type Page = {
 export type Tab = {
 	Title: string,
 	Pages: { Page },
+	Build: (self: Tab) -> (),
 	Page: (self: Tab, name: string, cfg: { Columns: number?, Warning: string? }?) -> Page,
 	Card: (self: Tab, cfg: CardConfig?) -> Card,
 	Select: (self: Tab) -> (),
@@ -191,6 +195,7 @@ export type NotifyConfig = {
 	Volume: number?,
 	History: boolean?,
 	PauseOnHover: boolean?,
+	Merge: boolean?,
 }
 
 export type Notification = {
@@ -231,7 +236,11 @@ export type Window = {
 	Version: string,
 	Config: Config,
 	Flags: { [string]: any },
-	Tab: (self: Window, cfg: string | { Title: string, Icon: string?, Divider: boolean?, Header: boolean? }) -> Tab,
+	Tab: (self: Window, cfg: string | { Title: string, Icon: string?, Divider: boolean?, Header: boolean?, Build: ((tab: Tab) -> ())?, BuildDelay: (number | false)? }) -> Tab,
+	BuildAll: (self: Window) -> (),
+	SetUIScale: (self: Window, scale: number) -> (),
+	GetUIScale: (self: Window) -> number,
+	SetMobileButton: (self: Window, on: boolean, remember: boolean?) -> (),
 	SettingsTab: (self: Window, cfg: { Title: string?, Icon: string?, Info: { { string } }? }?) -> Tab,
 	DashboardTab: (self: Window, cfg: { Title: string?, Icon: string?, Info: { { string } }?, Server: boolean? }?) -> Tab,
 	Notify: (self: Window, cfg: NotifyConfig | string) -> Notification,
@@ -300,6 +309,9 @@ export type WindowConfig = {
 	Blur: boolean?,
 	BlurSize: number?,
 	Sounds: boolean?,
+	Scale: number?,
+	MobileButton: (boolean | "Auto")?,
+	MobileIcon: string?,
 	Welcome: boolean?,
 	AutoFlags: boolean?,
 	Debug: boolean?,
@@ -329,6 +341,7 @@ export type Lib = {
 	MaxNotifications: number,
 	Theme: any,
 	Icons: any,
+	Haptics: { Enabled: boolean, Play: (kind: ("click" | "notify")?) -> () },
 	Sounds: { Enabled: boolean, Volume: number, Play: (name: string) -> (), Set: (name: string, id: string | number, speed: number?, volume: number?) -> () },
 	CreateWindow: (self: Lib, cfg: WindowConfig?) -> Window,
 	Notify: (self: Lib, cfg: NotifyConfig | string) -> Notification,

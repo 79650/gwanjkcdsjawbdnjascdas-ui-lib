@@ -1275,6 +1275,129 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("SetFlag(nil) is ignored", true)
     check("reserved profile names", window.Config:FreeName("con") ~= "con" and #window.Config:FreeName(string.rep("x", 200)) <= 60)
 
+    ------------------------------------------------------------------ v1.8
+    local t8 = misc:Card({ Title = "V18" })
+    -- empty card message
+    local emptyCard = misc:Card({ Title = "EmptyOne" }) wait()
+    check("empty card says so", emptyCard.frame:FindFirstChild("Empty").Visible == true)
+    local only = emptyCard:Toggle({ Title = "Only", DependsOn = { Flag = "depMaster", Mode = "Hide" } }) wait()
+    check("empty message hides when an element shows", master.Value == true and emptyCard.frame:FindFirstChild("Empty").Visible == false)
+    master:Set(false) wait() wait()
+    check("empty message back when all are hidden", emptyCard.frame:FindFirstChild("Empty").Visible == true)
+    master:Set(true) wait()
+    local noEmpty = misc:Card({ Title = "NoEmpty", Empty = false }) wait()
+    check("Empty = false", noEmpty.frame:FindFirstChild("Empty") == nil)
+
+    -- fading scroll bars
+    local pageFrame = window.current and window.current.current and window.current.current.frame
+    check("page scrollbar hidden when idle", pageFrame and pageFrame.ScrollBarImageTransparency == 1)
+    pageFrame.CanvasPosition = Vector2.new(0, 20) wait(0.3)
+    check("scrollbar shows while scrolling", pageFrame.ScrollBarImageTransparency < 1)
+    wait(1.8)
+    check("scrollbar fades again", pageFrame.ScrollBarImageTransparency == 1)
+
+    -- hover pop on grid cells
+    local pick = t8:ImagePicker({ Title = "Pop", Images = { "crosshair", "target" } })
+    local cell = pick.Row:FindFirstChild("Image1", true)
+    MOCK.fire(cell, "MouseEnter") wait(0.3)
+    check("image cell grows on hover", cell:FindFirstChildOfClass("UIScale").Scale > 1)
+    MOCK.fire(cell, "MouseLeave") wait(0.3)
+    check("and back", cell:FindFirstChildOfClass("UIScale").Scale == 1)
+
+    -- merged notifications
+    local m1 = window:Notify({ Title = "Merged", Content = "same", Duration = 2 })
+    wait(1.5)
+    local m2 = window:Notify({ Title = "Merged", Content = "same", Duration = 2 })
+    local m3 = window:Notify({ Title = "Merged", Content = "same", Duration = 2 })
+    check("repeats merge into one toast", m1 == m2 and m2 == m3 and m1:GetCount() == 3)
+    check("merged title shows the count", m1.Frame:FindFirstChildWhichIsA("TextLabel").Text:find("×3") ~= nil or (function()
+        for _, o in ipairs(m1.Frame:GetDescendants()) do if o:IsA("TextLabel") and o.Text:find("×3") then return true end end return false end)())
+    wait(1)
+    check("merging restarts the timer", m1:IsOpen())
+    check("history counts too", Lib.NotifyHistory[1].Count == 3)
+    local other = window:Notify({ Title = "Merged", Content = "different", Duration = 2 })
+    check("different content does not merge", other ~= m1)
+    local withButtons = window:Notify({ Title = "Merged", Content = "same", Buttons = { { Title = "Ok" } } })
+    check("toasts with buttons never merge", withButtons ~= m1)
+    m1:Close() other:Close() withButtons:Close()
+
+    -- UI scale
+    window:SetUIScale(1.25) wait()
+    check("ui scale applies", math.abs(window.scale.Scale - 1.25) < 0.01 and window.memory.uiScale == 1.25)
+    MOCK.setViewport(700, 420) wait(0.2)
+    check("ui scale still fits small screens", window.scale.Scale < 1.2 and (window.width + 52) * window.scale.Scale <= 700 - 24 + 0.5)
+    MOCK.setViewport(1280, 720) wait(0.2)
+    window:SetUIScale(1) wait()
+    check("ui scale back", window.scale.Scale == 1 and window.memory.uiScale == nil)
+
+    -- stepper
+    local st8 = t8:Stepper({ Title = "Count", Flag = "stepCount", Min = 0, Max = 5, Step = 1, Default = 4 })
+    local plusButton, minusButton = st8.Row:FindFirstChild("Plus", true), st8.Row:FindFirstChild("Minus", true)
+    MOCK.fire(plusButton, "InputBegan", mouseInput(Enum.UserInputType.MouseButton1)) MOCK.fire(plusButton, "InputEnded", mouseInput(Enum.UserInputType.MouseButton1)) wait()
+    check("stepper plus", F.stepCount == 5)
+    MOCK.fire(plusButton, "InputBegan", mouseInput(Enum.UserInputType.MouseButton1)) MOCK.fire(plusButton, "InputEnded", mouseInput(Enum.UserInputType.MouseButton1)) wait()
+    check("stepper clamps at max", F.stepCount == 5)
+    MOCK.fire(minusButton, "InputBegan", mouseInput(Enum.UserInputType.MouseButton1)) wait(1.2)
+    MOCK.fire(minusButton, "InputEnded", mouseInput(Enum.UserInputType.MouseButton1)) wait()
+    check("stepper hold repeats", F.stepCount == 0)
+    local stepBox = st8.Row:FindFirstChild("Value", true)
+    stepBox.Text = "3.6" MOCK.fire(stepBox, "FocusLost", true) wait()
+    check("stepper typed (rounded)", F.stepCount == 4 and stepBox.Text == "4")
+    st8:Set(0 / 0) st8:Set("x")
+    check("stepper ignores junk", F.stepCount == 4)
+
+    -- text area
+    local ta = t8:TextArea({ Title = "Notes", Flag = "notes", MaxLength = 10, Placeholder = "Write..." })
+    local taBox = ta.Row:FindFirstChild("Box")
+    check("text area is multi-line", taBox.MultiLine == true and taBox.TextWrapped == true)
+    taBox.Text = "line one\nline two that is long" wait()
+    check("text area max length", #taBox.Text == 10 and ta.Row:FindFirstChild("Counter").Text == "10 / 10")
+    MOCK.fire(taBox, "FocusLost", false) wait()
+    check("text area value", F.notes == "line one\nl")
+
+    -- mobile button
+    window:SetMobileButton(true)
+    window:SetVisible(false) wait(0.3)
+    local pillButton = window.gui:FindFirstChild("MobileButton")
+    check("mobile button shows while hidden", pillButton and pillButton.Visible)
+    MOCK.mouseLocation = Vector2.new(pillButton.AbsolutePosition.X + 5, pillButton.AbsolutePosition.Y + 5)
+    MOCK.fire(pillButton:FindFirstChild("Hit"), "InputBegan", mouseInput(Enum.UserInputType.MouseButton1))
+    uis.InputEnded:Fire(mouseInput(Enum.UserInputType.MouseButton1), false) wait(0.3)
+    check("tap opens the menu", window.visible == true and not pillButton.Visible)
+    window:SetVisible(false) wait(0.3)
+    local before = pillButton.Position
+    MOCK.fire(pillButton:FindFirstChild("Hit"), "InputBegan", mouseInput(Enum.UserInputType.MouseButton1))
+    MOCK.mouseLocation = Vector2.new(pillButton.AbsolutePosition.X + 120, pillButton.AbsolutePosition.Y + 80)
+    uis.InputChanged:Fire(mouseInput(Enum.UserInputType.MouseMovement), false)
+    uis.InputEnded:Fire(mouseInput(Enum.UserInputType.MouseButton1), false) wait(0.3)
+    check("drag moves it, menu stays hidden", window.visible == false and pillButton.Position ~= before and window.memory.mobilePill ~= nil)
+    window:SetVisible(true) window:SetMobileButton(false) wait(0.3)
+    check("mobile button off", not pillButton.Visible)
+
+    -- haptics never throw (no HapticEffect in the mock)
+    Lib.Haptics.Enabled = true
+    local hapticOk = pcall(function() Lib.Haptics.Play("click") Lib.Haptics.Play("notify") Lib.Haptics.Play("nope") end)
+    check("haptics are safe", hapticOk)
+    Lib.Haptics.Enabled = false
+
+    -- lazy tab
+    local built = 0
+    local lazy = window:Tab({ Title = "Lazy", BuildDelay = false, Build = function(tab)
+        built = built + 1
+        tab:Card({ Title = "LazyCard" }):Toggle({ Title = "Lazy toggle", Flag = "lazyFlag" })
+    end })
+    window:SetFlag("lazyFlag", true)
+    check("lazy tab not built yet", built == 0 and window.flags.lazyFlag == nil)
+    lazy:Select() wait()
+    check("lazy tab builds on open", built == 1 and window.flags.lazyFlag ~= nil and F.lazyFlag == true)
+    lazy:Select() wait()
+    check("lazy tab builds once", built == 1)
+    local auto = 0
+    window:Tab({ Title = "LazyAuto", BuildDelay = 0.2, Build = function() auto = auto + 1 end })
+    wait(0.5)
+    check("lazy tab builds itself in the background", auto == 1)
+    window:SelectTab("Misc")
+
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
     check("old window destroyed on re-run", window.alive == false and gui.Parent == nil)

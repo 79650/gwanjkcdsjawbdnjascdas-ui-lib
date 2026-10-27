@@ -23,7 +23,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     for name in pairs(require and {} or {}) do end
     local kinds = { "Toggle", "Checkbox", "Slider", "Range", "Dropdown", "Segment", "Radio", "Keybind", "ColorPicker", "Gradient", "Swatches",
         "Input", "ActionInput", "Button", "Label", "Paragraph", "Info", "Divider", "Code", "Progress", "Stat", "Graph", "Console", "Table",
-        "Image", "ImagePicker", "PlayerList", "Viewport" }
+        "Image", "ImagePicker", "PlayerList", "Viewport", "Stepper", "TextArea" }
     for _, kind in ipairs(kinds) do
         try("empty " .. kind, function() card[kind](card, {}) end)
         try("nil cfg " .. kind, function() card[kind](card) end)
@@ -56,6 +56,18 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local stat = card:Stat({ Title = "St", Value = 0 })
     try("stat odd", function() stat:Set(0 / 0) stat:Set(1 / 0) stat:Set(-1e12) stat:Set("12") stat:Add("x") end)
     odd("stat finite", stat.Value == stat.Value and stat.Value ~= 1 / 0, stat.Value)
+    local stepper = card:Stepper({ Title = "Stp", Min = 5, Max = 1, Step = 0 })
+    try("stepper odd", function() for _, v in ipairs({ "x", 0 / 0, 1 / 0, -1 / 0, 3 }) do stepper:Set(v) end stepper:SetRange(nil, nil) end)
+    odd("stepper finite", stepper.Value == stepper.Value and stepper.Value >= 1 and stepper.Value <= 5, stepper.Value)
+    local area = card:TextArea({ Title = "TA", MaxLength = 0 })
+    try("textarea odd", function() area:Set(nil) area:Set(string.rep("y", 10000)) area:Set({}) end)
+    try("scale odd", function() w:SetUIScale("x") w:SetUIScale(0) w:SetUIScale(99) w:SetUIScale(1) end)
+    try("mobile odd", function() w:SetMobileButton(true) w:SetVisible(false) w:SetVisible(true) w:SetMobileButton(false) end)
+    try("lazy odd", function()
+        local lazy = w:Tab({ Title = "LazyErr", BuildDelay = false, Build = function() error("build failed") end })
+        lazy:Select() lazy:Select() w:BuildAll()
+    end)
+    try("notify merge odd", function() for _ = 1, 30 do w:Notify({ Title = "spam" }) end end)
     local graph = card:Graph({ Title = "G", Style = "Line" })
     try("graph odd", function() for _, v in ipairs({ 0 / 0, 1 / 0, -1 / 0, -5, 1e9 }) do graph:Push(v) end graph:Push(1, "nope") graph:Set(nil) end)
 

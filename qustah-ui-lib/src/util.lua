@@ -195,6 +195,40 @@ function Util.avatar(userId, size)
     return string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=%d&h=%d", tonumber(userId) or 0, size, size)
 end
 
+-- Scroll bars that only show while scrolling or hovered (fade out ~1 s after).
+function Util.fadeScrollbar(scroller, shown)
+    shown = shown or 0.35
+    local hovering, token = false, 0
+    scroller.ScrollBarImageTransparency = 1
+    local function show()
+        token = token + 1
+        local mine = token
+        Util.tween(scroller, 0.12, { ScrollBarImageTransparency = shown })
+        task.delay(1.2, function()
+            if mine == token and not hovering and scroller.Parent then Util.tween(scroller, 0.35, { ScrollBarImageTransparency = 1 }) end
+        end)
+    end
+    scroller:GetPropertyChangedSignal("CanvasPosition"):Connect(show)
+    scroller.MouseEnter:Connect(function() hovering = true show() end)
+    scroller.MouseLeave:Connect(function() hovering = false show() end)
+    return scroller
+end
+
+-- A touch screen without a keyboard (phones / tablets): bigger hit areas, the reopen button.
+function Util.isTouch()
+    local UserInputService = Services.UserInputService
+    local ok, touch = pcall(function() return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled end)
+    return ok and touch == true
+end
+
+-- Hover "pop": a slight grow (grid cells: images, swatches). Returns the UIScale.
+function Util.hoverPop(button, amount)
+    local scale = create("UIScale", { Scale = 1, Parent = button })
+    button.MouseEnter:Connect(function() Util.tween(scale, 0.12, { Scale = amount or 1.05 }) end)
+    button.MouseLeave:Connect(function() Util.tween(scale, 0.15, { Scale = 1 }) end)
+    return scale
+end
+
 -- HH:MM:SS
 function Util.clock(seconds)
     seconds = math.max(0, math.floor(seconds))

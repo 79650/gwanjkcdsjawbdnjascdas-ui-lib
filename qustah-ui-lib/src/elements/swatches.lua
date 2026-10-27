@@ -54,7 +54,13 @@ return function(card, cfg)
         local entry = { name = name, color = color, button = button, text = text, outline = outline }
         entries[#entries + 1] = entry
         byName[name] = entry
-        button.MouseEnter:Connect(function() if element.Value ~= name then Theme.tweenTo(button, "BackgroundColor3", "input", 0.1) end end)
+        Util.hoverPop(button, 1.04)
+        button.MouseEnter:Connect(function()
+            if element.Value ~= name then
+                Theme.tweenTo(button, "BackgroundColor3", "input", 0.1)
+                Theme.tweenTo(text, "TextColor3", "heading", 0.1)
+            end
+        end)
         button.MouseLeave:Connect(render)
         button.Activated:Connect(function() if not element.Locked then element:Set(name) end end)
     end
