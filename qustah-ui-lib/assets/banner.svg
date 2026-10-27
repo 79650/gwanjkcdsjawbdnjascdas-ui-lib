@@ -36,7 +36,7 @@
   <text x="72" y="290" fill="#8a8a90" font-size="19">Profiles, 20 themes, 18k icons — one line to load.</text>
   <g font-size="14" font-weight="600">
     <rect x="72" y="322" width="104" height="32" rx="16" fill="#ffffff" fill-opacity="0.04" stroke="#3a3a3f" stroke-opacity="0.5"/>
-    <text x="124" y="343" fill="#c4c4c9" text-anchor="middle">25 elements</text>
+    <text x="124" y="343" fill="#c4c4c9" text-anchor="middle">28 elements</text>
     <rect x="186" y="322" width="94" height="32" rx="16" fill="#ffffff" fill-opacity="0.04" stroke="#3a3a3f" stroke-opacity="0.5"/>
     <text x="233" y="343" fill="#c4c4c9" text-anchor="middle">20 themes</text>
     <rect x="290" y="322" width="104" height="32" rx="16" fill="#ffffff" fill-opacity="0.04" stroke="#3a3a3f" stroke-opacity="0.5"/>

@@ -4,8 +4,9 @@
 
 ![version](https://img.shields.io/badge/version-1.7.0-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
-![size](https://img.shields.io/badge/min-343_KB-2b2b2f?style=flat-square&labelColor=18181a)
-![icons](https://img.shields.io/badge/icons-MIT-2b2b2f?style=flat-square&labelColor=18181a)
+![size](https://img.shields.io/badge/min-378_KB-2b2b2f?style=flat-square&labelColor=18181a)
+![elements](https://img.shields.io/badge/elements-28-2b2b2f?style=flat-square&labelColor=18181a)
+![themes](https://img.shields.io/badge/themes-20-2b2b2f?style=flat-square&labelColor=18181a)
 
 **[Install](#install)** · **[Quick start](#quick-start)** · **[Elements](#elements)** · **[Docs](#window)** · **[Example](qustah-ui-lib/example.lua)**
 
@@ -44,13 +45,13 @@ Write an icon's name anywhere: `"eye"`, `"solar:target-bold"`. Lucide is built i
 <td valign="top">
 
 ### Hard to break
-Callback errors never break the UI. The element flashes red and the error goes to the Info page. Kicks are logged with their reason.
+Callback errors never break the UI: the element flashes red and the error is listed. Kicks are logged with their reason. Elements can depend on each other.
 
 </td>
 <td valign="top">
 
-### Ready tabs
-One line adds a full Settings tab (theme, font, keys, overlays, profiles, errors) and a Dashboard.
+### Ready to ship
+One line adds a full Settings tab and a Dashboard. A key system, a "What's new" dialog and autocomplete types are built in.
 
 </td>
 </tr>
