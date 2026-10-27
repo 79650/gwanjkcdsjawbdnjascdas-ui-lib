@@ -36,7 +36,7 @@ Sen sadece scriptin özelliklerini yazarsın; görünüm, kayıt, tema ve hata y
 - [Diyaloglar](#diyaloglar)
 - [Config ve profiller](#config-ve-profiller)
 - [Hazır sekmeler](#hazır-sekmeler)
-- [Overlay'ler](#overlaylar)
+- [Overlay'ler](#overlayler)
 - [Temalar](#temalar)
 - [İkonlar](#ikonlar)
 - [Durum, hatalar ve kick'ler](#durum-hatalar-ve-kickler)
