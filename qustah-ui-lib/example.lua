@@ -82,7 +82,7 @@ Aim:Dropdown({ Title = "Target priority", Flag = "priority", AllowNone = true, D
 local Fov = Silent:Card({ Title = "FOV" })
 Fov:Slider({ Title = "Radius", Flag = "fovRadius", Min = 10, Max = 600, Default = 120, Suffix = "px",
     Callback = function(value, dragging) if not dragging then print("radius", value) end end })   -- dragging = true while the knob is held
-Fov:Toggle({ Title = "Aim assist", Desc = "On while right mouse is held", Flag = "aimAssist", Bind = Enum.UserInputType.MouseButton2, BindMode = "Hold" })
+Fov:Toggle({ Title = "Aim assist", Desc = "Hold right mouse", Flag = "aimAssist", Bind = Enum.UserInputType.MouseButton2, BindMode = "Hold" })
 Fov:Keybind({ Title = "Aim key", Icon = "target", Flag = "aimKey", Default = Enum.KeyCode.Q, Pressed = function() print("aim key") end })
 Fov:Keybind({ Title = "Mark target", Desc = "Modifier + key or mouse", Chord = true, Flag = "markKey",
     Default = { Enum.KeyCode.LeftControl, Enum.UserInputType.MouseButton1 }, Pressed = function() print("mark") end })

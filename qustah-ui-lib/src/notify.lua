@@ -98,6 +98,18 @@ function Notify.show(Lib, cfg)
     table.insert(Lib._openToasts, entry)
     local limit = math.max(1, tonumber(Lib.MaxNotifications) or 6)
     while #Lib._openToasts > limit do table.remove(Lib._openToasts, 1).dismiss() end -- (removed first: a toast whose gui is gone can't remove itself)
+    -- small screens: as many as fit in the height (6 toasts don't fit on a phone)
+    local room = Util.viewport().Y - 32
+    local used = height
+    for index = #Lib._openToasts - 1, 1, -1 do
+        local item = Lib._openToasts[index]
+        local h = item.toast.Parent and item.toast.Size.Y.Offset or 0
+        if used + h + 6 > room then
+            for _ = 1, index do table.remove(Lib._openToasts, 1).dismiss() end
+            break
+        end
+        used = used + h + 6
+    end
     local hovered = false
     toast.MouseEnter:Connect(function() hovered = true end)
     toast.MouseLeave:Connect(function() hovered = false end)

@@ -55,7 +55,14 @@ return function(Window)
         function handle:SetText(value) caption.Text = tostring(value) end
         function handle:SetColor(value) color = value or "accent" paint() end
         function handle:SetVisible(visible) tag.Visible = visible ~= false end
-        function handle:Remove() alive = false tag:Destroy() end
+        -- the header text on the right makes room for the tags
+        local window = self
+        function handle:Remove()
+            alive = false
+            tag:Destroy()
+            if window.alive then window:_updateLocation() end
+        end
+        task.defer(function() if window.alive then window:_updateLocation() end end)
         return handle
     end
 

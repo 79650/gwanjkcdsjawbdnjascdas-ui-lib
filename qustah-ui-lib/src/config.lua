@@ -20,8 +20,13 @@ local function can(...)
     end
     return true
 end
+-- Windows can't create files named con / prn / aux / nul / com1-9 / lpt1-9, and paths must stay short
+local RESERVED = { con = true, prn = true, aux = true, nul = true }
+for i = 1, 9 do RESERVED["com" .. i] = true RESERVED["lpt" .. i] = true end
 local function cleanName(name)
     name = tostring(name or ""):gsub("[^%w_%- ]", ""):gsub("^%s+", ""):gsub("%s+$", "")
+    name = name:sub(1, 60):gsub("%s+$", "")
+    if RESERVED[name:lower()] then name = name .. "_" end
     return name
 end
 

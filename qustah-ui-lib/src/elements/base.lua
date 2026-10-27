@@ -193,7 +193,7 @@ function Base.element(card, kind, cfg, row, title, desc)
             -- reason pill over the control (rows without a description)
             local pill = create("Frame", {
                 Name = "Reason", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0),
-                Size = UDim2.new(0.55, 0, 0, 16), ZIndex = 21, Visible = false, Parent = cover,
+                Size = UDim2.new(0.7, 0, 0, 16), ZIndex = 21, Visible = false, Parent = cover,
             })
             local icon = Icons.themed(pill, "lock", 11, "warning", { Name = "LockIcon", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), ZIndex = 22 })
             local text = label(pill, "", 9, { Name = "Text", Size = UDim2.new(1, icon and -16 or 0, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium, ZIndex = 22 })
@@ -267,17 +267,30 @@ function Base.element(card, kind, cfg, row, title, desc)
     element._tooltip = cfg.Tooltip
     function element:SetTooltip(text) self._tooltip = text end
     local hoverToken = 0
+    -- text cut with "..." (a long title, description or value in a narrow window) shows in full on hover
+    local function cutText()
+        local parts = {}
+        for _, object in ipairs({ title, desc, row:FindFirstChild("Value") }) do
+            if object and object:IsA("GuiObject") and object.Visible and object.Text ~= "" then
+                local ok, fits = pcall(function() return object.TextFits end)
+                if ok and fits == false then parts[#parts + 1] = object.Text end
+            end
+        end
+        return #parts > 0 and table.concat(parts, " · ") or nil
+    end
+    local tipShown = false
     row.MouseEnter:Connect(function()
-        if not element._tooltip then return end
         hoverToken = hoverToken + 1
         local token = hoverToken
         task.delay(0.35, function()
-            if token == hoverToken and element._tooltip and not element.Locked and row.Parent then window:_tip(element._tooltip) end
+            if token ~= hoverToken or element.Locked or not row.Parent then return end
+            local text = element._tooltip or cutText()
+            if text then tipShown = true window:_tip(text) end
         end)
     end)
     row.MouseLeave:Connect(function()
         hoverToken = hoverToken + 1
-        if element._tooltip then window:_hideTip() end
+        if tipShown then tipShown = false window:_hideTip() end
     end)
 
     -- dependency on other flags

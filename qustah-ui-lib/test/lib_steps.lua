@@ -1236,7 +1236,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local hug = t7:Input({ Title = "Hug", Placeholder = "player name" })
     local hugBox = hug.Row:FindFirstChild("Box")
     local emptyWidth = hugBox.Size.X.Offset
-    local expectEmpty = math.ceil(Lib.Util.textWidth("player name", 10, hugBox.Font)) + 20
+    local expectEmpty = math.ceil(Lib.Util.textWidth("player name", 10, hugBox.Font)) + 22
     hugBox.Text = "a much longer player name here" wait()
     local longWidth = hugBox.Size.X.Offset
     hugBox.Text = "ab" wait()
@@ -1261,6 +1261,19 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     end
     check("theme editor follows Light", editorCard ~= nil and stale == 0)
     W.__ui_theme:Set("Dark") wait()
+
+    -- notifications fit a small screen
+    MOCK.setViewport(640, 300) wait(0.2)
+    local small = {}
+    for i = 1, 6 do small[i] = window:Notify({ Title = "Small " .. i, Content = "two lines", Duration = 30 }) end
+    local openSmall, usedSmall = 0, 0
+    for i = 1, 6 do if small[i]:IsOpen() then openSmall = openSmall + 1 usedSmall = usedSmall + small[i].Frame.Size.Y.Offset + 6 end end
+    check("toasts fit the screen height", openSmall < 6 and usedSmall <= 300 - 32 + 6 and small[6]:IsOpen())
+    for i = 1, 6 do small[i]:Close() end
+    MOCK.setViewport(1280, 720) wait(0.2)
+    window:SetFlag(nil, 1)
+    check("SetFlag(nil) is ignored", true)
+    check("reserved profile names", window.Config:FreeName("con") ~= "con" and #window.Config:FreeName(string.rep("x", 200)) <= 60)
 
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)

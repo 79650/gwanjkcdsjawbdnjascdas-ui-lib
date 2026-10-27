@@ -198,9 +198,30 @@ return function(Window)
             end
             self.maid:give(Stats.listen(function() if bar.Visible then refresh() end end))
             self._sessionBar = { bar = bar, refresh = refresh }
+            -- top centre; on a narrow screen where the watermark / keybind list sit there too, bottom centre instead
+            local function place()
+                local viewport = Util.viewport()
+                local barLeft, barRight = viewport.X / 2 - 150, viewport.X / 2 + 150
+                local crowded = false
+                for _, name in ipairs({ "Watermark", "Keybinds", "Performance" }) do
+                    local panel = self.gui:FindFirstChild(name)
+                    if panel and panel:IsA("GuiObject") and panel.Visible then
+                        local left, right = panel.AbsolutePosition.X, panel.AbsolutePosition.X + panel.AbsoluteSize.X
+                        if right > barLeft and left < barRight and panel.AbsolutePosition.Y < 20 + 30 + 8 then crowded = true end
+                    end
+                end
+                if crowded then
+                    bar.AnchorPoint, bar.Position = Vector2.new(0.5, 1), UDim2.new(0.5, 0, 1, -14)
+                else
+                    bar.AnchorPoint, bar.Position = Vector2.new(0.5, 0), UDim2.new(0.5, 0, 0, 20)
+                end
+            end
+            self._sessionBar.place = place
+            self._placers = self._placers or {}
+            table.insert(self._placers, place)
         end
         self._sessionBar.bar.Visible = visible
-        if visible then self._sessionBar.refresh() end
+        if visible then self._sessionBar.refresh() self._sessionBar.place() end
     end
 
     ------------------------------------------------------------------ stats monitor
@@ -289,5 +310,10 @@ return function(Window)
         if cfg.Text ~= nil then self._watermark.setExtra(tostring(cfg.Text)) end
         self._watermark.panel.Visible = visible
         if visible then self._watermark.refresh() end
+        if not self._watermark.watched then
+            self._watermark.watched = true
+            self.maid:connect(self._watermark.panel:GetPropertyChangedSignal("Position"), function() if self._sessionBar then self._sessionBar.place() end end)
+        end
+        if self._sessionBar then self._sessionBar.place() end
     end
 end

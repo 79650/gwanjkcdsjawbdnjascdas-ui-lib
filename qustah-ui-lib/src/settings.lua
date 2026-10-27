@@ -152,7 +152,7 @@ return function(window, cfg)
             refreshThemeList("Dark")
         end, "Delete", true)
     end })
-    editor:ActionInput({ Name = "ImportTheme", Icon = "import", Placeholder = "Paste a QTHEME1: code", Button = "Import",
+    editor:ActionInput({ Name = "ImportTheme", Icon = "import", Placeholder = "Paste a theme code", Button = "Import",
         Validate = function(code)
             local body = code:gsub("%s", ""):match("^QTHEME1:(.+)$")
             if not body then return false, "Not a theme code" end
@@ -185,13 +185,13 @@ return function(window, cfg)
         Callback = function(text) window:SetBackgroundImage(text ~= "" and text or nil, bgAlpha and (1 - bgAlpha.Value / 100) or 0.85) end })
     bgAlpha = look2:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
         Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
-    look2:Toggle({ Title = "Free mouse", Desc = "Unlocks the mouse while the menu is open", Icon = "mouse-pointer-2", Flag = "__ui_mouse",
+    look2:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Icon = "mouse-pointer-2", Flag = "__ui_mouse",
         Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
-    look2:Toggle({ Title = "Animated background", Desc = "A slow accent glow drifting behind the menu", Icon = "sparkles", Flag = "__ui_live",
+    look2:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Icon = "sparkles", Flag = "__ui_live",
         Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
-    look2:Toggle({ Title = "Edge glow", Desc = "The window border breathes in the accent", Flag = "__ui_edge_glow",
+    look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
         Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
-    look2:Toggle({ Title = "Blur game", Desc = "Blurs the game behind the open menu", Flag = "__ui_blur",
+    look2:Toggle({ Title = "Blur game", Desc = "Blurs the game while open", Flag = "__ui_blur",
         Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
     look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
 

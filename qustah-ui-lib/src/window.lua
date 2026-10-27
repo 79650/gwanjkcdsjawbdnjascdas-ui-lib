@@ -716,11 +716,32 @@ function Window:_layoutBody()
 end
 
 -- Header right side: the header tabs while one of them is open, otherwise "Tab › Page".
+-- Width of the title row (logo, title, version badge, tags).
+function Window:_titleWidth()
+    local layout = self.titleRow and self.titleRow:FindFirstChildOfClass("UIListLayout")
+    local ok, measured = pcall(function() return layout.AbsoluteContentSize.X end)
+    if ok and type(measured) == "number" and measured > 0 then return measured / (self.scale and self.scale.Scale or 1) end
+    -- (before the first layout pass: an estimate from the texts)
+    local width = Util.textWidth(self.Title, 16, Enum.Font.GothamMedium) * 1.05
+    if self.logo then width = width + 24 end
+    if self.Version ~= "" then width = width + Util.textWidth(self.Version, 9) + 18 end
+    for _, child in ipairs(self.titleRow and self.titleRow:GetChildren() or {}) do
+        if child.Name == "Tag" and child.Visible then
+            local text = child:FindFirstChild("Text")
+            width = width + (text and Util.textWidth(text.Text, 8, Enum.Font.GothamBold) or 20) + 18
+        end
+    end
+    return width
+end
+
 function Window:_updateLocation()
     local tab = self.current
-    local wide = self.width >= 440
+    -- room between the title row and the header buttons
+    local room = self.width - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
+    local tabsWidth = 0
+    for _, item in ipairs(self._headerButtons or {}) do tabsWidth = tabsWidth + item.button.Size.X.Offset + 6 end
     local onHeaderTab = tab ~= nil and tab.Header and self.cfg.HeaderTabs ~= false
-    self.headerTabs.Visible = onHeaderTab and wide
+    self.headerTabs.Visible = onHeaderTab and room >= tabsWidth
     for _, item in ipairs(self._headerButtons or {}) do
         local selected = item.tab == tab
         Theme.tweenTo(item.button, "TextColor3", selected and "heading" or "muted", 0.12)
@@ -729,9 +750,10 @@ function Window:_updateLocation()
     if not tab then self.locationLabel.Text = "" return end
     local page = tab.current
     self.locationLabel.Text = (page and #tab.Pages > 1) and (tab.Title .. " › " .. page.Name) or tab.Title
-    self.locationLabel.Visible = self.width >= 360 and not self.headerTabs.Visible
-    -- leave room for the header stats in the middle
-    self.locationLabel.Size = UDim2.new(self.monitorMode == "Header" and 0.25 or 0.45, 0, 0, 20)
+    self.locationLabel.Visible = room >= 60 and not self.headerTabs.Visible
+    -- never wider than the free room (tags / long titles), and leave the middle to the header stats
+    local share = math.floor(self.width * (self.monitorMode == "Header" and 0.25 or 0.45))
+    self.locationLabel.Size = UDim2.fromOffset(math.max(0, math.min(share, room)), 20)
 end
 
 function Window:_addHeaderTab(tab)
@@ -818,6 +840,7 @@ function Window:_makeFlags()
     })
 end
 function Window:SetFlag(flag, value)
+    if flag == nil then return false end
     local element = self.flags[flag]
     if element and element.Set then
         element:Set(value)

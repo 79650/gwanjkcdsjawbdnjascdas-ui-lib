@@ -27,7 +27,11 @@ return function(Window)
         Theme.bind(stroke(panel), "Color", "line")
         Util.padding(panel, 16, 16, 12, 12)
         Util.list(panel, 8)
-        local title = label(panel, tostring(cfg.Title or ""), 13, { Name = "Title", Size = UDim2.new(1, 0, 0, 20), Font = Enum.Font.GothamMedium, ZIndex = 202, LayoutOrder = 1 })
+        -- long titles wrap onto more lines instead of being cut
+        local title = label(panel, tostring(cfg.Title or ""), 13, {
+            Name = "Title", Size = UDim2.new(1, 0, 0, 20), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true,
+            TextTruncate = Enum.TextTruncate.None, Font = Enum.Font.GothamMedium, ZIndex = 202, LayoutOrder = 1,
+        })
         Theme.bind(title, "TextColor3", "heading")
         -- Icon = "name" before the title (red when IconColor / a Danger button says so)
         if cfg.Icon and Icons.Get(cfg.Icon) then

@@ -17,7 +17,7 @@ require("windowfx")(Window)
 require("kick")(Window)
 
 local Lib = {
-    Version = "1.7.0",
+    Version = "1.7.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

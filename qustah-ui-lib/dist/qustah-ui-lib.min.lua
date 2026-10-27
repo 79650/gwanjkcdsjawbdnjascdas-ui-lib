@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.7.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.7.1 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -283,8 +283,12 @@ if type(available[name])~="function"then return false end
 end
 return true
 end
+local RESERVED={con=true,prn=true,aux=true,nul=true}
+for i=1,9 do RESERVED["com"..i]=true RESERVED["lpt"..i]=true end
 local function cleanName(name)
 name=tostring(name or""):gsub("[^%w_%- ]",""):gsub("^%s+",""):gsub("%s+$","")
+name=name:sub(1,60):gsub("%s+$","")
+if RESERVED[name:lower()]then name=name.."_"end
 return name
 end
 function Config.new(window,folder)
@@ -720,7 +724,10 @@ corner(panel,8)
 Theme.bind(stroke(panel),"Color","line")
 Util.padding(panel,16,16,12,12)
 Util.list(panel,8)
-local title=label(panel,tostring(cfg.Title or""),13,{Name="Title",Size=UDim2.new(1,0,0,20),Font=Enum.Font.GothamMedium,ZIndex=202,LayoutOrder=1})
+local title=label(panel,tostring(cfg.Title or""),13,{
+Name="Title",Size=UDim2.new(1,0,0,20),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,
+TextTruncate=Enum.TextTruncate.None,Font=Enum.Font.GothamMedium,ZIndex=202,LayoutOrder=1,
+})
 Theme.bind(title,"TextColor3","heading")
 if cfg.Icon and Icons.Get(cfg.Icon)then
 Util.padding(title,24,0,0,0)
@@ -1040,7 +1047,7 @@ cover.MouseLeave:Connect(function()window:_hideTip()end)
 self._lock=cover
 local pill=create("Frame",{
 Name="Reason",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-4,0.5,0),
-Size=UDim2.new(0.55,0,0,16),ZIndex=21,Visible=false,Parent=cover,
+Size=UDim2.new(0.7,0,0,16),ZIndex=21,Visible=false,Parent=cover,
 })
 local icon=Icons.themed(pill,"lock",11,"warning",{Name="LockIcon",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),ZIndex=22})
 local text=label(pill,"",9,{Name="Text",Size=UDim2.new(1,icon and-16 or 0,1,0),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium,ZIndex=22})
@@ -1108,17 +1115,29 @@ if cfg.Flag then window:_register(cfg.Flag,element)end
 element._tooltip=cfg.Tooltip
 function element:SetTooltip(text)self._tooltip=text end
 local hoverToken=0
+local function cutText()
+local parts={}
+for _,object in ipairs({title,desc,row:FindFirstChild("Value")})do
+if object and object:IsA("GuiObject")and object.Visible and object.Text~=""then
+local ok,fits=pcall(function()return object.TextFits end)
+if ok and fits==false then parts[#parts+1]=object.Text end
+end
+end
+return#parts>0 and table.concat(parts," · ")or nil
+end
+local tipShown=false
 row.MouseEnter:Connect(function()
-if not element._tooltip then return end
 hoverToken=hoverToken+1
 local token=hoverToken
 task.delay(0.35,function()
-if token==hoverToken and element._tooltip and not element.Locked and row.Parent then window:_tip(element._tooltip)end
+if token~=hoverToken or element.Locked or not row.Parent then return end
+local text=element._tooltip or cutText()
+if text then tipShown=true window:_tip(text)end
 end)
 end)
 row.MouseLeave:Connect(function()
 hoverToken=hoverToken+1
-if element._tooltip then window:_hideTip()end
+if tipShown then tipShown=false window:_hideTip()end
 end)
 if cfg.DependsOn then
 local spec=cfg.DependsOn
@@ -2568,15 +2587,26 @@ local outline=stroke(box)
 Theme.bind(outline,"Color","buttonEdge")
 local PAD=9
 Util.padding(box,PAD,PAD,0,0)
+local measure=create("TextLabel",{Name="Measure",BackgroundTransparency=1,TextTransparency=1,Size=UDim2.fromOffset(0,0),TextSize=10,Font=box.Font,Text="",Parent=row})
+local function textWidth(text)
+local ok,width=pcall(function()
+measure.FontFace=box.FontFace
+measure.Text=text
+return measure.TextBounds.X
+end)
+if ok and type(width)=="number"and width>0 then return width end
+return Util.textWidth(text,10,box.Font)
+end
 local function fit()
 local text=box.Text~=""and box.Text or box.PlaceholderText
 local most=170
 local rowWidth=row.AbsoluteSize.X
 if rowWidth>0 then most=math.min(most,math.floor(rowWidth*0.45))end
-local width=math.clamp(math.ceil(Util.textWidth(text,10,box.Font))+PAD*2+2,56,math.max(56,most))
+local width=math.clamp(math.ceil(textWidth(text))+PAD*2+4,56,math.max(56,most))
 box.Size=UDim2.fromOffset(width,24)
 end
 box:GetPropertyChangedSignal("Text"):Connect(fit)
+box:GetPropertyChangedSignal("FontFace"):Connect(fit)
 row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 fit()
 local element=Base.element(card,"Input",cfg,row,title,desc)
@@ -4522,9 +4552,29 @@ text.Text=string.format("%d FPS  ·  %d ms  ·  %d/%d  ·  %s",Stats.fps,Stats.p
 end
 self.maid:give(Stats.listen(function()if bar.Visible then refresh()end end))
 self._sessionBar={bar=bar,refresh=refresh}
+local function place()
+local viewport=Util.viewport()
+local barLeft,barRight=viewport.X/2-150,viewport.X/2+150
+local crowded=false
+for _,name in ipairs({"Watermark","Keybinds","Performance"})do
+local panel=self.gui:FindFirstChild(name)
+if panel and panel:IsA("GuiObject")and panel.Visible then
+local left,right=panel.AbsolutePosition.X,panel.AbsolutePosition.X+panel.AbsoluteSize.X
+if right>barLeft and left<barRight and panel.AbsolutePosition.Y<20+30+8 then crowded=true end
+end
+end
+if crowded then
+bar.AnchorPoint,bar.Position=Vector2.new(0.5,1),UDim2.new(0.5,0,1,-14)
+else
+bar.AnchorPoint,bar.Position=Vector2.new(0.5,0),UDim2.new(0.5,0,0,20)
+end
+end
+self._sessionBar.place=place
+self._placers=self._placers or{}
+table.insert(self._placers,place)
 end
 self._sessionBar.bar.Visible=visible
-if visible then self._sessionBar.refresh()end
+if visible then self._sessionBar.refresh()self._sessionBar.place()end
 end
 function Window:StatsMonitor(mode)
 mode=mode==true and"Header"or(mode==false and"Off"or tostring(mode or"Header"))
@@ -4608,6 +4658,11 @@ end
 if cfg.Text~=nil then self._watermark.setExtra(tostring(cfg.Text))end
 self._watermark.panel.Visible=visible
 if visible then self._watermark.refresh()end
+if not self._watermark.watched then
+self._watermark.watched=true
+self.maid:connect(self._watermark.panel:GetPropertyChangedSignal("Position"),function()if self._sessionBar then self._sessionBar.place()end end)
+end
+if self._sessionBar then self._sessionBar.place()end
 end
 end
 end
@@ -5219,7 +5274,7 @@ require("windowx")(Window)
 require("windowfx")(Window)
 require("kick")(Window)
 local Lib={
-Version="1.7.0",
+Version="1.7.1",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -5415,6 +5470,17 @@ Lib._openToasts=Lib._openToasts or{}
 table.insert(Lib._openToasts,entry)
 local limit=math.max(1,tonumber(Lib.MaxNotifications)or 6)
 while#Lib._openToasts>limit do table.remove(Lib._openToasts,1).dismiss()end
+local room=Util.viewport().Y-32
+local used=height
+for index=#Lib._openToasts-1,1,-1 do
+local item=Lib._openToasts[index]
+local h=item.toast.Parent and item.toast.Size.Y.Offset or 0
+if used+h+6>room then
+for _=1,index do table.remove(Lib._openToasts,1).dismiss()end
+break
+end
+used=used+h+6
+end
 local hovered=false
 toast.MouseEnter:Connect(function()hovered=true end)
 toast.MouseLeave:Connect(function()hovered=false end)
@@ -6137,7 +6203,7 @@ saveThemes()
 refreshThemeList("Dark")
 end,"Delete",true)
 end})
-editor:ActionInput({Name="ImportTheme",Icon="import",Placeholder="Paste a QTHEME1: code",Button="Import",
+editor:ActionInput({Name="ImportTheme",Icon="import",Placeholder="Paste a theme code",Button="Import",
 Validate=function(code)
 local body=code:gsub("%s",""):match("^QTHEME1:(.+)$")
 if not body then return false,"Not a theme code"end
@@ -6169,13 +6235,13 @@ look2:Input({Title="Background",Placeholder="image id or url",Flag="__ui_bg",
 Callback=function(text)window:SetBackgroundImage(text~=""and text or nil,bgAlpha and(1-bgAlpha.Value/100)or 0.85)end})
 bgAlpha=look2:Slider({Title="Background visibility",Flag="__ui_bg_alpha",Min=0,Max=60,Default=15,Suffix="%",
 Callback=function(value)if window._background then window._background.ImageTransparency=1-value/100 end end})
-look2:Toggle({Title="Free mouse",Desc="Unlocks the mouse while the menu is open",Icon="mouse-pointer-2",Flag="__ui_mouse",
+look2:Toggle({Title="Free mouse",Desc="Free cursor while open",Icon="mouse-pointer-2",Flag="__ui_mouse",
 Default=window.unlockMouse~=false,Callback=function(on)window:SetMouseUnlock(on)end})
-look2:Toggle({Title="Animated background",Desc="A slow accent glow drifting behind the menu",Icon="sparkles",Flag="__ui_live",
+look2:Toggle({Title="Animated background",Desc="Slow glow behind the menu",Icon="sparkles",Flag="__ui_live",
 Default=window.liveBackground==true,Callback=function(on)window:SetLiveBackground(on)end})
-look2:Toggle({Title="Edge glow",Desc="The window border breathes in the accent",Flag="__ui_edge_glow",
+look2:Toggle({Title="Edge glow",Desc="Pulsing accent border",Flag="__ui_edge_glow",
 Default=window.accentGlow==true,Callback=function(on)window:SetAccentGlow(on)end})
-look2:Toggle({Title="Blur game",Desc="Blurs the game behind the open menu",Flag="__ui_blur",
+look2:Toggle({Title="Blur game",Desc="Blurs the game while open",Flag="__ui_blur",
 Default=window.blur==true,Callback=function(on)window:SetBlur(on)end})
 look2:Button({Title="Fullscreen",Icon="maximize-2",Callback=function()window:ToggleFullscreen()end})
 local overlays=interface:Card({Title="Overlays",Side="Right"})
@@ -6490,21 +6556,28 @@ Theme.contrast=contrast
 local function derive()
 local colors=Theme.colors
 local accent=colors.accentUser or colors.accent
-if luminance(colors.base)>0.5 then
+local light=luminance(colors.base)>0.5
+if light then
 local black=Color3.new(0,0,0)
-for _=1,12 do
-if contrast(accent,colors.card)>=3 then break end
+for _=1,16 do
+local deep=colors.base:Lerp(accent,0.12)
+if contrast(accent,colors.card)>=3 and contrast(accent,deep)>=3 and contrast(accent,colors.dock or colors.base)>=3 then break end
 accent=accent:Lerp(black,0.08)
 end
 end
 colors.accent=accent
-Theme.isLight=luminance(colors.base)>0.5
+Theme.isLight=light
 colors.accentDeep=colors.base:Lerp(colors.accent,0.12)
+if colors.muted and colors.input and colors.text then
+for _=1,10 do
+if contrast(colors.muted,colors.input)>=3 then break end
+colors.muted=colors.muted:Lerp(colors.text,0.12)
+end
+end
 colors.toggleOn=colors.input:Lerp(colors.accent,Theme.isLight and 0.85 or 0.42)
 colors.accentEdge=colors.base:Lerp(colors.accent,0.35)
-local a=colors.accent
-local luminance=0.299*a.R+0.587*a.G+0.114*a.B
-colors.onAccent=luminance>0.6 and colors.base or Color3.new(1,1,1)
+local white=Color3.new(1,1,1)
+colors.onAccent=contrast(colors.base,colors.accent)>contrast(white,colors.accent)and colors.base or white
 end
 derive()
 local bound={}
@@ -6520,6 +6593,7 @@ end)
 end)
 return entry
 end
+function Theme._binding(object)return bound[object]end
 function Theme._boundCount()
 local count=0
 for _ in pairs(bound)do count=count+1 end
@@ -7615,11 +7689,28 @@ local bottom=self.hintBar.Visible and HINTS or 0
 self.pages.Position=UDim2.fromOffset(0,top)
 self.pages.Size=UDim2.new(1,0,1,-(top+bottom))
 end
+function Window:_titleWidth()
+local layout=self.titleRow and self.titleRow:FindFirstChildOfClass("UIListLayout")
+local ok,measured=pcall(function()return layout.AbsoluteContentSize.X end)
+if ok and type(measured)=="number"and measured>0 then return measured/(self.scale and self.scale.Scale or 1)end
+local width=Util.textWidth(self.Title,16,Enum.Font.GothamMedium)*1.05
+if self.logo then width=width+24 end
+if self.Version~=""then width=width+Util.textWidth(self.Version,9)+18 end
+for _,child in ipairs(self.titleRow and self.titleRow:GetChildren()or{})do
+if child.Name=="Tag"and child.Visible then
+local text=child:FindFirstChild("Text")
+width=width+(text and Util.textWidth(text.Text,8,Enum.Font.GothamBold)or 20)+18
+end
+end
+return width
+end
 function Window:_updateLocation()
 local tab=self.current
-local wide=self.width>=440
+local room=self.width-(self.headerRight or 90)-16-self:_titleWidth()-16
+local tabsWidth=0
+for _,item in ipairs(self._headerButtons or{})do tabsWidth=tabsWidth+item.button.Size.X.Offset+6 end
 local onHeaderTab=tab~=nil and tab.Header and self.cfg.HeaderTabs~=false
-self.headerTabs.Visible=onHeaderTab and wide
+self.headerTabs.Visible=onHeaderTab and room>=tabsWidth
 for _,item in ipairs(self._headerButtons or{})do
 local selected=item.tab==tab
 Theme.tweenTo(item.button,"TextColor3",selected and"heading"or"muted",0.12)
@@ -7628,8 +7719,9 @@ end
 if not tab then self.locationLabel.Text=""return end
 local page=tab.current
 self.locationLabel.Text=(page and#tab.Pages>1)and(tab.Title.." › "..page.Name)or tab.Title
-self.locationLabel.Visible=self.width>=360 and not self.headerTabs.Visible
-self.locationLabel.Size=UDim2.new(self.monitorMode=="Header"and 0.25 or 0.45,0,0,20)
+self.locationLabel.Visible=room>=60 and not self.headerTabs.Visible
+local share=math.floor(self.width*(self.monitorMode=="Header"and 0.25 or 0.45))
+self.locationLabel.Size=UDim2.fromOffset(math.max(0,math.min(share,room)),20)
 end
 function Window:_addHeaderTab(tab)
 local width=math.max(56,Util.textWidth(tab.Title,11,Enum.Font.GothamMedium)+14)
@@ -7706,6 +7798,7 @@ __pairs=function()return next,snapshot()end,
 })
 end
 function Window:SetFlag(flag,value)
+if flag==nil then return false end
 local element=self.flags[flag]
 if element and element.Set then
 element:Set(value)
@@ -7906,7 +7999,13 @@ local handle={Frame=tag}
 function handle:SetText(value)caption.Text=tostring(value)end
 function handle:SetColor(value)color=value or"accent"paint()end
 function handle:SetVisible(visible)tag.Visible=visible~=false end
-function handle:Remove()alive=false tag:Destroy()end
+local window=self
+function handle:Remove()
+alive=false
+tag:Destroy()
+if window.alive then window:_updateLocation()end
+end
+task.defer(function()if window.alive then window:_updateLocation()end end)
 return handle
 end
 function Window:SetLiveBackground(on)

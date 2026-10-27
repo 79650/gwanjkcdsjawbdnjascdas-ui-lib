@@ -49,22 +49,32 @@ local function derive()
     local colors = Theme.colors
     -- on light backgrounds a pale accent (green, yellow...) is darkened until it reads (contrast 3:1 on cards)
     local accent = colors.accentUser or colors.accent
-    if luminance(colors.base) > 0.5 then
+    local light = luminance(colors.base) > 0.5
+    if light then
+        -- it must also read on its own tinted fill (primary buttons, selected dock button) and on the dock
         local black = Color3.new(0, 0, 0)
-        for _ = 1, 12 do
-            if contrast(accent, colors.card) >= 3 then break end
+        for _ = 1, 16 do
+            local deep = colors.base:Lerp(accent, 0.12)
+            if contrast(accent, colors.card) >= 3 and contrast(accent, deep) >= 3 and contrast(accent, colors.dock or colors.base) >= 3 then break end
             accent = accent:Lerp(black, 0.08)
         end
     end
     colors.accent = accent
-    Theme.isLight = luminance(colors.base) > 0.5
+    Theme.isLight = light
     colors.accentDeep = colors.base:Lerp(colors.accent, 0.12) -- selected dock button / indicator fill
+    -- muted text is also the placeholder colour inside input boxes: keep it readable there (3:1)
+    if colors.muted and colors.input and colors.text then
+        for _ = 1, 10 do
+            if contrast(colors.muted, colors.input) >= 3 then break end
+            colors.muted = colors.muted:Lerp(colors.text, 0.12)
+        end
+    end
     -- switch track when on: light packs need a much stronger fill to read against the white knob
     colors.toggleOn = colors.input:Lerp(colors.accent, Theme.isLight and 0.85 or 0.42)
     colors.accentEdge = colors.base:Lerp(colors.accent, 0.35)
-    local a = colors.accent
-    local luminance = 0.299 * a.R + 0.587 * a.G + 0.114 * a.B
-    colors.onAccent = luminance > 0.6 and colors.base or Color3.new(1, 1, 1) -- knob / text on an accent fill
+    -- knob / tick / text on an accent fill: whichever of the background and white reads better
+    local white = Color3.new(1, 1, 1)
+    colors.onAccent = contrast(colors.base, colors.accent) > contrast(white, colors.accent) and colors.base or white
 end
 derive()
 
@@ -84,6 +94,7 @@ local function track(object)
     end)
     return entry
 end
+function Theme._binding(object) return bound[object] end
 function Theme._boundCount()
     local count = 0
     for _ in pairs(bound) do count = count + 1 end

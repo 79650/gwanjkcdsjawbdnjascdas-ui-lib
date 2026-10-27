@@ -26,15 +26,27 @@ return function(card, cfg)
     local PAD = 9
     Util.padding(box, PAD, PAD, 0, 0)
     -- the box hugs its text (or the placeholder): the same gap left and right, up to 170 px / 45% of the row
+    -- measured with a hidden label in the box's own font (the UI font can be changed in Settings)
+    local measure = create("TextLabel", { Name = "Measure", BackgroundTransparency = 1, TextTransparency = 1, Size = UDim2.fromOffset(0, 0), TextSize = 10, Font = box.Font, Text = "", Parent = row })
+    local function textWidth(text)
+        local ok, width = pcall(function()
+            measure.FontFace = box.FontFace
+            measure.Text = text
+            return measure.TextBounds.X
+        end)
+        if ok and type(width) == "number" and width > 0 then return width end
+        return Util.textWidth(text, 10, box.Font)
+    end
     local function fit()
         local text = box.Text ~= "" and box.Text or box.PlaceholderText
         local most = 170
         local rowWidth = row.AbsoluteSize.X
         if rowWidth > 0 then most = math.min(most, math.floor(rowWidth * 0.45)) end
-        local width = math.clamp(math.ceil(Util.textWidth(text, 10, box.Font)) + PAD * 2 + 2, 56, math.max(56, most))
+        local width = math.clamp(math.ceil(textWidth(text)) + PAD * 2 + 4, 56, math.max(56, most))
         box.Size = UDim2.fromOffset(width, 24)
     end
     box:GetPropertyChangedSignal("Text"):Connect(fit)
+    box:GetPropertyChangedSignal("FontFace"):Connect(fit)
     row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
     fit()
 

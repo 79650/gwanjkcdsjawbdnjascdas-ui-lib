@@ -36,6 +36,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
   local T = tab("Settings") T.Pages[1]:Select() shot("settings")
   w.flags.__ui_theme:Set("Tokyo Night") tab("Visuals") V.Pages[1]:Select() shot("tokyo")
   w.flags.__ui_theme:Set("Light") shot("light")
+  tab("Misc") shot("misc_light")
+  tab("Silent") shot("silent_light")
   w.flags.__ui_theme:Set("Dark")
 end
 LUA
