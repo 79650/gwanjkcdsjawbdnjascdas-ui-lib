@@ -101,7 +101,7 @@ return function(Window)
             text, color = "Connected", GREEN
         end
         self.statusLabel.Text = text
-        if color ~= nil then Theme.bind(self.statusDot, "BackgroundColor3", color) end
+        if color ~= nil then Theme.bind(self.statusDot, "TextColor3", color) end
     end
 
     -- Runs a user callback; an error is reported (footer, Info page) instead of breaking the UI.

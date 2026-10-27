@@ -470,10 +470,14 @@ function Window:_build()
     Theme.bind(footer, "BackgroundColor3", "footer")
     local footerLine = create("Frame", { Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.45, Parent = footer })
     Theme.bind(footerLine, "BackgroundColor3", "line")
-    -- (6 px: an even size keeps its centre on a whole pixel, level with the middle of the status text)
-    local dot = create("Frame", { Name = "StatusDot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.5, 0), Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, BackgroundColor3 = Color3.fromRGB(82, 207, 132), Parent = footer })
-    corner(dot, 3)
-    local status = label(footer, "Connected", 9, { Name = "Status", Position = UDim2.fromOffset(32, 0), Size = UDim2.new(0, 150, 1, 0) })
+    -- the dot is a "•" in the same font, size and box as the status text, so it sits on the text's own middle
+    -- (like "• Active"), whatever font the UI uses
+    local dot = label(footer, "•", 9, {
+        Name = "StatusDot", Position = UDim2.fromOffset(21, 0), Size = UDim2.new(0, 9, 1, 0), Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.None,
+    })
+    Theme.bind(dot, "TextColor3", "success")
+    local status = label(footer, "Connected", 9, { Name = "Status", Position = UDim2.fromOffset(31, 0), Size = UDim2.new(0, 150, 1, 0) })
     Theme.bind(status, "TextColor3", "muted")
     Glow.add(status, { Base = "muted", Shine = "heading", GlowTransparency = 0.92 })
     local centre = label(footer, tostring(self.cfg.Footer or ""), 9, {
