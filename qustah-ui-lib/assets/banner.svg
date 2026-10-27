@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d0e12"/>
+      <stop offset="1" stop-color="#16181f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.35" r="0.55">
+      <stop offset="0" stop-color="#5b6ee1" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#5b6ee1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.1" cy="1" r="0.5">
+      <stop offset="0" stop-color="#b46fd1" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#b46fd1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="line" x1="0" x2="1">
+      <stop offset="0" stop-color="#9aa3ff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#9aa3ff" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#9aa3ff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="440" rx="18" fill="url(#bg)"/>
+  <rect width="1200" height="440" rx="18" fill="url(#glow)"/>
+  <rect width="1200" height="440" rx="18" fill="url(#glow2)"/>
+  <g stroke="#ffffff" stroke-opacity="0.035">
+    <path d="M0 110H1200M0 220H1200M0 330H1200M150 0V440M300 0V440M450 0V440M600 0V440M750 0V440M900 0V440M1050 0V440"/>
+  </g>
+
+  <!-- text -->
+  <text x="70" y="168" fill="#f2f3f7" font-size="58" font-weight="700" letter-spacing="-1">Qustah UI</text>
+  <text x="72" y="210" fill="#9aa3ff" font-size="22" font-weight="600" letter-spacing="6">LIBRARY</text>
+  <text x="72" y="262" fill="#a4a8b4" font-size="19">A clean, fast Roblox UI library.</text>
+  <text x="72" y="290" fill="#a4a8b4" font-size="19">Profiles, 20 themes, 18k icons — one line to load.</text>
+  <g font-size="14" font-weight="600">
+    <rect x="72" y="322" width="104" height="32" rx="16" fill="#5b6ee1" fill-opacity="0.16" stroke="#5b6ee1" stroke-opacity="0.5"/>
+    <text x="124" y="343" fill="#b9c0ff" text-anchor="middle">25 elements</text>
+    <rect x="186" y="322" width="94" height="32" rx="16" fill="#6aa86a" fill-opacity="0.14" stroke="#6aa86a" stroke-opacity="0.5"/>
+    <text x="233" y="343" fill="#a8d8a8" text-anchor="middle">20 themes</text>
+    <rect x="290" y="322" width="104" height="32" rx="16" fill="#c28b52" fill-opacity="0.14" stroke="#c28b52" stroke-opacity="0.5"/>
+    <text x="342" y="343" fill="#e6c09a" text-anchor="middle">crash-safe</text>
+  </g>
+
+  <!-- window mockup -->
+  <g filter="url(#shadow)">
+    <rect x="560" y="58" width="500" height="328" rx="14" fill="#111216" stroke="#262830"/>
+    <rect x="1074" y="58" width="48" height="236" rx="24" fill="#16171c" stroke="#262830"/>
+  </g>
+  <!-- header -->
+  <text x="582" y="94" fill="#e7e8ee" font-size="18" font-weight="600">Qustāh</text>
+  <rect x="650" y="79" width="48" height="20" rx="6" fill="#16171c" stroke="#8a8f98" stroke-opacity="0.6"/>
+  <text x="674" y="93" fill="#c7cad3" font-size="11" text-anchor="middle">V1.00</text>
+  <rect x="704" y="79" width="42" height="20" rx="5" fill="#c9ccd6"/>
+  <text x="725" y="93" fill="#15161b" font-size="10" font-weight="700" text-anchor="middle">BETA</text>
+  <text x="930" y="93" fill="#7c808c" font-size="12" text-anchor="end">Visuals › Overview</text>
+  <circle cx="962" cy="89" r="5" fill="none" stroke="#7c808c" stroke-width="1.6"/>
+  <path d="M992 89h12M1020 84l10 10M1030 84l-10 10" stroke="#7c808c" stroke-width="1.8" stroke-linecap="round"/>
+  <rect x="580" y="112" width="460" height="1" fill="url(#line)"/>
+
+  <!-- left card -->
+  <rect x="578" y="128" width="226" height="238" rx="9" fill="#17181d" stroke="#24262d"/>
+  <circle cx="595" cy="149" r="3.5" fill="#c9ccd6"/>
+  <text x="606" y="153" fill="#e7e8ee" font-size="12.5" font-weight="600">General</text>
+  <text x="594" y="184" fill="#d4d6de" font-size="12.5">ESP enabled</text>
+  <text x="594" y="200" fill="#737784" font-size="10.5">Show player ESP</text>
+  <rect x="750" y="178" width="38" height="20" rx="10" fill="#3a3c45" stroke="#c9ccd6" stroke-opacity="0.5"/>
+  <circle cx="777" cy="188" r="7.5" fill="#e4e6ec"/>
+  <text x="594" y="232" fill="#d4d6de" font-size="12.5">Highlight</text>
+  <rect x="750" y="222" width="38" height="20" rx="10" fill="#2a2c33"/>
+  <circle cx="761" cy="232" r="7.5" fill="#b9bcc6"/>
+  <text x="594" y="270" fill="#d4d6de" font-size="12.5">Max distance</text>
+  <text x="788" y="270" fill="#c7cad3" font-size="11.5" text-anchor="end">1500 studs</text>
+  <rect x="594" y="284" width="194" height="2" rx="1" fill="#33353d"/>
+  <rect x="594" y="284" width="66" height="2" rx="1" fill="#c9ccd6"/>
+  <circle cx="660" cy="285" r="5.5" fill="#c9ccd6"/>
+  <text x="594" y="322" fill="#d4d6de" font-size="12.5">Aim part</text>
+  <rect x="594" y="332" width="62" height="22" rx="6" fill="#24262d" stroke="#c9ccd6" stroke-opacity="0.55"/>
+  <text x="625" y="347" fill="#e7e8ee" font-size="11" text-anchor="middle">Head</text>
+  <text x="690" y="347" fill="#7c808c" font-size="11" text-anchor="middle">Body</text>
+  <text x="752" y="347" fill="#7c808c" font-size="11" text-anchor="middle">Closest</text>
+
+  <!-- right card -->
+  <rect x="816" y="128" width="226" height="238" rx="9" fill="#17181d" stroke="#24262d"/>
+  <circle cx="833" cy="149" r="3.5" fill="#c9ccd6"/>
+  <text x="844" y="153" fill="#e7e8ee" font-size="12.5" font-weight="600">Session</text>
+  <rect x="832" y="168" width="34" height="34" rx="9" fill="#1f2128" stroke="#c9ccd6" stroke-opacity="0.3"/>
+  <circle cx="849" cy="185" r="7" fill="none" stroke="#c9ccd6" stroke-width="1.6"/>
+  <text x="876" y="179" fill="#7c808c" font-size="10">Coins</text>
+  <text x="876" y="200" fill="#f2f3f7" font-size="19" font-weight="700">$14,445</text>
+  <rect x="972" y="176" width="54" height="20" rx="10" fill="#4fae6c" fill-opacity="0.16"/>
+  <text x="999" y="190" fill="#7fd29a" font-size="10.5" text-anchor="middle">+0.8%</text>
+  <text x="832" y="232" fill="#d4d6de" font-size="12.5">Daily quests</text>
+  <text x="1026" y="232" fill="#c7cad3" font-size="11.5" text-anchor="end">2 / 5</text>
+  <g fill="#2a2c33">
+    <rect x="832" y="242" width="35" height="5" rx="2.5" fill="#c9ccd6"/>
+    <rect x="871" y="242" width="35" height="5" rx="2.5" fill="#c9ccd6"/>
+    <rect x="910" y="242" width="35" height="5" rx="2.5"/>
+    <rect x="949" y="242" width="35" height="5" rx="2.5"/>
+    <rect x="988" y="242" width="38" height="5" rx="2.5"/>
+  </g>
+  <rect x="832" y="262" width="194" height="92" rx="7" fill="#111216" stroke="#24262d"/>
+  <text x="844" y="280" fill="#a4a8b4" font-size="10.5" font-weight="600">Log</text>
+  <rect x="832" y="288" width="194" height="1" fill="#24262d"/>
+  <g font-family="Consolas, Menlo, monospace" font-size="10">
+    <text x="842" y="305" fill="#5d616c">12:04:51 <tspan fill="#7fd29a">Script loaded</tspan></text>
+    <text x="842" y="320" fill="#5d616c">12:04:55 <tspan fill="#c7cad3">Sold loot for 214</tspan></text>
+    <text x="842" y="335" fill="#5d616c">12:04:59 <tspan fill="#e6c09a">Server is full</tspan></text>
+  </g>
+
+  <!-- dock -->
+  <g stroke="#7c808c" stroke-width="1.6" fill="none" stroke-linecap="round">
+    <path d="M1090 78h16M1090 83h16M1090 88h16"/>
+  </g>
+  <rect x="1083" y="104" width="30" height="30" rx="15" fill="#24262d"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6">
+    <path d="M1090 119c3-5 6-6 8-6s5 1 8 6c-3 5-6 6-8 6s-5-1-8-6z" stroke="#e4e6ec"/>
+    <circle cx="1098" cy="119" r="2.2" stroke="#e4e6ec"/>
+    <circle cx="1098" cy="156" r="7" stroke="#7c808c"/>
+    <path d="M1098 146v4M1098 162v4M1088 156h4M1104 156h4" stroke="#7c808c"/>
+    <rect x="1091" y="186" width="6" height="6" rx="1" stroke="#7c808c"/>
+    <rect x="1099" y="186" width="6" height="6" rx="1" stroke="#7c808c"/>
+    <rect x="1091" y="194" width="6" height="6" rx="1" stroke="#7c808c"/>
+    <rect x="1099" y="194" width="6" height="6" rx="1" stroke="#7c808c"/>
+    <path d="M1090 216h16" stroke="#33353d"/>
+    <circle cx="1098" cy="238" r="7" stroke="#7c808c"/>
+    <circle cx="1098" cy="238" r="2.5" stroke="#7c808c"/>
+    <circle cx="1098" cy="272" r="9" stroke="#c9ccd6" fill="#24262d"/>
+  </g>
+</svg>
