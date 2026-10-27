@@ -41,7 +41,7 @@ return function(card, cfg)
     Theme.bind(box, "PlaceholderColor3", "muted")
 
     local hintRow = create("Frame", { Name = "HintRow", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 14), LayoutOrder = 2, Parent = holder })
-    local hintDot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 3, 0.5, 0), Size = UDim2.fromOffset(5, 5), BorderSizePixel = 0, Visible = false, Parent = hintRow })
+    local hintDot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 3, 0.5, 0), Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, Visible = false, Parent = hintRow })
     corner(hintDot, 3)
     local hint = label(hintRow, tostring(cfg.Hint or ""), 9, { Name = "Hint", Position = UDim2.fromOffset(2, 0), Size = UDim2.new(1, -2, 1, 0) })
     Theme.bind(hint, "TextColor3", "muted")
