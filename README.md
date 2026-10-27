@@ -2,12 +2,12 @@
 
 ![Qustah UI](qustah-ui-lib/assets/banner.svg)
 
-![version](https://img.shields.io/badge/version-1.6.0-8a8f98?style=flat-square)
-![luau](https://img.shields.io/badge/Luau-executor-5b6ee1?style=flat-square)
-![size](https://img.shields.io/badge/min-343_KB-6aa86a?style=flat-square)
-![icons](https://img.shields.io/badge/icons-MIT-b46fd1?style=flat-square)
+![version](https://img.shields.io/badge/version-1.6.0-2b2b2f?style=flat-square&labelColor=18181a)
+![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
+![size](https://img.shields.io/badge/min-343_KB-2b2b2f?style=flat-square&labelColor=18181a)
+![icons](https://img.shields.io/badge/icons-MIT-2b2b2f?style=flat-square&labelColor=18181a)
 
-**[Install](#-install)** · **[Quick start](#-quick-start)** · **[Elements](#-elements)** · **[Docs](#-documentation)** · **[Example](qustah-ui-lib/example.lua)**
+**[Install](#install)** · **[Quick start](#quick-start)** · **[Elements](#elements)** · **[Docs](#window)** · **[Example](qustah-ui-lib/example.lua)**
 
 </div>
 
@@ -17,19 +17,19 @@
 <tr>
 <td width="33%" valign="top">
 
-### 🎛️ Qustah look
+### Qustah look
 Dock, two-column cards, footer bar, key hints and smooth animations. It looks like a finished product, not a template.
 
 </td>
 <td width="33%" valign="top">
 
-### 💾 Real profiles
+### Real profiles
 Save, autoload, share codes, notes, "what changed?", per-game lists. An interrupted save never damages a profile.
 
 </td>
 <td width="33%" valign="top">
 
-### 🎨 20 themes
+### 20 themes
 Tokyo Night, Catppuccin, Dracula and more. Every theme is contrast-checked. You can make your own and share it as a code.
 
 </td>
@@ -37,26 +37,26 @@ Tokyo Night, Catppuccin, Dracula and more. Every theme is contrast-checked. You 
 <tr>
 <td valign="top">
 
-### ✨ 18k icons
+### 18k icons
 Write an icon's name anywhere: `"eye"`, `"solar:target-bold"`. Lucide is built in; other sets load when you first use them.
 
 </td>
 <td valign="top">
 
-### 🩺 Hard to break
+### Hard to break
 Callback errors never break the UI. The element flashes red and the error goes to the Info page. Kicks are logged with their reason.
 
 </td>
 <td valign="top">
 
-### ⚙️ Ready tabs
+### Ready tabs
 One line adds a full Settings tab (theme, font, keys, overlays, profiles, errors) and a Dashboard.
 
 </td>
 </tr>
 </table>
 
-## 📦 Install
+## Install
 
 ```lua
 local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/dist/qustah-ui-lib.lua"))()
@@ -64,7 +64,7 @@ local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwa
 
 <sub>The minified build is the same code and about 25% smaller: replace <code>qustah-ui-lib.lua</code> with <code>qustah-ui-lib.min.lua</code>.</sub>
 
-## 🚀 Quick start
+## Quick start
 
 ```lua
 local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder = "Qustah" })
@@ -77,7 +77,7 @@ Window:SettingsTab()          -- theme, font, menu key, profiles...
 Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 ```
 
-## 🧩 Elements
+## All elements
 
 | | | | | |
 |---|---|---|---|---|
@@ -89,12 +89,11 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 <sub>All elements share Flags, Lock with a reason, Help hints, Risky styling, MoveUp/MoveDown and error flashes. You lay them out with Tabs, Sections, Rows and Groups inside a card.</sub>
 
-## 📖 Documentation
+---
 
-<sub>Click a topic to open it.</sub>
+**Documentation:** [Window](#window) · [Tabs, pages and cards](#tabs-pages-and-cards) · [Elements](#elements) · [Flags](#flags) · [Notifications](#notifications) · [Dialogs](#dialogs) · [Configs and profiles](#configs-and-profiles) · [Built-in tabs](#built-in-tabs) · [Overlays](#overlays) · [Themes](#themes) · [Icons](#icons) · [Status, errors and kicks](#status-errors-and-kicks) · [Window extras](#window-extras) · [Secure mode](#secure-mode) · [Development](#development)
 
-<details>
-<summary><b>🪟 Window</b></summary>
+## Window
 
 ```lua
 local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder = "Qustah" })
@@ -121,10 +120,10 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Background`, `BackgroundTransparency` | — | background image, window transparency |
 | `LiveBackground`, `AccentGlow` | `false` | slow accent light drifting behind the content; window edge that pulses in the accent colour |
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
-| `AutoFlags` | `false` | gives elements without a Flag one based on their name (see **Flags** below) |
+| `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `Debug` | `false` | a notification for every new error |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
-| `Secure` | `false` | see **Secure mode** below |
+| `Secure` | `false` | [Secure mode](#secure-mode) |
 | `OnClose` | — | function that runs when the window is destroyed |
 
 | Method | |
@@ -137,10 +136,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Window:Notify(cfg)`, `:Toast(cfg)` | a notification, or a small pill notification |
 | `Window:Destroy()` | closes everything (`OnClose` runs) |
 
-</details>
-
-<details>
-<summary><b>🗂️ Tabs, pages and cards</b></summary>
+## Tabs, pages and cards
 
 ```lua
 local Visuals    = Window:Tab({ Title = "Visuals", Icon = "eye" })
@@ -184,10 +180,9 @@ local group = Card:Group({ Title = "Server" })             -- boxed group
 group:Info({ Title = "Region", Value = "EU" })
 ```
 
-</details>
+---
 
-<details>
-<summary><b>🧩 Elements</b></summary>
+## Elements
 
 Each element is a method of a card, or of a Section, Row, Group or Tabs section: `card:Toggle({ ... })`.
 
@@ -216,7 +211,7 @@ If a callback errors:
 - the error is listed in Settings › Info;
 - the UI keeps working.
 
-#### Toggle
+### Toggle
 
 ```lua
 local esp = Card:Toggle({
@@ -230,7 +225,7 @@ local esp = Card:Toggle({
 esp:SetBind(Enum.KeyCode.G)
 ```
 
-#### Slider and Range
+### Slider and Range
 
 ```lua
 Card:Slider({
@@ -246,7 +241,7 @@ Card:Range({ Title = "Health filter", Flag = "hp", Min = 0, Max = 100, Default =
 
 Click the value to type a number. `slider:SetRange(min, max)`.
 
-#### Dropdown and Segment
+### Dropdown and Segment
 
 ```lua
 Card:Dropdown({ Title = "Font", Flag = "font", Options = { "Gotham", "Code", "Arcade" }, Default = "Gotham" })
@@ -269,7 +264,7 @@ Card:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body",
 - In multi lists you can drag over options to select them (`DragSelect = false` turns it off).
 - `:SetOptions(list, keepValue)`, `:GetLabel()`.
 
-#### Keybind
+### Keybind
 
 ```lua
 Card:Keybind({ Title = "Aim key", Flag = "aimKey", Default = Enum.KeyCode.Q, Pressed = function(key) end })
@@ -283,7 +278,7 @@ Card:Keybind({ Title = "Hold to aim", Default = Enum.KeyCode.E, Mode = "Hold",
 
 Click the badge, then press a key (Backspace clears, Esc cancels). `Callback` runs when the key changes. `Pressed` runs on every press.
 
-#### ColorPicker, Gradient and Swatches
+### ColorPicker, Gradient and Swatches
 
 ```lua
 Card:ColorPicker({ Title = "Fill", Flag = "fill", Default = Color3.fromRGB(215, 120, 120),
@@ -301,7 +296,7 @@ Card:Swatches({ Title = "Name color", Flag = "nameColor", Default = "Blue",
 
 The picker has a saturation square, a hue bar, a HEX box, Random and Rainbow. It also accepts `"RRGGBB"` strings.
 
-#### Input and ActionInput
+### Input and ActionInput
 
 ```lua
 Card:Input({ Title = "Target", Flag = "target", Placeholder = "player name", Numeric = false,
@@ -316,7 +311,7 @@ Card:ActionInput({ Icon = "plus", Placeholder = "Profile name", Button = "Create
     Callback = function(text) end })          -- on the button or Enter
 ```
 
-#### Button
+### Button
 
 ```lua
 Card:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() end })
@@ -324,7 +319,7 @@ Card:Button({ Title = "Server hop", Confirm = true, Callback = hop })        -- 
 Card:Button({ Title = "Delete all", Risky = true, Confirm = "Sure?", Callback = wipe })
 ```
 
-#### Text: Label, Paragraph, Info, Divider and Code
+### Text: Label, Paragraph, Info, Divider and Code
 
 ```lua
 Card:Label("A short line of text")
@@ -334,7 +329,7 @@ Card:Divider()
 Card:Code({ Title = "loader.lua", Code = 'print("hi")', Copy = true, MaxHeight = 200 })   -- Lua highlighting
 ```
 
-#### Live data: Progress, Stat, Graph and Console
+### Live data: Progress, Stat, Graph and Console
 
 ```lua
 local farm  = Card:Progress({ Title = "Auto farm", Value = 3, Max = 10, Suffix = "quests" })
@@ -363,7 +358,7 @@ log:Print("Sold", 3, "items")
 - The header has Follow, Clear and Copy buttons.
 - Methods: `:Clear()`, `:GetText()`, `:SetFollow(bool)`.
 
-#### Visual: Image, ImagePicker, PlayerList and Viewport
+### Visual: Image, ImagePicker, PlayerList and Viewport
 
 ```lua
 Card:Image({ Image = "rbxassetid://123", Height = 120, Caption = "Preview" })   -- icon names and web images work too
@@ -373,10 +368,9 @@ Card:PlayerList({ Title = "Whitelist", Flag = "whitelist", Multi = true, Height 
 Card:Viewport({ Object = game.Players.LocalPlayer.Character, Height = 150, Spin = true })   -- drag to rotate, wheel to zoom
 ```
 
-</details>
+---
 
-<details>
-<summary><b>🚩 Flags</b></summary>
+## Flags
 
 Elements with a `Flag` are saved in profiles, and you can read their values:
 
@@ -392,10 +386,9 @@ Window:GetElement("esp"):Lock("Premium only")
 
 With `CreateWindow({ AutoFlags = true })`, value elements without a Flag get one named `"Tab.Card.Title"`. If two elements end up with the same name, the second gets `" 2"`. Settings and Dashboard elements don't get auto flags.
 
-</details>
+---
 
-<details>
-<summary><b>🔔 Notifications</b></summary>
+## Notifications
 
 ```lua
 Window:Notify({ Title = "Saved", Content = "pvp profile", Icon = "circle-check", Color = "success" })
@@ -427,10 +420,7 @@ Window:Toast("Copied")
 Window:Toast({ Text = "Saved", Icon = "check", Color = "success", Position = "Bottom", Duration = 2 })
 ```
 
-</details>
-
-<details>
-<summary><b>💬 Dialogs</b></summary>
+## Dialogs
 
 ```lua
 Window:Dialog({ Title = "Enable Silent Aim?", Content = "Can be detected in ranked servers.", Icon = "triangle-alert", Buttons = {
@@ -443,10 +433,9 @@ Window:Confirm("Unload?", "Everything will be removed.", function() Window:Destr
 
 The menu behind a dialog is dimmed and blocked. Escape or a click on the dimmed area cancels it.
 
-</details>
+---
 
-<details>
-<summary><b>💾 Configs and profiles</b></summary>
+## Configs and profiles
 
 Every element with a Flag is saved to `<Folder>/configs/<name>.json`.
 
@@ -481,10 +470,7 @@ The Settings › Profiles page does all of this in the UI:
 
 The locked **Default** profile holds the values the script started with.
 
-</details>
-
-<details>
-<summary><b>⚙️ Built-in tabs</b></summary>
+## Built-in tabs
 
 ```lua
 Window:DashboardTab({ Info = { { "Code revision", "571" } }, Server = true })   -- as the first tab
@@ -502,14 +488,11 @@ Window:SettingsTab()                                                            
 - overlays
 - Unload
 
-**Settings › Profiles:** see **Configs and profiles** above.
+**Settings › Profiles:** see [Configs and profiles](#configs-and-profiles).
 
 **Settings › Info:** versions, secure mode state, kick list, modules, errors (Debug mode, Copy report, Clear).
 
-</details>
-
-<details>
-<summary><b>📊 Overlays</b></summary>
+## Overlays
 
 Overlays stay on screen while the menu is closed. They can be dragged and their positions are remembered. You can also turn them on in Settings › Overlays.
 
@@ -523,10 +506,9 @@ Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Sid
     Pressed = function() end })                -- key badge in the footer bar; click it to rebind
 ```
 
-</details>
+---
 
-<details>
-<summary><b>🎨 Themes</b></summary>
+## Themes
 
 There are 20 built-in themes:
 - **Dark, Midnight, AMOLED, Light, Latte**
@@ -548,10 +530,7 @@ The theme editor in Settings lets you:
 
 Fonts: Gotham, BuilderSans, Montserrat, Ubuntu, Roboto, SourceSans, Nunito, Arimo.
 
-</details>
-
-<details>
-<summary><b>✨ Icons</b></summary>
+## Icons
 
 Anything that takes an icon accepts a name. Asset ids and web images work too:
 
@@ -583,10 +562,9 @@ Lib.Icons.List("lucide")
 
 Icons are from [Footagesus/Icons](https://github.com/Footagesus/Icons) (MIT, [`icons/LICENSE`](qustah-ui-lib/icons/LICENSE)).
 
-</details>
+---
 
-<details>
-<summary><b>🩺 Status, errors and kicks</b></summary>
+## Status, errors and kicks
 
 ```lua
 Window:SetModule("ESP", "On")                         -- "On" | "Off" | "Limited" | "Error", detail
@@ -609,10 +587,7 @@ Window:GetKicks()
 -- CreateWindow({ Rejoin = true })  -> teleports back to the same place after a kick
 ```
 
-</details>
-
-<details>
-<summary><b>🪄 Window extras</b></summary>
+## Window extras
 
 ```lua
 Window:HeaderButton({ Icon = "refresh-cw", Tooltip = "Rejoin", Callback = rejoin })
@@ -628,10 +603,7 @@ Window:SetAnonymous(true)                       -- hides your name and avatar ev
 Window:SetMouseUnlock(false)
 ```
 
-</details>
-
-<details>
-<summary><b>🔒 Secure mode</b></summary>
+## Secure mode
 
 ```lua
 getgenv().QUSTAH_SECURE = true                  -- before loading the library
@@ -645,10 +617,9 @@ In secure mode:
 
 Icons stay as asset ids. Roblox needs a login to download assets, so caching them to files would need a proxy server.
 
-</details>
+---
 
-<details>
-<summary><b>🛠️ Development</b></summary>
+## Development
 
 ```
 qustah-ui-lib/
@@ -676,8 +647,6 @@ To change the library:
 To add an element:
 1. Write `src/elements/<name>.lua` (`return function(card, cfg) ... end`, using `elements/base`).
 2. Add it to `Card.Elements` in `card.lua`.
-
-</details>
 
 <div align="center">
 <sub>Icons from <a href="https://github.com/Footagesus/Icons">Footagesus/Icons</a> (MIT) · made for Qustah</sub>
