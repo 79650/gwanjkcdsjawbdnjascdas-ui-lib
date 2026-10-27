@@ -5691,7 +5691,7 @@ Theme.bind(edge,"Color","accentEdge")
 local row=create("Frame",{Name="Row",BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromScale(0,1),Parent=pill})
 Util.list(row,8,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
 Util.padding(row,12,16,0,0)
-Icons.themed(row,self.cfg.Icon or self.cfg.MobileIcon or"layout-grid",16,"accent",{Name="Icon",LayoutOrder=1})
+Icons.themed(row,self.cfg.Icon or self.cfg.MobileIcon or"menu",16,"accent",{Name="Icon",LayoutOrder=1})
 local text=label(row,self.Title,12,{Name="Text",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,40),Font=Enum.Font.GothamMedium,TextTruncate=Enum.TextTruncate.None,LayoutOrder=2})
 Theme.bind(text,"TextColor3","heading")
 create("UISizeConstraint",{MaxSize=Vector2.new(150,40),Parent=text})
@@ -6555,7 +6555,7 @@ Callback=function()
 window:Confirm("Unload "..window.Title.."?","The menu and everything it runs will be removed.",function()window:Destroy()end,"Unload",true)
 end,
 })
-local editorCard=interface:Card({Title="Theme editor",Side="Right",Icon="palette"})
+local editorCard=interface:Card({Title="Theme editor",Side="Right",Icon="paintbrush"})
 local editor=editorCard:Section({Title="Edit colours",Opened=false})
 local ROLE_NAMES={"Background","Cards","Inputs","Outlines","Text","Muted text","Headings","Dock","Icons","Accent"}
 local ROLE_OF={}
@@ -6640,9 +6640,9 @@ look2:Input({Title="Background",Placeholder="image id or url",Flag="__ui_bg",
 Callback=function(text)window:SetBackgroundImage(text~=""and text or nil,bgAlpha and(1-bgAlpha.Value/100)or 0.85)end})
 bgAlpha=look2:Slider({Title="Background visibility",Flag="__ui_bg_alpha",Min=0,Max=60,Default=15,Suffix="%",
 Callback=function(value)if window._background then window._background.ImageTransparency=1-value/100 end end})
-look2:Toggle({Title="Free mouse",Desc="Free cursor while open",Icon="mouse-pointer-2",Flag="__ui_mouse",
+look2:Toggle({Title="Free mouse",Desc="Free cursor while open",Icon="hand",Flag="__ui_mouse",
 Default=window.unlockMouse~=false,Callback=function(on)window:SetMouseUnlock(on)end})
-look2:Toggle({Title="Animated background",Desc="Slow glow behind the menu",Icon="sparkles",Flag="__ui_live",
+look2:Toggle({Title="Animated background",Desc="Slow glow behind the menu",Icon="blend",Flag="__ui_live",
 Default=window.liveBackground==true,Callback=function(on)window:SetLiveBackground(on)end})
 look2:Toggle({Title="Edge glow",Desc="Pulsing accent border",Flag="__ui_edge_glow",
 Default=window.accentGlow==true,Callback=function(on)window:SetAccentGlow(on)end})
@@ -6665,7 +6665,7 @@ for _,entry in ipairs(cfg.Info or{})do about:Info({Title=entry[1],Value=entry[2]
 local files=type(writefile)=="function"and type(readfile)=="function"
 about:Info({Title="File access",Value=files and"Yes"or"No (profiles off)"})
 if type(window.cfg.Changelog)=="table"then
-about:Button({Title="What's new",Icon="scroll-text",Callback=function()window:ShowChangelog()end})
+about:Button({Title="What's new",Icon="newspaper",Callback=function()window:ShowChangelog()end})
 end
 about:Info({Title="Secure mode",Value=Util.secure and"On"or"Off",Help="Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })"})
 if window.GetKicks and window.cfg.KickLog~=false then
