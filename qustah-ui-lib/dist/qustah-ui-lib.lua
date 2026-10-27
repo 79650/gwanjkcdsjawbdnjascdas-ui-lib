@@ -7354,7 +7354,27 @@ local function derive()
 end
 derive()
 
-local bound = setmetatable({}, { __mode = "k" })
+-- object -> { property = role }. A normal (strong) table: Roblox collects the Lua handle of an Instance that no
+-- script variable holds, even while the Instance is on screen, so a weak table silently lost bindings (outlines,
+-- labels, boxes stayed in the old theme). Entries leave when their object is destroyed.
+local bound = {}
+local function track(object)
+    local entry = {}
+    bound[object] = entry
+    pcall(function()
+        local connection
+        connection = object.Destroying:Connect(function()
+            bound[object] = nil
+            if connection then connection:Disconnect() end
+        end)
+    end)
+    return entry
+end
+function Theme._boundCount()
+    local count = 0
+    for _ in pairs(bound) do count = count + 1 end
+    return count
+end
 local listeners = {}
 
 function Theme.get(role)
@@ -7363,8 +7383,7 @@ end
 
 -- bind(object, "BackgroundColor3", "card")
 function Theme.bind(object, property, role)
-    local entry = bound[object]
-    if not entry then entry = {} bound[object] = entry end
+    local entry = bound[object] or track(object)
     entry[property] = role
     object[property] = Theme.get(role)
     return object
@@ -7372,8 +7391,7 @@ end
 
 -- Rebinds and animates to the role's colour (state changes such as a toggle turning on).
 function Theme.tweenTo(object, property, role, duration)
-    local entry = bound[object]
-    if not entry then entry = {} bound[object] = entry end
+    local entry = bound[object] or track(object)
     entry[property] = role
     if duration and duration > 0 then
         Util.tween(object, duration, { [property] = Theme.get(role) })

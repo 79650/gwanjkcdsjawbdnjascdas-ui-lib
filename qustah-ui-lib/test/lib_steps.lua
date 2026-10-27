@@ -1244,6 +1244,24 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("input grows with text, capped", longWidth > emptyWidth and longWidth <= 170)
     check("input shrinks to a minimum", hugBox.Size.X.Offset == 56)
 
+    -- theme bindings are kept (not weak) and leave with their objects
+    local beforeCount = Lib.Theme._boundCount()
+    local probeCard = misc:Card({ Title = "ThemeProbe" })
+    probeCard:ActionInput({ Placeholder = "Theme name", Button = "Save" })
+    local afterCount = Lib.Theme._boundCount()
+    check("bindings recorded", afterCount > beforeCount)
+    probeCard.frame:Destroy() wait()
+    check("bindings dropped on destroy", Lib.Theme._boundCount() < afterCount)
+    -- every bound outline / box follows a theme switch (Light: no Dark input colour left anywhere in the editor)
+    W.__ui_theme:Set("Light") wait()
+    local darkInput, stale = Lib.Theme.packs and Lib.Theme.packs.Dark and Lib.Theme.packs.Dark.input, 0
+    local editorCard = find("Theme editor")
+    for _, object in ipairs(editorCard and editorCard:GetDescendants() or {}) do
+        if object:IsA("GuiObject") and darkInput and object.BackgroundColor3 == darkInput and object.BackgroundTransparency < 1 then stale = stale + 1 end
+    end
+    check("theme editor follows Light", editorCard ~= nil and stale == 0)
+    W.__ui_theme:Set("Dark") wait()
+
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
     check("old window destroyed on re-run", window.alive == false and gui.Parent == nil)

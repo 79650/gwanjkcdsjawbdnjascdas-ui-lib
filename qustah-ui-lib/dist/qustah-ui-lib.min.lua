@@ -6507,21 +6507,36 @@ local luminance=0.299*a.R+0.587*a.G+0.114*a.B
 colors.onAccent=luminance>0.6 and colors.base or Color3.new(1,1,1)
 end
 derive()
-local bound=setmetatable({},{__mode="k"})
+local bound={}
+local function track(object)
+local entry={}
+bound[object]=entry
+pcall(function()
+local connection
+connection=object.Destroying:Connect(function()
+bound[object]=nil
+if connection then connection:Disconnect()end
+end)
+end)
+return entry
+end
+function Theme._boundCount()
+local count=0
+for _ in pairs(bound)do count=count+1 end
+return count
+end
 local listeners={}
 function Theme.get(role)
 return Theme.colors[role]or role
 end
 function Theme.bind(object,property,role)
-local entry=bound[object]
-if not entry then entry={}bound[object]=entry end
+local entry=bound[object]or track(object)
 entry[property]=role
 object[property]=Theme.get(role)
 return object
 end
 function Theme.tweenTo(object,property,role,duration)
-local entry=bound[object]
-if not entry then entry={}bound[object]=entry end
+local entry=bound[object]or track(object)
 entry[property]=role
 if duration and duration>0 then
 Util.tween(object,duration,{[property]=Theme.get(role)})
