@@ -160,15 +160,18 @@ About:Button({ Title = "Progress toast", Icon = "loader", Callback = function()
     for step = 1, 5 do task.wait(0.6) toast:SetStep(step, step == 5 and "Done" or "Quest " .. step) end
 end })
 
------------------------------------------------------------------------- World: teleports
-local World = Window:Tab({ Title = "World", Icon = "earth" })
-local Teleport = World:Card({ Title = "Teleport", Icon = "map-pin" })
-Teleport:Dropdown({ Title = "Location", Flag = "tpSpot", Options = { "Spawn", "Shop", "Arena", "Boss room" }, Default = "Spawn" })
-Teleport:Button({ Title = "Teleport", Icon = "navigation", Callback = function() print("teleport to", Window.Flags.tpSpot) end })
-Teleport:Toggle({ Title = "Tween instead of instant", Desc = "Slower but safer", Flag = "tpTween", Default = true })
-local Waypoints = World:Card({ Title = "Waypoints", Side = "Right" })
-Waypoints:Input({ Title = "Name", Placeholder = "waypoint name", Flag = "wpName" })
-Waypoints:Button({ Title = "Save here", Icon = "plus", Callback = function() print("saved", Window.Flags.wpName) end })
+------------------------------------------------------------------------ Server: info, rejoin / hop, network graph
+local Server = Window:Tab({ Title = "Server", Icon = "server" })
+local ServerInfo = Server:Card({ Title = "This server", Icon = "info" })
+ServerInfo:Info({ Title = "Players", Value = #game.Players:GetPlayers() .. " / " .. game.Players.MaxPlayers })
+ServerInfo:Info({ Title = "Job ID", Value = string.sub(game.JobId, 1, 8), Copy = game.JobId })   -- Copy button copies the full id
+ServerInfo:Toggle({ Title = "Auto rejoin on kick", Flag = "autoRejoin" })
+local hop = ServerInfo:Row()
+hop:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() print("rejoin") end })
+hop:Button({ Title = "Server hop", Icon = "shuffle", Confirm = true, Callback = function() print("hop") end })
+local Network = Server:Card({ Title = "Network", Side = "Right", Icon = "wifi" })
+Network:Graph({ Title = "Ping", Source = "Ping", Style = "Line", Suffix = " ms" })
+Network:Dropdown({ Title = "Prefer servers", Flag = "hopPrefer", Options = { "Smallest", "Lowest ping", "Random" }, Default = "Smallest" })
 
 ------------------------------------------------------------------------ key hint above the footer (MENU hint on the right is automatic)
 Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Side = "Left", Flag = "espKey",
