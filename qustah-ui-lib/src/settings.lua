@@ -146,7 +146,7 @@ return function(window, cfg)
             window:Notify({ Title = "Theme saved", Content = name, Icon = "palette" })
         end })
     local codeRow = editor:Row()
-    codeRow:Button({ Title = "Copy code", Icon = "share-2", Callback = function()
+    codeRow:Button({ Title = "Copy code", Icon = "copy", Callback = function()
         local code = "QTHEME1:" .. Util.base64encode(Util.Services.HttpService:JSONEncode({ n = themeDropdown.Value or "Theme", t = Theme.export() }))
         local clipboard = setclipboard or toclipboard
         if clipboard and pcall(clipboard, code) then window:Notify({ Title = "Copied", Content = "Theme code copied", Icon = "palette" }) end
@@ -184,7 +184,7 @@ return function(window, cfg)
         end })
 
     local look2 = interface:Card({ Title = "Window", Side = "Left" })
-    look2:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "user-round", Flag = "__ui_anon", Default = window.anonymous == true,
+    look2:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "venetian-mask", Flag = "__ui_anon", Default = window.anonymous == true,
         Callback = function(on) window:SetAnonymous(on) end })
     if window.OnAnonymousChanged then
         window:OnAnonymousChanged(function(on) local t = window.flags.__ui_anon if t and t.Value ~= on then t:Set(on, true) end end)

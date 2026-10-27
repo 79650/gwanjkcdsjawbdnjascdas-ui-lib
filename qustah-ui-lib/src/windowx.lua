@@ -165,7 +165,7 @@ return function(Window)
             corner(button, 15)
             local ring = stroke(button, nil, 0.5, 1.5)
             Theme.bind(ring, "Color", "buttonEdge")
-            local mask = Icons.themed(button, "user-round", 14, "muted", { Name = "Anon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 43, Visible = false })
+            local mask = Icons.themed(button, "hat-glasses", 14, "muted", { Name = "Anon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 43, Visible = false })
             -- rbxthumb content: no web request (also fine in secure mode)
             local avatar = Util.avatar(player.UserId)
             button.Image = avatar
