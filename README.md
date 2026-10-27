@@ -2,7 +2,7 @@
 
 # Qustah UI Library
 
-**Qustah'ın arayüzünü tek satırla scriptine getiren Roblox UI kütüphanesi.**
+**The Qustah interface for your Roblox script, in one line.**
 
 ![version](https://img.shields.io/badge/version-1.6.0-8a8f98?style=flat-square)
 ![luau](https://img.shields.io/badge/Luau-executor-5b6ee1?style=flat-square)
@@ -12,61 +12,61 @@
 
 </div>
 
-Pencere, dock, sayfalar, kartlar, 25 eleman, bildirimler, profil sistemi, 20 tema ve 18.000+ ikon hazır gelir.
-Sen sadece scriptin özelliklerini yazarsın; görünüm, kayıt, tema ve hata yönetimini kütüphane halleder.
+The library includes a window, dock, pages, cards, 25 elements, notifications, profiles, 20 themes and more than 18,000 icons.
+You write your script's features. The library handles the look, saving, theming and error handling.
 
-- **Qustah görünümü:** sağda dock, iki sütunlu kartlar, alt bilgi çubuğu, tuş ipuçları, yumuşak animasyonlar
-- **Profiller:** kaydet / yükle / autoload, paylaşım kodları, notlar, "ne değişti?", oyuna göre ayrı profiller, çökmeye dayanıklı kayıt
-- **Temalar:** 20 hazır tema, kendi temanı yap ve kodla paylaş, her renk okunabilirlik testinden geçer
-- **İkonlar:** lucide gömülü, solar / sfsymbols / gravity / geist / craft isteğe bağlı; her yerde isimle
-- **Sağlam:** callback hataları arayüzü bozmaz, elemanda gösterilir ve listelenir; kick'ler sebebiyle kaydedilir
-- **Hazır sekmeler:** Settings (tema, font, menü tuşu, overlay'ler, profiller, hata listesi) ve Dashboard
+- **Qustah look:** dock on the right, two card columns, footer bar, key hints and smooth animations
+- **Profiles:** save, load, autoload, share codes, notes, "what changed?", per-game profiles, crash-safe saves
+- **Themes:** 20 built-in themes, your own themes shared by code, and every colour is checked for readability
+- **Icons:** lucide is built in; solar, sfsymbols, gravity, geist and craft load when used. Every icon is set by name
+- **Error handling:** callback errors never break the UI. The element shows the error and the Info page lists it. Kicks are logged with their reason
+- **Ready-made tabs:** Settings (theme, font, menu key, overlays, profiles, error list) and Dashboard
 
 ---
 
-## İçindekiler
+## Contents
 
-- [Kurulum](#kurulum)
-- [Hızlı başlangıç](#hızlı-başlangıç)
-- [Pencere](#pencere)
-- [Sekmeler, sayfalar, kartlar](#sekmeler-sayfalar-kartlar)
-- [Elemanlar](#elemanlar)
-- [Flag'ler](#flagler)
-- [Bildirimler](#bildirimler)
-- [Diyaloglar](#diyaloglar)
-- [Config ve profiller](#config-ve-profiller)
-- [Hazır sekmeler](#hazır-sekmeler)
-- [Overlay'ler](#overlayler)
-- [Temalar](#temalar)
-- [İkonlar](#ikonlar)
-- [Durum, hatalar ve kick'ler](#durum-hatalar-ve-kickler)
-- [Pencere ekstraları](#pencere-ekstraları)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Window](#window)
+- [Tabs, pages and cards](#tabs-pages-and-cards)
+- [Elements](#elements)
+- [Flags](#flags)
+- [Notifications](#notifications)
+- [Dialogs](#dialogs)
+- [Configs and profiles](#configs-and-profiles)
+- [Built-in tabs](#built-in-tabs)
+- [Overlays](#overlays)
+- [Themes](#themes)
+- [Icons](#icons)
+- [Status, errors and kicks](#status-errors-and-kicks)
+- [Window extras](#window-extras)
 - [Secure mode](#secure-mode)
-- [Geliştirme](#geliştirme)
+- [Development](#development)
 
 ---
 
-## Kurulum
+## Installation
 
 ```lua
 local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/dist/qustah-ui-lib.lua"))()
 ```
 
-Küçültülmüş sürüm (aynı kod, yorumsuz, ~%25 daha küçük):
+The minified build is the same code without comments and about 25% smaller:
 
 ```lua
 local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/dist/qustah-ui-lib.min.lua"))()
 ```
 
-Her elemanın kullanıldığı tam örnek: [`example.lua`](qustah-ui-lib/example.lua)
+[`example.lua`](qustah-ui-lib/example.lua) is a full example that uses every element.
 
-## Hızlı başlangıç
+## Quick start
 
 ```lua
 local Window = Lib:CreateWindow({
     Title     = "Qustāh",
     Version   = "V1.00",
-    Folder    = "Qustah",                  -- profiller Qustah/configs/ içine kaydedilir
+    Folder    = "Qustah",                  -- profiles are saved in Qustah/configs/
     ToggleKey = Enum.KeyCode.RightShift,
 })
 
@@ -77,143 +77,163 @@ local General  = Overview:Card({ Title = "General" })
 General:Toggle({ Title = "ESP", Flag = "esp", Default = true, Callback = function(on) print("ESP", on) end })
 General:Slider({ Title = "Max distance", Flag = "range", Min = 100, Max = 5000, Default = 1500, Step = 10, Suffix = "studs" })
 
-Window:SettingsTab()          -- tema, font, menü tuşu, profiller... (en son oluştur)
-Window.Config:LoadAutoLoad()  -- autoload seçilmiş profili yükler
+Window:SettingsTab()          -- theme, font, menu key, profiles... (create it last)
+Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 ```
 
-Script tekrar çalıştırılınca aynı `Title`'lı eski pencere kendiliğinden kapanır, üst üste binmez.
+If the script runs again, it closes the old window with the same `Title`, so windows never stack.
 
 ---
 
-## Pencere
+## Window
 
 ```lua
 local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder = "Qustah" })
 ```
 
-| Ayar | Varsayılan | Açıklama |
+| Option | Default | Description |
 |---|---|---|
-| `Title`, `Version` | `"Qustah UI"`, `""` | başlık ve yanındaki sürüm rozeti |
-| `Icon` | — | başlığın önünde logo (ikon adı, asset id ya da web resmi) |
-| `Tags` | — | başlığın yanında etiketler: `{ "BETA", { Text = "PRO", Color = Color3 } }` |
-| `Folder` | başlık | dosyaların klasörü (profiller, pencere konumu, temalar) |
-| `Size`, `MinSize`, `MaxSize` | `540×390` | `Vector2`; köşeden boyutlandırılır, küçük ekranda ölçeklenir |
-| `ToggleKey` | `RightShift` | menüyü açıp kapatan tuş |
-| `Accent` | Qustah grisi | `Color3` |
-| `Footer` | oyunun adı | alt çubuğun ortasındaki yazı |
-| `KeyHints` | `true` | alt çubuktaki `MENU • RSHIFT` rozeti |
-| `CloseAction` | `"Hide"` | X: `"Hide"` gizler ve nasıl açılacağını söyler, `"Destroy"` tamamen kapatır |
-| `SaveWindow` | `true` | konum, boyut ve paneller hatırlansın |
-| `PerGame` | `false` | `"Game"` / `"Place"`: her oyunun kendi profilleri |
-| `UnlockMouse` | `true` | menü açıkken mouse serbest (shift lock / first person) |
-| `Profile`, `Anonymous` | `true`, `false` | dock'taki avatar butonu, anonim modda başla |
-| `FullscreenButton` | `true` | header'daki tam ekran butonu |
-| `NotificationHistory` | `true` | header'daki zil (bildirim geçmişi) |
-| `Background`, `BackgroundTransparency` | — | arka plan resmi, pencere saydamlığı |
-| `LiveBackground`, `AccentGlow` | `false` | arkada kayan accent ışığı, nefes alan kenar |
-| `Welcome` | `true` | yeni hesap ilk açtığında "Signed in as" toast'ı |
-| `AutoFlags` | `false` | Flag verilmeyen elemanlara isimden flag ([Flag'ler](#flagler)) |
-| `Debug` | `false` | her yeni hata için bildirim |
-| `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | kick kaydı, kick sonrası tekrar bağlan |
+| `Title`, `Version` | `"Qustah UI"`, `""` | the title and the version badge next to it |
+| `Icon` | — | logo before the title (icon name, asset id or web image) |
+| `Tags` | — | chips next to the title: `{ "BETA", { Text = "PRO", Color = Color3 } }` |
+| `Folder` | the title | folder for files (profiles, window position, themes) |
+| `Size`, `MinSize`, `MaxSize` | `540×390` | `Vector2`; resized from the corner, scaled down on small screens |
+| `ToggleKey` | `RightShift` | key that opens and closes the menu |
+| `Accent` | Qustah grey | `Color3` |
+| `Footer` | the game's name | text in the middle of the footer |
+| `KeyHints` | `true` | the `MENU • RSHIFT` badge in the footer bar |
+| `CloseAction` | `"Hide"` | the X button: `"Hide"` hides the menu and shows how to reopen it, `"Destroy"` unloads everything |
+| `SaveWindow` | `true` | remember position, size and floating panels |
+| `PerGame` | `false` | `"Game"` / `"Place"`: separate profiles for each game |
+| `UnlockMouse` | `true` | frees the mouse while the menu is open (shift lock, first person) |
+| `Profile`, `Anonymous` | `true`, `false` | the avatar button in the dock; start in anonymous mode |
+| `FullscreenButton` | `true` | fullscreen button in the header |
+| `NotificationHistory` | `true` | the bell in the header (notification history) |
+| `Background`, `BackgroundTransparency` | — | background image, window transparency |
+| `LiveBackground`, `AccentGlow` | `false` | slow accent light drifting behind the content; window edge that pulses in the accent colour |
+| `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
+| `AutoFlags` | `false` | gives elements without a Flag one based on their name ([Flags](#flags)) |
+| `Debug` | `false` | a notification for every new error |
+| `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
 | `Secure` | `false` | [Secure mode](#secure-mode) |
-| `OnClose` | — | pencere kapanınca çalışan fonksiyon |
+| `OnClose` | — | function that runs when the window is destroyed |
 
-| Metot | |
+| Method | |
 |---|---|
-| `Window:Tab({ Title, Icon, Divider, Header })` | dock'a sekme ekler |
-| `Window:SetVisible(bool)`, `:Toggle()`, `:Minimize()` | göster / gizle / başlığa katla |
-| `Window:SetToggleKey(key)` | menü tuşunu değiştirir (rozet ve Settings de güncellenir) |
-| `Window:SelectTab(tab or "Title")` | sekme açar |
-| `Window:SetFooter(text)`, `:SetStatus(text, color)` | alt çubuk yazıları |
-| `Window:Notify(cfg)`, `:Toast(cfg)` | bildirim, kısa hap bildirim |
-| `Window:Destroy()` | her şeyi kapatır (`OnClose` çalışır) |
+| `Window:Tab({ Title, Icon, Divider, Header })` | adds a tab to the dock |
+| `Window:SetVisible(bool)`, `:Toggle()`, `:Minimize()` | show, hide, or fold to the title bar |
+| `Window:SetToggleKey(key)` | changes the menu key (the badge and Settings update too) |
+| `Window:SelectTab(tab or "Title")` | opens a tab |
+| `Window:SetFooter(text)`, `:SetStatus(text, color)` | footer texts |
+| `Window:Notify(cfg)`, `:Toast(cfg)` | a notification, or a small pill notification |
+| `Window:Destroy()` | closes everything (`OnClose` runs) |
 
-## Sekmeler, sayfalar, kartlar
+## Tabs, pages and cards
 
 ```lua
 local Visuals    = Window:Tab({ Title = "Visuals", Icon = "eye" })
-local Overview   = Visuals:Page("Overview")                -- 2+ sayfa olunca üstte sayfa şeridi çıkar
+local Overview   = Visuals:Page("Overview")                -- a page strip appears once a tab has 2+ pages
 local Appearance = Visuals:Page("Appearance", { Columns = 1 })
 
-local Left  = Overview:Card({ Title = "General" })          -- kartlar sırayla sol / sağ sütuna gider
-local Right = Overview:Card({ Title = "Colors", Side = "Right", Icon = "palette", Desc = "Kartın açıklaması" })
-local Top   = Overview:Card({ Title = "Server", Wide = true })   -- iki sütunu kaplar, en üstte durur
+local Left  = Overview:Card({ Title = "General" })          -- cards alternate between the left and right columns
+local Right = Overview:Card({ Title = "Colors", Side = "Right", Icon = "palette", Desc = "Card description" })
+local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both columns, sits at the top
 ```
 
-- **Tab:** `Icon` dock'ta görünür; `Divider = true` üstüne ayırıcı çizgi koyar; `Header = true` header'da yazı sekmesi olarak da çıkar. `Tab:Card()` sayfa açmadan ilk sayfaya kart ekler.
-- **Page:** `Columns = 1` tek sütun. Pencere 470 px'ten daralınca iki sütun alt alta geçer. `Warning = "..."` ya da `page:Warning("metin", { Title, Icon, Level = "warning" | "danger" | "info" })` sayfanın üstüne uyarı bandı koyar.
-- **Card:** başlıktaki okla katlanır (`Collapsible = false` kaldırır, `Collapsed = true` kapalı başlar, durum hatırlanır). `card:SetCollapsed(bool)`, `card:SetTitle()`, `card:SetDesc()`, `card:SetVisible()`.
+**Tabs**
+- `Icon` is shown in the dock.
+- `Divider = true` puts a line above the tab.
+- `Header = true` also shows the tab as a text tab in the header.
+- `Tab:Card()` adds a card to the first page without creating one.
 
-Kart içi düzen:
+**Pages**
+- `Columns = 1` gives a single column.
+- When the window is narrower than 470 px, the two columns stack.
+- `Warning = "..."` or `page:Warning("text", { Title, Icon, Level = "warning" | "danger" | "info" })` puts a banner at the top of the page.
+
+**Cards**
+- The arrow in the header folds the card. `Collapsible = false` removes the arrow, `Collapsed = true` starts folded, and the folded state is remembered.
+- Methods: `card:SetCollapsed(bool)`, `card:SetTitle()`, `card:SetDesc()`, `card:SetVisible()`.
+
+Layout inside a card:
 
 ```lua
-local tabs = Card:Tabs({ "Players", "Filters" })          -- başlıkta kapsül seçici, her biri ayrı bölüm
+local tabs = Card:Tabs({ "Players", "Filters" })          -- capsule switcher in the header, one section each
 tabs.Players:Toggle({ Title = "Ignore friends" })
 
-local advanced = Card:Section({ Title = "Advanced", Icon = "settings-2", Opened = false })  -- açılır bölüm
+local advanced = Card:Section({ Title = "Advanced", Icon = "settings-2", Opened = false })  -- collapsible section
 advanced:Slider({ Title = "Delay", Min = 0, Max = 1, Step = 0.05 })
 
-local row = Card:Row()                                     -- içindekiler yan yana, eşit genişlikte
+local row = Card:Row()                                     -- children sit side by side with equal widths
 row:Button({ Title = "Start", Icon = "play" })
 row:Button({ Title = "Stop", Icon = "square" })
 
-local group = Card:Group({ Title = "Server" })             -- kutulu grup
+local group = Card:Group({ Title = "Server" })             -- boxed group
 group:Info({ Title = "Region", Value = "EU" })
 ```
 
 ---
 
-## Elemanlar
+## Elements
 
-Her eleman bir kartın (ya da Section / Row / Group / Tabs bölümünün) metodudur: `card:Toggle({ ... })`.
+Each element is a method of a card, or of a Section, Row, Group or Tabs section: `card:Toggle({ ... })`.
 
-**Ortak ayarlar:** `Title`, `Desc`, `Flag`, `Callback`, `Icon` (başlığın soluna), `Help` (satırda "i", tıklayınca açıklama), `Risky` (kırmızı başlık, metin verilirse "i" ipucu olur), `Locked`, `LockedTitle`.
+**Common options**
+- `Title`, `Desc`, `Flag`, `Callback`
+- `Icon`: an icon left of the title
+- `Help`: an "i" in the row that shows this text when clicked
+- `Risky`: red title; if you pass text, it becomes the "i" hint
+- `Locked`, `LockedTitle`
 
-**Ortak metotlar:**
+**Common methods:**
 
-| Metot | |
+| Method | |
 |---|---|
-| `:Set(value)`, `:Get()` | değer (Set callback'i de çalıştırır) |
-| `:OnChanged(fn)` | ek dinleyici |
-| `:Lock("sebep")`, `:Unlock()` | kilitler; sebep açıklamanın yerine yazılır (açıklama yoksa kilit ikonuyla kontrolün üstünde) |
+| `:Set(value)`, `:Get()` | the value (Set also runs the callback) |
+| `:OnChanged(fn)` | extra listener |
+| `:Lock("reason")`, `:Unlock()` | locks the element; the reason replaces the description, or sits over the control with a lock icon if there is no description |
 | `:SetTitle(text)`, `:SetDesc(text)`, `:SetVisible(bool)` | |
-| `:MoveUp()`, `:MoveDown()`, `:MoveTo(index)`, `:GetIndex()` | kart içindeki sırası |
-| `:Flash("success" \| "danger" \| "accent")` | satırın arkasında kısa renk |
-| `:Remove()` / `:Destroy()` | siler (flag kaydı da gider) |
+| `:MoveUp()`, `:MoveDown()`, `:MoveTo(index)`, `:GetIndex()` | position inside the card |
+| `:Flash("success" \| "danger" \| "accent")` | a short tint behind the row |
+| `:Remove()` / `:Destroy()` | removes the element and its flag |
 
-Callback hata verirse eleman kırmızı yanıp söner ve başlığında 2 saniye "Error · see Settings › Info" yazar; hata Settings › Info'ya düşer, arayüz çalışmaya devam eder.
+If a callback errors:
+- the element flashes red;
+- its title reads "Error · see Settings › Info" for 2 seconds;
+- the error is listed in Settings › Info;
+- the UI keeps working.
 
 ### Toggle
 
 ```lua
 local esp = Card:Toggle({
     Title = "ESP", Desc = "Show player ESP", Flag = "esp", Default = true,
-    Bindable = true,                          -- satıra sağ tık -> tuş ata (Backspace siler, Esc iptal)
-    Bind = Enum.KeyCode.F,                    -- başlangıç tuşu
-    BindMode = "Toggle",                      -- "Hold": sadece tuş basılıyken açık
-    Marker = true, Badge = "NEW",             -- solda accent çizgi, başlığın yanında etiket
+    Bindable = true,                          -- right-click the row to bind a key (Backspace clears, Esc cancels)
+    Bind = Enum.KeyCode.F,                    -- starting key
+    BindMode = "Toggle",                      -- "Hold": on only while the key is held
+    Marker = true, Badge = "NEW",             -- accent bar on the left, chip after the title
     Callback = function(on) end,
 })
 esp:SetBind(Enum.KeyCode.G)
 ```
 
-### Slider ve Range
+### Slider and Range
 
 ```lua
 Card:Slider({
     Title = "FOV", Flag = "fov", Min = 10, Max = 600, Default = 120, Step = 1, Suffix = "px",
-    Icons = { From = "minus", To = "plus" },  -- uçlarda ikon, tıklayınca bir adım
-    Bubble = true,                            -- sürüklerken değer balonu
-    Callback = function(value, dragging)      -- dragging: tutarken true, bırakınca son değerle false
+    Icons = { From = "minus", To = "plus" },  -- icons at the ends; a click moves one step
+    Bubble = true,                            -- value bubble while dragging
+    Callback = function(value, dragging)      -- dragging: true while held, then false once with the final value
         if not dragging then rebuildCircle(value) end
     end,
 })
-Card:Range({ Title = "Health filter", Flag = "hp", Min = 0, Max = 100, Default = { 20, 80 }, MinGap = 5 })  -- değer { alt, üst }
+Card:Range({ Title = "Health filter", Flag = "hp", Min = 0, Max = 100, Default = { 20, 80 }, MinGap = 5 })  -- value is { low, high }
 ```
 
-Değere tıklayıp sayı yazılabilir. `slider:SetRange(min, max)`.
+Click the value to type a number. `slider:SetRange(min, max)`.
 
-### Dropdown ve Segment
+### Dropdown and Segment
 
 ```lua
 Card:Dropdown({ Title = "Font", Flag = "font", Options = { "Gotham", "Code", "Arcade" }, Default = "Gotham" })
@@ -226,13 +246,14 @@ Card:Dropdown({ Title = "Target", Flag = "priority", AllowNone = true, Options =
     { Title = "Bounty",    Icon = "gem", Locked = true },
 } })
 
-Card:Dropdown({ Title = "Mode", Options = { pvp = "PvP mode", farm = "Auto farm" } })   -- değer anahtar ("pvp")
+Card:Dropdown({ Title = "Mode", Options = { pvp = "PvP mode", farm = "Auto farm" } })   -- the value is the key ("pvp")
 
 Card:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body", "Closest" }, Default = "Head" })
 ```
 
-- 8'den fazla seçenekte arama kutusu çıkar (`Search = true/false`); binlerce seçenek parça parça çizilir.
-- Çoklu listede sürükleyerek seçilir (`DragSelect = false` kapatır).
+- Lists with more than 8 options get a search box (`Search = true/false`).
+- Thousands of options stay fast: the list is drawn in chunks.
+- In multi lists you can drag over options to select them (`DragSelect = false` turns it off).
 - `:SetOptions(list, keepValue)`, `:GetLabel()`.
 
 ### Keybind
@@ -240,119 +261,126 @@ Card:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body",
 ```lua
 Card:Keybind({ Title = "Aim key", Flag = "aimKey", Default = Enum.KeyCode.Q, Pressed = function(key) end })
 
-Card:Keybind({ Title = "Mark", Chord = true,               -- modifier + tuş / mouse (CTRL + M1)
+Card:Keybind({ Title = "Mark", Chord = true,               -- modifier + key or mouse button (CTRL + M1)
     Default = { Enum.KeyCode.LeftControl, Enum.UserInputType.MouseButton1 } })
 
 Card:Keybind({ Title = "Hold to aim", Default = Enum.KeyCode.E, Mode = "Hold",
-    Pressed = function(down) aiming = down end })          -- basınca true, bırakınca false
+    Pressed = function(down) aiming = down end })          -- true on press, false on release
 ```
 
-Rozete tıkla, tuşa bas (Backspace siler, Esc iptal). `Callback` tuş değişince, `Pressed` tuşa her basışta çalışır.
+Click the badge, then press a key (Backspace clears, Esc cancels). `Callback` runs when the key changes. `Pressed` runs on every press.
 
-### ColorPicker, Gradient, Swatches
+### ColorPicker, Gradient and Swatches
 
 ```lua
 Card:ColorPicker({ Title = "Fill", Flag = "fill", Default = Color3.fromRGB(215, 120, 120),
-    Rainbow = false, RainbowSpeed = 5,       -- içinde Rainbow butonu da var
-    Apply = false,                           -- true: sadece Apply'a basınca değişir
-    Alpha = true, Transparency = 0.3,        -- saydamlık çubuğu
+    Rainbow = false, RainbowSpeed = 5,       -- there is also a Rainbow button inside
+    Apply = false,                           -- true: changes only apply when Apply is pressed
+    Alpha = true, Transparency = 0.3,        -- transparency bar
     Callback = function(color, transparency) end })
 
 Card:Gradient({ Title = "Chams", Flag = "chams", Default = { Color3.new(1, 0, 0), Color3.new(0, 0, 1) },
     Callback = function(sequence, a, b) end })   -- :GetSequence()
 
 Card:Swatches({ Title = "Name color", Flag = "nameColor", Default = "Blue",
-    Callback = function(color, name) end })      -- Colors = { { "Blue", Color3 }, ... } verilmezse 8 hazır renk
+    Callback = function(color, name) end })      -- without Colors = { { "Blue", Color3 }, ... } it uses 8 presets
 ```
 
-Seçici: doygunluk karesi, renk çubuğu, HEX kutusu, Random, Rainbow. `"RRGGBB"` metni de kabul eder.
+The picker has a saturation square, a hue bar, a HEX box, Random and Rainbow. It also accepts `"RRGGBB"` strings.
 
-### Input ve ActionInput
+### Input and ActionInput
 
 ```lua
 Card:Input({ Title = "Target", Flag = "target", Placeholder = "player name", Numeric = false,
-    Finished = true,                          -- false: her harfte callback
+    Finished = true,                          -- false: the callback runs on every keystroke
     Callback = function(text) end })
 
 Card:ActionInput({ Icon = "plus", Placeholder = "Profile name", Button = "Create",
-    Validate = function(text)                 -- canlı ipucu: ok = yeşil, false = kırmızı
+    Validate = function(text)                 -- live hint: ok = green, false = red
         if text == "" then return nil end
         return #text <= 20, #text <= 20 and "Looks good" or "Too long"
     end,
-    Callback = function(text) end })          -- butona ya da Enter'a basınca
+    Callback = function(text) end })          -- on the button or Enter
 ```
 
 ### Button
 
 ```lua
 Card:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() end })
-Card:Button({ Title = "Server hop", Confirm = true, Callback = hop })        -- 2 sn içinde ikinci tık ister
+Card:Button({ Title = "Server hop", Confirm = true, Callback = hop })        -- asks for a second click within 2 s
 Card:Button({ Title = "Delete all", Risky = true, Confirm = "Sure?", Callback = wipe })
 ```
 
-### Metin: Label, Paragraph, Info, Divider, Code
+### Text: Label, Paragraph, Info, Divider and Code
 
 ```lua
-Card:Label("Kısa açıklama satırı")
-Card:Paragraph({ Title = "About", Content = "Uzun metin, satır satır kayar." })
-Card:Info({ Title = "User ID", Value = "#123", Copy = true })   -- "ad ...... değer", Copy butonu
+Card:Label("A short line of text")
+Card:Paragraph({ Title = "About", Content = "Longer text that wraps over as many lines as it needs." })
+Card:Info({ Title = "User ID", Value = "#123", Copy = true })   -- a "name ...... value" row with a Copy button
 Card:Divider()
-Card:Code({ Title = "loader.lua", Code = 'print("hi")', Copy = true, MaxHeight = 200 })   -- Lua renklendirme
+Card:Code({ Title = "loader.lua", Code = 'print("hi")', Copy = true, MaxHeight = 200 })   -- Lua highlighting
 ```
 
-### Canlı veri: Progress, Stat, Graph, Console
+### Live data: Progress, Stat, Graph and Console
 
 ```lua
 local farm  = Card:Progress({ Title = "Auto farm", Value = 3, Max = 10, Suffix = "quests" })
-local daily = Card:Progress({ Title = "Daily quests", Steps = 5, Value = 2 })     -- 5 parçalı çubuk
-local load  = Card:Progress({ Title = "Loading", Indeterminate = true })          -- kayan şerit
+local daily = Card:Progress({ Title = "Daily quests", Steps = 5, Value = 2 })     -- bar in 5 segments
+local load  = Card:Progress({ Title = "Loading", Indeterminate = true })          -- moving stripe
 farm:Set(4)  load:SetIndeterminate(false)
 
 local coins = Card:Stat({ Title = "Coins", Icon = "coins", Value = 12450, Prefix = "$" })
 local ping  = Card:Stat({ Title = "Ping", Value = 48, Suffix = " ms", Delta = "absolute", Invert = true })
-coins:Add(250)     -- rakamlar sayaç gibi döner, yanında "+2.0%" çipi
+coins:Add(250)     -- digits roll like an odometer, with a "+2.0%" chip
 
-Card:Graph({ Title = "FPS", Source = "FPS", Max = 60 })     -- "Ping" ya da function() return n end
+Card:Graph({ Title = "FPS", Source = "FPS", Max = 60 })     -- or "Ping", or function() return n end
 
 local log = Card:Console({ Title = "Log", Height = 140, MaxLines = 200 })
 log:Append("Loaded", "success")        -- "info" | "success" | "warning" | "error"
 log:Print("Sold", 3, "items")
 ```
 
-- **Stat:** `Delta = "percent" | "absolute" | false`, `Invert = true` düşük değeri iyi sayar (yeşil), `Decimals`, `Separator`, `Format`.
-- **Console:** yukarı kaydırınca takip durur, en alta inince devam eder. Başlıkta Takip / Temizle / Kopyala. `:Clear()`, `:GetText()`, `:SetFollow(bool)`.
+**Stat options**
+- `Delta = "percent" | "absolute" | false`
+- `Invert = true` counts a lower value as good (green)
+- `Decimals`, `Separator`, `Format`
 
-### Görsel: Image, ImagePicker, PlayerList, Viewport
+**Console**
+- Scrolling up pauses follow; scrolling back to the bottom resumes it.
+- The header has Follow, Clear and Copy buttons.
+- Methods: `:Clear()`, `:GetText()`, `:SetFollow(bool)`.
+
+### Visual: Image, ImagePicker, PlayerList and Viewport
 
 ```lua
-Card:Image({ Image = "rbxassetid://123", Height = 120, Caption = "Preview" })   -- ikon adı ya da web resmi de olur
+Card:Image({ Image = "rbxassetid://123", Height = 120, Caption = "Preview" })   -- icon names and web images work too
 Card:ImagePicker({ Title = "Crosshair", Flag = "cross", Columns = 4, Images = { "crosshair", "rbxassetid://9943168532" } })
 Card:PlayerList({ Title = "Whitelist", Flag = "whitelist", Multi = true, Height = 150,
-    Callback = function(userIds) end })          -- arama, giren / çıkan canlı; :GetPlayers()
-Card:Viewport({ Object = game.Players.LocalPlayer.Character, Height = 150, Spin = true })   -- sürükle döndür, tekerlek zoom
+    Callback = function(userIds) end })          -- search; updates as players join and leave; :GetPlayers()
+Card:Viewport({ Object = game.Players.LocalPlayer.Character, Height = 150, Spin = true })   -- drag to rotate, wheel to zoom
 ```
 
 ---
 
-## Flag'ler
+## Flags
 
-`Flag` verilen her elemanın değeri profillere kaydedilir ve okunabilir:
+Elements with a `Flag` are saved in profiles, and you can read their values:
 
 ```lua
-print(Lib.Flags.esp)                -- bütün pencerelerin flag'leri
-print(Window.Flags.esp)             -- aynı değer
-Window.Flags.range = 2000           -- elemanı günceller ve callback'i çalıştırır
+print(Lib.Flags.esp)                -- flags of every window
+print(Window.Flags.esp)             -- the same value
+Window.Flags.range = 2000           -- updates the element and runs its callback
 for flag, value in Window.Flags do print(flag, value) end
 
-Window:SetFlag("esp", false)        -- eleman daha yoksa, oluşunca uygulanır
+Window:SetFlag("esp", false)        -- if the element doesn't exist yet, the value is applied when it's created
 Window:GetElement("esp"):Lock("Premium only")
 ```
 
-`CreateWindow({ AutoFlags = true })` ile Flag vermediğin değer elemanları `"Sekme.Kart.Başlık"` adında flag alır (aynı isim ikinciye `" 2"` eklenir). Settings ve Dashboard bundan etkilenmez.
+With `CreateWindow({ AutoFlags = true })`, value elements without a Flag get one named `"Tab.Card.Title"`. If two elements end up with the same name, the second gets `" 2"`. Settings and Dashboard elements don't get auto flags.
 
 ---
 
-## Bildirimler
+## Notifications
 
 ```lua
 Window:Notify({ Title = "Saved", Content = "pvp profile", Icon = "circle-check", Color = "success" })
@@ -363,28 +391,28 @@ Window:Notify({ Title = "Profile deleted", Buttons = {
 } })
 
 local t = Window:Notify({ Title = "Farming", Steps = 5, Content = "Starting" })
-t:SetStep(2, "Quest 2")             -- sona gelince kendi kapanır
+t:SetStep(2, "Quest 2")             -- closes itself at the end
 ```
 
-| Ayar | |
+| Option | |
 |---|---|
-| `Duration` | verilmezse yazı uzunluğuna göre 3–10 sn; üstüne gelince süre durur (`PauseOnHover = false`) |
-| `Color` | `Color3` ya da rol: `"success"`, `"warning"`, `"danger"` |
-| `Icon`, `Buttons`, `CanClose` | ikon, buton satırı, köşede X |
-| `Progress`, `Steps`, `Step`, `Persist` | ilerlemeli bildirim (`:SetProgress`, `:SetStep`, `:Close`) |
-| `Sound`, `Volume` | `true` (kısa ping) ya da ses id |
-| `History` | `false`: zil geçmişine yazılmaz |
+| `Duration` | without it, 3–10 s depending on the text length; hovering pauses the timer (`PauseOnHover = false`) |
+| `Color` | a `Color3` or a role: `"success"`, `"warning"`, `"danger"` |
+| `Icon`, `Buttons`, `CanClose` | icon, a row of buttons, X in the corner |
+| `Progress`, `Steps`, `Step`, `Persist` | progress notification (`:SetProgress`, `:SetStep`, `:Close`) |
+| `Sound`, `Volume` | `true` (a short ping) or a sound id |
+| `History` | `false`: kept out of the bell history |
 
-Ekranda en fazla `Lib.MaxNotifications` (6) bildirim durur, fazlası en eskiyi kapatır. Header'daki zil son 50 bildirimi tutar.
+At most `Lib.MaxNotifications` (6) notifications stay on screen. A new one closes the oldest. The bell in the header keeps the last 50.
 
-**Toast:** üstte ortada kısa hap.
+**Toast:** a small pill at the top centre of the screen.
 
 ```lua
 Window:Toast("Copied")
 Window:Toast({ Text = "Saved", Icon = "check", Color = "success", Position = "Bottom", Duration = 2 })
 ```
 
-## Diyaloglar
+## Dialogs
 
 ```lua
 Window:Dialog({ Title = "Enable Silent Aim?", Content = "Can be detected in ranked servers.", Icon = "triangle-alert", Buttons = {
@@ -395,13 +423,13 @@ Window:Dialog({ Title = "Enable Silent Aim?", Content = "Can be detected in rank
 Window:Confirm("Unload?", "Everything will be removed.", function() Window:Destroy() end, "Unload", true)
 ```
 
-Arka plan kararır ve kilitlenir; Esc ya da karanlık alana tıklamak iptal sayılır.
+The menu behind a dialog is dimmed and blocked. Escape or a click on the dimmed area cancels it.
 
 ---
 
-## Config ve profiller
+## Configs and profiles
 
-Flag'li elemanlar `<Folder>/configs/<isim>.json`'a kaydedilir.
+Every element with a Flag is saved to `<Folder>/configs/<name>.json`.
 
 ```lua
 local Config = Window.Config
@@ -409,54 +437,77 @@ Config:Save("pvp")    Config:Load("pvp")    Config:Delete("pvp")
 Config:List()         Config:Exists("pvp")  Config:Rename("pvp", "ranked")   Config:Copy("pvp", "pvp 2")
 Config:SetAutoLoad("pvp")    Config:LoadAutoLoad()
 
-Config.Active                       -- yüklü profil
-Config:Changes()                    -- o profilden bu yana değişen ayar sayısı
-Config:Export("pvp")                -- "QUSTAH1:..." paylaşım kodu
-Config:Decode(code)                 -- isim, flag'ler
+Config.Active                       -- the loaded profile
+Config:Changes()                    -- how many settings changed since that profile
+Config:Export("pvp")                -- "QUSTAH1:..." share code
+Config:Decode(code)                 -- name, flags
 
-Config:SetData("waypoints", list)   -- kendi verin, profille kaydedilir / paylaşılır
+Config:SetData("waypoints", list)   -- your own data, saved and shared with the profile
 Config:OnDataLoaded(function(data) end)
 ```
 
-- `LoadAutoLoad` elemanlardan önce de çağrılabilir: değerler eleman oluşunca uygulanır.
-- **Çökmeye dayanıklı:** her dosya önce `.tmp`'ye yazılıp kontrol edilir. Oyun kayıt sırasında kapanırsa profil bozulmaz, sonraki açılışta geri gelir (`Config:OnRecovered(fn)`).
-- **Oyuna göre:** `CreateWindow({ PerGame = "Game" })` ya da Settings › Profiles: her oyunun kendi listesi ve autoload'u.
+- **Early loading:** you can call `LoadAutoLoad` before elements exist. Each value is applied when its element is created.
+- **Crash-safe saves:**
+  - every file is written to a `.tmp` first and checked;
+  - if the game closes mid-save, the profile isn't damaged;
+  - on the next start the profile is restored from the `.tmp` (`Config:OnRecovered(fn)`).
+- **Per game:** with `CreateWindow({ PerGame = "Game" })` or the switch in Settings › Profiles, each game has its own list and autoload.
 
-Settings › Profiles sayfası bunların hepsini arayüzle yapar: aktif profil ve değişiklik sayısı, Save / Revert, paylaşım kodu ile içe aktarma, arama, notlar, ACTIVE / AUTO / LOCKED etiketleri. Kilitli **Default** profili scriptin başlangıç değerleridir.
+The Settings › Profiles page does all of this in the UI:
+- shows the active profile and how many settings changed;
+- Save and Revert;
+- import with share codes;
+- search and notes;
+- ACTIVE / AUTO / LOCKED tags.
 
-## Hazır sekmeler
+The locked **Default** profile holds the values the script started with.
+
+## Built-in tabs
 
 ```lua
-Window:DashboardTab({ Info = { { "Code revision", "571" } }, Server = true })   -- ilk sekme olarak
--- ... kendi sekmelerin ...
-Window:SettingsTab()                                                             -- son sekme olarak
+Window:DashboardTab({ Info = { { "Code revision", "571" } }, Server = true })   -- as the first tab
+-- ... your tabs ...
+Window:SettingsTab()                                                             -- as the last tab
 ```
 
-- **Dashboard:** profil kartı (avatar, isim, oturum süresi), Session, Info, Modules, Server (Rejoin, Server hop, Job ID).
-- **Settings › Interface:** tema, accent (hazır renkler + özel), font, text glow, tema editörü, menü tuşu, welcome toast, pencere (anonim mod, saydamlık, arka plan, serbest mouse, canlı arka plan, kenar parlaması, tam ekran), overlay'ler, Unload.
-- **Settings › Profiles:** [Config ve profiller](#config-ve-profiller).
-- **Settings › Info:** sürümler, secure mode durumu, kick listesi, modüller, hatalar (Debug mode, Copy report, Clear).
+**Dashboard:** profile card (avatar, name, session time), Session, Info, Modules, Server (Rejoin, Server hop, Job ID).
 
-## Overlay'ler
+**Settings › Interface**
+- theme, accent (presets and custom colour), font, text glow
+- theme editor
+- menu key, welcome toast
+- window: anonymous mode, transparency, background, free mouse, live background, edge glow, fullscreen
+- overlays
+- Unload
 
-Menü kapalıyken de ekranda kalırlar, sürüklenir ve yerleri hatırlanır. Hepsi Settings › Overlays'te de var.
+**Settings › Profiles:** see [Configs and profiles](#configs-and-profiles).
+
+**Settings › Info:** versions, secure mode state, kick list, modules, errors (Debug mode, Copy report, Clear).
+
+## Overlays
+
+Overlays stay on screen while the menu is closed. They can be dragged and their positions are remembered. You can also turn them on in Settings › Overlays.
 
 ```lua
 Window:Watermark(true, { Text = "extra" })     -- "Qustāh  V1.00 | 60 FPS | 40 ms | 22:10"
-Window:KeybindList(true)                       -- bağlı tuşlar; satıra tıkla = tuşa bas, göz ile satır gizle
-Window:SessionBar(true)                        -- FPS · ping · oyuncu · süre
+Window:KeybindList(true)                       -- bound keys; click a row to press it, use the eye to hide rows
+Window:SessionBar(true)                        -- FPS · ping · players · time
 Window:StatsMonitor("Header" | "Floating" | "Off")
 
 Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Side = "Left",
-    Pressed = function() end })                -- alt çubukta tuş rozeti, tıklayınca yeni tuş
+    Pressed = function() end })                -- key badge in the footer bar; click it to rebind
 ```
 
 ---
 
-## Temalar
+## Themes
 
-20 hazır tema: **Dark, Midnight, AMOLED, Light, Latte, Tokyo Night, Catppuccin, Dracula, Nord, Gruvbox, One Dark, Monokai, Rose Pine, Everforest, Kanagawa, Solarized, Oceanic, Fatality, Mint, Cyberpunk.**
-Hepsi otomatik kontrast kontrolünden geçer (yazı 4.5:1, soluk yazı 3:1). Açık temalarda soluk accent renkleri okunacak kadar koyulaşır.
+There are 20 built-in themes:
+- **Dark, Midnight, AMOLED, Light, Latte**
+- **Tokyo Night, Catppuccin, Dracula, Nord, Gruvbox, One Dark, Monokai, Rose Pine**
+- **Everforest, Kanagawa, Solarized, Oceanic, Fatality, Mint, Cyberpunk**
+
+Every theme passes an automatic contrast check: 4.5:1 for text, 3:1 for muted text. On light themes, pale accent colours are darkened until they are readable.
 
 ```lua
 Lib.Theme.applyPack("Tokyo Night")
@@ -464,113 +515,127 @@ Lib:SetAccent(Color3.fromRGB(61, 151, 219))
 Lib:SetColor("card", Color3.fromRGB(20, 20, 24))    -- base, card, input, line, text, muted, heading, accent, dock, icon...
 ```
 
-Settings › Theme editor: renkleri tek tek değiştir, isim verip kaydet, `QTHEME1:` koduyla paylaş / içe aktar. Font: Gotham, BuilderSans, Montserrat, Ubuntu, Roboto, SourceSans, Nunito, Arimo.
+The theme editor in Settings lets you:
+- change each colour;
+- save the result under a name;
+- share or import it with a `QTHEME1:` code.
 
-## İkonlar
+Fonts: Gotham, BuilderSans, Montserrat, Ubuntu, Roboto, SourceSans, Nunito, Arimo.
 
-İkon alan her yere isim yazılır (asset id ve web resmi de olur):
+## Icons
+
+Anything that takes an icon accepts a name. Asset ids and web images work too:
 
 ```lua
-Window:Tab({ Title = "Visuals", Icon = "eye" })               -- lucide (gömülü)
-Window:Tab({ Title = "Silent", Icon = "solar:target-bold" })  -- set:isim
+Window:Tab({ Title = "Visuals", Icon = "eye" })               -- lucide (built in)
+Window:Tab({ Title = "Silent", Icon = "solar:target-bold" })  -- set:name
 Card:Toggle({ Title = "ESP", Icon = "scan-eye" })
 Lib:CreateWindow({ Title = "Qustāh", Icon = "https://example.com/logo.png" })
 ```
 
-| Set | İkon | Not |
+| Set | Icons | Notes |
 |---|---|---|
-| `lucide` | 1715 | gömülü, internet gerekmez — [lucide.dev/icons](https://lucide.dev/icons) |
+| `lucide` | 1715 | built in, no download — [lucide.dev/icons](https://lucide.dev/icons) |
 | `solar` | 7330 | `-bold`, `-linear`, `-broken`, `-bold-duotone`... |
 | `sfsymbols` | 6984 | CamelCase: `sfsymbols:HouseFill` |
 | `gravity` | 781 | |
-| `geist` | 465 | iki tonlu |
+| `geist` | 465 | two-tone |
 | `craft` | 998 | |
 
-lucide dışındaki setler ilk kullanımda bir kere indirilir.
+Sets other than lucide download once, the first time you use them.
 
 ```lua
-Lib.Icons.SetDefault("solar")                            -- önek yazmadan solar
+Lib.Icons.SetDefault("solar")                            -- use solar without the prefix
 Lib.Icons.Image("house", { Size = UDim2.fromOffset(24, 24), Parent = frame })
 Lib.Icons.Apply(imageLabel, "solar:home-bold")
 Lib.Icons.Add("mine", { skull = "rbxassetid://123" })    -- "mine:skull"
 Lib.Icons.List("lucide")
 ```
 
-İkonlar [Footagesus/Icons](https://github.com/Footagesus/Icons)'tan (MIT, [`icons/LICENSE`](qustah-ui-lib/icons/LICENSE)).
+Icons are from [Footagesus/Icons](https://github.com/Footagesus/Icons) (MIT, [`icons/LICENSE`](qustah-ui-lib/icons/LICENSE)).
 
 ---
 
-## Durum, hatalar ve kick'ler
+## Status, errors and kicks
 
 ```lua
-Window:SetModule("ESP", "On")                         -- "On" | "Off" | "Limited" | "Error", detay
+Window:SetModule("ESP", "On")                         -- "On" | "Off" | "Limited" | "Error", detail
 Window:SetModule("Mark", "Limited", "client-side only")
 Window:ReportError("ESP", "attempt to index nil")
 Window:GetErrorReport()   Window:ClearErrors()
 ```
 
-Modüller Dashboard'da ve Settings › Info'da görünür; alt çubuk kendiliğinden `Connected` / `Limited` / `Errors: N` olur.
+Modules are shown on the Dashboard and in Settings › Info. The footer updates by itself: `Connected` / `Limited` / `Errors: N`.
 
-**Kick yakalayıcı:** oyundan atılınca sebebi ve kodu yakalanır, son 20'si kaydedilir ve Settings › Info › Disconnects'te listelenir.
+**Kick watcher**
+- When the game disconnects you, the reason and error code are recorded.
+- The last 20 are saved and listed in Settings › Info › Disconnects.
 
 ```lua
 Window:OnKick(function(info)
     print(info.Kind, info.Reason, info.Code)   -- "Kicked", "Exploiting", 267
 end)
 Window:GetKicks()
--- CreateWindow({ Rejoin = true })  -> kick sonrası aynı yere ışınlanır
+-- CreateWindow({ Rejoin = true })  -> teleports back to the same place after a kick
 ```
 
-## Pencere ekstraları
+## Window extras
 
 ```lua
 Window:HeaderButton({ Icon = "refresh-cw", Tooltip = "Rejoin", Callback = rejoin })
-Window:AddTag("NEW", { Color = "warning", Style = "Solid" | "Soft" })   -- yazı rengi dolguya göre seçilir
+Window:AddTag("NEW", { Color = "warning", Style = "Solid" | "Soft" })   -- text colour is picked to read on the fill
 
-Window:ToggleFullscreen()                       -- header'a çift tık da yapar
+Window:ToggleFullscreen()                       -- a double click on the header does the same
 Window:SetBackgroundImage("rbxassetid://123", 0.85)
 Window:SetBackgroundTransparency(0.2)
-Window:SetLiveBackground(true)                  -- arkada yavaşça kayan accent ışığı
-Window:SetAccentGlow(true)                      -- kenar accent renginde nefes alır
+Window:SetLiveBackground(true)                  -- slow accent light drifting behind the content
+Window:SetAccentGlow(true)                      -- the window edge pulses in the accent colour
 
-Window:SetAnonymous(true)                       -- isim ve avatar her yerde gizlenir (dock'taki avatar butonu)
+Window:SetAnonymous(true)                       -- hides your name and avatar everywhere (the avatar button in the dock)
 Window:SetMouseUnlock(false)
 ```
 
 ## Secure mode
 
 ```lua
-getgenv().QUSTAH_SECURE = true                  -- lib'i yüklemeden önce
--- ya da CreateWindow({ Secure = true }) / Lib:SetSecure(true)
+getgenv().QUSTAH_SECURE = true                  -- before loading the library
+-- or CreateWindow({ Secure = true }) / Lib:SetSecure(true)
 ```
 
-- ScreenGui isimleri rastgele GUID olur
-- konsola hiçbir şey yazılmaz
-- avatarlar web isteği olmadan (`rbxthumb://`) gelir
+In secure mode:
+- ScreenGui names are random GUIDs;
+- nothing is printed to the console;
+- avatars load as `rbxthumb://` content, with no web request.
 
-İkonlar asset id olarak kalır: Roblox asset indirmek için giriş istediğinden bunları dosyaya önbelleklemek bir proxy sunucusu gerektirir.
+Icons stay as asset ids. Roblox needs a login to download assets, so caching them to files would need a proxy server.
 
 ---
 
-## Geliştirme
+## Development
 
 ```
 qustah-ui-lib/
-  src/              kaynak kod (modüller)
-    init.lua          giriş: Lib API
-    window.lua        pencere, dock, sekmeler, sayfalar
-    card.lua          kart + eleman listesi
-    elements/         her eleman ayrı dosya, base.lua ortak satır / flaş / lock / sıra
-    config.lua        profiller, güvenli kayıt
-    theme.lua         renk rolleri, tema paketleri
-    settings.lua      hazır Settings sekmesi
+  src/              source modules
+    init.lua          entry point: Lib API
+    window.lua        window, dock, tabs, pages
+    card.lua          cards + element registry
+    elements/         one file per element; base.lua holds the shared row, flash, lock and ordering code
+    config.lua        profiles, crash-safe saves
+    theme.lua         colour roles, theme packs
+    settings.lua      built-in Settings tab
     ...
-  dist/             tek dosya bundle (build.py üretir)
-  icons/            indirilebilen ikon setleri
-  test/             mock testleri ve ekran görüntüleri
+  dist/             single-file bundle (built by build.py)
+  icons/            downloadable icon sets
+  test/             mock tests and screenshots
   build.py          src/ -> dist/qustah-ui-lib.lua + .min.lua
-  example.lua       her elemanın kullanıldığı örnek
+  example.lua       example that uses every element
 ```
 
-Kaynağı düzenle, `python3 build.py` çalıştır, `dist/` ile birlikte commit'le — raw link o dosyayı gösterir.
-Yeni eleman: `src/elements/<ad>.lua` yaz (`return function(card, cfg) ... end`, `elements/base` ile) ve `card.lua`'daki `Card.Elements` listesine ekle.
+To change the library:
+1. Edit the source files in `src/`.
+2. Run `python3 build.py`.
+3. Commit `dist/` together with the source; the raw link serves that file.
+
+To add an element:
+1. Write `src/elements/<name>.lua` (`return function(card, cfg) ... end`, using `elements/base`).
+2. Add it to `Card.Elements` in `card.lua`.
