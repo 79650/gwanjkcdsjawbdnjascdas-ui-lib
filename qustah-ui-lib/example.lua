@@ -98,7 +98,7 @@ sections.Filters:Toggle({ Title = "Ignore friends", Flag = "ignoreFriends" })
 sections.Filters:Radio({ Title = "When two are close", Flag = "tieBreak", Options = { "Lower health", "Closer to mouse", { Title = "Random", Desc = "Harder to spot" } } })
 
 ------------------------------------------------------------------------ Misc: input, buttons, paragraph
-local Misc = Window:Tab({ Title = "Misc", Icon = "layers" })
+local Misc = Window:Tab({ Title = "Misc", Icon = "blocks" })
 -- (a big tab can also be built on first open: Window:Tab({ Title = "Misc", Build = function(tab) ... end }))
 local Tools = Misc:Card({ Title = "Tools" })
 Tools:Input({ Title = "Target name", Placeholder = "player name", Flag = "targetName" })
