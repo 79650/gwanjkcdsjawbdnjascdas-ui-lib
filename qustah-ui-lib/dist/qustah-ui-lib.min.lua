@@ -2557,7 +2557,8 @@ if desc then desc.Size=UDim2.new(0.55,-8,0,14)end
 local box=create("TextBox",{
 Name="Box",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),Size=UDim2.new(0.45,0,0,24),
 BorderSizePixel=0,Text="",PlaceholderText=tostring(cfg.Placeholder or""),TextSize=10,Font=Enum.Font.Gotham,
-TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=cfg.ClearOnFocus==true,ClipsDescendants=true,Parent=row,
+TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=cfg.ClearOnFocus==true,ClipsDescendants=true,
+TextTruncate=Enum.TextTruncate.AtEnd,Parent=row,
 })
 Theme.bind(box,"BackgroundColor3","input")
 Theme.bind(box,"TextColor3","text")
@@ -2565,8 +2566,19 @@ Theme.bind(box,"PlaceholderColor3","muted")
 corner(box,6)
 local outline=stroke(box)
 Theme.bind(outline,"Color","buttonEdge")
-Util.padding(box,8,8,0,0)
-create("UISizeConstraint",{MaxSize=Vector2.new(170,24),Parent=box})
+local PAD=9
+Util.padding(box,PAD,PAD,0,0)
+local function fit()
+local text=box.Text~=""and box.Text or box.PlaceholderText
+local most=170
+local rowWidth=row.AbsoluteSize.X
+if rowWidth>0 then most=math.min(most,math.floor(rowWidth*0.45))end
+local width=math.clamp(math.ceil(Util.textWidth(text,10,box.Font))+PAD*2+2,56,math.max(56,most))
+box.Size=UDim2.fromOffset(width,24)
+end
+box:GetPropertyChangedSignal("Text"):Connect(fit)
+row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+fit()
 local element=Base.element(card,"Input",cfg,row,title,desc)
 local function clean(text)
 text=tostring(text or"")
@@ -2583,6 +2595,7 @@ self:_fire(text,silent or not changed)
 if changed and not silent then self:_accepted("success")end
 end
 function element:Get()return self.Value end
+function element:SetPlaceholder(text)box.PlaceholderText=tostring(text or"")fit()end
 box.Focused:Connect(function()Theme.tweenTo(outline,"Color","accent",0.1)end)
 box.FocusLost:Connect(function()
 Theme.tweenTo(outline,"Color","buttonEdge",0.1)

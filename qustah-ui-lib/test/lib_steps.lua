@@ -1232,6 +1232,18 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.click(Lib.Util.guiParent():FindFirstChild("QustahUI_Key"):FindFirstChild("Close", true)) wait(0.5)
     check("closing the key screen stops the script", stopped == true)
 
+    -- input box hugs its text: same gap both sides, empty or not
+    local hug = t7:Input({ Title = "Hug", Placeholder = "player name" })
+    local hugBox = hug.Row:FindFirstChild("Box")
+    local emptyWidth = hugBox.Size.X.Offset
+    local expectEmpty = math.ceil(Lib.Util.textWidth("player name", 10, hugBox.Font)) + 20
+    hugBox.Text = "a much longer player name here" wait()
+    local longWidth = hugBox.Size.X.Offset
+    hugBox.Text = "ab" wait()
+    check("input hugs placeholder", emptyWidth == math.max(56, expectEmpty))
+    check("input grows with text, capped", longWidth > emptyWidth and longWidth <= 170)
+    check("input shrinks to a minimum", hugBox.Size.X.Offset == 56)
+
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
     check("old window destroyed on re-run", window.alive == false and gui.Parent == nil)
