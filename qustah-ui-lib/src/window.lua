@@ -45,6 +45,7 @@ function Page.new(tab, name, cfg)
     })
     Util.list(content, 10)
     Util.padding(content, 0, 0, 0, 14)
+    Util.fitCanvas(frame, content)
     -- full-width cards (Card({ Wide = true })) above the two columns
     local wide = create("Frame", { Name = "Wide", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 1, Parent = content })
     Util.list(wide, 10)

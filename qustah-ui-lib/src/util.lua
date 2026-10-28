@@ -56,6 +56,41 @@ function Util.list(object, padding, direction, horizontal, vertical)
         SortOrder = Enum.SortOrder.LayoutOrder, Parent = object,
     })
 end
+-- The UIScale on a gui and its ancestors, multiplied (1 when there is none).
+function Util.uiScale(object)
+    local scale = 1
+    while object and not object:IsA("LayerCollector") do
+        local found = object:FindFirstChildWhichIsA("UIScale")
+        if found then scale = scale * found.Scale end
+        object = object.Parent
+    end
+    return scale
+end
+-- A ScrollingFrame's canvas, sized from its content by hand. Roblox's AutomaticCanvasSize gets it wrong under a
+-- UIScale (the menu's UI scale / small screens): the canvas comes out too short and the last items can't be
+-- scrolled to. source: the content's UIListLayout / UIGridLayout, or the content frame itself. extra: more room (px).
+-- (Until the content has a measured size, AutomaticCanvasSize stays on.)
+function Util.fitCanvas(scroller, source, extra)
+    local function update()
+        if not scroller.Parent then return end
+        local scale = Util.uiScale(scroller)
+        if scale <= 0 then scale = 1 end
+        local height
+        if source:IsA("UIGridStyleLayout") then
+            height = source.AbsoluteContentSize.Y / scale
+        else
+            height = source.AbsoluteSize.Y / scale + source.Position.Y.Offset
+        end
+        if height <= 0 then return end
+        local padding = scroller:FindFirstChildWhichIsA("UIPadding")
+        if padding then height = height + padding.PaddingTop.Offset + padding.PaddingBottom.Offset end
+        scroller.AutomaticCanvasSize = Enum.AutomaticSize.None
+        scroller.CanvasSize = UDim2.new(0, 0, 0, math.ceil(height + (extra or 0)))
+    end
+    source:GetPropertyChangedSignal(source:IsA("UIGridStyleLayout") and "AbsoluteContentSize" or "AbsoluteSize"):Connect(update)
+    task.defer(update)
+    return update
+end
 function Util.label(parent, text, size, props)
     local object = create("TextLabel", {
         BackgroundTransparency = 1, Text = text or "", TextSize = size or 11, Font = Enum.Font.Gotham,

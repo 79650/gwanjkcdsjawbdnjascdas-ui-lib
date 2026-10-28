@@ -36,6 +36,7 @@ return function(card, cfg)
     local list = create("Frame", { Name = "List", BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = scroller })
     Util.list(list, 1)
     Util.padding(list, 0, 0, 0, 8)
+    Util.fitCanvas(scroller, list)
     local empty = label(scroller, cfg.Empty or "Nothing logged yet", 10, { Name = "Empty", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
     Theme.bind(empty, "TextColor3", "muted")
 

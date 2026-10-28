@@ -50,6 +50,7 @@ return function(card, cfg)
     local inner = create("Frame", { Name = "Rows", BackgroundTransparency = 1, Position = UDim2.fromOffset(4, 4), Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = list })
     Util.list(inner, 2)
     Util.padding(inner, 0, 0, 0, 6)
+    Util.fitCanvas(list, inner)
     local empty = label(list, "No players", 10, { Name = "Empty", Size = UDim2.new(1, 0, 0, 30), TextXAlignment = Enum.TextXAlignment.Center, Visible = false })
     Theme.bind(empty, "TextColor3", "muted")
 

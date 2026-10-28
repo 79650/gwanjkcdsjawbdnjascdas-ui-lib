@@ -1661,6 +1661,19 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     window:ResetTour("test")
     check("ResetTour", not window:HasSeenTour("test"))
 
+    -- canvas sized by hand under a UIScale (Roblox's AutomaticCanvasSize comes out short there)
+    do
+        local U = Lib.Util
+        local host = Instance.new("Frame") host.Size = UDim2.fromOffset(300, 200) host.Parent = window.gui
+        local uiScale = Instance.new("UIScale") uiScale.Scale = 0.5 uiScale.Parent = host
+        local sc = Instance.new("ScrollingFrame") sc.Size = UDim2.fromOffset(300, 200) sc.AutomaticCanvasSize = Enum.AutomaticSize.Y sc.Parent = host
+        local inner = Instance.new("Frame") inner.Size = UDim2.fromOffset(280, 460) inner.Position = UDim2.fromOffset(0, 4) inner.Parent = sc
+        local update = U.fitCanvas(sc, inner, 10)
+        update()
+        check("canvas: UIScale is taken out", U.uiScale(sc) == 0.5 and sc.AutomaticCanvasSize == Enum.AutomaticSize.None and sc.CanvasSize.Y.Offset == 474)
+        host:Destroy()
+    end
+
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
     check("old window destroyed on re-run", window.alive == false and gui.Parent == nil)

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -2758,6 +2758,7 @@ return function(card, cfg)
     local list = create("Frame", { Name = "List", BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = scroller })
     Util.list(list, 1)
     Util.padding(list, 0, 0, 0, 8)
+    Util.fitCanvas(scroller, list)
     local empty = label(scroller, cfg.Empty or "Nothing logged yet", 10, { Name = "Empty", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
     Theme.bind(empty, "TextColor3", "muted")
 
@@ -3109,7 +3110,7 @@ return function(card, cfg)
         Theme.bind(scroller, "ScrollBarImageColor3", "muted")
         Util.fadeScrollbar(scroller)
         Util.padding(scroller, 4, 4, 4, 4)
-        Util.list(scroller, 0)
+        Util.fitCanvas(scroller, Util.list(scroller, 0))
         local empty = label(scroller, "No matches", 10, { Name = "Empty", Size = UDim2.new(1, 0, 0, ITEM), TextXAlignment = Enum.TextXAlignment.Center, Visible = false, ZIndex = 262, LayoutOrder = 1e6 })
         Theme.bind(empty, "TextColor3", "muted")
         local more = label(scroller, "", 9, { Name = "More", Size = UDim2.new(1, 0, 0, ITEM), TextXAlignment = Enum.TextXAlignment.Center, Visible = false, ZIndex = 262, LayoutOrder = 1e6 + 1 })
@@ -4116,6 +4117,7 @@ return function(card, cfg)
     local inner = create("Frame", { Name = "Rows", BackgroundTransparency = 1, Position = UDim2.fromOffset(4, 4), Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = list })
     Util.list(inner, 2)
     Util.padding(inner, 0, 0, 0, 6)
+    Util.fitCanvas(list, inner)
     local empty = label(list, "No players", 10, { Name = "Empty", Size = UDim2.new(1, 0, 0, 30), TextXAlignment = Enum.TextXAlignment.Center, Visible = false })
     Theme.bind(empty, "TextColor3", "muted")
 
@@ -5252,7 +5254,7 @@ return function(card, cfg)
     })
     Theme.bind(body, "ScrollBarImageColor3", "muted")
     Util.fadeScrollbar(body)
-    Util.list(body, 0)
+    Util.fitCanvas(body, Util.list(body, 0))
     local empty = label(box, cfg.Empty or "No rows", 10, { Name = "Empty", Position = UDim2.fromOffset(0, ROW), Size = UDim2.new(1, 0, 1, -ROW), TextXAlignment = Enum.TextXAlignment.Center })
     Theme.bind(empty, "TextColor3", "muted")
 
@@ -7026,7 +7028,7 @@ return function(Window)
             })
             Theme.bind(list, "ScrollBarImageColor3", "muted")
             Util.fadeScrollbar(list)
-            Util.list(list, 2)
+            Util.fitCanvas(list, Util.list(list, 2))
             local empty = label(panel, "No notifications yet", 10, { Name = "Empty", Position = UDim2.fromOffset(0, 40), Size = UDim2.new(1, 0, 1, -48), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 231 })
             Theme.bind(empty, "TextColor3", "muted")
             render()
@@ -7080,7 +7082,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.0",
+    Version = "1.9.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -9316,6 +9318,41 @@ function Util.list(object, padding, direction, horizontal, vertical)
         SortOrder = Enum.SortOrder.LayoutOrder, Parent = object,
     })
 end
+-- The UIScale on a gui and its ancestors, multiplied (1 when there is none).
+function Util.uiScale(object)
+    local scale = 1
+    while object and not object:IsA("LayerCollector") do
+        local found = object:FindFirstChildWhichIsA("UIScale")
+        if found then scale = scale * found.Scale end
+        object = object.Parent
+    end
+    return scale
+end
+-- A ScrollingFrame's canvas, sized from its content by hand. Roblox's AutomaticCanvasSize gets it wrong under a
+-- UIScale (the menu's UI scale / small screens): the canvas comes out too short and the last items can't be
+-- scrolled to. source: the content's UIListLayout / UIGridLayout, or the content frame itself. extra: more room (px).
+-- (Until the content has a measured size, AutomaticCanvasSize stays on.)
+function Util.fitCanvas(scroller, source, extra)
+    local function update()
+        if not scroller.Parent then return end
+        local scale = Util.uiScale(scroller)
+        if scale <= 0 then scale = 1 end
+        local height
+        if source:IsA("UIGridStyleLayout") then
+            height = source.AbsoluteContentSize.Y / scale
+        else
+            height = source.AbsoluteSize.Y / scale + source.Position.Y.Offset
+        end
+        if height <= 0 then return end
+        local padding = scroller:FindFirstChildWhichIsA("UIPadding")
+        if padding then height = height + padding.PaddingTop.Offset + padding.PaddingBottom.Offset end
+        scroller.AutomaticCanvasSize = Enum.AutomaticSize.None
+        scroller.CanvasSize = UDim2.new(0, 0, 0, math.ceil(height + (extra or 0)))
+    end
+    source:GetPropertyChangedSignal(source:IsA("UIGridStyleLayout") and "AbsoluteContentSize" or "AbsoluteSize"):Connect(update)
+    task.defer(update)
+    return update
+end
 function Util.label(parent, text, size, props)
     local object = create("TextLabel", {
         BackgroundTransparency = 1, Text = text or "", TextSize = size or 11, Font = Enum.Font.Gotham,
@@ -9667,6 +9704,7 @@ function Page.new(tab, name, cfg)
     })
     Util.list(content, 10)
     Util.padding(content, 0, 0, 0, 14)
+    Util.fitCanvas(frame, content)
     -- full-width cards (Card({ Wide = true })) above the two columns
     local wide = create("Frame", { Name = "Wide", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 1, Parent = content })
     Util.list(wide, 10)
