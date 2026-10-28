@@ -200,7 +200,7 @@ tabs.Players:Toggle({ Title = "Ignore friends" })
 local advanced = Card:Section({ Title = "Advanced", Icon = "settings-2", Opened = false })  -- collapsible section
 advanced:Slider({ Title = "Delay", Min = 0, Max = 1, Step = 0.05 })
 
-local row = Card:Row()                                     -- children sit side by side with equal widths
+local row = Card:Row()                                     -- children sit side by side (equal widths, or Widths = { 2, 1 })
 row:Button({ Title = "Start", Icon = "play" })
 row:Button({ Title = "Stop", Icon = "square" })
 
@@ -373,11 +373,58 @@ Card:ActionInput({ Icon = "plus", Placeholder = "Profile name", Button = "Create
 
 ### Button
 
+<p align="center"><img src="qustah-ui-lib/assets/screens/buttons.png" alt="Button styles, sizes and rows" width="720"></p>
+
 ```lua
 Card:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() end })
 Card:Button({ Title = "Server hop", Confirm = true, Callback = hop })        -- asks for a second click within 2 s
 Card:Button({ Title = "Delete all", Risky = true, Confirm = "Sure?", Callback = wipe })
 ```
+
+**Styles.** `Style` picks the look. Every style follows the theme and the accent colour.
+
+| Style | Look | Good for |
+| --- | --- | --- |
+| `Default` | Filled box with an outline (the standard button) | Most actions |
+| `Primary` | Solid accent colour | The main action of a card |
+| `Soft` | Light accent tint | Secondary actions that should still stand out |
+| `Outline` | Only the outline, fills on hover | Quiet actions next to a Primary one |
+| `Ghost` | No box until you hover it | Reset, cancel, small extras |
+| `Danger` | Red tint | Delete, wipe, leave |
+| `Link` | Accent text only | Links, "open Discord" |
+
+```lua
+Card:Button({ Title = "Start farm", Icon = "play", Style = "Primary" })
+Card:Button({ Title = "Redeem codes", Icon = "sparkles", Style = "Soft" })
+Card:Button({ Title = "Reset to default", Icon = "rotate-ccw", Style = "Ghost" })
+Card:Button({ Title = "Delete profile", Icon = "trash-2", Style = "Danger", Confirm = "Sure?" })
+```
+
+**Size, icon and alignment.**
+
+```lua
+Card:Button({ Title = "Small", Size = "Small" })                              -- "Small" (22 px), "Default" (28 px), "Large" (34 px)
+Card:Button({ Title = "Next step", Icon = "arrow-right", IconSide = "Right" }) -- icon after the text
+Card:Button({ Title = "Teleport to spawn", Icon = "map-pin", Align = "Left" }) -- icon and text on the left
+Card:Button({ Icon = "trash-2", Style = "Danger" })                            -- no Title: icon-only button
+```
+
+**Side by side.** Put buttons in a `Row` and they share the width. `Widths` sets the share of each one, in order.
+
+```lua
+local row = Card:Row()                                      -- equal widths
+row:Button({ Title = "Rejoin", Icon = "refresh-cw" })
+row:Button({ Title = "Server hop", Icon = "shuffle" })
+
+local save = Card:Row({ Widths = { 3, 1 } })                 -- 3/4 and 1/4
+save:Button({ Title = "Save config", Icon = "save", Style = "Primary" })
+save:Button({ Icon = "trash-2", Style = "Danger" })
+
+local player = Card:Row({ Gap = 4 })                         -- a strip of icon buttons
+for _, icon in ipairs({ "play", "pause", "square", "skip-forward" }) do player:Button({ Icon = icon, Style = "Soft" }) end
+```
+
+Methods: `button:SetStyle("Primary")`, `button:SetTitle(text)`, `button:SetIcon(name)`, `button:Fire()`.
 
 ### Text: Label, Paragraph, Info, Divider and Code
 

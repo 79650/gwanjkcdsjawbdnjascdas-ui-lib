@@ -39,6 +39,26 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
   tab("Misc") shot("misc_light")
   tab("Silent") shot("silent_light")
   w.flags.__ui_theme:Set("Dark")
+  -- button styles page (README "Buttons" image)
+  local B = w:Tab({ Title = "Buttons", Icon = "mouse-pointer-click" })
+  local S = B:Card({ Title = "Styles" })
+  local styleRows = { { "Default", "refresh-cw", "Rejoin" }, { "Primary", "play", "Start farm" }, { "Soft", "sparkles", "Redeem codes" },
+    { "Outline", "shuffle", "Server hop" }, { "Ghost", "rotate-ccw", "Reset to default" }, { "Danger", "trash-2", "Delete profile" }, { "Link", "external-link", "Open Discord" } }
+  for _, r in ipairs(styleRows) do S:Button({ Title = r[3], Icon = r[2], Style = r[1] }) end
+  local L = B:Card({ Title = "Sizes and layout", Side = "Right" })
+  L:Button({ Title = "Small", Size = "Small", Icon = "minimize-2" })
+  L:Button({ Title = "Large", Size = "Large", Style = "Primary", Icon = "zap" })
+  local r1 = L:Row()
+  r1:Button({ Title = "Rejoin", Icon = "refresh-cw" }) r1:Button({ Title = "Server hop", Icon = "shuffle" })
+  local r2 = L:Row({ Widths = { 3, 1 } })
+  r2:Button({ Title = "Save config", Icon = "save", Style = "Primary" }) r2:Button({ Icon = "trash-2", Style = "Danger" })
+  local r3 = L:Row()
+  for _, i in ipairs({ "play", "pause", "square", "skip-forward" }) do r3:Button({ Icon = i, Style = "Soft" }) end
+  L:Button({ Title = "Next step", Icon = "arrow-right", IconSide = "Right", Style = "Outline" })
+  L:Button({ Title = "Teleport to spawn", Icon = "map-pin", Align = "Left" })
+  B:Select() wait() shot("buttons")
+  w.flags.__ui_theme:Set("Light") shot("buttons_light")
+  w.flags.__ui_theme:Set("Dark")
 end
 LUA
 } > "$STEPS"

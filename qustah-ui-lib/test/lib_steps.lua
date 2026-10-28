@@ -1398,6 +1398,37 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("lazy tab builds itself in the background", auto == 1)
     window:SelectTab("Misc")
 
+    -- button styles, sizes, icon-only, Row widths
+    local bc = tabNamed("Misc").Pages[1]:Card({ Title = "Btn" })
+    local fired = 0
+    local styled = {}
+    for _, name in ipairs({ "Default", "Primary", "Soft", "Outline", "Ghost", "Danger", "Link" }) do
+        styled[name] = bc:Button({ Title = name, Style = name, Callback = function() fired = fired + 1 end })
+    end
+    check("button styles made", styled.Primary.Style == "Primary" and styled.Link.Style == "Link")
+    check("primary uses the accent", styled.Primary.Row.Button.BackgroundColor3 == Lib.Theme.get("accent"))
+    check("ghost has no outline", styled.Ghost.Row.Button:FindFirstChildWhichIsA("UIStroke").Transparency == 1)
+    styled.Ghost:SetStyle("primary") wait(0.2)
+    check("SetStyle (any case)", styled.Ghost.Style == "Primary" and styled.Ghost.Row.Button.BackgroundTransparency == 0)
+    check("unknown style falls back", bc:Button({ Title = "X", Style = "Nope" }).Style == "Default")
+    local small, large = bc:Button({ Title = "S", Size = "Small" }), bc:Button({ Title = "L", Size = "large" })
+    check("button sizes", small.Row.Button.Size.Y.Offset == 22 and large.Row.Button.Size.Y.Offset == 34)
+    local iconOnly = bc:Button({ Icon = "trash-2", Callback = function() fired = fired + 1 end })
+    local content = iconOnly.Row.Button:FindFirstChild("Content")
+    check("icon-only button", content and content.Text.Visible == false and iconOnly.Row.Button.Text == "")
+    iconOnly:Fire() styled.Soft:Fire()
+    check("styled buttons fire", fired == 2)
+    local right = bc:Button({ Title = "Next", Icon = "arrow-right", IconSide = "Right" })
+    check("icon on the right", right.Row.Button.Content.ButtonIcon.LayoutOrder > right.Row.Button.Content.Text.LayoutOrder)
+    local wr = bc:Row({ Widths = { 2, 1 }, Gap = 6 })
+    local wa, wb = wr:Button({ Title = "Wide" }), wr:Button({ Title = "Narrow", Style = "Ghost" })
+    wait(0.1)
+    check("row widths share", math.abs(wa.Row.Size.X.Scale - 2 / 3) < 0.001 and math.abs(wb.Row.Size.X.Scale - 1 / 3) < 0.001)
+    local er = bc:Row()
+    local e1, e2 = er:Button({ Title = "A" }), er:Button({ Title = "B" })
+    wait(0.1)
+    check("row equal by default", e1.Row.Size.X.Scale == 0.5 and e2.Row.Size.X.Scale == 0.5)
+
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
     check("old window destroyed on re-run", window.alive == false and gui.Parent == nil)

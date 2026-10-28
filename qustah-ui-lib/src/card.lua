@@ -276,18 +276,24 @@ function Card:Section(cfg)
     return section
 end
 
--- card:Row({ Gap = 6 }) -> elements put in it sit side by side with equal widths (buttons, small toggles...).
+-- card:Row({ Gap = 6, Widths = { 2, 1 } }) -> elements put in it sit side by side (buttons, small toggles...).
+-- Equal widths by default; Widths gives each one a share in order (here the first is twice the second).
 function Card:Row(cfg)
     cfg = cfg or {}
     local gap = tonumber(cfg.Gap) or 6
+    local weights = type(cfg.Widths) == "table" and cfg.Widths or nil
     local holder = create("Frame", { Name = "Row", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Parent = self.body })
     Util.list(holder, gap, Enum.FillDirection.Horizontal)
     local function share()
         local children = {}
         for _, child in ipairs(holder:GetChildren()) do if child:IsA("GuiObject") and child.Visible then children[#children + 1] = child end end
+        table.sort(children, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
         local n = #children
-        for _, child in ipairs(children) do
-            child.Size = UDim2.new(1 / n, -gap * (n - 1) / n, child.Size.Y.Scale, child.Size.Y.Offset)
+        local total = 0
+        for index = 1, n do total = total + math.max(tonumber(weights and weights[index]) or 1, 0.05) end
+        for index, child in ipairs(children) do
+            local share = math.max(tonumber(weights and weights[index]) or 1, 0.05) / total
+            child.Size = UDim2.new(share, -gap * (n - 1) * share, child.Size.Y.Scale, child.Size.Y.Offset)
         end
     end
     -- widths are shared again when a child comes, goes, or is shown / hidden (DependsOn Mode = "Hide")

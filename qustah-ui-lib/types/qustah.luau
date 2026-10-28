@@ -121,7 +121,10 @@ export type Container = {
 	Swatches: (self: Container, cfg: ElementConfig & { Colors: { any }?, Default: string?, Columns: number?, Callback: ((color: Color3, name: string) -> ())? }) -> Element<string>,
 	Input: (self: Container, cfg: ElementConfig & { Default: string?, Placeholder: string?, Numeric: boolean?, ClearOnFocus: boolean?, Finished: boolean?, Callback: Callback<string>? }) -> Element<string>,
 	ActionInput: (self: Container, cfg: ElementConfig & { Placeholder: string?, Button: string?, Hint: string?, Validate: ((text: string) -> (boolean?, string?))?, ClearOnAction: boolean?, Callback: Callback<string>? }) -> Element<string>,
-	Button: (self: Container, cfg: ElementConfig & { Confirm: (boolean | string)?, Callback: Callback<>? }) -> Element<nil> & { Fire: (self: any) -> () },
+	Button: (self: Container, cfg: ElementConfig & { Confirm: (boolean | string)?, Callback: Callback<>?,
+		Style: ("Default" | "Primary" | "Soft" | "Outline" | "Ghost" | "Danger" | "Link")?, Size: ("Small" | "Default" | "Large")?,
+		IconSide: ("Left" | "Right")?, Align: ("Center" | "Left")? }) -> Element<nil> & {
+		Fire: (self: any) -> (), SetStyle: (self: any, style: string) -> (), SetTitle: (self: any, text: string) -> (), SetIcon: (self: any, name: string) -> (), Style: string },
 	Label: (self: Container, cfg: string | { Title: string?, Color: Paint? }) -> Element<string>,
 	Paragraph: (self: Container, cfg: { Title: string?, Content: string? }) -> Element<string>,
 	Info: (self: Container, cfg: { Title: string?, Value: any?, Copy: any? }) -> Info,
@@ -139,7 +142,7 @@ export type Container = {
 
 	Tabs: (self: Container, names: { string }, cfg: { Default: string?, Callback: Callback<string>? }?) -> ({ [string]: Container }, any),
 	Section: (self: Container, cfg: string | { Title: string?, Icon: string?, Desc: string?, Opened: boolean?, DependsOn: Dependency? }) -> Container & { SetOpen: (self: any, open: boolean) -> (), ToggleOpen: (self: any) -> () },
-	Row: (self: Container, cfg: { Gap: number? }?) -> Container,
+	Row: (self: Container, cfg: { Gap: number?, Widths: { number }? }?) -> Container,
 	Group: (self: Container, cfg: string | { Title: string? }) -> Container,
 }
 
