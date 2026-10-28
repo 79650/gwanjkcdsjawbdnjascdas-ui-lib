@@ -1,4 +1,4 @@
--- qustah-ui-lib example: every element once, laid out like Qustah.
+-- qustah-ui-lib example (v1.9): every element once, laid out like Qustah (presets, smart buttons, validation, badges, tour).
 local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/dist/qustah-ui-lib.lua"))()
 
 local Window = Lib:CreateWindow({
@@ -102,12 +102,20 @@ sections.Filters:Radio({ Title = "When two are close", Flag = "tieBreak", Option
 
 ------------------------------------------------------------------------ Misc: input, buttons, paragraph
 local Misc = Window:Tab({ Title = "Misc", Icon = "blocks" })
+Misc:SetBadge("NEW")   -- a tag on the dock icon (a number, "NEW", or true for a dot; nil hides it)
 -- (a big tab can also be built on first open: Window:Tab({ Title = "Misc", Build = function(tab) ... end }))
 local Tools = Misc:Card({ Title = "Tools" })
-Tools:Input({ Title = "Target name", Placeholder = "player name", Flag = "targetName" })
+Tools:Input({ Title = "Target name", Placeholder = "player name", Flag = "targetName",
+    Validate = function(text)                 -- checked while typing: green / red edge + a short message
+        if text == "" then return nil end
+        local ok = #text >= 3 and #text <= 20 and not text:find("[^%w_]")
+        return ok, ok and "Looks like a username" or "3-20 letters, digits or _"
+    end })
 Tools:Stepper({ Title = "Clicks per second", Flag = "cps", Min = 1, Max = 20, Default = 8 })   -- [-] 8 [+], hold to repeat
-Tools:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() print("rejoin") end })
-Tools:Button({ Title = "Server hop", Icon = "shuffle", Confirm = true, Callback = function() print("hop") end })
+Tools:Button({ Title = "Rejoin", Icon = "refresh-cw", Style = "Primary", Bind = Enum.KeyCode.F6, Bindable = true,   -- F6 presses it; right-click to change
+    Callback = function() print("rejoin") end })
+Tools:Button({ Title = "Hold to reset character", Icon = "rotate-ccw", Style = "Danger", Hold = 1.2,   -- fills while held, runs when full
+    Callback = function() print("reset") end })
 local Crosshair = Misc:Card({ Title = "Crosshair" })
 Crosshair:ImagePicker({ Title = "Style", Flag = "crosshair", Columns = 4,
     Images = { "rbxassetid://9943168532", "rbxassetid://12614416478", "rbxassetid://6764432408", "rbxassetid://7072721682" } })
@@ -144,9 +152,12 @@ local advanced = Extras:Section({ Title = "Advanced", Icon = "settings-2", Opene
 advanced:Toggle({ Title = "Bypass checks", Flag = "bypass" })
 advanced:Slider({ Title = "Delay", Flag = "delay", Min = 0, Max = 1, Step = 0.05, Default = 0.2, Suffix = "s" })
 advanced:TextArea({ Title = "Auto chat message", Flag = "chatMessage", Placeholder = "gg, good game", Height = 60, MaxLength = 120 })
-local buttons = Extras:Row()
-buttons:Button({ Title = "Start", Icon = "play", Callback = function() farm:Set(farm.Value + 1) end })
-buttons:Button({ Title = "Stop", Icon = "square", Callback = function() print("stop") end })
+local buttons = Extras:Row({ Widths = { 3, 1 } })                          -- side by side: 3/4 and 1/4
+buttons:Button({ Title = "Auto farm", Icon = "sprout", Toggle = true, Flag = "autoFarm", OnTitle = "Farming",   -- an on / off button
+    Callback = function(on) if on then farm:Set(farm.Value + 1) end end })
+buttons:Button({ Icon = "inbox", Style = "Soft", Badge = 3, Tooltip = "Inbox" })   -- icon-only, with a badge
+Extras:Button({ Title = "Redeem all codes", Icon = "gift", LoadingText = "Redeeming...",   -- a spinner while this waits
+    Callback = function() task.wait(2) end })
 local group = Extras:Group({ Title = "Server" })
 group:Info({ Title = "Region", Value = "EU" })
 group:Info({ Title = "Uptime", Value = "2h 14m" })
@@ -176,10 +187,11 @@ ServerInfo:ActionInput({ Icon = "log-in", Placeholder = "Job ID", Button = "Join
     Callback = function(jobId) print("join", jobId) end })
 local hop = ServerInfo:Row()
 hop:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() print("rejoin") end })
-hop:Button({ Title = "Server hop", Icon = "shuffle", Cooldown = 5, Callback = function() print("hop") end })   -- counts down 5 s before the next hop
+hop:Button({ Title = "Hop", Icon = "shuffle", Cooldown = 5, Flag = "hopPrefer",   -- split button + a 5 s cooldown
+    Menu = { "Smallest", "Lowest ping", "Random" },   -- the arrow picks the kind of server; the main part hops again with it
+    Callback = function(prefer) print("hop to a server:", prefer) end })
 local Network = Server:Card({ Title = "Network", Side = "Right", Icon = "wifi" })
 Network:Graph({ Title = "Ping", Source = "Ping", Style = "Line", Suffix = " ms" })
-Network:Dropdown({ Title = "Prefer servers", Flag = "hopPrefer", Options = { "Smallest", "Lowest ping", "Random" }, Default = "Smallest" })
 
 ------------------------------------------------------------------------ key hint above the footer (MENU hint on the right is automatic)
 Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Side = "Left", Flag = "espKey",
