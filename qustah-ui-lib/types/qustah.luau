@@ -33,6 +33,7 @@ export type ElementConfig = {
 	LockedTitle: string?,
 	DependsOn: Dependency?,
 	Flash: boolean?,
+	Reset: boolean?,
 }
 
 export type Element<T> = {
@@ -57,6 +58,7 @@ export type Element<T> = {
 	GetIndex: (self: Element<T>) -> number?,
 	Remove: (self: Element<T>) -> (),
 	Destroy: (self: Element<T>) -> (),
+	ResetToDefault: (self: Element<T>) -> (),
 }
 
 export type Key = Enum.KeyCode | Enum.UserInputType
@@ -123,8 +125,14 @@ export type Container = {
 	ActionInput: (self: Container, cfg: ElementConfig & { Placeholder: string?, Button: string?, Hint: string?, Validate: ((text: string) -> (boolean?, string?))?, ClearOnAction: boolean?, Callback: Callback<string>? }) -> Element<string>,
 	Button: (self: Container, cfg: ElementConfig & { Confirm: (boolean | string)?, Callback: Callback<>?,
 		Style: ("Default" | "Primary" | "Soft" | "Outline" | "Ghost" | "Danger" | "Link")?, Size: ("Small" | "Default" | "Large")?,
-		IconSide: ("Left" | "Right")?, Align: ("Center" | "Left")? }) -> Element<nil> & {
-		Fire: (self: any) -> (), SetStyle: (self: any, style: string) -> (), SetTitle: (self: any, text: string) -> (), SetIcon: (self: any, name: string) -> (), Style: string },
+		IconSide: ("Left" | "Right")?, Align: ("Center" | "Left")?, Cooldown: number?, Hold: number?, Loading: boolean?, LoadingText: string?, Done: boolean?,
+		Bind: (Key | string)?, Bindable: boolean?, Toggle: boolean?, Default: boolean?, OnStyle: string?, OnTitle: string?, OnIcon: string?,
+		Menu: { string | { Title: string, Icon: string? } }?, Selected: string?, ShowSelected: boolean?, Badge: (string | number)? }) -> Element<any> & {
+		Fire: (self: any) -> (), SetStyle: (self: any, style: string) -> (), SetTitle: (self: any, text: string) -> (), SetIcon: (self: any, name: string) -> (),
+		SetLoading: (self: any, on: boolean, text: string?) -> (), SetCooldown: (self: any, seconds: number) -> (), ResetCooldown: (self: any) -> (),
+		SetBind: (self: any, key: (Key | string)?) -> (), SetBadge: (self: any, text: (string | number)?) -> (),
+		Select: (self: any, option: string, silent: boolean?) -> (), SetOptions: (self: any, list: { any }) -> (),
+		Style: string, Selected: string?, Loading: boolean?, CoolingDown: boolean? },
 	Label: (self: Container, cfg: string | { Title: string?, Color: Paint? }) -> Element<string>,
 	Paragraph: (self: Container, cfg: { Title: string?, Content: string? }) -> Element<string>,
 	Info: (self: Container, cfg: { Title: string?, Value: any?, Copy: any? }) -> Info,
@@ -317,6 +325,7 @@ export type WindowConfig = {
 	MobileIcon: string?,
 	Welcome: boolean?,
 	AutoFlags: boolean?,
+	ResetButtons: boolean?,
 	Debug: boolean?,
 	KickLog: boolean?,
 	Rejoin: boolean?,

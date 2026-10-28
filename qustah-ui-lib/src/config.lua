@@ -45,6 +45,8 @@ function Config:_elementReady(flag, element)
         local ok, value = pcall(element._save, element)
         if ok and value ~= nil then self.Defaults[flag] = value end
     end
+    -- the reset button compares against this default
+    if element._initReset then pcall(element._initReset, element, self.Defaults[flag]) end
     local value = self.pending[flag]
     if value ~= nil then
         self.pending[flag] = nil

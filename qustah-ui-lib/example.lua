@@ -168,7 +168,7 @@ ServerInfo:Info({ Title = "Job ID", Value = string.sub(game.JobId, 1, 8), Copy =
 ServerInfo:Toggle({ Title = "Auto rejoin on kick", Flag = "autoRejoin" })
 local hop = ServerInfo:Row()
 hop:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() print("rejoin") end })
-hop:Button({ Title = "Server hop", Icon = "shuffle", Confirm = true, Callback = function() print("hop") end })
+hop:Button({ Title = "Server hop", Icon = "shuffle", Cooldown = 5, Callback = function() print("hop") end })   -- counts down 5 s before the next hop
 local Network = Server:Card({ Title = "Network", Side = "Right", Icon = "wifi" })
 Network:Graph({ Title = "Ping", Source = "Ping", Style = "Line", Suffix = " ms" })
 Network:Dropdown({ Title = "Prefer servers", Flag = "hopPrefer", Options = { "Smallest", "Lowest ping", "Random" }, Default = "Smallest" })

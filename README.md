@@ -424,7 +424,38 @@ local player = Card:Row({ Gap = 4 })                         -- a strip of icon 
 for _, icon in ipairs({ "play", "pause", "square", "skip-forward" }) do player:Button({ Icon = icon, Style = "Soft" }) end
 ```
 
-Methods: `button:SetStyle("Primary")`, `button:SetTitle(text)`, `button:SetIcon(name)`, `button:Fire()`.
+**Smart buttons.**
+
+<p align="center"><img src="qustah-ui-lib/assets/screens/smart.png" alt="Cooldown, hold, loading, key, toggle, menu and badge buttons; reset to default" width="720"></p>
+
+| Option | What it does |
+| --- | --- |
+| `Cooldown = 5` | After a run the button empties over 5 seconds, shows the time left and ignores clicks until it is ready. |
+| `Hold = 1.5` | Hold the button (or its key) until it fills up. Letting go early cancels. A nicer guard than `Confirm` for risky actions. |
+| Loading | A callback that waits (`task.wait`, `HttpGet`...) shows a spinner and blocks clicks until it returns, then a short tick. `LoadingText = "Redeeming..."` changes the text meanwhile, `Loading = false` turns it off, `Done = false` skips the tick. |
+| `Bind = Enum.KeyCode.R` | The key presses the button; a small key cap shows it. With `Bindable = true` right-click the button to set the key (Backspace clears it). |
+| `Toggle = true` | An on / off button. `Callback(value)`, `Flag` keeps it. When on it uses `OnStyle` (default `"Primary"`), `OnTitle` and `OnIcon`. |
+| `Menu = { ... }` | A split button. The arrow opens the list; a pick runs `Callback(option)`, and the main part runs it again with the same choice later. |
+| `Badge = 3` / `"NEW"` | A small tag on the corner. `0`, `nil` or `""` hides it. |
+
+```lua
+Card:Button({ Title = "Server hop", Icon = "shuffle", Cooldown = 5, Callback = hop })
+Card:Button({ Title = "Hold to wipe data", Icon = "trash-2", Style = "Danger", Hold = 1.5, Callback = wipe })
+Card:Button({ Title = "Redeem all codes", Icon = "gift", LoadingText = "Redeeming...", Callback = function()
+    for _, code in ipairs(codes) do redeem(code) task.wait(1) end   -- the spinner shows until this returns
+end })
+Card:Button({ Title = "Rejoin", Icon = "refresh-cw", Bind = Enum.KeyCode.R, Bindable = true, Callback = rejoin })
+Card:Button({ Title = "Auto farm", Icon = "sprout", Toggle = true, Flag = "autoFarm", OnTitle = "Farming", Callback = function(on) end })
+Card:Button({ Title = "Teleport", Icon = "map-pin", Menu = { "Spawn", { Title = "Shop", Icon = "store" }, "Arena" },
+    Callback = function(place) teleportTo(place) end })
+local inbox = Card:Button({ Icon = "inbox", Style = "Soft", Badge = 3 })
+inbox:SetBadge("NEW")
+```
+
+Methods: `button:SetStyle("Primary")`, `button:SetTitle(text)`, `button:SetIcon(name)`, `button:Fire()`,
+`button:SetLoading(true, "Saving...")`, `button:SetCooldown(seconds)`, `button:ResetCooldown()`, `button:SetBind(key)`,
+`button:SetBadge(text)`, `button:Set(on)` / `button:Get()` (Toggle), `button:Select(option)` / `button:SetOptions(list)` (Menu).
+Fields: `button.Value`, `button.Selected`, `button.Loading`, `button.CoolingDown`.
 
 ### Text: Label, Paragraph, Info, Divider and Code
 
@@ -507,6 +538,15 @@ Window:GetElement("esp"):Lock("Premium only")
 ```
 
 With `CreateWindow({ AutoFlags = true })`, value elements without a Flag get one named `"Tab.Card.Title"`. If two elements end up with the same name, the second gets `" 2"`. Settings and Dashboard elements don't get auto flags.
+
+**Reset to default.** When an element with a Flag is changed from its default, a small reset icon shows after its title. Clicking it puts the default back (and runs the callback). It hides again once the value is back at the default.
+
+```lua
+Card:Slider({ Title = "Walk speed", Flag = "walk", Min = 16, Max = 100, Default = 16 })   -- shows the reset icon at 42, not at 16
+Card:Toggle({ Title = "Silent", Flag = "silent", Reset = false })                         -- no reset icon for this one
+Window:GetElement("walk"):ResetToDefault()                                                 -- the same from code
+Lib:CreateWindow({ Title = "Hub", ResetButtons = false })                                 -- no reset icons anywhere
+```
 
 ---
 

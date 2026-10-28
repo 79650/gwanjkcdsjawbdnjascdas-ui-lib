@@ -122,6 +122,21 @@ function Base.row(card, cfg, height, opts)
     return row, title, desc
 end
 
+-- value helpers for the reset button: deep compare / copy of saved values (numbers, strings, tables...)
+local function same(a, b)
+    if type(a) ~= type(b) then return false end
+    if type(a) ~= "table" then return a == b end
+    for key, value in pairs(a) do if not same(value, b[key]) then return false end end
+    for key in pairs(b) do if a[key] == nil then return false end end
+    return true
+end
+local function copy(value)
+    if type(value) ~= "table" then return value end
+    local out = {}
+    for key, item in pairs(value) do out[key] = copy(item) end
+    return out
+end
+
 function Base.element(card, kind, cfg, row, title, desc)
     local window = card.window
     if cfg.Flag == nil and VALUE[kind] and cfg.Title and window.cfg and window.cfg.AutoFlags and not window._noAutoFlags then
@@ -134,11 +149,14 @@ function Base.element(card, kind, cfg, row, title, desc)
         return self
     end
     -- Runs a user callback; when it errors the element flashes red and its title says so (Base.failed).
+    -- Returns true / false (nil when there was nothing to run).
     function element:_call(callback, ...)
-        if window:_safe(tostring(self.Title or kind), callback, ...) == false then
+        local ok = window:_safe(tostring(self.Title or kind), callback, ...)
+        if ok == false then
             self._failed = true
             Base.failed(self, title)
         end
+        return ok
     end
     -- Flash = false turns the green / accent "accepted" flash of inputs and keybinds off
     function element:_accepted(kind)
@@ -151,6 +169,7 @@ function Base.element(card, kind, cfg, row, title, desc)
             window.Lib.Flags[self.Flag] = value
             window:_flagChanged(self.Flag)
         end
+        if self._resetButton then self:_updateReset() end
         if silent then return end
         -- UI sound (a dragged slider only clicks when it is let go)
         local dragging = ...
@@ -168,6 +187,59 @@ function Base.element(card, kind, cfg, row, title, desc)
         if desc and not self.Locked then desc.Text = self._descText end
     end
     function element:SetVisible(visible) row.Visible = visible ~= false end
+
+    -- Reset button: a small "rotate" icon after the title while the value differs from its default
+    -- (the default Config recorded when the element was made). Reset = false on the element, or
+    -- ResetButtons = false on the window, turns it off. element:ResetToDefault() does the same in code.
+    function element:_initReset(default)
+        if self._resetButton or default == nil or kind == "Button" then return end
+        if not title or not title:IsA("TextLabel") or title.Text == "" then return end
+        if cfg.Reset == false or (window.cfg and window.cfg.ResetButtons == false) then return end
+        if type(self.Flag) == "string" and self.Flag:sub(1, 2) == "__" then return end -- (the built-in settings)
+        self._default = copy(default)
+        local button = create("ImageButton", {
+            Name = "Reset", BackgroundTransparency = 1, AutoButtonColor = false, Image = "", AnchorPoint = Vector2.new(0, 0.5),
+            Size = UDim2.fromOffset(16, 16), ZIndex = 6, Visible = false, Parent = row,
+        })
+        local icon = Icons.themed(button, "rotate-ccw", 11, "muted", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 6 })
+        button.MouseEnter:Connect(function()
+            if icon then Theme.tweenTo(icon, "ImageColor3", "heading", 0.1) end
+            window:_tip("Reset to default")
+        end)
+        button.MouseLeave:Connect(function()
+            if icon then Theme.tweenTo(icon, "ImageColor3", "muted", 0.1) end
+            window:_hideTip()
+        end)
+        button.Activated:Connect(function()
+            Sounds.Play("click")
+            window:_hideTip()
+            self:ResetToDefault()
+        end)
+        self._resetButton = button
+        title:GetPropertyChangedSignal("Text"):Connect(function() self:_updateReset() end)
+        self:_updateReset()
+    end
+    function element:_updateReset()
+        local button = self._resetButton
+        if not button then return end
+        local ok, current = pcall(self._save, self)
+        button.Visible = ok and not same(current, self._default) and not self._errorShown
+        if not button.Visible then return end
+        -- right after the title text (or after a Badge tag)
+        local width = Util.textWidth(title.Text, title.TextSize, title.Font)
+        local room = title.AbsoluteSize.X
+        if room and room > 20 then width = math.min(width, room - 18) end
+        local x = title.Position.X.Offset + width + 3
+        local badge = row:FindFirstChild("Badge")
+        if badge then x = badge.Position.X.Offset + badge.Size.X.Offset + 3 end
+        button.Position = UDim2.new(0, x, 0, title.Position.Y.Offset + title.Size.Y.Offset / 2)
+    end
+    function element:ResetToDefault()
+        if self.Locked or self._default == nil then return end
+        pcall(self._load, self, copy(self._default))
+        self:_updateReset()
+        self:Flash("accent")
+    end
     -- element:Flash("success" | "danger" | "accent" | any role / Color3): a short tint behind the row
     function element:Flash(kind) Base.flash(row, kind) end
 
