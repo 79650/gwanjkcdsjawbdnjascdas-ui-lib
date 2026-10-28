@@ -221,6 +221,135 @@ current=tostring(cfg.Default or names[1])
 render()
 return sections,selector
 end
+local function same(a,b)
+if type(a)=="number"and type(b)=="number"then return math.abs(a-b)<1e-6 end
+if type(a)~="table"or type(b)~="table"then return a==b end
+for key,value in pairs(a)do if not same(value,b[key])then return false end end
+for key in pairs(b)do if a[key]==nil then return false end end
+return true
+end
+function Card:Presets(list,cfg)
+cfg=cfg or{}
+local window=self.window
+local presets={}
+if type(list)=="table"and list[1]~=nil then
+for _,entry in ipairs(list)do
+local name=entry.Name or entry[1]
+local values=entry.Values or entry[2]
+if name~=nil and type(values)=="table"then presets[#presets+1]={name=tostring(name),values=values}end
+end
+elseif type(list)=="table"then
+for name,values in pairs(list)do
+if type(values)=="table"then presets[#presets+1]={name=tostring(name),values=values}end
+end
+table.sort(presets,function(a,b)return a.name<b.name end)
+end
+local holder
+local inHeader=self.titleLabel and not self.titleLabel.Parent:FindFirstChild("Tabs")and not self.titleLabel.Parent:FindFirstChild("Presets")
+if inHeader then
+holder=create("Frame",{Name="Presets",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,self._chevron and-20 or 0,0,1),Size=UDim2.new(0.65,self._chevron and-20 or 0,0,18),Parent=self.titleLabel.Parent})
+self.titleLabel.Size=UDim2.new(0.35,-13,1,0)
+else
+holder=create("Frame",{Name="Presets",BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=self:_order(),Parent=self.body})
+end
+local layout=Util.list(holder,4,Enum.FillDirection.Horizontal)
+layout.HorizontalAlignment=inHeader and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Left
+local chips={}
+local selector={Presets=presets}
+local current,applying,custom=nil,false,nil
+local showCustom=cfg.Custom~=false
+local function flags(values)
+local out={}
+for flag in pairs(values)do out[#out+1]=flag end
+return out
+end
+local function match()
+for _,preset in ipairs(presets)do
+local all=true
+for flag,value in pairs(preset.values)do
+if not same(window.Lib.Flags[flag],value)then all=false break end
+end
+if all then return preset.name end
+end
+return"Custom"
+end
+local function render()
+for name,chip in pairs(chips)do
+local on=name==current
+Theme.tweenTo(chip,"BackgroundColor3",on and"selected"or"input",0.1)
+Theme.tweenTo(chip,"TextColor3",on and"heading"or"muted",0.1)
+local stroke_=chip:FindFirstChildWhichIsA("UIStroke")
+if stroke_ then Theme.bind(stroke_,"Color",on and"accent"or"buttonEdge")stroke_.Transparency=on and 0.4 or 0.6 end
+end
+end
+local function refresh()
+if applying then return end
+local now=match()
+if now~=current then
+local before=current
+current=now
+render()
+if before~=nil and cfg.Callback then window:_safe("Presets",cfg.Callback,now)end
+end
+end
+local function chip(name,order)
+local button=create("TextButton",{
+Name=name,AutoButtonColor=false,BorderSizePixel=0,Text=name,TextSize=9,Font=Enum.Font.GothamMedium,
+Size=UDim2.fromOffset(Util.textWidth(name,9,Enum.Font.GothamMedium)+16,18),LayoutOrder=order,Parent=holder,
+})
+corner(button,9)
+stroke(button,nil,0.6)
+chips[name]=button
+button.Activated:Connect(function()require("sounds").Play("click")selector:Select(name)end)
+return button
+end
+function selector:Select(name)
+name=tostring(name)
+if name=="Custom"then
+if custom then
+applying=true
+for flag,value in pairs(custom)do window:SetFlag(flag,value)end
+applying=false
+end
+refresh()
+return
+end
+for _,preset in ipairs(presets)do
+if preset.name==name then
+if current=="Custom"then
+custom={}
+for _,other in ipairs(presets)do
+for _,flag in ipairs(flags(other.values))do custom[flag]=window.Lib.Flags[flag]end
+end
+end
+applying=true
+for flag,value in pairs(preset.values)do window:SetFlag(flag,value)end
+applying=false
+refresh()
+return
+end
+end
+end
+function selector:Get()return current end
+function selector:Add(name,values)
+if type(values)~="table"then return end
+presets[#presets+1]={name=tostring(name),values=values}
+chip(tostring(name),#presets)
+if chips.Custom then chips.Custom.LayoutOrder=#presets+1 end
+current=nil
+refresh()
+end
+for index,preset in ipairs(presets)do chip(preset.name,index)end
+if showCustom then chip("Custom",#presets+1)end
+window._dependents=window._dependents or{}
+table.insert(window._dependents,function()
+if not holder.Parent then return false end
+refresh()
+return true
+end)
+task.defer(refresh)
+return selector
+end
 local function sub(card,body)
 return setmetatable({page=card.page,window=card.window,order=0,body=body,frame=card.frame,title=card.title},Card)
 end
@@ -1121,7 +1250,7 @@ if not button.Visible then return end
 local width=Util.textWidth(title.Text,title.TextSize,title.Font)
 local room=title.AbsoluteSize.X
 if room and room>20 then width=math.min(width,room-18)end
-local x=title.Position.X.Offset+width+3
+local x=title.Position.X.Offset+width+5
 local badge=row:FindFirstChild("Badge")
 if badge then x=badge.Position.X.Offset+badge.Size.X.Offset+3 end
 button.Position=UDim2.new(0,x,0,title.Position.Y.Offset+title.Size.Y.Offset/2)
@@ -1218,6 +1347,20 @@ element._risky=cfg.Risky and true or false
 if cfg.Flag then window:_register(cfg.Flag,element)end
 element._tooltip=cfg.Tooltip
 function element:SetTooltip(text)self._tooltip=text end
+function element:_setConflict(others)
+local on=others~=nil and#others>0
+self.KeyConflict=on and others or nil
+self._conflictTip=on and("Key also used by: "..table.concat(others,", "))or nil
+if self._keyLabel then
+if self._keyRole==nil then self._keyRole=(Theme._binding(self._keyLabel)or{}).TextColor3 or"muted"end
+Theme.bind(self._keyLabel,"TextColor3",on and"warning"or self._keyRole)
+end
+if self._keyStroke then
+if self._keyStrokeRole==nil then self._keyStrokeRole=(Theme._binding(self._keyStroke)or{}).Color or"buttonEdge"end
+Theme.bind(self._keyStroke,"Color",on and"warning"or self._keyStrokeRole)
+end
+if self._onConflict then self:_onConflict(on)end
+end
 local hoverToken=0
 local function cutText()
 local parts={}
@@ -1235,7 +1378,7 @@ hoverToken=hoverToken+1
 local token=hoverToken
 task.delay(0.35,function()
 if token~=hoverToken or element.Locked or not row.Parent then return end
-local text=element._tooltip or cutText()
+local text=element._conflictTip or element._tooltip or cutText()
 if text then tipShown=true window:_tip(text)end
 end)
 end)
@@ -1475,8 +1618,9 @@ if arrow then
 local chevron=arrow:FindFirstChild("Chevron")
 if chevron then Theme.tweenTo(chevron,"ImageColor3",role,duration)end
 end
-Theme.tweenTo(keyText,"TextColor3",role,duration)
-keyText.TextTransparency=0.35
+Theme.tweenTo(keyText,"TextColor3",element.KeyConflict and"warning"or role,duration)
+keyText.TextTransparency=element.KeyConflict and 0 or 0.35
+Theme.bind(keyStroke,"Color",element.KeyConflict and"warning"or"buttonEdge")
 Theme.tweenTo(timer,"TextColor3",role,duration)
 local dim=(loading or cooling)and 0.45 or 0
 textLabel.TextTransparency=dim
@@ -1709,6 +1853,7 @@ function element:_onBind()
 if holdTime>0 then startHold()else activate()end
 end
 function element:_onRelease()if holdTime>0 then cancelHold()end end
+function element:_onConflict()paint(0)end
 if bindable then
 element:SetBind(cfg.Bind)
 button.MouseButton2Click:Connect(function()
@@ -3165,11 +3310,12 @@ local Theme=require("theme")
 local Base=require("elements/base")
 local create,corner,stroke=Util.create,Util.corner,Util.stroke
 return function(card,cfg)
-local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=160})
+local baseHeight=cfg.Desc and 40 or 30
+local row,title,desc=Base.row(card,cfg,baseHeight,{right=160})
 title.Size=UDim2.new(0.55,-8,0,title.Size.Y.Offset)
 if desc then desc.Size=UDim2.new(0.55,-8,0,14)end
 local box=create("TextBox",{
-Name="Box",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),Size=UDim2.new(0.45,0,0,24),
+Name="Box",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0,baseHeight/2),Size=UDim2.new(0.45,0,0,24),
 BorderSizePixel=0,Text="",PlaceholderText=tostring(cfg.Placeholder or""),TextSize=10,Font=Enum.Font.Gotham,
 TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=cfg.ClearOnFocus==true,ClipsDescendants=true,
 TextTruncate=Enum.TextTruncate.AtEnd,Parent=row,
@@ -3221,15 +3367,56 @@ if changed and not silent then self:_accepted("success")end
 end
 function element:Get()return self.Value end
 function element:SetPlaceholder(text)box.PlaceholderText=tostring(text or"")fit()end
-box.Focused:Connect(function()Theme.tweenTo(outline,"Color","accent",0.1)end)
+local focused=false
+local hint
+local state
+local function edgeRole()
+if state==false then return"danger"end
+if not focused then return"buttonEdge"end
+return state==true and"success"or"accent"
+end
+local function validate(text)
+if type(cfg.Validate)~="function"then return nil end
+local ok,result,message=pcall(cfg.Validate,clean(text))
+if not ok then result,message=nil,nil end
+if clean(text)==""and result==nil then message=nil end
+state=result
+element.Valid=result
+Theme.tweenTo(outline,"Color",edgeRole(),0.1)
+local show=message~=nil and tostring(message)~=""
+if show and not hint then
+hint=Util.label(row,"",9,{Name="Hint",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-2,0,baseHeight-1),Size=UDim2.new(1,-4,0,13),TextXAlignment=Enum.TextXAlignment.Right})
+end
+if hint then
+hint.Visible=show
+hint.Text=show and tostring(message)or""
+Theme.bind(hint,"TextColor3",result==true and"success"or(result==false and"danger"or"muted"))
+end
+row.Size=UDim2.new(1,0,0,baseHeight+(show and 13 or 0))
+return result
+end
+element.Validate=function(_,text)return validate(text==nil and box.Text or text)end
+box.Focused:Connect(function()focused=true Theme.tweenTo(outline,"Color",edgeRole(),0.1)end)
 box.FocusLost:Connect(function()
-Theme.tweenTo(outline,"Color","buttonEdge",0.1)
+focused=false
+if validate(box.Text)==false then
+Theme.tweenTo(outline,"Color",edgeRole(),0.1)
+return
+end
+Theme.tweenTo(outline,"Color",edgeRole(),0.1)
+if hint and state~=false then hint.Visible=false row.Size=UDim2.new(1,0,0,baseHeight)end
 element:Set(box.Text)
 end)
+if cfg.Validate then
+box:GetPropertyChangedSignal("Text"):Connect(function()if focused then validate(box.Text)end end)
+end
 if cfg.Finished==false then
-box:GetPropertyChangedSignal("Text"):Connect(function()element:Set(box.Text)end)
+box:GetPropertyChangedSignal("Text"):Connect(function()
+if validate(box.Text)~=false then element:Set(box.Text)end
+end)
 end
 element:Set(cfg.Default or"",true)
+if cfg.Validate and element.Value~=""then validate(element.Value)end
 if cfg.Locked then box.TextEditable=false end
 return Base.finish(element,cfg)
 end
@@ -3254,6 +3441,7 @@ corner(badge,6)
 local outline=stroke(badge)
 Theme.bind(outline,"Color","buttonEdge")
 local element=Base.element(card,"Keybind",cfg,row,title,desc)
+element._keyLabel,element._keyStroke=badge,outline
 local function show(text)
 badge.Text=text
 local width=math.max(48,Util.textWidth(text,10,Enum.Font.GothamMedium)+18)
@@ -4754,6 +4942,7 @@ Name="Bind",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,cfg.Help and-62 
 TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium,Visible=false,
 })
 Theme.bind(tag,"TextColor3","muted")
+element._keyLabel=tag
 row.MouseButton2Click:Connect(function()
 if element.Locked then return end
 tag.Text,tag.Visible="[...]",true
@@ -6094,6 +6283,7 @@ require("windowx")(Window)
 require("windowfx")(Window)
 require("kick")(Window)
 require("mobile")(Window)
+require("tour")(Window)
 local Lib={
 Version="1.9.0",
 Flags={},
@@ -7220,6 +7410,12 @@ about:Info({Title="File access",Value=files and"Yes"or"No (profiles off)"})
 if type(window.cfg.Changelog)=="table"then
 about:Button({Title="What's new",Icon="newspaper",Callback=function()window:ShowChangelog()end})
 end
+if window.cfg.Tour then
+about:Button({Title="Show the tour",Icon="map",Callback=function()
+local spec=window.cfg.Tour
+window:Tour(type(spec)=="table"and spec or nil,{Id=window.cfg.TourId,Force=true})
+end})
+end
 about:Info({Title="Secure mode",Value=Util.secure and"On"or"Off",Help="Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })"})
 if window.GetKicks and window.cfg.KickLog~=false then
 local kicksCard=infoPage:Card({Title="Disconnects",Side="Left",Icon="log-out",Desc="Kicks and drops, with Roblox's reason"})
@@ -7293,6 +7489,7 @@ end
 window:OnStatusChanged(update)
 Theme.onChange(function()if infoPage.frame.Parent then update()end end)
 update()
+window.settingsTab=tab
 return tab
 end
 end
@@ -7738,6 +7935,265 @@ function Theme.onChange(callback)
 listeners[#listeners+1]=callback
 end
 return Theme
+end
+__modules["tour"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local PANEL=236
+local PAD=6
+return function(Window)
+local function guiOf(window,target)
+if typeof(target)=="Instance"then return target end
+if type(target)=="string"then
+local name=target:lower()
+if name=="dock"then return window.dock end
+if name=="header"then return window.main and window.main:FindFirstChild("Header")end
+if name=="footer"then return window.footer end
+if name=="status"then return window.statusLabel end
+if name=="menukey"then return window.menuHint and window.menuHint.Row end
+if name=="settings"then return window.settingsTab and window.settingsTab.button end
+if name=="bell"then return window.main and window.main:FindFirstChild("Bell",true)end
+if name=="close"then return window.main and window.main:FindFirstChild("Close",true)end
+return nil
+end
+if type(target)=="table"then
+if target.button and target.Pages then return target.button end
+if target.Row then return target.Row end
+if target.frame then return target.frame end
+end
+return nil
+end
+local function reveal(window,target)
+local card=type(target)=="table"and(target.Card or(target.frame and target.page and target))or nil
+local page=card and card.page
+if page and page.tab then
+if window.current~=page.tab then pcall(page.tab.Select,page.tab)end
+if page.tab.current~=page then pcall(page.Select,page)end
+end
+if type(target)=="table"and target.button and target.Pages and window.current~=target then pcall(target.Select,target)end
+local object=guiOf(window,target)
+if not object then return end
+local scroller=object:FindFirstAncestorWhichIsA("ScrollingFrame")
+if scroller then
+local top=object.AbsolutePosition.Y-scroller.AbsolutePosition.Y
+local bottom=top+object.AbsoluteSize.Y
+if top<0 or bottom>scroller.AbsoluteSize.Y then
+local y=math.max(0,scroller.CanvasPosition.Y+top-24)
+scroller.CanvasPosition=Vector2.new(scroller.CanvasPosition.X,y)
+end
+end
+end
+function Window:_defaultTourSteps()
+local key=Util.keyName(self.key):upper()
+local steps={
+{Target="dock",Title="Tabs",Text="Every part of the script has its own tab here. Hover an icon to see its name."},
+{Target="header",Title="Move and resize",Text="Drag the header to move the window, drag the bottom-right corner to resize it. Double-click the header for fullscreen."},
+{Target="menuKey",Title="Menu key",Text="Press "..key.." to hide or show the menu. Click the key to change it."},
+{Target="settings",Title="Settings",Text="Themes, fonts, profiles and overlays live here. Profiles save every setting so you can load them next time."},
+{Target="status",Title="Status",Text="Green means everything works. If a feature fails, it turns red and Settings > Info says why."},
+}
+local out={}
+for _,step in ipairs(steps)do if guiOf(self,step.Target)then out[#out+1]=step end end
+return out
+end
+function Window:ResetTour(id)self:_state("tour:"..tostring(id or"default"),false)end
+function Window:HasSeenTour(id)return self:_state("tour:"..tostring(id or"default"))==true end
+function Window:_autoTour()
+local spec=self.cfg.Tour
+if not spec or self:HasSeenTour(self.cfg.TourId)then return end
+task.delay(tonumber(self.cfg.TourDelay)or 2.5,function()
+for _=1,40 do
+if not self.alive then return end
+if not self._dialog and self.visible then break end
+task.wait(0.5)
+end
+if self.alive then self:Tour(type(spec)=="table"and spec or nil,{Once=true,Id=self.cfg.TourId})end
+end)
+end
+function Window:Tour(steps,opts)
+opts=opts or{}
+if type(steps)~="table"or#steps==0 then steps=self:_defaultTourSteps()end
+local id=tostring(opts.Id or"default")
+if opts.Once and not opts.Force and self:HasSeenTour(id)then return nil end
+if#steps==0 or not self.alive then return nil end
+if self._tour then self._tour:Close(false)end
+if not self.visible then self:SetVisible(true)end
+self:_closePopup()
+local window=self
+local tour={Index=0,Steps=steps}
+local alive=true
+local scale=self.scale and self.scale.Scale or 1
+local overlay=create("Frame",{Name="Tour",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=300,Parent=self.gui})
+local panes={}
+for index=1,4 do
+local pane=create("TextButton",{Name="Dim"..index,Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=0.45,ZIndex=300,Parent=overlay})
+panes[index]=pane
+end
+local ring=create("Frame",{Name="Ring",BackgroundTransparency=1,BorderSizePixel=0,ZIndex=301,Parent=overlay})
+corner(ring,9)
+local ringStroke=stroke(ring,nil,0,2)
+Theme.bind(ringStroke,"Color","accent")
+local glow=create("Frame",{Name="Glow",BackgroundTransparency=1,BorderSizePixel=0,Position=UDim2.fromOffset(-4,-4),Size=UDim2.new(1,8,1,8),ZIndex=301,Parent=ring})
+corner(glow,12)
+local glowStroke=stroke(glow,nil,0.7,4)
+Theme.bind(glowStroke,"Color","accent")
+local panel=create("Frame",{Name="Panel",BorderSizePixel=0,Size=UDim2.fromOffset(PANEL,0),AutomaticSize=Enum.AutomaticSize.Y,ZIndex=302,Parent=overlay})
+create("UIScale",{Scale=scale,Parent=panel})
+Theme.bind(panel,"BackgroundColor3","card")
+corner(panel,10)
+Theme.bind(stroke(panel),"Color","buttonEdge")
+Util.padding(panel,14,14,12,12)
+Util.list(panel,6)
+local head=create("Frame",{Name="Head",BackgroundTransparency=1,Size=UDim2.new(1,0,0,18),LayoutOrder=1,ZIndex=302,Parent=panel})
+local titleLabel=label(head,"",11,{Name="Title",Size=UDim2.new(1,-24,1,0),Font=Enum.Font.GothamMedium,ZIndex=303})
+Theme.bind(titleLabel,"TextColor3","heading")
+local skip=create("TextButton",{Name="Skip",Text="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,4,0.5,0),Size=UDim2.fromOffset(20,20),ZIndex=303,Parent=head})
+local skipIcon=Icons.themed(skip,"x",12,"muted",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),ZIndex=304})
+local text=label(panel,"",10,{Name="Text",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top,TextTruncate=Enum.TextTruncate.None,LayoutOrder=2,ZIndex=303})
+Theme.bind(text,"TextColor3","text")
+local foot=create("Frame",{Name="Foot",BackgroundTransparency=1,Size=UDim2.new(1,0,0,24),LayoutOrder=3,ZIndex=302,Parent=panel})
+local counter=label(foot,"",9,{Name="Counter",Size=UDim2.new(0,60,1,0),ZIndex=303})
+Theme.bind(counter,"TextColor3","muted")
+local function footButton(name,primary,x)
+local button=create("TextButton",{
+Name=name,Text=name,TextSize=9,Font=Enum.Font.GothamMedium,AutoButtonColor=false,BorderSizePixel=0,
+AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,x,0.5,0),Size=UDim2.fromOffset(Util.textWidth(name,9,Enum.Font.GothamMedium)+20,22),ZIndex=303,Parent=foot,
+})
+corner(button,6)
+local edge=stroke(button)
+Theme.bind(button,"BackgroundColor3",primary and"accent"or"input")
+Theme.bind(button,"TextColor3",primary and"onAccent"or"text")
+Theme.bind(edge,"Color",primary and"accent"or"buttonEdge")
+return button
+end
+local nextButton=footButton("Next",true,0)
+local backButton=footButton("Back",false,-(nextButton.Size.X.Offset+6))
+local function wrapHeight(value,size,width)
+local lines,line=0,""
+for paragraph in(tostring(value).."\n"):gmatch("(.-)\n")do
+line=""
+lines=lines+1
+for word in paragraph:gmatch("%S+")do
+local try=line==""and word or(line.." "..word)
+if line~=""and Util.textWidth(try,size,Enum.Font.Gotham)>width then
+lines=lines+1
+line=word
+else
+line=try
+end
+end
+end
+return math.max(1,lines)*(size+4)
+end
+local function rectOf(object)
+local p,s=object.AbsolutePosition,object.AbsoluteSize
+if s.X>0 and s.Y>0 then return p,s end
+local x1,y1,x2,y2
+for _,child in ipairs(object:GetChildren())do
+if child:IsA("GuiObject")and child.Visible and child.AbsoluteSize.X>0 then
+local cp,cs=child.AbsolutePosition,child.AbsoluteSize
+x1=math.min(x1 or cp.X,cp.X)
+y1=math.min(y1 or cp.Y,cp.Y)
+x2=math.max(x2 or cp.X+cs.X,cp.X+cs.X)
+y2=math.max(y2 or cp.Y+cs.Y,cp.Y+cs.Y)
+end
+end
+if not x1 then return p,s end
+return Vector2.new(x1,y1),Vector2.new(x2-x1,y2-y1)
+end
+local current
+local function place()
+if not alive then return end
+local viewport=Util.viewport()
+local object=current and guiOf(window,current.Target)
+local x,y,w,h
+local p,s
+if object and object.Parent then p,s=rectOf(object)end
+if s and s.X>0 then
+x,y,w,h=p.X-PAD,p.Y-PAD,s.X+PAD*2,s.Y+PAD*2
+else
+x,y,w,h=viewport.X/2,viewport.Y/2,0,0
+end
+ring.Visible=w>0
+ring.Position,ring.Size=UDim2.fromOffset(x,y),UDim2.fromOffset(w,h)
+panes[1].Position,panes[1].Size=UDim2.fromOffset(0,0),UDim2.new(1,0,0,math.max(0,y))
+panes[2].Position,panes[2].Size=UDim2.fromOffset(0,y+h),UDim2.new(1,0,1,-(y+h))
+panes[3].Position,panes[3].Size=UDim2.fromOffset(0,y),UDim2.fromOffset(math.max(0,x),h)
+panes[4].Position,panes[4].Size=UDim2.fromOffset(x+w,y),UDim2.new(1,-(x+w),0,h)
+local pw=PANEL*scale
+local ph=math.max(panel.AbsoluteSize.Y,(24+18+6+text.Size.Y.Offset+6+24)*scale)
+local px,py
+local rightHalf=x+w/2>viewport.X/2
+local alignX=rightHalf and(x+w-pw)or x
+if w==0 then
+px,py=x-pw/2,y-ph/2
+elseif h>w*2 and(rightHalf and x-10-pw>=8 or x+w+10+pw<=viewport.X-8)then
+px=rightHalf and x-10-pw or x+w+10
+py=math.clamp(y+h/2-ph/2,y,y+h-ph)
+elseif y+h+10+ph<=viewport.Y-8 then
+px,py=alignX,y+h+10
+elseif y-10-ph>=8 then
+px,py=alignX,y-10-ph
+elseif not rightHalf and x+w+10+pw<=viewport.X-8 then
+px,py=x+w+10,y
+else
+px,py=x-10-pw,y
+end
+px=math.clamp(px,8,math.max(8,viewport.X-pw-8))
+py=math.clamp(py,8,math.max(8,viewport.Y-ph-8))
+panel.Position=UDim2.fromOffset(px,py)
+end
+local function show(index)
+index=math.clamp(index,1,#steps)
+tour.Index=index
+current=steps[index]
+if current.Target~=nil then reveal(window,current.Target)end
+titleLabel.Text=tostring(current.Title or"")
+text.Text=tostring(current.Text or"")
+text.AutomaticSize=Enum.AutomaticSize.None
+text.Size=UDim2.new(1,0,0,wrapHeight(text.Text,10,PANEL-30))
+counter.Text=string.format("%d / %d",index,#steps)
+nextButton.Text=index==#steps and"Done"or"Next"
+nextButton.Size=UDim2.fromOffset(Util.textWidth(nextButton.Text,9,Enum.Font.GothamMedium)+20,22)
+backButton.Position=UDim2.new(1,-(nextButton.Size.X.Offset+6),0.5,0)
+backButton.Visible=index>1
+if type(current.OnShow)=="function"then window:_safe("Tour",current.OnShow)end
+place()
+task.defer(place)
+end
+local connections={}
+function tour:Close(completed)
+if not alive then return end
+alive=false
+for _,connection in ipairs(connections)do connection:Disconnect()end
+overlay:Destroy()
+window._tour=nil
+if completed~=nil then pcall(window._state,window,"tour:"..id,true)end
+if opts.OnFinish then window:_safe("Tour",opts.OnFinish,completed==true)end
+end
+function tour:Next()if tour.Index>=#steps then tour:Close(true)else show(tour.Index+1)end end
+function tour:Back()if tour.Index>1 then show(tour.Index-1)end end
+function tour:Go(index)show(tonumber(index)or 1)end
+nextButton.Activated:Connect(function()require("sounds").Play("click")tour:Next()end)
+backButton.Activated:Connect(function()require("sounds").Play("click")tour:Back()end)
+skip.Activated:Connect(function()tour:Close(false)end)
+skip.MouseEnter:Connect(function()if skipIcon then Theme.tweenTo(skipIcon,"ImageColor3","heading",0.1)end end)
+skip.MouseLeave:Connect(function()if skipIcon then Theme.tweenTo(skipIcon,"ImageColor3","muted",0.1)end end)
+connections[#connections+1]=self.maid:connect(Util.Services.RunService.Heartbeat,place)
+connections[#connections+1]=self.maid:connect(Util.Services.UserInputService.InputBegan,function(input,processed)
+if not alive or processed then return end
+local key=input.KeyCode
+if key==Enum.KeyCode.Escape then tour:Close(false)
+elseif key==Enum.KeyCode.Right or key==Enum.KeyCode.Return then tour:Next()
+elseif key==Enum.KeyCode.Left then tour:Back()end
+end)
+self._tour=tour
+show(1)
+return tour
+end
+end
 end
 __modules["util"]=function()
 local Util={}
@@ -8263,6 +8719,38 @@ local transparency=selected and 0 or(self.hovered and 0.6 or 1)
 if duration then tween(self.button,duration,{BackgroundTransparency=transparency})else self.button.BackgroundTransparency=transparency end
 Theme.tweenTo(self.icon,self.iconProperty,selected and"accent"or(self.hovered and"heading"or"icon"),duration)
 end
+function Tab:SetBadge(value,color)
+local shown=value~=nil and value~=false and value~=0 and tostring(value)~=""and tostring(value)~="0"
+self.Badge=shown and value or nil
+if not shown then
+if self._badge then self._badge.Visible=false end
+return
+end
+local badge=self._badge
+if not badge then
+badge=create("Frame",{Name="Badge",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,2,0,-1),BorderSizePixel=0,ZIndex=45,Parent=self.button})
+corner(badge,7)
+local text=label(badge,"",8,{Name="Text",Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamBold,ZIndex=46})
+local ring=Util.stroke(badge,nil,0,1.5)
+Theme.bind(ring,"Color","dock")
+self._badge,self._badgeText=badge,text
+end
+local role=color or"accent"
+Theme.bind(badge,"BackgroundColor3",role)
+Theme.bind(self._badgeText,"TextColor3",role=="accent"and"onAccent"or"heading")
+if value==true then
+self._badgeText.Text=""
+badge.Size=UDim2.fromOffset(8,8)
+badge.Position=UDim2.new(1,0,0,1)
+else
+local text=tostring(value)
+if tonumber(value)and tonumber(value)>99 then text="99+"end
+self._badgeText.Text=text
+badge.Size=UDim2.fromOffset(math.max(14,Util.textWidth(text,8,Enum.Font.GothamBold)+8),14)
+badge.Position=UDim2.new(1,3,0,-2)
+end
+badge.Visible=true
+end
 function Tab:Page(name,cfg)
 local page=Page.new(self,tostring(name or("Page "..(#self.Pages+1))),cfg)
 self.Pages[#self.Pages+1]=page
@@ -8308,6 +8796,7 @@ width=size.X,height=size.Y,
 minSize=cfg.MinSize or Vector2.new(400,300),maxSize=cfg.MaxSize or Vector2.new(920,660),
 key=cfg.ToggleKey or Enum.KeyCode.RightShift,visible=true,folded=false,alive=true,
 },Window)
+task.delay(3,function()self._keysSettled=true end)
 local env=(getgenv and getgenv())or _G
 env.__QustahUIWindows=env.__QustahUIWindows or{}
 local previous=env.__QustahUIWindows[self.Title]
@@ -8832,7 +9321,60 @@ self._checkingDependents=false
 end
 function Window:_bind(element,key)
 self.binds[element]=key
+if not self._keyCheckQueued then
+self._keyCheckQueued=true
+task.defer(function()
+self._keyCheckQueued=false
+if self.alive~=false then self:_checkKeys()end
+end)
 end
+end
+function Window:_checkKeys()
+local groups={}
+for element,key in pairs(self.binds)do
+if element.Row and not element.Row.Parent then
+self.binds[element]=nil
+elseif key~=nil and not(element.Chord and element.Chord[1]~=nil)
+and not(type(element.Flag)=="string"and element.Flag:sub(1,2)=="__")then
+groups[key]=groups[key]or{}
+table.insert(groups[key],element)
+end
+end
+local conflicts,seen={},{}
+for key,list in pairs(groups)do
+local menu=key==self.key
+if#list>1 or menu then
+local names={}
+for _,element in ipairs(list)do names[#names+1]=tostring(element.Title or element.Type or"Key")end
+if menu then names[#names+1]="Menu"end
+table.sort(names)
+conflicts[Util.keyName(key)]=names
+for _,element in ipairs(list)do
+local others={}
+local own=tostring(element.Title or element.Type or"Key")
+local skipped=false
+for _,name in ipairs(names)do
+if name==own and not skipped then skipped=true else others[#others+1]=name end
+end
+seen[element]=true
+if element._setConflict then pcall(element._setConflict,element,others)end
+end
+end
+end
+for element in pairs(self.binds)do
+if not seen[element]and element.KeyConflict and element._setConflict then pcall(element._setConflict,element,nil)end
+end
+local before=self._keyConflicts or{}
+if self._keysSettled then
+for keyName,names in pairs(conflicts)do
+if not before[keyName]or#before[keyName]<#names then
+self:Notify({Title="Key conflict",Content=keyName.." is used by "..table.concat(names," and "),Icon="triangle-alert",Color="warning",History=false})
+end
+end
+end
+self._keyConflicts=conflicts
+end
+function Window:GetKeyConflicts()return self._keyConflicts or{}end
 function Window:Tab(cfg)
 if type(cfg)=="string"then cfg={Title=cfg}end
 local tab=Tab.new(self,cfg or{})
@@ -8924,6 +9466,12 @@ end
 function hint:Get()return self.Value end
 function hint:SetTitle(text)caption.Text=tostring(text)end
 function hint:_onBind()window:_safe(tostring(cfg.Title or"Key"),cfg.Pressed,self.Value)end
+function hint:_setConflict(others)
+local on=others~=nil and#others>0
+self.KeyConflict=on and others or nil
+Theme.bind(badge,"TextColor3",on and"warning"or"text")
+Theme.bind(outline,"Color",on and"warning"or"line")
+end
 function hint:_save()return self.Value and self.Value.Name or"None"end
 function hint:_load(value)self:Set(value)end
 badge.MouseEnter:Connect(function()Util.tween(outline,0.12,{Transparency=0.1})end)
@@ -8954,6 +9502,7 @@ for _,listener in ipairs(self._menuListeners or{})do Util.safe(listener,self.key
 return
 end
 self.key=key
+task.defer(function()if self.alive then self:_checkKeys()end end)
 if self.menuHint and self.menuHint.Value~=key then self.menuHint:Set(key,true)end
 for _,listener in ipairs(self._menuListeners or{})do Util.safe(listener,key)end
 end
@@ -9176,6 +9725,7 @@ if blur then self:SetBlur(true,tonumber(cfg.BlurSize))end
 self.maid:give(function()self.blur=false self:_applyBlur()end)
 self:_welcome()
 self:_changelog()
+if self._autoTour then self:_autoTour()end
 end
 end
 end

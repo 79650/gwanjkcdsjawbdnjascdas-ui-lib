@@ -1,5 +1,7 @@
--- card:Input({ Title, Desc, Flag, Default, Placeholder, Numeric, ClearOnFocus, Finished, Callback, Locked })
+-- card:Input({ Title, Desc, Flag, Default, Placeholder, Numeric, ClearOnFocus, Finished, Validate, Callback, Locked })
 -- Callback runs when the box loses focus (with Finished = false it runs on every change).
+-- Validate = function(text) return ok, message end: checked while typing. ok = true: green edge, false: red edge and
+-- the value is not taken (the flag keeps the last good one), nil: no judgement. The message shows under the box.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -7,12 +9,13 @@ local Base = require("elements/base")
 local create, corner, stroke = Util.create, Util.corner, Util.stroke
 
 return function(card, cfg)
-    local row, title, desc = Base.row(card, cfg, cfg.Desc and 40 or 30, { right = 160 })
+    local baseHeight = cfg.Desc and 40 or 30
+    local row, title, desc = Base.row(card, cfg, baseHeight, { right = 160 })
     -- the title takes the left half, the box the right half (up to 170 px)
     title.Size = UDim2.new(0.55, -8, 0, title.Size.Y.Offset)
     if desc then desc.Size = UDim2.new(0.55, -8, 0, 14) end
     local box = create("TextBox", {
-        Name = "Box", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(0.45, 0, 0, 24),
+        Name = "Box", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0, baseHeight / 2), Size = UDim2.new(0.45, 0, 0, 24),
         BorderSizePixel = 0, Text = "", PlaceholderText = tostring(cfg.Placeholder or ""), TextSize = 10, Font = Enum.Font.Gotham,
         TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = cfg.ClearOnFocus == true, ClipsDescendants = true,
         TextTruncate = Enum.TextTruncate.AtEnd, Parent = row,
@@ -68,15 +71,61 @@ return function(card, cfg)
     function element:Get() return self.Value end
     function element:SetPlaceholder(text) box.PlaceholderText = tostring(text or "") fit() end
 
-    box.Focused:Connect(function() Theme.tweenTo(outline, "Color", "accent", 0.1) end)
+    ------------------------------------------------------------ Validate
+    local focused = false
+    local hint
+    local state -- true / false / nil (last Validate result)
+    local function edgeRole()
+        if state == false then return "danger" end -- (a red edge stays until the text is fixed)
+        if not focused then return "buttonEdge" end
+        return state == true and "success" or "accent"
+    end
+    -- returns ok (true / false / nil) and shows it: edge colour + the message under the box
+    local function validate(text)
+        if type(cfg.Validate) ~= "function" then return nil end
+        local ok, result, message = pcall(cfg.Validate, clean(text))
+        if not ok then result, message = nil, nil end
+        if clean(text) == "" and result == nil then message = nil end
+        state = result
+        element.Valid = result
+        Theme.tweenTo(outline, "Color", edgeRole(), 0.1)
+        local show = message ~= nil and tostring(message) ~= ""
+        if show and not hint then
+            hint = Util.label(row, "", 9, { Name = "Hint", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -2, 0, baseHeight - 1), Size = UDim2.new(1, -4, 0, 13), TextXAlignment = Enum.TextXAlignment.Right })
+        end
+        if hint then
+            hint.Visible = show
+            hint.Text = show and tostring(message) or ""
+            Theme.bind(hint, "TextColor3", result == true and "success" or (result == false and "danger" or "muted"))
+        end
+        row.Size = UDim2.new(1, 0, 0, baseHeight + (show and 13 or 0))
+        return result
+    end
+    element.Validate = function(_, text) return validate(text == nil and box.Text or text) end
+
+    box.Focused:Connect(function() focused = true Theme.tweenTo(outline, "Color", edgeRole(), 0.1) end)
     box.FocusLost:Connect(function()
-        Theme.tweenTo(outline, "Color", "buttonEdge", 0.1)
+        focused = false
+        if validate(box.Text) == false then
+            -- not taken: the value stays the last good one, the box keeps the text and the red hint
+            Theme.tweenTo(outline, "Color", edgeRole(), 0.1)
+            return
+        end
+        Theme.tweenTo(outline, "Color", edgeRole(), 0.1)
+        -- a good value: its message goes away with the focus
+        if hint and state ~= false then hint.Visible = false row.Size = UDim2.new(1, 0, 0, baseHeight) end
         element:Set(box.Text)
     end)
+    if cfg.Validate then
+        box:GetPropertyChangedSignal("Text"):Connect(function() if focused then validate(box.Text) end end)
+    end
     if cfg.Finished == false then
-        box:GetPropertyChangedSignal("Text"):Connect(function() element:Set(box.Text) end)
+        box:GetPropertyChangedSignal("Text"):Connect(function()
+            if validate(box.Text) ~= false then element:Set(box.Text) end
+        end)
     end
     element:Set(cfg.Default or "", true)
+    if cfg.Validate and element.Value ~= "" then validate(element.Value) end
     if cfg.Locked then box.TextEditable = false end
     return Base.finish(element, cfg)
 end

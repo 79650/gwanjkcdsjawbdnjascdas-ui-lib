@@ -26,6 +26,7 @@ return function(card, cfg)
     Theme.bind(outline, "Color", "buttonEdge")
 
     local element = Base.element(card, "Keybind", cfg, row, title, desc)
+    element._keyLabel, element._keyStroke = badge, outline -- (yellow on a key conflict)
     local function show(text)
         badge.Text = text
         local width = math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18)

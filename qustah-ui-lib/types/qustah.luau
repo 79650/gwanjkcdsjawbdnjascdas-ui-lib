@@ -112,7 +112,7 @@ export type Container = {
 	Checkbox: (self: Container, cfg: ElementConfig & { Default: boolean?, Callback: Callback<boolean>? }) -> Element<boolean>,
 	Slider: (self: Container, cfg: ElementConfig & { Min: number?, Max: number?, Default: number?, Step: number?, Suffix: string?, Callback: ((value: number, dragging: boolean?) -> ())?, Icons: { From: string?, To: string? }?, Bubble: boolean? }) -> Slider,
 	Stepper: (self: Container, cfg: ElementConfig & { Min: number?, Max: number?, Step: number?, Default: number?, Suffix: string?, Callback: Callback<number>? }) -> Slider,
-	TextArea: (self: Container, cfg: ElementConfig & { Placeholder: string?, Default: string?, Height: number?, MaxLength: number?, Finished: boolean?, Callback: Callback<string>? }) -> Element<string>,
+	TextArea: (self: Container, cfg: ElementConfig & { Placeholder: string?, Default: string?, Height: number?, MaxLength: number?, Finished: boolean?, Validate: ((text: string) -> (boolean?, string?))?, Callback: Callback<string>? }) -> Element<string> & { Valid: boolean? },
 	Range: (self: Container, cfg: ElementConfig & { Min: number?, Max: number?, Default: { number }?, Step: number?, Suffix: string?, MinGap: number?, Callback: Callback<{ number }>? }) -> Element<{ number }>,
 	Dropdown: (self: Container, cfg: ElementConfig & { Options: { any } | { [string]: string }, Default: any?, Multi: boolean?, AllowNone: boolean?, Search: boolean?, DragSelect: boolean?, Callback: Callback<any>? }) -> Dropdown,
 	Segment: (self: Container, cfg: ElementConfig & { Options: { string }, Default: string?, Callback: Callback<string>? }) -> Element<string>,
@@ -151,6 +151,8 @@ export type Container = {
 	Tabs: (self: Container, names: { string }, cfg: { Default: string?, Callback: Callback<string>? }?) -> ({ [string]: Container }, any),
 	Section: (self: Container, cfg: string | { Title: string?, Icon: string?, Desc: string?, Opened: boolean?, DependsOn: Dependency? }) -> Container & { SetOpen: (self: any, open: boolean) -> (), ToggleOpen: (self: any) -> () },
 	Row: (self: Container, cfg: { Gap: number?, Widths: { number }? }?) -> Container,
+	Presets: (self: Container, list: { any }, cfg: { Custom: boolean?, Callback: Callback<string>? }?) -> {
+		Select: (self: any, name: string) -> (), Get: (self: any) -> string?, Add: (self: any, name: string, values: { [string]: any }) -> () },
 	Group: (self: Container, cfg: string | { Title: string? }) -> Container,
 }
 
@@ -188,6 +190,7 @@ export type Tab = {
 	Page: (self: Tab, name: string, cfg: { Columns: number?, Warning: string? }?) -> Page,
 	Card: (self: Tab, cfg: CardConfig?) -> Card,
 	Select: (self: Tab) -> (),
+	SetBadge: (self: Tab, value: (number | string | boolean)?, color: Paint?) -> (),
 }
 
 export type NotifyConfig = {
@@ -289,6 +292,10 @@ export type Window = {
 	SetAnonymous: (self: Window, on: boolean) -> (),
 	SetMouseUnlock: (self: Window, on: boolean) -> (),
 	ShowChangelog: (self: Window) -> any,
+	Tour: (self: Window, steps: { { Target: any?, Title: string?, Text: string?, OnShow: (() -> ())? } }?, opts: { Id: string?, Once: boolean?, Force: boolean?, OnFinish: ((completed: boolean) -> ())? }?) -> any,
+	HasSeenTour: (self: Window, id: string?) -> boolean,
+	ResetTour: (self: Window, id: string?) -> (),
+	GetKeyConflicts: (self: Window) -> { [string]: { string } },
 	Destroy: (self: Window) -> (),
 }
 
@@ -331,6 +338,9 @@ export type WindowConfig = {
 	Rejoin: boolean?,
 	RejoinDelay: number?,
 	Secure: boolean?,
+	Tour: (boolean | { any })?,
+	TourDelay: number?,
+	TourId: string?,
 	Changelog: { Version: string?, Title: string?, Content: string?, Items: { string }?, Button: string?, Delay: number? }?,
 	KeySystem: {
 		Keys: { string }?,

@@ -224,5 +224,6 @@ return function(Window)
         self.maid:give(function() self.blur = false self:_applyBlur() end)
         self:_welcome()
         self:_changelog()
+        if self._autoTour then self:_autoTour() end
     end
 end

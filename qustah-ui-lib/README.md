@@ -110,7 +110,7 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 ---
 
-**Documentation:** [Window](#window) · [Tabs, pages and cards](#tabs-pages-and-cards) · [Elements](#elements) · [Flags](#flags) · [Notifications](#notifications) · [Dialogs](#dialogs) · [Configs and profiles](#configs-and-profiles) · [Built-in tabs](#built-in-tabs) · [Overlays](#overlays) · [Themes](#themes) · [Icons](#icons) · [Status, errors and kicks](#status-errors-and-kicks) · [Window extras](#window-extras) · [Key system](#key-system) · [Changelog](#changelog) · [Secure mode](#secure-mode) · [Development](#development)
+**Documentation:** [Window](#window) · [Tabs, pages and cards](#tabs-pages-and-cards) · [Elements](#elements) · [Flags](#flags) · [Notifications](#notifications) · [Dialogs](#dialogs) · [Configs and profiles](#configs-and-profiles) · [Built-in tabs](#built-in-tabs) · [Overlays](#overlays) · [Themes](#themes) · [Icons](#icons) · [Status, errors and kicks](#status-errors-and-kicks) · [Window extras](#window-extras) · [Key system](#key-system) · [Tour](#tour) · [Changelog](#changelog) · [Secure mode](#secure-mode) · [Development](#development)
 
 ## Window
 
@@ -150,6 +150,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Sounds` | `false` | soft UI clicks (`Lib.Sounds`) |
 | `KeySystem` | — | key screen before the window opens ([Key system](#key-system)) |
 | `Changelog` | — | "What's new" dialog, shown once per version ([Changelog](#changelog)) |
+| `Tour`, `TourDelay` | `false`, `2.5` | first-run guide, once per account: `true` for the built-in steps or your own list ([Tour](#tour)) |
 | `OnClose` | — | function that runs when the window is destroyed |
 
 | Method | |
@@ -180,6 +181,7 @@ local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both c
 - `Divider = true` puts a line above the tab.
 - `Header = true` also shows the tab as a text tab in the header.
 - `Tab:Card()` adds a card to the first page without creating one.
+- `tab:SetBadge(3)` puts a number on the tab's dock icon (`"NEW"`, `true` for a dot, `0` / `nil` hides it; a second argument picks the colour, e.g. `"danger"`).
 - `Build = function(tab) ... end`: the tab's content is made later, so a big script starts faster. It builds itself 1.5 s after start (its key binds work without opening it); `BuildDelay = false` waits until the tab is opened. `Window:BuildAll()` builds every lazy tab now.
 
 **Pages**
@@ -207,6 +209,19 @@ row:Button({ Title = "Stop", Icon = "square" })
 
 local group = Card:Group({ Title = "Server" })             -- boxed group
 group:Info({ Title = "Region", Value = "EU" })
+```
+
+**Presets.** Chips in the card header that set several flags at once. The chip that matches the current values lights up by itself; once you change something by hand, **Custom** lights up instead. Going from Custom to a preset remembers your values, so clicking Custom brings them back.
+
+<p align="center"><img src="assets/screens/features.png" alt="Card presets, key conflict, input validation and tab badges" width="720"></p>
+
+```lua
+local presets = Aim:Presets({
+    { "Legit", { fov = 80,  smooth = 0.6, prediction = false } },
+    { "Rage",  { fov = 400, smooth = 0,   prediction = true } },
+}, { Callback = function(name) print(name) end })   -- Custom = false hides the Custom chip
+
+presets:Select("Rage")    presets:Get()    presets:Add("Off", { fov = 0 })
 ```
 
 ---
@@ -338,6 +353,8 @@ Card:Keybind({ Title = "Hold to aim", Default = Enum.KeyCode.E, Mode = "Hold",
 
 Click the badge, then press a key (Backspace clears, Esc cancels). `Callback` runs when the key changes. `Pressed` runs on every press.
 
+**Key conflicts.** When two binds (toggles, buttons, keybinds, key hints) use the same key, or one uses the menu key, their key tags turn yellow and hovering one says what else uses the key. A conflict made after the start also shows a notification. `Window:GetKeyConflicts()` returns `{ [key] = { titles } }`.
+
 ### ColorPicker, Gradient and Swatches
 
 ```lua
@@ -362,6 +379,12 @@ The picker has a saturation square, a hue bar, a HEX box, Random and Rainbow. It
 Card:Input({ Title = "Target", Flag = "target", Placeholder = "player name", Numeric = false,
     Finished = true,                          -- false: the callback runs on every keystroke
     Callback = function(text) end })
+
+Card:Input({ Title = "Job ID", Flag = "job", Placeholder = "paste id",
+    Validate = function(text)                 -- checked while typing: true = green edge, false = red edge + message
+        if text == "" then return nil end
+        return #text >= 8, #text >= 8 and "Looks good" or "At least 8 characters"
+    end })                                    -- a wrong value is not taken: the flag keeps the last good one
 
 Card:TextArea({ Title = "Auto chat message", Flag = "chat", Placeholder = "gg", Height = 80, MaxLength = 200,
     Callback = function(text) end })         -- multi-line; a "12 / 200" counter with MaxLength
@@ -656,7 +679,7 @@ Window:SettingsTab()                                                            
 
 **Settings › Profiles:** see [Configs and profiles](#configs-and-profiles).
 
-**Settings › Info:** versions, secure mode state, kick list, modules, errors (Debug mode, Copy report, Clear).
+**Settings › Info:** versions, secure mode state, kick list, modules, errors (Debug mode, Copy report, Clear), "What's new" and "Show the tour" when those are set.
 
 ## Overlays
 
@@ -797,6 +820,26 @@ local Window = Lib:CreateWindow({
 - A wrong key shakes the box and says why; `Check` can return its own message (e.g. "Key expired").
 - Closing the key screen stops the script (`OnCancel` runs first).
 - `Lib:ForgetKey("Folder")` deletes the saved key.
+
+## Tour
+
+A first-run guide: the screen dims except one part of the menu, and a small card explains it (Next, Back, Skip; the arrow keys and Escape work too).
+
+<p align="center"><img src="assets/screens/tour.png" alt="Tour step highlighting the Settings tab" width="640"></p>
+
+```lua
+Lib:CreateWindow({ Title = "Qustāh", Tour = true })   -- built-in steps (tabs, header, menu key, settings, status), once per account
+
+Window:Tour({
+    { Target = espToggle, Title = "ESP", Text = "Turn ESP on here." },            -- an element, card, tab or GuiObject
+    { Target = "settings", Title = "Settings", Text = "Profiles and themes." },    -- "dock", "header", "footer", "menuKey", "status", "bell", "close"
+    { Title = "Done", Text = "Have fun!" },                                         -- no Target: a card in the middle
+}, { Id = "v2", Once = true, OnFinish = function(completed) end })
+
+Window:HasSeenTour("v2")    Window:ResetTour("v2")
+```
+
+The tab and page of a target open by themselves, and a long page scrolls to it. With `Tour` set, Settings › Info gets a "Show the tour" button.
 
 ## Changelog
 

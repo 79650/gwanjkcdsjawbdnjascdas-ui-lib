@@ -228,6 +228,147 @@ function Card:Tabs(names, cfg)
     return sections, selector
 end
 
+-- card:Presets({ { "Legit", { fov = 80, smooth = 0.4 } }, { "Rage", { fov = 400, smooth = 0 } } }, { Custom = true, Callback })
+-- Chips in the card header (or at the top of the card when the header is taken): a click sets every flag of that
+-- preset. The chip that matches the current values lights up by itself; when nothing matches, "Custom" does.
+-- Going from Custom to a preset remembers your values: clicking Custom brings them back.
+-- Also takes a name -> values table (sorted by name). Returns { Select(name), Get() -> name or "Custom", Add(name, values) }.
+local function same(a, b)
+    if type(a) == "number" and type(b) == "number" then return math.abs(a - b) < 1e-6 end
+    if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+    for key, value in pairs(a) do if not same(value, b[key]) then return false end end
+    for key in pairs(b) do if a[key] == nil then return false end end
+    return true
+end
+function Card:Presets(list, cfg)
+    cfg = cfg or {}
+    local window = self.window
+    local presets = {}
+    if type(list) == "table" and list[1] ~= nil then
+        for _, entry in ipairs(list) do
+            local name = entry.Name or entry[1]
+            local values = entry.Values or entry[2]
+            if name ~= nil and type(values) == "table" then presets[#presets + 1] = { name = tostring(name), values = values } end
+        end
+    elseif type(list) == "table" then
+        for name, values in pairs(list) do
+            if type(values) == "table" then presets[#presets + 1] = { name = tostring(name), values = values } end
+        end
+        table.sort(presets, function(a, b) return a.name < b.name end)
+    end
+    local holder
+    local inHeader = self.titleLabel and not self.titleLabel.Parent:FindFirstChild("Tabs") and not self.titleLabel.Parent:FindFirstChild("Presets")
+    if inHeader then
+        holder = create("Frame", { Name = "Presets", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, self._chevron and -20 or 0, 0, 1), Size = UDim2.new(0.65, self._chevron and -20 or 0, 0, 18), Parent = self.titleLabel.Parent })
+        self.titleLabel.Size = UDim2.new(0.35, -13, 1, 0)
+    else
+        holder = create("Frame", { Name = "Presets", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = self:_order(), Parent = self.body })
+    end
+    local layout = Util.list(holder, 4, Enum.FillDirection.Horizontal)
+    layout.HorizontalAlignment = inHeader and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Left
+    local chips = {}
+    local selector = { Presets = presets }
+    local current, applying, custom = nil, false, nil
+    local showCustom = cfg.Custom ~= false
+
+    local function flags(values)
+        local out = {}
+        for flag in pairs(values) do out[#out + 1] = flag end
+        return out
+    end
+    -- the preset whose every value matches the flags now
+    local function match()
+        for _, preset in ipairs(presets) do
+            local all = true
+            for flag, value in pairs(preset.values) do
+                if not same(window.Lib.Flags[flag], value) then all = false break end
+            end
+            if all then return preset.name end
+        end
+        return "Custom"
+    end
+    local function render()
+        for name, chip in pairs(chips) do
+            local on = name == current
+            Theme.tweenTo(chip, "BackgroundColor3", on and "selected" or "input", 0.1)
+            Theme.tweenTo(chip, "TextColor3", on and "heading" or "muted", 0.1)
+            local stroke_ = chip:FindFirstChildWhichIsA("UIStroke")
+            if stroke_ then Theme.bind(stroke_, "Color", on and "accent" or "buttonEdge") stroke_.Transparency = on and 0.4 or 0.6 end
+        end
+    end
+    local function refresh()
+        if applying then return end
+        local now = match()
+        if now ~= current then
+            local before = current
+            current = now
+            render()
+            if before ~= nil and cfg.Callback then window:_safe("Presets", cfg.Callback, now) end
+        end
+    end
+    local function chip(name, order)
+        local button = create("TextButton", {
+            Name = name, AutoButtonColor = false, BorderSizePixel = 0, Text = name, TextSize = 9, Font = Enum.Font.GothamMedium,
+            Size = UDim2.fromOffset(Util.textWidth(name, 9, Enum.Font.GothamMedium) + 16, 18), LayoutOrder = order, Parent = holder,
+        })
+        corner(button, 9)
+        stroke(button, nil, 0.6)
+        chips[name] = button
+        button.Activated:Connect(function() require("sounds").Play("click") selector:Select(name) end)
+        return button
+    end
+
+    function selector:Select(name)
+        name = tostring(name)
+        if name == "Custom" then
+            if custom then
+                applying = true
+                for flag, value in pairs(custom) do window:SetFlag(flag, value) end
+                applying = false
+            end
+            refresh()
+            return
+        end
+        for _, preset in ipairs(presets) do
+            if preset.name == name then
+                -- leaving your own values: keep them for the Custom chip
+                if current == "Custom" then
+                    custom = {}
+                    for _, other in ipairs(presets) do
+                        for _, flag in ipairs(flags(other.values)) do custom[flag] = window.Lib.Flags[flag] end
+                    end
+                end
+                applying = true
+                for flag, value in pairs(preset.values) do window:SetFlag(flag, value) end
+                applying = false
+                refresh()
+                return
+            end
+        end
+    end
+    function selector:Get() return current end
+    function selector:Add(name, values)
+        if type(values) ~= "table" then return end
+        presets[#presets + 1] = { name = tostring(name), values = values }
+        chip(tostring(name), #presets)
+        if chips.Custom then chips.Custom.LayoutOrder = #presets + 1 end
+        current = nil
+        refresh()
+    end
+
+    for index, preset in ipairs(presets) do chip(preset.name, index) end
+    if showCustom then chip("Custom", #presets + 1) end
+    -- follow the flags: any change re-checks which preset matches (drops out when the card is gone)
+    window._dependents = window._dependents or {}
+    table.insert(window._dependents, function()
+        if not holder.Parent then return false end
+        refresh()
+        return true
+    end)
+    task.defer(refresh)
+    return selector
+end
+
 -- A pseudo-card: elements go into `body`, ordering is its own.
 local function sub(card, body)
     return setmetatable({ page = card.page, window = card.window, order = 0, body = body, frame = card.frame, title = card.title }, Card)

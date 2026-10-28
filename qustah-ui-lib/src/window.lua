@@ -247,6 +247,42 @@ function Tab:_render(animate)
 end
 
 -- Tab:Page("Overview") adds a sub-page; with two or more pages the strip of page names appears.
+-- tab:SetBadge(3) / ("NEW") / (true) a dot / (nil, 0, false) hides it; color: a theme role or Color3 (default "accent").
+-- A small tag on the tab's dock button (new messages, an error, an update...).
+function Tab:SetBadge(value, color)
+    local shown = value ~= nil and value ~= false and value ~= 0 and tostring(value) ~= "" and tostring(value) ~= "0"
+    self.Badge = shown and value or nil
+    if not shown then
+        if self._badge then self._badge.Visible = false end
+        return
+    end
+    local badge = self._badge
+    if not badge then
+        badge = create("Frame", { Name = "Badge", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 2, 0, -1), BorderSizePixel = 0, ZIndex = 45, Parent = self.button })
+        corner(badge, 7)
+        local text = label(badge, "", 8, { Name = "Text", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold, ZIndex = 46 })
+        local ring = Util.stroke(badge, nil, 0, 1.5)
+        Theme.bind(ring, "Color", "dock")
+        self._badge, self._badgeText = badge, text
+    end
+    local role = color or "accent"
+    Theme.bind(badge, "BackgroundColor3", role)
+    Theme.bind(self._badgeText, "TextColor3", role == "accent" and "onAccent" or "heading")
+    if value == true then
+        -- a dot
+        self._badgeText.Text = ""
+        badge.Size = UDim2.fromOffset(8, 8)
+        badge.Position = UDim2.new(1, 0, 0, 1)
+    else
+        local text = tostring(value)
+        if tonumber(value) and tonumber(value) > 99 then text = "99+" end
+        self._badgeText.Text = text
+        badge.Size = UDim2.fromOffset(math.max(14, Util.textWidth(text, 8, Enum.Font.GothamBold) + 8), 14)
+        badge.Position = UDim2.new(1, 3, 0, -2)
+    end
+    badge.Visible = true
+end
+
 function Tab:Page(name, cfg)
     local page = Page.new(self, tostring(name or ("Page " .. (#self.Pages + 1))), cfg)
     self.Pages[#self.Pages + 1] = page
@@ -299,6 +335,8 @@ function Window.new(Lib, cfg)
         minSize = cfg.MinSize or Vector2.new(400, 300), maxSize = cfg.MaxSize or Vector2.new(920, 660),
         key = cfg.ToggleKey or Enum.KeyCode.RightShift, visible = true, folded = false, alive = true,
     }, Window)
+    -- key conflicts the script starts with are only marked; later ones also get a notification
+    task.delay(3, function() self._keysSettled = true end)
 
     -- Running the same script again replaces its old window instead of stacking a second one.
     local env = (getgenv and getgenv()) or _G
@@ -895,7 +933,66 @@ end
 
 function Window:_bind(element, key)
     self.binds[element] = key
+    -- one check for all bind changes in this frame
+    if not self._keyCheckQueued then
+        self._keyCheckQueued = true
+        task.defer(function()
+            self._keyCheckQueued = false
+            if self.alive ~= false then self:_checkKeys() end
+        end)
+    end
 end
+
+-- Key conflicts: two binds (toggles, buttons, keybinds, key hints) on the same key - or one on the menu key - are
+-- marked on each element (yellow key tag, "Key also used by ..." on hover). A conflict made after the start also
+-- gets a notification. Window:GetKeyConflicts() -> { [keyName] = { titles } }.
+function Window:_checkKeys()
+    local groups = {}
+    for element, key in pairs(self.binds) do
+        if element.Row and not element.Row.Parent then
+            self.binds[element] = nil
+        elseif key ~= nil and not (element.Chord and element.Chord[1] ~= nil)
+            and not (type(element.Flag) == "string" and element.Flag:sub(1, 2) == "__") then -- (Settings' own "Menu key" is the menu key)
+            groups[key] = groups[key] or {}
+            table.insert(groups[key], element)
+        end
+    end
+    local conflicts, seen = {}, {}
+    for key, list in pairs(groups) do
+        local menu = key == self.key
+        if #list > 1 or menu then
+            local names = {}
+            for _, element in ipairs(list) do names[#names + 1] = tostring(element.Title or element.Type or "Key") end
+            if menu then names[#names + 1] = "Menu" end
+            table.sort(names)
+            conflicts[Util.keyName(key)] = names
+            for _, element in ipairs(list) do
+                local others = {}
+                local own = tostring(element.Title or element.Type or "Key")
+                local skipped = false
+                for _, name in ipairs(names) do
+                    if name == own and not skipped then skipped = true else others[#others + 1] = name end
+                end
+                seen[element] = true
+                if element._setConflict then pcall(element._setConflict, element, others) end
+            end
+        end
+    end
+    for element in pairs(self.binds) do
+        if not seen[element] and element.KeyConflict and element._setConflict then pcall(element._setConflict, element, nil) end
+    end
+    -- tell about new conflicts (not the ones the script starts with)
+    local before = self._keyConflicts or {}
+    if self._keysSettled then
+        for keyName, names in pairs(conflicts) do
+            if not before[keyName] or #before[keyName] < #names then
+                self:Notify({ Title = "Key conflict", Content = keyName .. " is used by " .. table.concat(names, " and "), Icon = "triangle-alert", Color = "warning", History = false })
+            end
+        end
+    end
+    self._keyConflicts = conflicts
+end
+function Window:GetKeyConflicts() return self._keyConflicts or {} end
 
 -------------------------------------------------------------------------------- public API
 function Window:Tab(cfg)
@@ -998,6 +1095,12 @@ function Window:KeyHint(cfg)
     function hint:Get() return self.Value end
     function hint:SetTitle(text) caption.Text = tostring(text) end
     function hint:_onBind() window:_safe(tostring(cfg.Title or "Key"), cfg.Pressed, self.Value) end
+    function hint:_setConflict(others)
+        local on = others ~= nil and #others > 0
+        self.KeyConflict = on and others or nil
+        Theme.bind(badge, "TextColor3", on and "warning" or "text")
+        Theme.bind(outline, "Color", on and "warning" or "line")
+    end
     function hint:_save() return self.Value and self.Value.Name or "None" end
     function hint:_load(value) self:Set(value) end
     badge.MouseEnter:Connect(function() Util.tween(outline, 0.12, { Transparency = 0.1 }) end)
@@ -1033,6 +1136,7 @@ function Window:SetToggleKey(key)
         return
     end
     self.key = key
+    task.defer(function() if self.alive then self:_checkKeys() end end)
     if self.menuHint and self.menuHint.Value ~= key then self.menuHint:Set(key, true) end
     for _, listener in ipairs(self._menuListeners or {}) do Util.safe(listener, key) end
 end

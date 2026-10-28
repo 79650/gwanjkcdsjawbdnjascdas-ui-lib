@@ -229,6 +229,12 @@ return function(window, cfg)
     if type(window.cfg.Changelog) == "table" then
         about:Button({ Title = "What's new", Icon = "newspaper", Callback = function() window:ShowChangelog() end })
     end
+    if window.cfg.Tour then
+        about:Button({ Title = "Show the tour", Icon = "map", Callback = function()
+            local spec = window.cfg.Tour
+            window:Tour(type(spec) == "table" and spec or nil, { Id = window.cfg.TourId, Force = true })
+        end })
+    end
     about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
 
     -- kicks / disconnects seen by the kick watcher (kick.lua)
@@ -307,5 +313,6 @@ return function(window, cfg)
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)
     update()
+    window.settingsTab = tab
     return tab
 end

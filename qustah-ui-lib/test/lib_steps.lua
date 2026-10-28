@@ -12,6 +12,12 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     if not Lib then return end
     local window = Lib.Windows[1]
     check("window created", window ~= nil)
+    do
+        local conflicts = {}
+        for key, list in pairs(window:GetKeyConflicts()) do conflicts[#conflicts + 1] = key .. ": " .. table.concat(list, ", ") end
+        if #conflicts > 0 then print("CONFLICTS", table.concat(conflicts, " | ")) end
+        check("the example has no key conflicts", #conflicts == 0)
+    end
     local gui = window.gui
     local function find(name, root)
         for _, object in ipairs((root or gui):GetDescendants()) do if object.Name == name then return object end end
@@ -1556,6 +1562,104 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     wait(0.1)
     check("Reset = false", noReset.Row:FindFirstChild("Reset") == nil)
     check("no reset on built-in settings", window.flags.__ui_theme.Row:FindFirstChild("Reset") == nil)
+
+    -- presets
+    local pc = tabNamed("Misc").Pages[1]:Card({ Title = "Aim presets" })
+    pc:Slider({ Title = "P fov", Flag = "pFov", Min = 0, Max = 500, Default = 100 })
+    pc:Toggle({ Title = "P smooth", Flag = "pSmooth", Default = false })
+    local presetChanges = {}
+    local presets = pc:Presets({ { "Legit", { pFov = 80, pSmooth = true } }, { "Rage", { pFov = 400, pSmooth = false } } },
+        { Callback = function(name) presetChanges[#presetChanges + 1] = name end })
+    wait(0.2)
+    check("presets: chips in the header", pc.frame:FindFirstChild("Presets", true) ~= nil and pc.frame:FindFirstChild("Legit", true) ~= nil and pc.frame:FindFirstChild("Custom", true) ~= nil)
+    check("presets: no match = Custom", presets:Get() == "Custom")
+    window:SetFlag("pFov", 250) wait(0.1)
+    presets:Select("Rage") wait(0.1)
+    check("presets: Select sets the flags", Lib.Flags.pFov == 400 and Lib.Flags.pSmooth == false and presets:Get() == "Rage")
+    MOCK.click(pc.frame:FindFirstChild("Legit", true)) wait(0.1)
+    check("presets: chip click", Lib.Flags.pFov == 80 and Lib.Flags.pSmooth == true and presets:Get() == "Legit")
+    window:SetFlag("pFov", 90) wait(0.1)
+    check("presets: a manual change = Custom", presets:Get() == "Custom")
+    presets:Select("Rage") wait(0.1)
+    presets:Select("Custom") wait(0.1)
+    check("presets: Custom brings your values back", Lib.Flags.pFov == 90 and Lib.Flags.pSmooth == true and presets:Get() == "Custom")
+    check("presets: Callback on change", #presetChanges >= 3)
+    presets:Add("Off", { pFov = 0, pSmooth = false })
+    presets:Select("Off") wait(0.1)
+    check("presets: Add", presets:Get() == "Off" and Lib.Flags.pFov == 0)
+
+    -- tab badge
+    local misc = tabNamed("Misc")
+    misc:SetBadge(3)
+    check("tab badge number", misc.button.Badge.Visible and misc.button.Badge.Text.Text == "3")
+    misc:SetBadge(250)
+    check("tab badge 99+", misc.button.Badge.Text.Text == "99+")
+    misc:SetBadge(true, "danger")
+    check("tab badge dot", misc.button.Badge.Visible and misc.button.Badge.Text.Text == "" and misc.button.Badge.Size.X.Offset == 8)
+    misc:SetBadge(0)
+    check("tab badge hides", not misc.button.Badge.Visible and misc.Badge == nil)
+
+    -- key conflicts
+    local kc = tabNamed("Misc").Pages[1]:Card({ Title = "Keys" })
+    local function conflictWith(name) for _, list in pairs(window:GetKeyConflicts()) do if table.find(list, name) then return list end end end
+    local k1 = kc:Toggle({ Title = "Fly", Bind = Enum.KeyCode.KeypadFive })
+    local k2 = kc:Button({ Title = "Dash", Bind = Enum.KeyCode.KeypadFive })
+    local k3 = kc:Keybind({ Title = "Noclip", Default = Enum.KeyCode.KeypadSix })
+    wait(0.1)
+    check("conflict found", conflictWith("Fly") ~= nil and k1.KeyConflict ~= nil and k2.KeyConflict ~= nil)
+    check("conflict tag is yellow", k1.Row.Bind.TextColor3 == Lib.Theme.get("warning") and k2.Row.Button.Key:FindFirstChildWhichIsA("TextLabel").TextColor3 == Lib.Theme.get("warning"))
+    check("conflict tooltip text", k1._conflictTip and k1._conflictTip:find("Dash") ~= nil)
+    check("no conflict on a free key", k3.KeyConflict == nil)
+    local notesBefore = #(Lib.NotifyHistory or {})
+    k3:Set(Enum.KeyCode.KeypadFive) wait(0.1)
+    check("third one joins the conflict", k3.KeyConflict ~= nil and #conflictWith("Fly") == 3)
+    k2:SetBind(Enum.KeyCode.KeypadSeven) k3:Set(Enum.KeyCode.KeypadSix) wait(0.1)
+    check("conflict clears", k1.KeyConflict == nil and k2.KeyConflict == nil and conflictWith("Fly") == nil and k1.Row.Bind.TextColor3 ~= Lib.Theme.get("warning"))
+    local k4 = kc:Keybind({ Title = "Opens menu", Default = window.key }) wait(0.1)
+    check("menu key conflict", k4.KeyConflict ~= nil and table.find(k4.KeyConflict, "Menu") ~= nil)
+    k4:Set(Enum.KeyCode.KeypadNine) wait(0.1)
+
+    -- input validate
+    local vc = tabNamed("Misc").Pages[1]:Card({ Title = "Validate" })
+    local got
+    local vin = vc:Input({ Title = "Job ID", Flag = "vJob", Validate = function(text)
+        if text == "" then return nil end
+        return #text >= 4, #text >= 4 and "Looks good" or "At least 4 characters"
+    end, Callback = function(text) got = text end })
+    local vbox = vin.Row.Box
+    MOCK.fire(vbox, "Focused") vbox.Text = "ab" wait(0.1)
+    check("validate: red while wrong", vin.Valid == false and vin.Row.Hint.Visible and vin.Row.Hint.Text == "At least 4 characters")
+    MOCK.fire(vbox, "FocusLost", false) wait(0.1)
+    check("validate: a wrong value is not taken", got == nil and Lib.Flags.vJob == "" and vbox:FindFirstChildWhichIsA("UIStroke").Color == Lib.Theme.get("danger"))
+    MOCK.fire(vbox, "Focused") vbox.Text = "abcdef" wait(0.1)
+    check("validate: green when right", vin.Valid == true and vin.Row.Hint.Text == "Looks good")
+    MOCK.fire(vbox, "FocusLost", false) wait(0.1)
+    check("validate: taken and the hint goes", got == "abcdef" and Lib.Flags.vJob == "abcdef" and not vin.Row.Hint.Visible)
+
+    -- tour
+    window:SetVisible(true) wait(0.1)
+    local finished
+    local tour = window:Tour(nil, { Id = "test", OnFinish = function(done) finished = done end })
+    wait(0.1)
+    local overlay = window.gui:FindFirstChild("Tour")
+    check("tour opens", tour ~= nil and overlay ~= nil and overlay.Panel.Head.Title.Text == "Tabs")
+    check("tour ring around the dock", overlay.Ring.Visible and math.abs(overlay.Ring.AbsoluteSize.Y - (window.dock.AbsoluteSize.Y + 12)) < 2)
+    MOCK.click(overlay.Panel.Foot.Next) wait(0.1)
+    check("tour next", tour.Index == 2 and overlay.Panel.Foot.Back.Visible)
+    MOCK.press(Enum.KeyCode.Left) wait(0.1)
+    check("tour back with a key", tour.Index == 1)
+    for _ = 1, #tour.Steps do MOCK.click(overlay.Panel.Foot.Next) wait(0.05) end
+    check("tour done", window.gui:FindFirstChild("Tour") == nil and finished == true and window:HasSeenTour("test"))
+    check("tour Once skips a seen tour", window:Tour(nil, { Id = "test", Once = true }) == nil)
+    local custom = window:Tour({ { Target = vin, Title = "Job box", Text = "Type here" }, { Title = "No target", Text = "Centred" } }, { Id = "custom" })
+    wait(0.1)
+    check("tour on an element", custom and window.gui.Tour.Ring.Visible and window.gui.Tour.Panel.Head.Title.Text == "Job box")
+    custom:Next() wait(0.1)
+    check("tour step without a target", not window.gui.Tour.Ring.Visible)
+    MOCK.press(Enum.KeyCode.Escape) wait(0.1)
+    check("tour Escape skips", window.gui:FindFirstChild("Tour") == nil)
+    window:ResetTour("test")
+    check("ResetTour", not window:HasSeenTour("test"))
 
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)

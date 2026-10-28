@@ -229,7 +229,7 @@ function Base.element(card, kind, cfg, row, title, desc)
         local width = Util.textWidth(title.Text, title.TextSize, title.Font)
         local room = title.AbsoluteSize.X
         if room and room > 20 then width = math.min(width, room - 18) end
-        local x = title.Position.X.Offset + width + 3
+        local x = title.Position.X.Offset + width + 5
         local badge = row:FindFirstChild("Badge")
         if badge then x = badge.Position.X.Offset + badge.Size.X.Offset + 3 end
         button.Position = UDim2.new(0, x, 0, title.Position.Y.Offset + title.Size.Y.Offset / 2)
@@ -338,6 +338,22 @@ function Base.element(card, kind, cfg, row, title, desc)
     -- tooltip after a short hover
     element._tooltip = cfg.Tooltip
     function element:SetTooltip(text) self._tooltip = text end
+    -- key conflict (Window:_checkKeys): the key tag turns yellow and hovering says what else uses the key.
+    -- Elements point _keyLabel at their key text (and _keyStroke at its outline) and may add _onConflict.
+    function element:_setConflict(others)
+        local on = others ~= nil and #others > 0
+        self.KeyConflict = on and others or nil
+        self._conflictTip = on and ("Key also used by: " .. table.concat(others, ", ")) or nil
+        if self._keyLabel then
+            if self._keyRole == nil then self._keyRole = (Theme._binding(self._keyLabel) or {}).TextColor3 or "muted" end
+            Theme.bind(self._keyLabel, "TextColor3", on and "warning" or self._keyRole)
+        end
+        if self._keyStroke then
+            if self._keyStrokeRole == nil then self._keyStrokeRole = (Theme._binding(self._keyStroke) or {}).Color or "buttonEdge" end
+            Theme.bind(self._keyStroke, "Color", on and "warning" or self._keyStrokeRole)
+        end
+        if self._onConflict then self:_onConflict(on) end
+    end
     local hoverToken = 0
     -- text cut with "..." (a long title, description or value in a narrow window) shows in full on hover
     local function cutText()
@@ -356,7 +372,7 @@ function Base.element(card, kind, cfg, row, title, desc)
         local token = hoverToken
         task.delay(0.35, function()
             if token ~= hoverToken or element.Locked or not row.Parent then return end
-            local text = element._tooltip or cutText()
+            local text = element._conflictTip or element._tooltip or cutText()
             if text then tipShown = true window:_tip(text) end
         end)
     end)

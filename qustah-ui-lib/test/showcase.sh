@@ -93,6 +93,32 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
   print(string.format("RECT %s %.1f,%.1f,%.1f,%.1f", "smart", w.topLeft.X - 14, w.topLeft.Y - 14, (w.width + 12 + 40) * s + 28, w.height * s + 28))
   print("SHOT smart")
   MOCK.fire(hd.Row.Button, "InputEnded", MOCK.input(Enum.KeyCode.Unknown, Enum.UserInputType.MouseButton1))
+  -- presets, key conflict, input validation, tab badges
+  local F = w:Tab({ Title = "Combat", Icon = "swords" })
+  local A = F:Card({ Title = "Aimbot" })
+  A:Slider({ Title = "FOV", Flag = "shFov", Min = 10, Max = 500, Default = 120, Suffix = "px" })
+  A:Slider({ Title = "Smoothness", Flag = "shSmooth", Min = 0, Max = 1, Step = 0.05, Default = 0.3 })
+  A:Toggle({ Title = "Prediction", Flag = "shPred", Default = false })
+  A:Presets({ { "Legit", { shFov = 80, shSmooth = 0.6, shPred = false } }, { "Rage", { shFov = 400, shSmooth = 0, shPred = true } } })
+  local K = F:Card({ Title = "Keys", Side = "Right" })
+  K:Toggle({ Title = "Fly", Bind = Enum.KeyCode.F })
+  K:Toggle({ Title = "ESP", Bind = Enum.KeyCode.F })
+  K:Keybind({ Title = "Noclip", Default = Enum.KeyCode.N })
+  local V = F:Card({ Title = "Join friend", Side = "Right" })
+  local job = V:Input({ Title = "Job ID", Placeholder = "paste id", Validate = function(t) if t == "" then return nil end return #t >= 8, #t >= 8 and "Looks good" or "At least 8 characters" end })
+  wait(0.3)
+  F:Select() wait()
+  A.frame:FindFirstChild("Rage", true) -- (exists)
+  w:SetFlag("shFov", 400) w:SetFlag("shSmooth", 0) w:SetFlag("shPred", true)
+  MOCK.fire(job.Row.Box, "Focused") job.Row.Box.Text = "8f2a" wait(0.2)
+  for _, t in ipairs(w.Tabs) do if t.Title == "Misc" then t:SetBadge(3) elseif t.Title == "Server" then t:SetBadge(true, "danger") end end
+  shot("features")
+  MOCK.fire(job.Row.Box, "FocusLost", false)
+  -- the tour, on its "Menu key" step
+  local tour = w:Tour(nil, { Id = "showcase" })
+  tour:Go(4) wait(0.3)
+  shot("tour")
+  tour:Close()
 end
 LUA
 } > "$STEPS"

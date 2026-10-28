@@ -101,6 +101,7 @@ return function(card, cfg)
             TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium, Visible = false,
         })
         Theme.bind(tag, "TextColor3", "muted")
+        element._keyLabel = tag
         row.MouseButton2Click:Connect(function()
             if element.Locked then return end
             tag.Text, tag.Visible = "[...]", true

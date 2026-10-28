@@ -2,15 +2,16 @@
 local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/dist/qustah-ui-lib.lua"))()
 
 local Window = Lib:CreateWindow({
-    Debug     = false,
+    Debug     = false,                    -- true: a notification for every callback error (Settings › Info has the switch)
     PerGame   = false,                    -- "Game": every game gets its own profiles (also a switch in Settings › Profiles)
-    UnlockMouse = true,                   -- the mouse is free while the menu is open (shift lock / first person)                    -- true: a notification for every callback error (Settings › Info has the switch)
+    UnlockMouse = true,                   -- the mouse is free while the menu is open (shift lock / first person)
     Title     = "Qustāh",
     Version   = "V1.00",
     Folder    = "Qustah",                 -- configs go to Qustah/configs/*.json
     ToggleKey = Enum.KeyCode.RightShift,
     Size      = Vector2.new(540, 390),
     Tags      = { "BETA" },               -- small chips after the title ({ Text = "PRO", Color = Color3.fromRGB(240, 190, 80) })
+    -- Tour = true,                       -- a short first-run guide, once per account (or Window:Tour({ steps }))
     -- LiveBackground = true,             -- slow accent glow behind the content (Settings › Window has the switch)
     -- AccentGlow = true,                 -- the window edge breathes in the accent
     -- Secure = true,                     -- random gui names + silent console (or getgenv().QUSTAH_SECURE = true before loading)
@@ -74,6 +75,8 @@ Aim:Slider({ Title = "Hit chance", Flag = "hitChance", Min = 0, Max = 100, Defau
 Aim:Checkbox({ Title = "Visible only", Flag = "visibleOnly", DependsOn = "silentAim",   -- locked until Silent Aim is on
     Tooltip = "Skips targets behind walls" })
 Aim:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body", "Closest" }, Default = "Head" })
+-- presets: chips in the card header that set several flags at once ("Custom" lights up after a manual change)
+Aim:Presets({ { "Legit", { hitChance = 70, aimPart = "Body" } }, { "Rage", { hitChance = 100, aimPart = "Head" } } })
 -- dropdown options can carry an icon, a description, or be locked; AllowNone lets it be cleared
 Aim:Dropdown({ Title = "Target priority", Flag = "priority", AllowNone = true, Default = "Closest", Options = {
     { Title = "Closest", Icon = "footprints", Desc = "Nearest to you" },

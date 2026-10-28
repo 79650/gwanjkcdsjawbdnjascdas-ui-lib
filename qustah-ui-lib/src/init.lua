@@ -16,6 +16,7 @@ require("windowx")(Window)
 require("windowfx")(Window)
 require("kick")(Window)
 require("mobile")(Window)
+require("tour")(Window)
 
 local Lib = {
     Version = "1.9.0",

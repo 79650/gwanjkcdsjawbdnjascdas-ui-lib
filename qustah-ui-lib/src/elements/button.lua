@@ -196,8 +196,9 @@ return function(card, cfg)
             local chevron = arrow:FindFirstChild("Chevron")
             if chevron then Theme.tweenTo(chevron, "ImageColor3", role, duration) end
         end
-        Theme.tweenTo(keyText, "TextColor3", role, duration)
-        keyText.TextTransparency = 0.35
+        Theme.tweenTo(keyText, "TextColor3", element.KeyConflict and "warning" or role, duration)
+        keyText.TextTransparency = element.KeyConflict and 0 or 0.35
+        Theme.bind(keyStroke, "Color", element.KeyConflict and "warning" or "buttonEdge")
         Theme.tweenTo(timer, "TextColor3", role, duration)
         local dim = (loading or cooling) and 0.45 or 0
         textLabel.TextTransparency = dim
@@ -451,6 +452,7 @@ return function(card, cfg)
         if holdTime > 0 then startHold() else activate() end
     end
     function element:_onRelease() if holdTime > 0 then cancelHold() end end
+    function element:_onConflict() paint(0) end
     if bindable then
         element:SetBind(cfg.Bind)
         button.MouseButton2Click:Connect(function()
