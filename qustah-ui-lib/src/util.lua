@@ -212,7 +212,32 @@ function Util.isDown(key)
     return ok and down == true
 end
 
--- Screen position of a pointer input (same space as AbsolutePosition in an IgnoreGuiInset ScreenGui).
+-- Where a gui object really is on the screen (top-left of the whole screen, the space GetMouseLocation uses and
+-- the space a child placed with Position = fromOffset(x, y) in our IgnoreGuiInset ScreenGui ends up in).
+-- AbsolutePosition alone is not enough: depending on where the gui lives it can come out shifted by the top bar
+-- inset (pop-ups then opened ~58 px above their button). A zero-size probe at (0, 0) in the same ScreenGui
+-- measures that shift, so this is right either way.
+local probes = setmetatable({}, { __mode = "k" })
+function Util.origin(object)
+    local gui = object and object:FindFirstAncestorWhichIsA("LayerCollector")
+    if not gui then return Vector2.new(0, 0) end
+    local probe = probes[gui]
+    if not probe or probe.Parent ~= gui then
+        probe = Instance.new("Frame")
+        probe.Name = "Origin"
+        probe.BackgroundTransparency = 1
+        probe.Size = UDim2.fromOffset(0, 0)
+        probe.Position = UDim2.fromOffset(0, 0)
+        probe.Parent = gui
+        probes[gui] = probe
+    end
+    return probe.AbsolutePosition
+end
+function Util.screenPos(object)
+    return object.AbsolutePosition - Util.origin(object)
+end
+
+-- Screen position of a pointer input (same space as Util.screenPos).
 function Util.pointer(input)
     if input and input.UserInputType == Enum.UserInputType.Touch then
         local inset = Services.GuiService:GetGuiInset()

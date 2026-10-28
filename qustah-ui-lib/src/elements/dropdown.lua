@@ -124,7 +124,7 @@ return function(card, cfg)
         closeList()
         -- The list opens over the button: header (value + upturned chevron), divider, [search], options.
         -- It opens upwards when there is more room above. It lives outside the scaled window, so it takes the scale itself.
-        local position, size = button.AbsolutePosition, button.AbsoluteSize
+        local position, size = Util.screenPos(button), button.AbsoluteSize
         local viewport = Util.viewport()
         local searchable = cfg.Search == true or (cfg.Search ~= false and #options > 8)
         local fullHeight = 8

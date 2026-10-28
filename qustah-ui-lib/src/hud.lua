@@ -206,8 +206,9 @@ return function(Window)
                 for _, name in ipairs({ "Watermark", "Keybinds", "Performance" }) do
                     local panel = self.gui:FindFirstChild(name)
                     if panel and panel:IsA("GuiObject") and panel.Visible then
-                        local left, right = panel.AbsolutePosition.X, panel.AbsolutePosition.X + panel.AbsoluteSize.X
-                        if right > barLeft and left < barRight and panel.AbsolutePosition.Y < 20 + 30 + 8 then crowded = true end
+                        local at = Util.screenPos(panel)
+                        local left, right = at.X, at.X + panel.AbsoluteSize.X
+                        if right > barLeft and left < barRight and at.Y < 20 + 30 + 8 then crowded = true end
                     end
                 end
                 if crowded then

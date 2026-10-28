@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.1 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.2 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -1896,7 +1896,7 @@ if popup then popup:Destroy()popup=nil end
 end
 local function openMenu()
 closeMenu()
-local position,buttonSize=button.AbsolutePosition,button.AbsoluteSize
+local position,buttonSize=Util.screenPos(button),button.AbsoluteSize
 local viewport=Util.viewport()
 local scale=window.scale and window.scale.Scale or 1
 local width=math.max(buttonSize.X/scale,140)
@@ -2362,7 +2362,7 @@ local function drag(target,apply)
 target.InputBegan:Connect(function(input)
 if not Util.isPress(input)or element.Locked then return end
 local function move(point)
-local p,size=target.AbsolutePosition,target.AbsoluteSize
+local p,size=Util.screenPos(target),target.AbsoluteSize
 if size.X<=0 or size.Y<=0 then return end
 apply(math.clamp((point.X-p.X)/size.X,0,1),math.clamp((point.Y-p.Y)/size.Y,0,1))
 commit()
@@ -2667,7 +2667,7 @@ end
 local function itemHeight(option)return info[option]and info[option].Desc and ITEM_DESC or ITEM end
 local function openList()
 closeList()
-local position,size=button.AbsolutePosition,button.AbsoluteSize
+local position,size=Util.screenPos(button),button.AbsoluteSize
 local viewport=Util.viewport()
 local searchable=cfg.Search==true or(cfg.Search~=false and#options>8)
 local fullHeight=8
@@ -4018,7 +4018,7 @@ local function fromPoint(point)
 local width=track.AbsoluteSize.X
 if width<=0 then return end
 local inset=5*(window.scale and window.scale.Scale or 1)
-local value=min+math.clamp((point.X-track.AbsolutePosition.X-inset)/math.max(1,width-inset*2),0,1)*(max-min)
+local value=min+math.clamp((point.X-Util.screenPos(track).X-inset)/math.max(1,width-inset*2),0,1)*(max-min)
 if not dragging then
 local low,high=element.Value[1],element.Value[2]
 dragging=(math.abs(value-low)<math.abs(value-high)or(low==high and value<low))and 1 or 2
@@ -4199,7 +4199,7 @@ local function fromPoint(point)
 local width=track.AbsoluteSize.X
 if width<=0 then return end
 local inset=5*(window.scale and window.scale.Scale or 1)
-element:Set(min+math.clamp((point.X-track.AbsolutePosition.X-inset)/math.max(1,width-inset*2),0,1)*(max-min))
+element:Set(min+math.clamp((point.X-Util.screenPos(track).X-inset)/math.max(1,width-inset*2),0,1)*(max-min))
 end
 hit.InputBegan:Connect(function(input)
 if not Util.isPress(input)or element.Locked then return end
@@ -5569,8 +5569,9 @@ local crowded=false
 for _,name in ipairs({"Watermark","Keybinds","Performance"})do
 local panel=self.gui:FindFirstChild(name)
 if panel and panel:IsA("GuiObject")and panel.Visible then
-local left,right=panel.AbsolutePosition.X,panel.AbsolutePosition.X+panel.AbsoluteSize.X
-if right>barLeft and left<barRight and panel.AbsolutePosition.Y<20+30+8 then crowded=true end
+local at=Util.screenPos(panel)
+local left,right=at.X,at.X+panel.AbsoluteSize.X
+if right>barLeft and left<barRight and at.Y<20+30+8 then crowded=true end
 end
 end
 if crowded then
@@ -6287,7 +6288,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.1",
+Version="1.9.2",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -8090,12 +8091,12 @@ end
 return math.max(1,lines)*(size+4)
 end
 local function rectOf(object)
-local p,s=object.AbsolutePosition,object.AbsoluteSize
+local p,s=Util.screenPos(object),object.AbsoluteSize
 if s.X>0 and s.Y>0 then return p,s end
 local x1,y1,x2,y2
 for _,child in ipairs(object:GetChildren())do
 if child:IsA("GuiObject")and child.Visible and child.AbsoluteSize.X>0 then
-local cp,cs=child.AbsolutePosition,child.AbsoluteSize
+local cp,cs=Util.screenPos(child),child.AbsoluteSize
 x1=math.min(x1 or cp.X,cp.X)
 y1=math.min(y1 or cp.Y,cp.Y)
 x2=math.max(x2 or cp.X+cs.X,cp.X+cs.X)
@@ -8382,6 +8383,25 @@ if tostring(key):match("^Enum%.KeyCode%.")then return UserInputService:IsKeyDown
 return UserInputService:IsMouseButtonPressed(key)
 end)
 return ok and down==true
+end
+local probes=setmetatable({},{__mode="k"})
+function Util.origin(object)
+local gui=object and object:FindFirstAncestorWhichIsA("LayerCollector")
+if not gui then return Vector2.new(0,0)end
+local probe=probes[gui]
+if not probe or probe.Parent~=gui then
+probe=Instance.new("Frame")
+probe.Name="Origin"
+probe.BackgroundTransparency=1
+probe.Size=UDim2.fromOffset(0,0)
+probe.Position=UDim2.fromOffset(0,0)
+probe.Parent=gui
+probes[gui]=probe
+end
+return probe.AbsolutePosition
+end
+function Util.screenPos(object)
+return object.AbsolutePosition-Util.origin(object)
 end
 function Util.pointer(input)
 if input and input.UserInputType==Enum.UserInputType.Touch then
@@ -9104,7 +9124,7 @@ if self._popup and Util.isPress(input)then
 local point=Util.pointer(input)
 local function inside(object)
 if not object or not object.Parent then return false end
-local p,s=object.AbsolutePosition,object.AbsoluteSize
+local p,s=Util.screenPos(object),object.AbsoluteSize
 return point.X>=p.X and point.X<=p.X+s.X and point.Y>=p.Y and point.Y<=p.Y+s.Y
 end
 if not inside(self._popup.frame)and not inside(self._popup.owner)then self:_closePopup()end

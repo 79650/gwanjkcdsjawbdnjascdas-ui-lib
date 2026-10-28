@@ -497,7 +497,7 @@ return function(card, cfg)
     end
     local function openMenu()
         closeMenu()
-        local position, buttonSize = button.AbsolutePosition, button.AbsoluteSize
+        local position, buttonSize = Util.screenPos(button), button.AbsoluteSize
         local viewport = Util.viewport()
         local scale = window.scale and window.scale.Scale or 1
         local width = math.max(buttonSize.X / scale, 140)

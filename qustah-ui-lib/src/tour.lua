@@ -175,12 +175,12 @@ return function(Window)
         end
         -- the box of a part (a frame that sizes itself to its children may report no size: use the children then)
         local function rectOf(object)
-            local p, s = object.AbsolutePosition, object.AbsoluteSize
+            local p, s = Util.screenPos(object), object.AbsoluteSize
             if s.X > 0 and s.Y > 0 then return p, s end
             local x1, y1, x2, y2
             for _, child in ipairs(object:GetChildren()) do
                 if child:IsA("GuiObject") and child.Visible and child.AbsoluteSize.X > 0 then
-                    local cp, cs = child.AbsolutePosition, child.AbsoluteSize
+                    local cp, cs = Util.screenPos(child), child.AbsoluteSize
                     x1 = math.min(x1 or cp.X, cp.X)
                     y1 = math.min(y1 or cp.Y, cp.Y)
                     x2 = math.max(x2 or cp.X + cs.X, cp.X + cs.X)

@@ -648,7 +648,7 @@ function Window:_build()
             local point = Util.pointer(input)
             local function inside(object)
                 if not object or not object.Parent then return false end
-                local p, s = object.AbsolutePosition, object.AbsoluteSize
+                local p, s = Util.screenPos(object), object.AbsoluteSize
                 return point.X >= p.X and point.X <= p.X + s.X and point.Y >= p.Y and point.Y <= p.Y + s.Y
             end
             if not inside(self._popup.frame) and not inside(self._popup.owner) then self:_closePopup() end

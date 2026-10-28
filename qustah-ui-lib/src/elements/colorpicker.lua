@@ -207,7 +207,7 @@ return function(card, cfg)
         target.InputBegan:Connect(function(input)
             if not Util.isPress(input) or element.Locked then return end
             local function move(point)
-                local p, size = target.AbsolutePosition, target.AbsoluteSize
+                local p, size = Util.screenPos(target), target.AbsoluteSize
                 if size.X <= 0 or size.Y <= 0 then return end
                 apply(math.clamp((point.X - p.X) / size.X, 0, 1), math.clamp((point.Y - p.Y) / size.Y, 0, 1))
                 commit()

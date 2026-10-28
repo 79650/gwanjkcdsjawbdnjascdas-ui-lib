@@ -94,7 +94,7 @@ return function(card, cfg)
         local width = track.AbsoluteSize.X
         if width <= 0 then return end
         local inset = 5 * (window.scale and window.scale.Scale or 1)
-        element:Set(min + math.clamp((point.X - track.AbsolutePosition.X - inset) / math.max(1, width - inset * 2), 0, 1) * (max - min))
+        element:Set(min + math.clamp((point.X - Util.screenPos(track).X - inset) / math.max(1, width - inset * 2), 0, 1) * (max - min))
     end
     hit.InputBegan:Connect(function(input)
         if not Util.isPress(input) or element.Locked then return end

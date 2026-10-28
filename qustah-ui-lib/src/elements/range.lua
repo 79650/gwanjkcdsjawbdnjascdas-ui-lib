@@ -98,7 +98,7 @@ return function(card, cfg)
         local width = track.AbsoluteSize.X
         if width <= 0 then return end
         local inset = 5 * (window.scale and window.scale.Scale or 1)
-        local value = min + math.clamp((point.X - track.AbsolutePosition.X - inset) / math.max(1, width - inset * 2), 0, 1) * (max - min)
+        local value = min + math.clamp((point.X - Util.screenPos(track).X - inset) / math.max(1, width - inset * 2), 0, 1) * (max - min)
         if not dragging then
             -- grab the nearer handle (the high one when both sit on the same spot at the top end)
             local low, high = element.Value[1], element.Value[2]
