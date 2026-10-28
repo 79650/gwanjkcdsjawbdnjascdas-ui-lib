@@ -151,6 +151,8 @@ Extras:Code({ Title = "loader.lua", Code = 'loadstring(game:HttpGet("https://exa
 local Preview = Misc:Card({ Title = "Preview", Icon = "person-standing" })
 Preview:Viewport({ Object = game.Players.LocalPlayer.Character, Height = 150, Spin = true })
 local About = Misc:Card({ Title = "About" })
+About:Image({ Image = "layers", Height = 48 })   -- an icon name, asset id or web image
+About:Label("Made with qustah-ui-lib")
 About:Paragraph({ Title = "qustah-ui-lib", Content = "Every element on these pages comes from the library; the script only adds its features." })
 About:Divider()
 About:Button({ Title = "Notify", Callback = function() Window:Notify({ Title = "Hello", Content = "This is a notification" }) end }) -- time follows the text, hover pauses
@@ -166,6 +168,9 @@ local ServerInfo = Server:Card({ Title = "This server", Icon = "info" })
 ServerInfo:Info({ Title = "Players", Value = #game.Players:GetPlayers() .. " / " .. game.Players.MaxPlayers })
 ServerInfo:Info({ Title = "Job ID", Value = string.sub(game.JobId, 1, 8), Copy = game.JobId })   -- Copy button copies the full id
 ServerInfo:Toggle({ Title = "Auto rejoin on kick", Flag = "autoRejoin" })
+ServerInfo:ActionInput({ Icon = "log-in", Placeholder = "Job ID", Button = "Join",   -- text field with its own button
+    Validate = function(text) if text == "" then return nil end return #text >= 8, #text >= 8 and "Looks like a Job ID" or "Too short" end,
+    Callback = function(jobId) print("join", jobId) end })
 local hop = ServerInfo:Row()
 hop:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() print("rejoin") end })
 hop:Button({ Title = "Server hop", Icon = "shuffle", Cooldown = 5, Callback = function() print("hop") end })   -- counts down 5 s before the next hop

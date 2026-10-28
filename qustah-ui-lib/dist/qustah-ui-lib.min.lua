@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.8.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -1424,7 +1424,15 @@ Theme.bind(badgeText,"TextColor3","onAccent")
 local element=Base.element(card,"Button",cfg,row,button,desc)
 local paint
 button:GetPropertyChangedSignal("Text"):Connect(function()
-if button.Text~=""then textLabel.Text=button.Text textLabel.Visible=true button.Text=""end
+if button.Text==""then return end
+textLabel.Text=button.Text
+textLabel.Visible=true
+button.Text=""
+if element._errorShown then
+task.delay(2.4,function()
+if not element._errorShown and button.Parent then element:SetTitle(element.Text)if paint then paint(0)end end
+end)
+end
 end)
 button:GetPropertyChangedSignal("TextColor3"):Connect(function()
 if element._errorShown then textLabel.TextColor3=button.TextColor3 elseif paint then paint(0)end
@@ -1477,6 +1485,28 @@ local tint,transparency=fillRole()
 Theme.bind(fill,"BackgroundColor3",tint)
 if fill.BackgroundTransparency<1 then fill.BackgroundTransparency=transparency end
 end
+local function fit()
+local width=button.AbsoluteSize.X/(window.scale and window.scale.Scale or 1)
+if width<=0 then return end
+local reserved=20+(content.Position.X.Offset<0 and-content.Position.X.Offset*2 or 0)
+for _,object in ipairs({icon,spinner})do
+if object and object.Visible then reserved=reserved+iconSize+6 end
+end
+if selectedLabel and selectedLabel.Visible then reserved=reserved+Util.textWidth(selectedLabel.Text,textSize,Enum.Font.Gotham)+6 end
+local room=math.max(0,math.floor(width-reserved))
+local need=Util.textWidth(textLabel.Text,textSize,Enum.Font.Gotham)
+if textLabel.Text~=""and need>room then
+textLabel.AutomaticSize=Enum.AutomaticSize.None
+textLabel.Size=UDim2.new(0,room,1,0)
+textLabel.TextTruncate=Enum.TextTruncate.AtEnd
+if cfg.Tooltip==nil then element._tooltip=textLabel.Text end
+else
+textLabel.AutomaticSize=Enum.AutomaticSize.X
+textLabel.Size=UDim2.fromScale(0,1)
+textLabel.TextTruncate=Enum.TextTruncate.None
+if cfg.Tooltip==nil then element._tooltip=nil end
+end
+end
 local function layoutRight()
 local x=rightUsed
 if keyCap.Visible then
@@ -1484,9 +1514,15 @@ keyCap.Position=UDim2.new(1,-(x+6),0.5,0)
 x=x+6+keyCap.Size.X.Offset
 end
 timer.Position=UDim2.new(1,-(x+8),0.5,0)
+if timer.Visible then x=x+8+math.max(26,Util.textWidth(timer.Text,timer.TextSize,Enum.Font.Gotham))end
 badge.Position=UDim2.new(1,-(rightUsed+3),0,3)
+if not left then content.Position=UDim2.new(0.5,-x/2,0.5,0)end
+fit()
 end
 layoutRight()
+button:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+row:GetPropertyChangedSignal("Size"):Connect(function()task.defer(fit)end)
+textLabel:GetPropertyChangedSignal("Text"):Connect(function()task.defer(fit)end)
 function element:SetTitle(text)
 self.Text=tostring(text)
 textLabel.Text=self.Text
@@ -1519,7 +1555,11 @@ Icons.Apply(spinner,"loader-circle")
 spinner.Visible=loading
 if loading then
 spinConnection=window.maid:connect(Util.Services.RunService.Heartbeat,function(dt)
-if spinner.Parent then spinner.Rotation=(spinner.Rotation+(dt or 1/60)*360)%360 end
+if not spinner.Parent then
+if spinConnection then spinConnection:Disconnect()spinConnection=nil end
+return
+end
+spinner.Rotation=(spinner.Rotation+(dt or 1/60)*360)%360
 end)
 end
 end
@@ -1550,6 +1590,7 @@ coolToken=coolToken+1
 cooling=false
 element.CoolingDown=false
 timer.Visible=false
+layoutRight()
 fill.BackgroundTransparency=1
 fill.Size=UDim2.fromScale(0,1)
 paint(0.1)
@@ -1565,6 +1606,8 @@ fill.Size=UDim2.fromScale(1,1)
 fill.BackgroundTransparency=transparency
 Util.tween(fill,cooldown,{Size=UDim2.fromScale(0,1)},Enum.EasingStyle.Linear)
 timer.Visible=true
+timer.Text=string.format("%.1fs",cooldown)
+layoutRight()
 paint(0.1)
 local finish=os.clock()+cooldown
 task.spawn(function()
@@ -2856,6 +2899,7 @@ local element=Base.element(card,"Graph",{},holder,title,nil)
 local function top()
 local highest=tonumber(cfg.Max)or 1
 for _,entry in ipairs(series)do for _,sample in ipairs(entry.samples)do highest=math.max(highest,sample)end end
+if line and not tonumber(cfg.Max)then highest=highest*1.25 end
 return highest
 end
 local function text(entry)
@@ -6051,7 +6095,7 @@ require("windowfx")(Window)
 require("kick")(Window)
 require("mobile")(Window)
 local Lib={
-Version="1.8.0",
+Version="1.9.0",
 Flags={},
 Windows={},
 Theme=Theme,

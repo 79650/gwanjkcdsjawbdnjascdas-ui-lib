@@ -1,3 +1,8 @@
 test/last_run.txt
 test/example_bundled.lua
 test/shots/
+test/showcase/
+test/review/
+test/themes/
+test/audit/*.txt
+test/audit/shots/

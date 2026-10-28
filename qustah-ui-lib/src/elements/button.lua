@@ -140,7 +140,16 @@ return function(card, cfg)
     -- the error note of a failed callback (Base.failed writes to the button) shows in the text label instead
     local paint
     button:GetPropertyChangedSignal("Text"):Connect(function()
-        if button.Text ~= "" then textLabel.Text = button.Text textLabel.Visible = true button.Text = "" end
+        if button.Text == "" then return end
+        textLabel.Text = button.Text
+        textLabel.Visible = true
+        button.Text = ""
+        -- (an icon-only button has no text to restore: put its own state back once the note is gone)
+        if element._errorShown then
+            task.delay(2.4, function()
+                if not element._errorShown and button.Parent then element:SetTitle(element.Text) if paint then paint(0) end end
+            end)
+        end
     end)
     button:GetPropertyChangedSignal("TextColor3"):Connect(function()
         if element._errorShown then textLabel.TextColor3 = button.TextColor3 elseif paint then paint(0) end
@@ -199,6 +208,30 @@ return function(card, cfg)
     end
 
     -- right side layout (arrow, key cap, timer, badge)
+    -- the text is cut with "..." when the button is too narrow for it (the full text shows on hover)
+    local function fit()
+        local width = button.AbsoluteSize.X / (window.scale and window.scale.Scale or 1)
+        if width <= 0 then return end
+        local reserved = 20 + (content.Position.X.Offset < 0 and -content.Position.X.Offset * 2 or 0)
+        for _, object in ipairs({ icon, spinner }) do
+            if object and object.Visible then reserved = reserved + iconSize + 6 end
+        end
+        if selectedLabel and selectedLabel.Visible then reserved = reserved + Util.textWidth(selectedLabel.Text, textSize, Enum.Font.Gotham) + 6 end
+        local room = math.max(0, math.floor(width - reserved))
+        local need = Util.textWidth(textLabel.Text, textSize, Enum.Font.Gotham)
+        if textLabel.Text ~= "" and need > room then
+            textLabel.AutomaticSize = Enum.AutomaticSize.None
+            textLabel.Size = UDim2.new(0, room, 1, 0)
+            textLabel.TextTruncate = Enum.TextTruncate.AtEnd
+            if cfg.Tooltip == nil then element._tooltip = textLabel.Text end
+        else
+            textLabel.AutomaticSize = Enum.AutomaticSize.X
+            textLabel.Size = UDim2.fromScale(0, 1)
+            textLabel.TextTruncate = Enum.TextTruncate.None
+            if cfg.Tooltip == nil then element._tooltip = nil end
+        end
+    end
+    -- right side layout (arrow, key cap, timer, badge); centred content moves left to stay clear of it
     local function layoutRight()
         local x = rightUsed
         if keyCap.Visible then
@@ -206,9 +239,15 @@ return function(card, cfg)
             x = x + 6 + keyCap.Size.X.Offset
         end
         timer.Position = UDim2.new(1, -(x + 8), 0.5, 0)
+        if timer.Visible then x = x + 8 + math.max(26, Util.textWidth(timer.Text, timer.TextSize, Enum.Font.Gotham)) end
         badge.Position = UDim2.new(1, -(rightUsed + 3), 0, 3)
+        if not left then content.Position = UDim2.new(0.5, -x / 2, 0.5, 0) end
+        fit()
     end
     layoutRight()
+    button:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+    row:GetPropertyChangedSignal("Size"):Connect(function() task.defer(fit) end) -- (a Row shares out the widths)
+    textLabel:GetPropertyChangedSignal("Text"):Connect(function() task.defer(fit) end)
 
     function element:SetTitle(text)
         self.Text = tostring(text)
@@ -244,7 +283,11 @@ return function(card, cfg)
             spinner.Visible = loading
             if loading then
                 spinConnection = window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
-                    if spinner.Parent then spinner.Rotation = (spinner.Rotation + (dt or 1 / 60) * 360) % 360 end
+                    if not spinner.Parent then
+                        if spinConnection then spinConnection:Disconnect() spinConnection = nil end
+                        return
+                    end
+                    spinner.Rotation = (spinner.Rotation + (dt or 1 / 60) * 360) % 360
                 end)
             end
         end
@@ -278,6 +321,7 @@ return function(card, cfg)
         cooling = false
         element.CoolingDown = false
         timer.Visible = false
+        layoutRight()
         fill.BackgroundTransparency = 1
         fill.Size = UDim2.fromScale(0, 1)
         paint(0.1)
@@ -293,6 +337,8 @@ return function(card, cfg)
         fill.BackgroundTransparency = transparency
         Util.tween(fill, cooldown, { Size = UDim2.fromScale(0, 1) }, Enum.EasingStyle.Linear)
         timer.Visible = true
+        timer.Text = string.format("%.1fs", cooldown)
+        layoutRight()
         paint(0.1)
         local finish = os.clock() + cooldown
         task.spawn(function()

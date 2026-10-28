@@ -18,7 +18,7 @@ require("kick")(Window)
 require("mobile")(Window)
 
 local Lib = {
-    Version = "1.8.0",
+    Version = "1.9.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

@@ -2,9 +2,9 @@
 
 ![Qustah UI](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.8.0-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.0-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
-![size](https://img.shields.io/badge/min-378_KB-2b2b2f?style=flat-square&labelColor=18181a)
+![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
 ![themes](https://img.shields.io/badge/themes-20-2b2b2f?style=flat-square&labelColor=18181a)
 
@@ -140,6 +140,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `LiveBackground`, `AccentGlow` | `false` | slow accent light drifting behind the content; window edge that pulses in the accent colour |
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
+| `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
 | `Debug` | `false` | a notification for every new error |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
 | `Secure` | `false` | [Secure mode](#secure-mode) |
@@ -222,6 +223,7 @@ Each element is a method of a card, or of a Section, Row, Group or Tabs section:
 - `Tooltip`: text shown next to the mouse after a short hover
 - `DependsOn`: follow another flag (see below)
 - `Locked`, `LockedTitle`
+- `Reset = false`: no reset icon for this element (see [Flags](#flags))
 
 **Common methods:**
 
@@ -234,6 +236,7 @@ Each element is a method of a card, or of a Section, Row, Group or Tabs section:
 | `:MoveUp()`, `:MoveDown()`, `:MoveTo(index)`, `:GetIndex()` | position inside the card |
 | `:Flash("success" \| "danger" \| "accent")` | a short tint behind the row |
 | `:SetTooltip(text)` | |
+| `:ResetToDefault()` | puts the starting value back (elements with a Flag) |
 | `:Remove()` / `:Destroy()` | removes the element and its flag |
 
 **DependsOn:** an element (or a whole card / section) follows other flags and updates by itself.
@@ -710,7 +713,7 @@ Lib:CreateWindow({ Title = "Qustāh", Icon = "https://example.com/logo.png" })
 | `solar` | 7330 | `-bold`, `-linear`, `-broken`, `-bold-duotone`... |
 | `sfsymbols` | 6984 | CamelCase: `sfsymbols:HouseFill` |
 | `gravity` | 781 | |
-| `geist` | 465 | two-tone |
+| `geist` | 320 | two-tone |
 | `craft` | 998 | |
 
 Sets other than lucide download once, the first time you use them.
@@ -818,7 +821,7 @@ In secure mode:
 - nothing is printed to the console;
 - avatars load as `rbxthumb://` content, with no web request.
 
-Icons stay as asset ids. Roblox needs a login to download assets, so caching them to files would need a proxy server.
+Icons still load as asset ids.
 
 ---
 
@@ -837,7 +840,7 @@ qustah-ui-lib/
     ...
   dist/             single-file bundle (built by build.py)
   icons/            downloadable icon sets
-  test/             mock tests and screenshots
+  test/             tests and screenshot scripts (they run in a Roblox mock that is not part of this repo)
   types/qustah.luau type definitions for autocomplete
   tools/lint.sh     selene lint (and a StyLua check with --format)
   build.py          src/ -> dist/qustah-ui-lib.lua + .min.lua

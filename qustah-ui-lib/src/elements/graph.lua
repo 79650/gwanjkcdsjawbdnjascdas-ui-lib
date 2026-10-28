@@ -94,6 +94,8 @@ return function(card, cfg)
     local function top()
         local highest = tonumber(cfg.Max) or 1
         for _, entry in ipairs(series) do for _, sample in ipairs(entry.samples) do highest = math.max(highest, sample) end end
+        -- without a Max a line gets some room above it (a steady value would otherwise run along the top edge)
+        if line and not tonumber(cfg.Max) then highest = highest * 1.25 end
         return highest
     end
     local function text(entry)

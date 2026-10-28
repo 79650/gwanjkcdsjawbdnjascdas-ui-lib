@@ -1507,6 +1507,43 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     badged:SetBadge(0)
     check("badge hides on 0", not badged.Row.Button.Badge.Visible)
 
+    -- long titles in narrow buttons are cut, not spilling out; icon-only errors come back
+    local narrow = bx:Row()
+    local longOnes = {}
+    for i = 1, 4 do longOnes[i] = narrow:Button({ Title = "A very long button title " .. i, Icon = "play" }) end
+    wait(0.2)
+    local b1 = longOnes[1].Row.Button
+    local text1 = b1.Content.Text
+    check("narrow button text is cut", text1.TextTruncate == Enum.TextTruncate.AtEnd and text1.Size.X.Offset < b1.AbsoluteSize.X and longOnes[1]._tooltip ~= nil)
+    local wide = bx:Button({ Title = "Short" }) wait(0.1)
+    check("short text is not cut", wide.Row.Button.Content.Text.TextTruncate == Enum.TextTruncate.None)
+    local iconBad = bx:Button({ Icon = "bug", Callback = function() error("icon boom") end })
+    MOCK.click(iconBad.Row.Button) wait(0.1)
+    check("icon-only error note", iconBad.Row.Button.Content.Text.Text:find("Error") ~= nil)
+    wait(2.8)
+    check("icon-only button comes back", iconBad.Row.Button.Content.Text.Visible == false)
+    local cd2 = bx:Button({ Title = "Hop", Cooldown = 2 })
+    MOCK.click(cd2.Row.Button) wait(0.1)
+    check("cooldown moves the text clear of the timer", cd2.Row.Button.Content.Position.X.Offset < 0)
+    cd2:ResetCooldown()
+    check("text back in the middle", cd2.Row.Button.Content.Position.X.Offset == 0)
+
+    -- odd button options never throw
+    local oddOk = pcall(function()
+        bx:Button({ Title = "Odd 1", Cooldown = "abc", Hold = -1, Style = 123, Size = 5, Badge = {}, Bind = "NotAKey" })
+        local m = bx:Button({ Title = "Odd 2", Menu = {} })
+        MOCK.click(m.Row.Button.MenuArrow) wait(0.05) window:_closePopup()
+        MOCK.click(m.Row.Button) wait(0.05)
+        bx:Button({ Title = "Odd 3", Menu = "nope", Selected = "missing" })
+        local t = bx:Button({ Title = "Odd 4", Toggle = true, OnStyle = "Weird", OnIcon = "nope-icon", Icon = "play" })
+        MOCK.click(t.Row.Button) wait(0.05)
+        t:SetStyle(nil) t:SetBadge(false) t:SetBind(nil) t:SetLoading(true) t:SetLoading(false)
+        bx:Button({}) bx:Button({ Title = "" }) bx:Button({ Icon = "no-such-icon" })
+        local d = bx:Button({ Title = "Gone", Cooldown = 1, Callback = function() task.wait(0.2) end })
+        MOCK.click(d.Row.Button) d:Destroy() wait(1.3)
+    end)
+    check("odd button options don't throw", oddOk)
+
     -- reset to default
     local rs = bx:Slider({ Title = "Speed", Flag = "resetSpeed", Min = 0, Max = 100, Default = 16 })
     wait(0.1)
