@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.2 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.3 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7083,7 +7083,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.2",
+    Version = "1.9.3",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -9254,6 +9254,9 @@ return function(Window)
         end)
 
         self._tour = tour
+        -- a tour that shows once is marked as seen as soon as it opens, so leaving the game (or re-running the
+        -- script) in the middle of it does not bring it back next time
+        if opts.Once then pcall(self._state, self, "tour:" .. id, true) end
         show(1)
         return tour
     end
@@ -11014,13 +11017,26 @@ return function(Window)
 
     ------------------------------------------------------------------ small state kept on this PC
     -- (in <Folder>/state.json, so it works with SaveWindow = false too): welcome / changelog seen, welcome toast on
+    -- Small per-folder memory (welcome toast, changelog, tour...) in <Folder>/state.json. A copy also lives in
+    -- getgenv(), so without file access (or when a write fails) a re-run in the same game still remembers it.
     function Window:_state(key, value)
-        self._stateData = self._stateData or self.Config:ReadJSON("state")
+        local env = (getgenv and getgenv()) or _G
+        env.__QustahUIState = env.__QustahUIState or {}
+        local memory = env.__QustahUIState[self.Config.folder]
+        if not memory then memory = {} env.__QustahUIState[self.Config.folder] = memory end
+        if not self._stateData then
+            local ok, data = pcall(self.Config.ReadJSON, self.Config, "state")
+            self._stateData = ok and type(data) == "table" and data or {}
+            for name, item in pairs(memory) do if self._stateData[name] == nil then self._stateData[name] = item end end
+        end
         if value ~= nil then
             self._stateData[key] = value
-            self.Config:WriteJSON("state", self._stateData)
+            memory[key] = value
+            pcall(self.Config.WriteJSON, self.Config, "state", self._stateData)
         end
-        return self._stateData[key]
+        local result = self._stateData[key]
+        if result == nil then result = memory[key] end
+        return result
     end
 
     ------------------------------------------------------------------ changelog

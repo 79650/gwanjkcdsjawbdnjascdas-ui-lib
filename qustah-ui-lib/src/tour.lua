@@ -286,6 +286,9 @@ return function(Window)
         end)
 
         self._tour = tour
+        -- a tour that shows once is marked as seen as soon as it opens, so leaving the game (or re-running the
+        -- script) in the middle of it does not bring it back next time
+        if opts.Once then pcall(self._state, self, "tour:" .. id, true) end
         show(1)
         return tour
     end
