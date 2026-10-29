@@ -182,7 +182,7 @@ local ServerInfo = Server:Card({ Title = "This server", Icon = "info" })
 ServerInfo:Info({ Title = "Players", Value = #game.Players:GetPlayers() .. " / " .. game.Players.MaxPlayers })
 ServerInfo:Info({ Title = "Job ID", Value = string.sub(game.JobId, 1, 8), Copy = game.JobId })   -- Copy button copies the full id
 ServerInfo:Toggle({ Title = "Auto rejoin on kick", Flag = "autoRejoin" })
-ServerInfo:ActionInput({ Icon = "log-in", Placeholder = "Job ID", Button = "Join",   -- text field with its own button
+ServerInfo:ActionInput({ Icon = "log-in", Placeholder = "Job ID", Button = "Join", Hint = "Paste a server's Job ID to join it",   -- text field with its own button
     Validate = function(text) if text == "" then return nil end return #text >= 8, #text >= 8 and "Looks like a Job ID" or "Too short" end,
     Callback = function(jobId) print("join", jobId) end })
 local hop = ServerInfo:Row()

@@ -87,7 +87,7 @@ return function(card, cfg)
         end)
     end
     window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
-        if spin and holder.Parent and holder.AbsoluteSize.X > 0 then yaw = yaw + (dt or 0.016) * 0.6 place() end
+        if spin and holder.Parent and holder.AbsoluteSize.X > 0 and Util.shown(holder) then yaw = yaw + (dt or 0.016) * 0.6 place() end
     end)
     element:SetObject(cfg.Object)
     return element

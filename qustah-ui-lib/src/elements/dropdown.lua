@@ -96,9 +96,24 @@ return function(card, cfg)
     local function render()
         local text
         if multi then
+            -- as many names as fit the box, then "+N" for the rest ("Name, Health +2")
+            local scale = window.scale and window.scale.Scale or 1
+            local room = button.AbsoluteSize.X > 0 and (button.AbsoluteSize.X / scale - 30) or 140
             local titles = {}
             for _, key in ipairs(element.Value) do titles[#titles + 1] = titleOf(key) end
             text = #titles > 0 and table.concat(titles, ", ") or "None"
+            if #titles > 1 and Util.textWidth(text, 10, Enum.Font.Gotham) > room then
+                local shown = titles[1]
+                for count = 2, #titles do
+                    local try = shown .. ", " .. titles[count]
+                    local rest = " +" .. (#titles - count)
+                    if Util.textWidth(try .. (count < #titles and rest or ""), 10, Enum.Font.Gotham) > room then
+                        text = shown .. " +" .. (#titles - count + 1)
+                        break
+                    end
+                    shown = try
+                end
+            end
         else
             text = element.Value and titleOf(element.Value) or "None"
         end
@@ -110,6 +125,8 @@ return function(card, cfg)
         valueLabel.Position = UDim2.fromOffset(hasVisual and 26 or 9, 0)
         valueLabel.Size = UDim2.new(1, hasVisual and -45 or -28, 1, 0)
     end
+
+    if multi then button:GetPropertyChangedSignal("AbsoluteSize"):Connect(render) end
 
     ------------------------------------------------------------ list popup
     local popup

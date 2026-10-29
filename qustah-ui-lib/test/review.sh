@@ -13,6 +13,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
   local gui = w.gui
   local Enum = E.Enum
   local function wait(t) MOCK.advance(t or 0.6, MOCK.frame) end
+  wait(2) if w._dialog then w._dialog:Close() end
+  for _, t in ipairs(Lib._openToasts or {}) do pcall(t.dismiss) end
   w.width, w.height = 560, 600 w:_layout() wait(1)
   local function tab(title) for _, t in ipairs(w.Tabs) do if t.Title == title then t:Select() wait() return t end end end
   local function find(name, root) for _, o in ipairs((root or gui):GetDescendants()) do if o.Name == name then return o end end end

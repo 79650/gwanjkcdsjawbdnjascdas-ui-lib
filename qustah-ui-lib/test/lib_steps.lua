@@ -54,7 +54,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.fire(find("ESP enabled"), "MouseButton2Click") wait(0.1)
     check("bind capture armed", window._capture ~= nil)
     MOCK.press(Enum.KeyCode.F) wait(0.1)
-    check("bind label shows F", findIn("ESP enabled", "Bind").Text == "[F]")
+    check("bind label shows F", findIn("ESP enabled", "Bind").Text == "F")
     MOCK.press(Enum.KeyCode.F) wait(0.1)
     check("bind key flips toggle", F.espEnabled == false)
     MOCK.press(Enum.KeyCode.F) wait(0.1)
@@ -1112,9 +1112,15 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     wait()
     local legend = lg.Row:FindFirstChild("Legend")
     check("line graph legend", legend and legend:FindFirstChild("In"):FindFirstChild("Text").Text == "In 60")
-    local shownSegments = 0
-    for _, child in ipairs(lg.Row:FindFirstChild("Area"):GetChildren()) do if child.Name == "Segment" and child.Visible then shownSegments = shownSegments + 1 end end
-    check("line graph segments", shownSegments == 10) -- 5 per series
+    local function countSegments()
+        local n = 0
+        for _, child in ipairs(lg.Row:FindFirstChild("Area"):GetChildren()) do if child.Name == "Segment" and child.Visible then n = n + 1 end end
+        return n
+    end
+    local hiddenTab = not Lib.Util.shown(lg.Row)
+    check("line graph not drawn while hidden", not hiddenTab or countSegments() == 0)
+    misc:Select() wait(0.4)
+    check("line graph segments", countSegments() == 10) -- 5 per series (drawn once the tab shows)
     local bars = t7:Graph({ Title = "Bars" }) bars:Push(5)
     check("bar graph still works", bars.Row:FindFirstChild("Value").Text == "5")
 
@@ -1685,6 +1691,61 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         update()
         check("canvas: UIScale is taken out", U.uiScale(sc) == 0.5 and sc.AutomaticCanvasSize == Enum.AutomaticSize.None and sc.CanvasSize.Y.Offset == 474)
         host:Destroy()
+    end
+
+    ------------------------------------------------------------------ v1.9.5 audit round
+    do
+        local misc5
+        for _, t in ipairs(window.Tabs) do if t.Title == "Misc" then misc5 = t end end
+        misc5:Select() wait(0.2)
+        local c5 = misc5:Card({ Title = "Audit195" })
+        -- a long value next to a short name borrows room from the name
+        local inf = c5:Info({ Title = "Mark", Value = "Limited · client-side only and then some" }) wait(0.1)
+        local v = inf.Row:FindFirstChild("Value")
+        check("info: long value gets more room", v.Position.X.Scale == 0 and v.Position.X.Offset < inf.Row.AbsoluteSize.X * 0.42)
+        -- multi dropdown: names that do not fit become "+N"
+        local dd = c5:Dropdown({ Title = "Parts", Multi = true, Options = { "Name", "Health", "Distance", "Weapon", "Team" }, Default = { "Name", "Health", "Distance", "Weapon", "Team" } }) wait(0.1)
+        local shown = dd.Row:FindFirstChild("Select"):FindFirstChildWhichIsA("TextLabel").Text
+        check("dropdown: overflow as +N", shown:find("+", 1, true) ~= nil and shown:sub(1, 4) == "Name")
+        -- split button in a narrow row: the chosen option hides before the title is cut
+        local r5 = c5:Row()
+        r5:Button({ Title = "Rejoin" })
+        local split = r5:Button({ Title = "Hop", Icon = "shuffle", Menu = { "A much longer option name" } }) wait(0.2)
+        local sel = split.Row:FindFirstChild("Selected", true)
+        local txt = split.Row:FindFirstChild("Text", true)
+        check("split button: title kept, option hidden when tight", txt.TextTruncate == Enum.TextTruncate.None and sel.Visible == false)
+        -- an action input without a hint has no empty line under it
+        local ai = c5:ActionInput({ Placeholder = "Job ID", Button = "Join", Validate = function(t) return #t > 3, #t > 3 and "ok" or "short" end })
+        check("action input: no empty hint line", ai.Row:FindFirstChild("HintRow").Visible == false)
+        ai.Row:FindFirstChild("Box", true).Text = "ab" wait()
+        check("action input: hint appears with a message", ai.Row:FindFirstChild("HintRow").Visible == true)
+        -- toggle key as a key cap (no brackets)
+        local tk = c5:Toggle({ Title = "Capped", Bindable = true, Bind = Enum.KeyCode.KeypadSeven })
+        local cap = tk.Row:FindFirstChild("Bind")
+        check("toggle key cap", cap.Text == "NUM 7" or cap.Text == Lib.Util.keyName(Enum.KeyCode.KeypadSeven))
+        check("toggle key cap has an outline", cap:FindFirstChildWhichIsA("UIStroke") ~= nil)
+        -- help is an icon now
+        local hp = c5:Toggle({ Title = "Helped", Help = "Some help" })
+        check("help icon", hp.Row:FindFirstChild("Help"):FindFirstChild("Icon") ~= nil)
+        -- Escape closes an open popup
+        MOCK.click(dd.Row:FindFirstChild("Select")) wait()
+        local opened = window._popup ~= nil
+        MOCK.press(Enum.KeyCode.Escape) wait()
+        check("escape closes popup", opened and window._popup == nil)
+        -- recolouring touches only what changed: a role nothing uses leaves every object alone
+        local T = Lib.Theme
+        local probe = Instance.new("Frame") probe.Parent = window.gui
+        T.bind(probe, "BackgroundColor3", "card")
+        probe.BackgroundColor3 = Color3.new(1, 0, 1) -- (pretend something else painted it)
+        T.set("success", T.get("success"))         -- same colour: no recolour pass at all
+        check("theme: unchanged colour skips the pass", probe.BackgroundColor3 == Color3.new(1, 0, 1))
+        T.set("card", T.get("card"):Lerp(Color3.new(1, 1, 1), 0.01))
+        check("theme: changed role recolours", probe.BackgroundColor3 == T.get("card"))
+        probe:Destroy()
+        -- text widths are cached
+        local U = Lib.Util
+        check("textWidth cache", U.textWidth("cache me", 10) == U.textWidth("cache me", 10))
+        c5.frame:Destroy()
     end
 
     -- re-creating a window with the same title replaces the old one

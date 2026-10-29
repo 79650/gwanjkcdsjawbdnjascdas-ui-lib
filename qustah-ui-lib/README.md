@@ -2,7 +2,7 @@
 
 ![Qustah UI](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.9.4-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.5-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
@@ -233,8 +233,8 @@ Each element is a method of a card, or of a Section, Row, Group or Tabs section:
 **Common options**
 - `Title`, `Desc`, `Flag`, `Callback`
 - `Icon`: an icon left of the title
-- `Help`: an "i" in the row that shows this text when clicked
-- `Risky`: red title; if you pass text, it becomes the "i" hint
+- `Help`: a small (i) icon in the row; hovering or tapping it shows this text
+- `Risky`: red title; if you pass text, it becomes the (i) hint
 - `Tooltip`: text shown next to the mouse after a short hover
 - `DependsOn`: follow another flag (see below)
 - `Locked`, `LockedTitle`
@@ -316,6 +316,7 @@ Card:Stepper({ Title = "Clicks per second", Flag = "cps", Min = 1, Max = 20, Ste
 Card:Dropdown({ Title = "Font", Flag = "font", Options = { "Gotham", "Code", "Arcade" }, Default = "Gotham" })
 
 Card:Dropdown({ Title = "Show", Flag = "parts", Multi = true, Options = { "Name", "Health", "Distance" }, Default = { "Name" } })
+-- (a multi box shows as many names as fit, then "+N": "Name, Health +2")
 
 Card:Dropdown({ Title = "Target", Flag = "priority", AllowNone = true, Options = {
     { Title = "Closest",   Icon = "footprints", Desc = "Nearest to you" },
@@ -619,7 +620,7 @@ Window:Dialog({ Title = "Enable Silent Aim?", Content = "Can be detected in rank
 Window:Confirm("Unload?", "Everything will be removed.", function() Window:Destroy() end, "Unload", true)
 ```
 
-The menu behind a dialog is dimmed and blocked. Escape or a click on the dimmed area cancels it.
+The menu behind a dialog is dimmed and blocked. Escape or a click on the dimmed area cancels it. Escape also closes an open dropdown list or colour panel.
 
 ---
 

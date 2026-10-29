@@ -45,7 +45,7 @@ return function(card, cfg)
     corner(hintDot, 3)
     local hint = label(hintRow, tostring(cfg.Hint or ""), 9, { Name = "Hint", Position = UDim2.fromOffset(2, 0), Size = UDim2.new(1, -2, 1, 0) })
     Theme.bind(hint, "TextColor3", "muted")
-    hintRow.Visible = cfg.Hint ~= nil or cfg.Validate ~= nil
+    hintRow.Visible = cfg.Hint ~= nil and tostring(cfg.Hint) ~= "" -- (no empty line under the field: it shows when there is something to say)
 
     local element = Base.element(card, "ActionInput", cfg, holder, nil, nil)
     element.Value = ""
@@ -57,8 +57,8 @@ return function(card, cfg)
         buttonEdge.Transparency = ready and 0.45 or 0
     end
     function element:SetHint(text, state)
-        hintRow.Visible = true
         hint.Text = tostring(text or cfg.Hint or "")
+        hintRow.Visible = hint.Text ~= ""
         local color = state == "ok" and GREEN or (state == "error" and RED or nil)
         hintDot.Visible = color ~= nil
         hint.Position = UDim2.fromOffset(color and 13 or 2, 0)

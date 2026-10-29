@@ -217,9 +217,16 @@ return function(card, cfg)
         for _, object in ipairs({ icon, spinner }) do
             if object and object.Visible then reserved = reserved + iconSize + 6 end
         end
-        if selectedLabel and selectedLabel.Visible then reserved = reserved + Util.textWidth(selectedLabel.Text, textSize, Enum.Font.Gotham) + 6 end
-        local room = math.max(0, math.floor(width - reserved))
         local need = Util.textWidth(textLabel.Text, textSize, Enum.Font.Gotham)
+        -- the chosen option (split button) goes first when space is short: the button's own text matters more
+        local squeezed = false
+        if selectedLabel and element.Selected ~= nil then
+            local extra = Util.textWidth(selectedLabel.Text, textSize, Enum.Font.Gotham) + 6
+            squeezed = need + extra > width - reserved
+            selectedLabel.Visible = not squeezed
+            if not squeezed then reserved = reserved + extra end
+        end
+        local room = math.max(0, math.floor(width - reserved))
         if textLabel.Text ~= "" and need > room then
             textLabel.AutomaticSize = Enum.AutomaticSize.None
             textLabel.Size = UDim2.new(0, room, 1, 0)
@@ -229,7 +236,7 @@ return function(card, cfg)
             textLabel.AutomaticSize = Enum.AutomaticSize.X
             textLabel.Size = UDim2.fromScale(0, 1)
             textLabel.TextTruncate = Enum.TextTruncate.None
-            if cfg.Tooltip == nil then element._tooltip = nil end
+            if cfg.Tooltip == nil then element._tooltip = squeezed and (textLabel.Text .. " · " .. selectedLabel.Text) or nil end
         end
     end
     -- right side layout (arrow, key cap, timer, badge); centred content moves left to stay clear of it
@@ -479,6 +486,7 @@ return function(card, cfg)
         if selectedLabel then
             selectedLabel.Text = option
             selectedLabel.Visible = true
+            task.defer(fit)
         end
         if not silent then run(option) end
     end
@@ -593,7 +601,16 @@ return function(card, cfg)
             if armed == 0 then
                 armed = armed + 1
                 local token = armed
-                textLabel.Text = type(cfg.Confirm) == "string" and cfg.Confirm or "Click again to confirm"
+                local ask = type(cfg.Confirm) == "string" and cfg.Confirm or nil
+                if not ask then
+                    -- the longest wording that fits the button (half-width buttons in a Row get the short one)
+                    local room = button.AbsoluteSize.X / (window.scale and window.scale.Scale or 1) - 20 - ((icon and icon.Visible) and (iconSize + 6) or 0)
+                    ask = "Sure?"
+                    for _, wording in ipairs({ "Click again to confirm", "Click again" }) do
+                        if Util.textWidth(wording, textSize, Enum.Font.Gotham) <= room then ask = wording break end
+                    end
+                end
+                textLabel.Text = ask
                 textLabel.Visible = true
                 Theme.tweenTo(outline, "Color", "accent", 0.1)
                 outline.Transparency = 0

@@ -125,34 +125,41 @@ function Theme.tweenTo(object, property, role, duration)
     end
 end
 
-function Theme.set(role, color)
-    if typeof(color) ~= "Color3" then return end
-    if role == "accent" then role = "accentUser" end
-    Theme.colors[role] = color
-    if role == "accentUser" or role == "base" or role == "input" or role == "card" then derive() end
+-- recolours only what uses a role whose colour really changed (dragging the accent picker touches a handful of
+-- roles, not every one of the thousands of bound properties)
+local function recolour(before)
+    local changed, any = {}, false
+    for role, color in pairs(Theme.colors) do
+        if before[role] ~= color then changed[role] = true any = true end
+    end
+    if not any then return end
     for object, properties in pairs(bound) do
         if object.Parent then
             for property, boundRole in pairs(properties) do
-                pcall(function() object[property] = Theme.get(boundRole) end)
+                if changed[boundRole] then pcall(function() object[property] = Theme.get(boundRole) end) end
             end
         end
     end
+end
+
+function Theme.set(role, color)
+    if typeof(color) ~= "Color3" then return end
+    if role == "accent" then role = "accentUser" end
+    local before = table.clone(Theme.colors)
+    Theme.colors[role] = color
+    if role == "accentUser" or role == "base" or role == "input" or role == "card" or role == "muted" or role == "text" or role == "dock" then derive() end
+    recolour(before)
     for _, listener in ipairs(listeners) do Util.safe(listener, role, color) end
 end
 
 -- Several roles at once (one recolour pass).
 function Theme.setMany(colors)
+    local before = table.clone(Theme.colors)
     for role, color in pairs(colors) do
         if typeof(color) == "Color3" then Theme.colors[role == "accent" and "accentUser" or role] = color end
     end
     derive()
-    for object, properties in pairs(bound) do
-        if object.Parent then
-            for property, boundRole in pairs(properties) do
-                pcall(function() object[property] = Theme.get(boundRole) end)
-            end
-        end
-    end
+    recolour(before)
     for _, listener in ipairs(listeners) do Util.safe(listener, "*", nil) end
 end
 

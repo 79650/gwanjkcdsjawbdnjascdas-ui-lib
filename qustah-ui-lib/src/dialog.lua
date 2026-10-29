@@ -46,8 +46,9 @@ return function(Window)
             })
             Theme.bind(content, "TextColor3", "muted")
         end
-        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 28), LayoutOrder = 3, ZIndex = 202, Parent = panel })
-        Util.list(row, 8, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Center)
+        -- (a little more room above the buttons than between the texts)
+        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 3, ZIndex = 202, Parent = panel })
+        Util.list(row, 8, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Bottom)
 
         local dialog = { Frame = overlay }
         function dialog:Close(result)

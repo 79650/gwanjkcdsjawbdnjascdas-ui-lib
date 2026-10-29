@@ -93,8 +93,9 @@ return function(window, cfg)
     menu:Toggle({ Title = "Haptics", Desc = "Buzz on taps (phones)", Default = Haptics.Enabled, Callback = function(on) Haptics.Enabled = on end })
     menu:Toggle({ Title = "Mobile button", Desc = "Reopen button while hidden", Default = window.mobileButton == true,
         Callback = function(on) window:SetMobileButton(on, true) end })
-    menu:Button({
-        Title = "Reset window size / position",
+    local menuActions = menu:Row({ Widths = { 3, 2 } })
+    menuActions:Button({
+        Title = "Reset layout", Icon = "rotate-ccw", Tooltip = "Puts the window back to its default size and place",
         Callback = function()
             window.width, window.height, window.topLeft = defaultSize.X, defaultSize.Y, nil
             window.memory.window = nil
@@ -102,8 +103,8 @@ return function(window, cfg)
             window:_saveMemory()
         end,
     })
-    menu:Button({
-        Title = "Unload",
+    menuActions:Button({
+        Title = "Unload", Icon = "power", Style = "Danger",
         Callback = function()
             window:Confirm("Unload " .. window.Title .. "?", "The menu and everything it runs will be removed.", function() window:Destroy() end, "Unload", true)
         end,
@@ -226,16 +227,18 @@ return function(window, cfg)
     for _, entry in ipairs(cfg.Info or {}) do about:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
     local files = type(writefile) == "function" and type(readfile) == "function"
     about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
+    about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
+    -- the buttons after the facts, side by side when there are two
+    local aboutButtons = (type(window.cfg.Changelog) == "table" and window.cfg.Tour) and about:Row() or about
     if type(window.cfg.Changelog) == "table" then
-        about:Button({ Title = "What's new", Icon = "newspaper", Callback = function() window:ShowChangelog() end })
+        aboutButtons:Button({ Title = "What's new", Icon = "newspaper", Callback = function() window:ShowChangelog() end })
     end
     if window.cfg.Tour then
-        about:Button({ Title = "Show the tour", Icon = "map", Callback = function()
+        aboutButtons:Button({ Title = "Show the tour", Icon = "map", Callback = function()
             local spec = window.cfg.Tour
             window:Tour(type(spec) == "table" and spec or nil, { Id = window.cfg.TourId, Force = true })
         end })
     end
-    about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
 
     -- kicks / disconnects seen by the kick watcher (kick.lua)
     if window.GetKicks and window.cfg.KickLog ~= false then
@@ -272,8 +275,9 @@ return function(window, cfg)
     })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
     local errorText = errorsCard:Paragraph({ Content = "No errors" })
-    errorsCard:Button({
-        Title = "Copy report",
+    local errorButtons = errorsCard:Row()
+    errorButtons:Button({
+        Title = "Copy report", Icon = "copy",
         Callback = function()
             local clipboard = setclipboard or toclipboard
             if type(clipboard) == "function" and pcall(clipboard, window:GetErrorReport()) then
@@ -283,7 +287,7 @@ return function(window, cfg)
             end
         end,
     })
-    errorsCard:Button({ Title = "Clear", Callback = function() window:ClearErrors() end })
+    errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
 
     local STATE = { On = GREEN, Off = nil, Limited = "warning", Error = RED }
     local function update()

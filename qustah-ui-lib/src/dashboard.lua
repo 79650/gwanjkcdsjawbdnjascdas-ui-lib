@@ -104,8 +104,9 @@ return function(window, cfg)
                 if not ok then busy = false window:Notify({ Title = "Teleport failed", Content = tostring(err), Color = "danger" }) end
             end)
         end
-        server:Button({ Title = "Rejoin", Callback = function() teleport(false) end })
-        server:Button({ Title = "Server hop", Confirm = true, Callback = function() teleport(true) end })
+        local actions = server:Row()
+        actions:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() teleport(false) end })
+        actions:Button({ Title = "Server hop", Icon = "shuffle", Confirm = true, Callback = function() teleport(true) end })
         server:Info({ Title = "Job ID", Value = game.JobId ~= "" and (game.JobId:sub(1, 8) .. "...") or "studio", Copy = function() return game.JobId end })
     end
 

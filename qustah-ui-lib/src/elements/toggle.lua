@@ -78,7 +78,7 @@ return function(card, cfg)
         self.BindKey = key
         window:_bind(self, key)
         if tag then
-            tag.Text = key and ("[" .. Util.keyName(key) .. "]") or ""
+            tag.Text = key and Util.keyName(key) or ""
             tag.Visible = key ~= nil
             -- make room for the key tag only while a key is bound
             local reserve = (key and 100 or 50) + (cfg.Help and 16 or 0)
@@ -96,15 +96,20 @@ return function(card, cfg)
         if self.BindMode == "Hold" and self._held then self._held = false self:Set(false) end
     end
     if bindable then
+        -- the bound key: a small key cap left of the switch (same look as the Keybind element, smaller)
         tag = Util.label(row, "", 9, {
-            Name = "Bind", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, cfg.Help and -62 or -42, 0.5, 0), Size = UDim2.fromOffset(48, 18),
-            TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium, Visible = false,
+            Name = "Bind", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, cfg.Help and -64 or -44, 0.5, 0), Size = UDim2.fromOffset(0, 16),
+            AutomaticSize = Enum.AutomaticSize.X, TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamMedium, Visible = false,
         })
+        Util.corner(tag, 4)
+        Util.create("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5), Parent = tag })
+        local tagEdge = Util.stroke(tag)
+        Theme.bind(tagEdge, "Color", "buttonEdge")
         Theme.bind(tag, "TextColor3", "muted")
-        element._keyLabel = tag
+        element._keyLabel, element._keyStroke = tag, tagEdge
         row.MouseButton2Click:Connect(function()
             if element.Locked then return end
-            tag.Text, tag.Visible = "[...]", true
+            tag.Text, tag.Visible = "...", true
             title.Size = UDim2.new(1, -(100 + (cfg.Help and 16 or 0)), 0, title.Size.Y.Offset)
             window._capture = function(key)
                 if key == Enum.KeyCode.Escape or key == window.key then element:SetBind(element.BindKey) -- (the menu key stays the menu key)

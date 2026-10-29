@@ -18,7 +18,28 @@ return function(card, cfg)
     Theme.bind(value, "TextColor3", "text")
 
     local element = Base.element(card, "Info", {}, row, title, nil)
-    function element:Set(text) self.Value = text value.Text = tostring(text) end
+    -- without a Copy button a long value borrows room from the name (down to what the name needs),
+    -- so a long value ("Limited · client-side only") isn't cut next to a short name
+    local function share()
+        if cfg.Copy then return end
+        local scale = card.window.scale and card.window.scale.Scale or 1
+        local width = row.AbsoluteSize.X / scale
+        if width <= 0 then return end
+        local need = Util.textWidth(title.Text, 10, Enum.Font.Gotham) + 10
+        local valueNeed = Util.textWidth(value.Text, 10, Enum.Font.GothamMedium)
+        -- 42% for the name; less when the value needs it (never less than the name needs), more when a long name fits
+        local titleWidth = width * 0.42
+        if need > titleWidth then
+            titleWidth = math.max(titleWidth, math.min(need, width - valueNeed - 8)) -- a long name takes what a short value leaves
+        elseif valueNeed + 2 > width - titleWidth then
+            titleWidth = math.max(need, width - valueNeed - 2)
+        end
+        title.Size = UDim2.new(0, titleWidth - 6, 1, 0)
+        value.Position = UDim2.new(0, titleWidth, 0, 0)
+        value.Size = UDim2.new(1, -titleWidth, 1, 0)
+    end
+    row:GetPropertyChangedSignal("AbsoluteSize"):Connect(share)
+    function element:Set(text) self.Value = text value.Text = tostring(text) share() end
     function element:Get() return self.Value end
     -- a theme role ("success") or a Color3
     function element:SetColor(color) Theme.bind(value, "TextColor3", color or "text") end

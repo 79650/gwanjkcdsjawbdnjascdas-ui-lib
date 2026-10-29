@@ -47,14 +47,7 @@ function Glow.setEnabled(enabled)
     for _, fx in ipairs(Glow.items) do if fx.label.Parent then apply(fx) end end
 end
 
-local function visible(object)
-    while object do
-        if object:IsA("GuiObject") and not object.Visible then return false end
-        if object:IsA("LayerCollector") then return object.Enabled end
-        object = object.Parent
-    end
-    return false
-end
+local visible = Util.shown
 
 -- One RenderStepped loop for all glows; hidden labels are skipped, destroyed ones dropped.
 function Glow.start(maid)

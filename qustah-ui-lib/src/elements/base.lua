@@ -107,16 +107,19 @@ function Base.row(card, cfg, height, opts)
             if desc then desc.Position = UDim2.fromOffset(22, 23) desc.Size = UDim2.new(1, desc.Size.X.Offset - 22, 0, 14) end
         end
     end
-    -- Help = "text": a small "i" left of the control; click shows the text next to the mouse.
+    -- Help = "text": a small (i) icon left of the control; hover (or tap) shows the text next to the pointer.
     if cfg.Help then
         local help = create("TextButton", {
-            Name = "Help", Text = "i", TextSize = 10, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BackgroundTransparency = 1,
+            Name = "Help", Text = "", AutoButtonColor = false, BackgroundTransparency = 1,
             AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(opts.helpRight or right), 0, opts.helpY or height / 2),
-            Size = UDim2.fromOffset(14, 16), ZIndex = 5, Parent = row,
+            Size = UDim2.fromOffset(16, 16), ZIndex = 5, Parent = row,
         })
-        Theme.bind(help, "TextColor3", "muted")
-        help.Activated:Connect(function() card.window:_tip(cfg.Help) end)
-        help.MouseLeave:Connect(function() card.window:_hideTip() end)
+        local glyph = Icons.themed(help, "info", 12, "muted", { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 5 })
+        if not glyph then help.Text = "i" help.TextSize = 10 help.Font = Enum.Font.GothamMedium Theme.bind(help, "TextColor3", "muted") end
+        local function show() if glyph then Theme.tweenTo(glyph, "ImageColor3", "heading", 0.1) end card.window:_tip(cfg.Help) end
+        help.Activated:Connect(show)
+        help.MouseEnter:Connect(show)
+        help.MouseLeave:Connect(function() if glyph then Theme.tweenTo(glyph, "ImageColor3", "muted", 0.1) end card.window:_hideTip() end)
         title.Size = UDim2.new(1, -(opts.helpRight or right) - 16, 0, title.Size.Y.Offset)
     end
     return row, title, desc

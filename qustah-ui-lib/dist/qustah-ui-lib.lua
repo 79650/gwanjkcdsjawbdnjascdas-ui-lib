@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.4 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.5 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -96,7 +96,7 @@ function Card.new(page, column, cfg, order)
         self.titleLabel = title
         -- Desc = "...": a muted line under the title
         if cfg.Desc then
-            local desc = label(frame, tostring(cfg.Desc), 9, { Name = "CardDesc", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 1 })
+            local desc = label(frame, tostring(cfg.Desc), 9, { Name = "CardDesc", Size = UDim2.new(1, 0, 0, 12), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 1 })
             Theme.bind(desc, "TextColor3", "muted")
             self.descLabel = desc
         end
@@ -948,8 +948,9 @@ return function(window, cfg)
                 if not ok then busy = false window:Notify({ Title = "Teleport failed", Content = tostring(err), Color = "danger" }) end
             end)
         end
-        server:Button({ Title = "Rejoin", Callback = function() teleport(false) end })
-        server:Button({ Title = "Server hop", Confirm = true, Callback = function() teleport(true) end })
+        local actions = server:Row()
+        actions:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() teleport(false) end })
+        actions:Button({ Title = "Server hop", Icon = "shuffle", Confirm = true, Callback = function() teleport(true) end })
         server:Info({ Title = "Job ID", Value = game.JobId ~= "" and (game.JobId:sub(1, 8) .. "...") or "studio", Copy = function() return game.JobId end })
     end
 
@@ -1039,8 +1040,9 @@ return function(Window)
             })
             Theme.bind(content, "TextColor3", "muted")
         end
-        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 28), LayoutOrder = 3, ZIndex = 202, Parent = panel })
-        Util.list(row, 8, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Center)
+        -- (a little more room above the buttons than between the texts)
+        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 3, ZIndex = 202, Parent = panel })
+        Util.list(row, 8, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Bottom)
 
         local dialog = { Frame = overlay }
         function dialog:Close(result)
@@ -1142,7 +1144,7 @@ return function(card, cfg)
     corner(hintDot, 3)
     local hint = label(hintRow, tostring(cfg.Hint or ""), 9, { Name = "Hint", Position = UDim2.fromOffset(2, 0), Size = UDim2.new(1, -2, 1, 0) })
     Theme.bind(hint, "TextColor3", "muted")
-    hintRow.Visible = cfg.Hint ~= nil or cfg.Validate ~= nil
+    hintRow.Visible = cfg.Hint ~= nil and tostring(cfg.Hint) ~= "" -- (no empty line under the field: it shows when there is something to say)
 
     local element = Base.element(card, "ActionInput", cfg, holder, nil, nil)
     element.Value = ""
@@ -1154,8 +1156,8 @@ return function(card, cfg)
         buttonEdge.Transparency = ready and 0.45 or 0
     end
     function element:SetHint(text, state)
-        hintRow.Visible = true
         hint.Text = tostring(text or cfg.Hint or "")
+        hintRow.Visible = hint.Text ~= ""
         local color = state == "ok" and GREEN or (state == "error" and RED or nil)
         hintDot.Visible = color ~= nil
         hint.Position = UDim2.fromOffset(color and 13 or 2, 0)
@@ -1314,16 +1316,19 @@ function Base.row(card, cfg, height, opts)
             if desc then desc.Position = UDim2.fromOffset(22, 23) desc.Size = UDim2.new(1, desc.Size.X.Offset - 22, 0, 14) end
         end
     end
-    -- Help = "text": a small "i" left of the control; click shows the text next to the mouse.
+    -- Help = "text": a small (i) icon left of the control; hover (or tap) shows the text next to the pointer.
     if cfg.Help then
         local help = create("TextButton", {
-            Name = "Help", Text = "i", TextSize = 10, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BackgroundTransparency = 1,
+            Name = "Help", Text = "", AutoButtonColor = false, BackgroundTransparency = 1,
             AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(opts.helpRight or right), 0, opts.helpY or height / 2),
-            Size = UDim2.fromOffset(14, 16), ZIndex = 5, Parent = row,
+            Size = UDim2.fromOffset(16, 16), ZIndex = 5, Parent = row,
         })
-        Theme.bind(help, "TextColor3", "muted")
-        help.Activated:Connect(function() card.window:_tip(cfg.Help) end)
-        help.MouseLeave:Connect(function() card.window:_hideTip() end)
+        local glyph = Icons.themed(help, "info", 12, "muted", { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 5 })
+        if not glyph then help.Text = "i" help.TextSize = 10 help.Font = Enum.Font.GothamMedium Theme.bind(help, "TextColor3", "muted") end
+        local function show() if glyph then Theme.tweenTo(glyph, "ImageColor3", "heading", 0.1) end card.window:_tip(cfg.Help) end
+        help.Activated:Connect(show)
+        help.MouseEnter:Connect(show)
+        help.MouseLeave:Connect(function() if glyph then Theme.tweenTo(glyph, "ImageColor3", "muted", 0.1) end card.window:_hideTip() end)
         title.Size = UDim2.new(1, -(opts.helpRight or right) - 16, 0, title.Size.Y.Offset)
     end
     return row, title, desc
@@ -1893,9 +1898,16 @@ return function(card, cfg)
         for _, object in ipairs({ icon, spinner }) do
             if object and object.Visible then reserved = reserved + iconSize + 6 end
         end
-        if selectedLabel and selectedLabel.Visible then reserved = reserved + Util.textWidth(selectedLabel.Text, textSize, Enum.Font.Gotham) + 6 end
-        local room = math.max(0, math.floor(width - reserved))
         local need = Util.textWidth(textLabel.Text, textSize, Enum.Font.Gotham)
+        -- the chosen option (split button) goes first when space is short: the button's own text matters more
+        local squeezed = false
+        if selectedLabel and element.Selected ~= nil then
+            local extra = Util.textWidth(selectedLabel.Text, textSize, Enum.Font.Gotham) + 6
+            squeezed = need + extra > width - reserved
+            selectedLabel.Visible = not squeezed
+            if not squeezed then reserved = reserved + extra end
+        end
+        local room = math.max(0, math.floor(width - reserved))
         if textLabel.Text ~= "" and need > room then
             textLabel.AutomaticSize = Enum.AutomaticSize.None
             textLabel.Size = UDim2.new(0, room, 1, 0)
@@ -1905,7 +1917,7 @@ return function(card, cfg)
             textLabel.AutomaticSize = Enum.AutomaticSize.X
             textLabel.Size = UDim2.fromScale(0, 1)
             textLabel.TextTruncate = Enum.TextTruncate.None
-            if cfg.Tooltip == nil then element._tooltip = nil end
+            if cfg.Tooltip == nil then element._tooltip = squeezed and (textLabel.Text .. " · " .. selectedLabel.Text) or nil end
         end
     end
     -- right side layout (arrow, key cap, timer, badge); centred content moves left to stay clear of it
@@ -2155,6 +2167,7 @@ return function(card, cfg)
         if selectedLabel then
             selectedLabel.Text = option
             selectedLabel.Visible = true
+            task.defer(fit)
         end
         if not silent then run(option) end
     end
@@ -2269,7 +2282,16 @@ return function(card, cfg)
             if armed == 0 then
                 armed = armed + 1
                 local token = armed
-                textLabel.Text = type(cfg.Confirm) == "string" and cfg.Confirm or "Click again to confirm"
+                local ask = type(cfg.Confirm) == "string" and cfg.Confirm or nil
+                if not ask then
+                    -- the longest wording that fits the button (half-width buttons in a Row get the short one)
+                    local room = button.AbsoluteSize.X / (window.scale and window.scale.Scale or 1) - 20 - ((icon and icon.Visible) and (iconSize + 6) or 0)
+                    ask = "Sure?"
+                    for _, wording in ipairs({ "Click again to confirm", "Click again" }) do
+                        if Util.textWidth(wording, textSize, Enum.Font.Gotham) <= room then ask = wording break end
+                    end
+                end
+                textLabel.Text = ask
                 textLabel.Visible = true
                 Theme.tweenTo(outline, "Color", "accent", 0.1)
                 outline.Transparency = 0
@@ -3011,9 +3033,24 @@ return function(card, cfg)
     local function render()
         local text
         if multi then
+            -- as many names as fit the box, then "+N" for the rest ("Name, Health +2")
+            local scale = window.scale and window.scale.Scale or 1
+            local room = button.AbsoluteSize.X > 0 and (button.AbsoluteSize.X / scale - 30) or 140
             local titles = {}
             for _, key in ipairs(element.Value) do titles[#titles + 1] = titleOf(key) end
             text = #titles > 0 and table.concat(titles, ", ") or "None"
+            if #titles > 1 and Util.textWidth(text, 10, Enum.Font.Gotham) > room then
+                local shown = titles[1]
+                for count = 2, #titles do
+                    local try = shown .. ", " .. titles[count]
+                    local rest = " +" .. (#titles - count)
+                    if Util.textWidth(try .. (count < #titles and rest or ""), 10, Enum.Font.Gotham) > room then
+                        text = shown .. " +" .. (#titles - count + 1)
+                        break
+                    end
+                    shown = try
+                end
+            end
         else
             text = element.Value and titleOf(element.Value) or "None"
         end
@@ -3025,6 +3062,8 @@ return function(card, cfg)
         valueLabel.Position = UDim2.fromOffset(hasVisual and 26 or 9, 0)
         valueLabel.Size = UDim2.new(1, hasVisual and -45 or -28, 1, 0)
     end
+
+    if multi then button:GetPropertyChangedSignal("AbsoluteSize"):Connect(render) end
 
     ------------------------------------------------------------ list popup
     local popup
@@ -3507,6 +3546,7 @@ return function(card, cfg)
         end
         if value then value.Text = text(series[1]) end
     end
+    local dirty = false
     local function find(name)
         if name == nil then return series[1] end
         for _, entry in ipairs(series) do if entry.name == name then return entry end end
@@ -3517,7 +3557,14 @@ return function(card, cfg)
         if not sample or not entry then return end
         entry.samples[#entry.samples + 1] = sample
         if #entry.samples > points then table.remove(entry.samples, 1) end
-        render()
+        -- (off screen - another page, the menu hidden - only the samples are kept; drawn when it can be seen)
+        if Util.shown(holder) then
+            dirty = false render()
+        else
+            dirty = true -- (the numbers are cheap: kept current)
+            for _, item in ipairs(series) do if item.legend then item.legend.Text = item.name .. " " .. text(item) end end
+            if value then value.Text = text(series[1]) end
+        end
     end
     function element:Set(list, name)
         local entry = find(name)
@@ -3534,6 +3581,13 @@ return function(card, cfg)
     end
     function element:Get(name) local entry = find(name) return entry and entry.samples end
     area:GetPropertyChangedSignal("AbsoluteSize"):Connect(render)
+    -- catch up as soon as the page shows again
+    task.spawn(function()
+        while window.alive and holder.Parent do
+            if dirty and Util.shown(holder) then dirty = false render() end
+            task.wait(0.25)
+        end
+    end)
 
     local function onScreen()
         local object = holder
@@ -3712,7 +3766,28 @@ return function(card, cfg)
     Theme.bind(value, "TextColor3", "text")
 
     local element = Base.element(card, "Info", {}, row, title, nil)
-    function element:Set(text) self.Value = text value.Text = tostring(text) end
+    -- without a Copy button a long value borrows room from the name (down to what the name needs),
+    -- so a long value ("Limited · client-side only") isn't cut next to a short name
+    local function share()
+        if cfg.Copy then return end
+        local scale = card.window.scale and card.window.scale.Scale or 1
+        local width = row.AbsoluteSize.X / scale
+        if width <= 0 then return end
+        local need = Util.textWidth(title.Text, 10, Enum.Font.Gotham) + 10
+        local valueNeed = Util.textWidth(value.Text, 10, Enum.Font.GothamMedium)
+        -- 42% for the name; less when the value needs it (never less than the name needs), more when a long name fits
+        local titleWidth = width * 0.42
+        if need > titleWidth then
+            titleWidth = math.max(titleWidth, math.min(need, width - valueNeed - 8)) -- a long name takes what a short value leaves
+        elseif valueNeed + 2 > width - titleWidth then
+            titleWidth = math.max(need, width - valueNeed - 2)
+        end
+        title.Size = UDim2.new(0, titleWidth - 6, 1, 0)
+        value.Position = UDim2.new(0, titleWidth, 0, 0)
+        value.Size = UDim2.new(1, -titleWidth, 1, 0)
+    end
+    row:GetPropertyChangedSignal("AbsoluteSize"):Connect(share)
+    function element:Set(text) self.Value = text value.Text = tostring(text) share() end
     function element:Get() return self.Value end
     -- a theme role ("success") or a Color3
     function element:SetColor(color) Theme.bind(value, "TextColor3", color or "text") end
@@ -5284,7 +5359,13 @@ return function(card, cfg)
         local button = create("TextButton", { Name = column.title, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.fromScale(x, 0), Size = UDim2.new(column.width, 0, 1, 0), Parent = head })
         local text = label(button, column.title, 9, { Name = "Text", Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 1, 0), TextXAlignment = column.align, Font = Enum.Font.GothamMedium })
         Theme.bind(text, "TextColor3", "muted")
-        local arrow = Icons.themed(button, "chevron-down", 10, "accent", { Name = "Arrow", AnchorPoint = Vector2.new(column.align == Enum.TextXAlignment.Right and 0 or 1, 0.5), Position = UDim2.new(column.align == Enum.TextXAlignment.Right and 0 or 1, column.align == Enum.TextXAlignment.Right and 2 or -2, 0.5, 0), Visible = false })
+        -- the sort arrow sits right next to the column name (before it in right-aligned columns)
+        local nameWidth = Util.textWidth(column.title, 9, Enum.Font.GothamMedium)
+        local arrowPos
+        if column.align == Enum.TextXAlignment.Right then arrowPos = UDim2.new(1, -(8 + nameWidth + 2), 0.5, 0)
+        elseif column.align == Enum.TextXAlignment.Center then arrowPos = UDim2.new(0.5, nameWidth / 2 + 2, 0.5, 0)
+        else arrowPos = UDim2.new(0, 8 + nameWidth + 2, 0.5, 0) end
+        local arrow = Icons.themed(button, "chevron-down", 10, "accent", { Name = "Arrow", AnchorPoint = Vector2.new(column.align == Enum.TextXAlignment.Right and 1 or 0, 0.5), Position = arrowPos, Visible = false })
         headers[index] = { text = text, arrow = arrow }
         if sortable then
             button.MouseEnter:Connect(function() Theme.tweenTo(text, "TextColor3", "heading", 0.1) end)
@@ -5559,7 +5640,7 @@ return function(card, cfg)
         self.BindKey = key
         window:_bind(self, key)
         if tag then
-            tag.Text = key and ("[" .. Util.keyName(key) .. "]") or ""
+            tag.Text = key and Util.keyName(key) or ""
             tag.Visible = key ~= nil
             -- make room for the key tag only while a key is bound
             local reserve = (key and 100 or 50) + (cfg.Help and 16 or 0)
@@ -5577,15 +5658,20 @@ return function(card, cfg)
         if self.BindMode == "Hold" and self._held then self._held = false self:Set(false) end
     end
     if bindable then
+        -- the bound key: a small key cap left of the switch (same look as the Keybind element, smaller)
         tag = Util.label(row, "", 9, {
-            Name = "Bind", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, cfg.Help and -62 or -42, 0.5, 0), Size = UDim2.fromOffset(48, 18),
-            TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium, Visible = false,
+            Name = "Bind", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, cfg.Help and -64 or -44, 0.5, 0), Size = UDim2.fromOffset(0, 16),
+            AutomaticSize = Enum.AutomaticSize.X, TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamMedium, Visible = false,
         })
+        Util.corner(tag, 4)
+        Util.create("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5), Parent = tag })
+        local tagEdge = Util.stroke(tag)
+        Theme.bind(tagEdge, "Color", "buttonEdge")
         Theme.bind(tag, "TextColor3", "muted")
-        element._keyLabel = tag
+        element._keyLabel, element._keyStroke = tag, tagEdge
         row.MouseButton2Click:Connect(function()
             if element.Locked then return end
-            tag.Text, tag.Visible = "[...]", true
+            tag.Text, tag.Visible = "...", true
             title.Size = UDim2.new(1, -(100 + (cfg.Help and 16 or 0)), 0, title.Size.Y.Offset)
             window._capture = function(key)
                 if key == Enum.KeyCode.Escape or key == window.key then element:SetBind(element.BindKey) -- (the menu key stays the menu key)
@@ -5702,7 +5788,7 @@ return function(card, cfg)
         end)
     end
     window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
-        if spin and holder.Parent and holder.AbsoluteSize.X > 0 then yaw = yaw + (dt or 0.016) * 0.6 place() end
+        if spin and holder.Parent and holder.AbsoluteSize.X > 0 and Util.shown(holder) then yaw = yaw + (dt or 0.016) * 0.6 place() end
     end)
     element:SetObject(cfg.Object)
     return element
@@ -6020,14 +6106,7 @@ function Glow.setEnabled(enabled)
     for _, fx in ipairs(Glow.items) do if fx.label.Parent then apply(fx) end end
 end
 
-local function visible(object)
-    while object do
-        if object:IsA("GuiObject") and not object.Visible then return false end
-        if object:IsA("LayerCollector") then return object.Enabled end
-        object = object.Parent
-    end
-    return false
-end
+local visible = Util.shown
 
 -- One RenderStepped loop for all glows; hidden labels are skipped, destroyed ones dropped.
 function Glow.start(maid)
@@ -7083,7 +7162,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.4",
+    Version = "1.9.5",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -8212,8 +8291,9 @@ return function(window, cfg)
     menu:Toggle({ Title = "Haptics", Desc = "Buzz on taps (phones)", Default = Haptics.Enabled, Callback = function(on) Haptics.Enabled = on end })
     menu:Toggle({ Title = "Mobile button", Desc = "Reopen button while hidden", Default = window.mobileButton == true,
         Callback = function(on) window:SetMobileButton(on, true) end })
-    menu:Button({
-        Title = "Reset window size / position",
+    local menuActions = menu:Row({ Widths = { 3, 2 } })
+    menuActions:Button({
+        Title = "Reset layout", Icon = "rotate-ccw", Tooltip = "Puts the window back to its default size and place",
         Callback = function()
             window.width, window.height, window.topLeft = defaultSize.X, defaultSize.Y, nil
             window.memory.window = nil
@@ -8221,8 +8301,8 @@ return function(window, cfg)
             window:_saveMemory()
         end,
     })
-    menu:Button({
-        Title = "Unload",
+    menuActions:Button({
+        Title = "Unload", Icon = "power", Style = "Danger",
         Callback = function()
             window:Confirm("Unload " .. window.Title .. "?", "The menu and everything it runs will be removed.", function() window:Destroy() end, "Unload", true)
         end,
@@ -8345,16 +8425,18 @@ return function(window, cfg)
     for _, entry in ipairs(cfg.Info or {}) do about:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
     local files = type(writefile) == "function" and type(readfile) == "function"
     about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
+    about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
+    -- the buttons after the facts, side by side when there are two
+    local aboutButtons = (type(window.cfg.Changelog) == "table" and window.cfg.Tour) and about:Row() or about
     if type(window.cfg.Changelog) == "table" then
-        about:Button({ Title = "What's new", Icon = "newspaper", Callback = function() window:ShowChangelog() end })
+        aboutButtons:Button({ Title = "What's new", Icon = "newspaper", Callback = function() window:ShowChangelog() end })
     end
     if window.cfg.Tour then
-        about:Button({ Title = "Show the tour", Icon = "map", Callback = function()
+        aboutButtons:Button({ Title = "Show the tour", Icon = "map", Callback = function()
             local spec = window.cfg.Tour
             window:Tour(type(spec) == "table" and spec or nil, { Id = window.cfg.TourId, Force = true })
         end })
     end
-    about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
 
     -- kicks / disconnects seen by the kick watcher (kick.lua)
     if window.GetKicks and window.cfg.KickLog ~= false then
@@ -8391,8 +8473,9 @@ return function(window, cfg)
     })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
     local errorText = errorsCard:Paragraph({ Content = "No errors" })
-    errorsCard:Button({
-        Title = "Copy report",
+    local errorButtons = errorsCard:Row()
+    errorButtons:Button({
+        Title = "Copy report", Icon = "copy",
         Callback = function()
             local clipboard = setclipboard or toclipboard
             if type(clipboard) == "function" and pcall(clipboard, window:GetErrorReport()) then
@@ -8402,7 +8485,7 @@ return function(window, cfg)
             end
         end,
     })
-    errorsCard:Button({ Title = "Clear", Callback = function() window:ClearErrors() end })
+    errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
 
     local STATE = { On = GREEN, Off = nil, Limited = "warning", Error = RED }
     local function update()
@@ -8787,34 +8870,41 @@ function Theme.tweenTo(object, property, role, duration)
     end
 end
 
-function Theme.set(role, color)
-    if typeof(color) ~= "Color3" then return end
-    if role == "accent" then role = "accentUser" end
-    Theme.colors[role] = color
-    if role == "accentUser" or role == "base" or role == "input" or role == "card" then derive() end
+-- recolours only what uses a role whose colour really changed (dragging the accent picker touches a handful of
+-- roles, not every one of the thousands of bound properties)
+local function recolour(before)
+    local changed, any = {}, false
+    for role, color in pairs(Theme.colors) do
+        if before[role] ~= color then changed[role] = true any = true end
+    end
+    if not any then return end
     for object, properties in pairs(bound) do
         if object.Parent then
             for property, boundRole in pairs(properties) do
-                pcall(function() object[property] = Theme.get(boundRole) end)
+                if changed[boundRole] then pcall(function() object[property] = Theme.get(boundRole) end) end
             end
         end
     end
+end
+
+function Theme.set(role, color)
+    if typeof(color) ~= "Color3" then return end
+    if role == "accent" then role = "accentUser" end
+    local before = table.clone(Theme.colors)
+    Theme.colors[role] = color
+    if role == "accentUser" or role == "base" or role == "input" or role == "card" or role == "muted" or role == "text" or role == "dock" then derive() end
+    recolour(before)
     for _, listener in ipairs(listeners) do Util.safe(listener, role, color) end
 end
 
 -- Several roles at once (one recolour pass).
 function Theme.setMany(colors)
+    local before = table.clone(Theme.colors)
     for role, color in pairs(colors) do
         if typeof(color) == "Color3" then Theme.colors[role == "accent" and "accentUser" or role] = color end
     end
     derive()
-    for object, properties in pairs(bound) do
-        if object.Parent then
-            for property, boundRole in pairs(properties) do
-                pcall(function() object[property] = Theme.get(boundRole) end)
-            end
-        end
-    end
+    recolour(before)
     for _, listener in ipairs(listeners) do Util.safe(listener, "*", nil) end
 end
 
@@ -9071,11 +9161,8 @@ return function(Window)
         local spec = self.cfg.Tour
         if not spec or self:HasSeenTour(self.cfg.TourId) then return end
         task.delay(tonumber(self.cfg.TourDelay) or 2.5, function()
-            for _ = 1, 40 do
-                if not self.alive then return end
-                if not self._dialog and self.visible then break end
-                task.wait(0.5)
-            end
+            -- waits for the changelog / any dialog to close and the menu to be open (never on top of them)
+            while self.alive and (self._dialog or not self.visible or self._tour) do task.wait(0.5) end
             if self.alive then self:Tour(type(spec) == "table" and spec or nil, { Once = true, Id = self.cfg.TourId }) end
         end)
     end
@@ -9425,8 +9512,26 @@ function Util.maid()
     return maid
 end
 
+-- text widths are asked for a lot (buttons fitting their text, the tour, tooltips): remembered, the table starts over at 1000
+local widthCache, widthCount = {}, 0
 function Util.textWidth(text, size, font)
-    return Services.TextService:GetTextSize(tostring(text), size, font or Enum.Font.Gotham, Vector2.new(10000, 100)).X
+    text, font = tostring(text), font or Enum.Font.Gotham
+    local key = text .. "\0" .. tostring(size) .. "\0" .. tostring(font)
+    local width = widthCache[key]
+    if width then return width end
+    width = Services.TextService:GetTextSize(text, size, font, Vector2.new(10000, 100)).X
+    if widthCount >= 1000 then widthCache, widthCount = {}, 0 end
+    widthCache[key], widthCount = width, widthCount + 1
+    return width
+end
+-- true while the object can actually be seen: it and every parent Visible, the ScreenGui enabled
+function Util.shown(object)
+    while object do
+        if object:IsA("GuiObject") and not object.Visible then return false end
+        if object:IsA("LayerCollector") then return object.Enabled end
+        object = object.Parent
+    end
+    return false
 end
 
 function Util.round(value, step)
@@ -10364,8 +10469,9 @@ function Window:_build()
             end
             if not inside(self._popup.frame) and not inside(self._popup.owner) then self:_closePopup() end
         end
-        -- 3. Escape closes an open dialog
+        -- 3. Escape closes an open dialog, else an open popup (dropdown list, colour panel...)
         if self._dialog and input.KeyCode == Enum.KeyCode.Escape then self._dialog:Close() return end
+        if self._popup and input.KeyCode == Enum.KeyCode.Escape then self:_closePopup() return end
         if processed or UserInputService:GetFocusedTextBox() then return end
         local key = Util.inputKey(input, true)
         if not key then return end

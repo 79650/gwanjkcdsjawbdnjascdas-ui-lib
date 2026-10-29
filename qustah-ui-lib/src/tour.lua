@@ -103,11 +103,8 @@ return function(Window)
         local spec = self.cfg.Tour
         if not spec or self:HasSeenTour(self.cfg.TourId) then return end
         task.delay(tonumber(self.cfg.TourDelay) or 2.5, function()
-            for _ = 1, 40 do
-                if not self.alive then return end
-                if not self._dialog and self.visible then break end
-                task.wait(0.5)
-            end
+            -- waits for the changelog / any dialog to close and the menu to be open (never on top of them)
+            while self.alive and (self._dialog or not self.visible or self._tour) do task.wait(0.5) end
             if self.alive then self:Tour(type(spec) == "table" and spec or nil, { Once = true, Id = self.cfg.TourId }) end
         end)
     end

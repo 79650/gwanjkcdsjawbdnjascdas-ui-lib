@@ -136,8 +136,26 @@ function Util.maid()
     return maid
 end
 
+-- text widths are asked for a lot (buttons fitting their text, the tour, tooltips): remembered, the table starts over at 1000
+local widthCache, widthCount = {}, 0
 function Util.textWidth(text, size, font)
-    return Services.TextService:GetTextSize(tostring(text), size, font or Enum.Font.Gotham, Vector2.new(10000, 100)).X
+    text, font = tostring(text), font or Enum.Font.Gotham
+    local key = text .. "\0" .. tostring(size) .. "\0" .. tostring(font)
+    local width = widthCache[key]
+    if width then return width end
+    width = Services.TextService:GetTextSize(text, size, font, Vector2.new(10000, 100)).X
+    if widthCount >= 1000 then widthCache, widthCount = {}, 0 end
+    widthCache[key], widthCount = width, widthCount + 1
+    return width
+end
+-- true while the object can actually be seen: it and every parent Visible, the ScreenGui enabled
+function Util.shown(object)
+    while object do
+        if object:IsA("GuiObject") and not object.Visible then return false end
+        if object:IsA("LayerCollector") then return object.Enabled end
+        object = object.Parent
+    end
+    return false
 end
 
 function Util.round(value, step)

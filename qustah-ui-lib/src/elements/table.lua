@@ -96,7 +96,13 @@ return function(card, cfg)
         local button = create("TextButton", { Name = column.title, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.fromScale(x, 0), Size = UDim2.new(column.width, 0, 1, 0), Parent = head })
         local text = label(button, column.title, 9, { Name = "Text", Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 1, 0), TextXAlignment = column.align, Font = Enum.Font.GothamMedium })
         Theme.bind(text, "TextColor3", "muted")
-        local arrow = Icons.themed(button, "chevron-down", 10, "accent", { Name = "Arrow", AnchorPoint = Vector2.new(column.align == Enum.TextXAlignment.Right and 0 or 1, 0.5), Position = UDim2.new(column.align == Enum.TextXAlignment.Right and 0 or 1, column.align == Enum.TextXAlignment.Right and 2 or -2, 0.5, 0), Visible = false })
+        -- the sort arrow sits right next to the column name (before it in right-aligned columns)
+        local nameWidth = Util.textWidth(column.title, 9, Enum.Font.GothamMedium)
+        local arrowPos
+        if column.align == Enum.TextXAlignment.Right then arrowPos = UDim2.new(1, -(8 + nameWidth + 2), 0.5, 0)
+        elseif column.align == Enum.TextXAlignment.Center then arrowPos = UDim2.new(0.5, nameWidth / 2 + 2, 0.5, 0)
+        else arrowPos = UDim2.new(0, 8 + nameWidth + 2, 0.5, 0) end
+        local arrow = Icons.themed(button, "chevron-down", 10, "accent", { Name = "Arrow", AnchorPoint = Vector2.new(column.align == Enum.TextXAlignment.Right and 1 or 0, 0.5), Position = arrowPos, Visible = false })
         headers[index] = { text = text, arrow = arrow }
         if sortable then
             button.MouseEnter:Connect(function() Theme.tweenTo(text, "TextColor3", "heading", 0.1) end)

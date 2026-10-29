@@ -81,7 +81,7 @@ function Card.new(page, column, cfg, order)
         self.titleLabel = title
         -- Desc = "...": a muted line under the title
         if cfg.Desc then
-            local desc = label(frame, tostring(cfg.Desc), 9, { Name = "CardDesc", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 1 })
+            local desc = label(frame, tostring(cfg.Desc), 9, { Name = "CardDesc", Size = UDim2.new(1, 0, 0, 12), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 1 })
             Theme.bind(desc, "TextColor3", "muted")
             self.descLabel = desc
         end
