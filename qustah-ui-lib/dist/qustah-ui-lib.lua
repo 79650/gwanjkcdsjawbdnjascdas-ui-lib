@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.3 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.4 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7083,7 +7083,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.3",
+    Version = "1.9.4",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -8981,6 +8981,7 @@ local Icons = require("icons")
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 local PANEL = 236 -- card width
 local PAD = 6     -- room around the highlighted part
+local TIGHT = { status = 3, menukey = 3, footer = 0, header = 2 } -- (targets in the footer: a smaller ring that stays inside the window)
 
 return function(Window)
     local function guiOf(window, target)
@@ -8988,9 +8989,29 @@ return function(Window)
         if type(target) == "string" then
             local name = target:lower()
             if name == "dock" then return window.dock end
-            if name == "header" then return window.main and window.main:FindFirstChild("Header") end
+            if name == "header" then
+                -- the whole top bar (the Header frame stops before the window buttons)
+                local main, header = window.main, window.main and window.main:FindFirstChild("Header")
+                if not header then return nil end
+                local area = main:FindFirstChild("TourHeader")
+                    or create("Frame", { Name = "TourHeader", BackgroundTransparency = 1, Parent = main })
+                area.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset)
+                return area
+            end
             if name == "footer" then return window.footer end
-            if name == "status" then return window.statusLabel end
+            if name == "status" then
+                -- the dot and the words only (the label itself is much wider than its text)
+                local footer, label_ = window.footer, window.statusLabel
+                if not footer or not label_ then return nil end
+                local area = footer:FindFirstChild("TourStatus")
+                if not area then
+                    area = create("Frame", { Name = "TourStatus", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Parent = footer })
+                end
+                local width = Util.textWidth(label_.Text, label_.TextSize, Enum.Font.Gotham)
+                area.Position = UDim2.new(0, 16, 0.5, 0)
+                area.Size = UDim2.fromOffset(math.ceil(label_.Position.X.Offset - 16 + width + 4), 16)
+                return area
+            end
             if name == "menukey" then return window.menuHint and window.menuHint.Row end
             if name == "settings" then return window.settingsTab and window.settingsTab.button end
             if name == "bell" then return window.main and window.main:FindFirstChild("Bell", true) end
@@ -9034,7 +9055,7 @@ return function(Window)
             { Target = "header", Title = "Move and resize", Text = "Drag the header to move the window, drag the bottom-right corner to resize it. Double-click the header for fullscreen." },
             { Target = "menuKey", Title = "Menu key", Text = "Press " .. key .. " to hide or show the menu. Click the key to change it." },
             { Target = "settings", Title = "Settings", Text = "Themes, fonts, profiles and overlays live here. Profiles save every setting so you can load them next time." },
-            { Target = "status", Title = "Status", Text = "Green means everything works. If a feature fails, it turns red and Settings > Info says why." },
+            { Target = "status", Title = "Status", Text = "Green: everything works. Yellow: some features are limited on this executor. Red: something failed. Settings > Info says why." },
         }
         local out = {}
         for _, step in ipairs(steps) do if guiOf(self, step.Target) then out[#out + 1] = step end end
@@ -9167,8 +9188,10 @@ return function(Window)
             local x, y, w, h
             local p, s
             if object and object.Parent then p, s = rectOf(object) end
+            local pad = type(current.Target) == "string" and TIGHT[current.Target:lower()] or PAD
+            pad = pad * scale
             if s and s.X > 0 then
-                x, y, w, h = p.X - PAD, p.Y - PAD, s.X + PAD * 2, s.Y + PAD * 2
+                x, y, w, h = p.X - pad, p.Y - pad, s.X + pad * 2, s.Y + pad * 2
             else
                 -- nothing to point at: a centred card on a dimmed screen
                 x, y, w, h = viewport.X / 2, viewport.Y / 2, 0, 0
