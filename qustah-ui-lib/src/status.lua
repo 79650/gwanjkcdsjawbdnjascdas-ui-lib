@@ -36,6 +36,22 @@ return function(Window)
     end
     function Window:GetModules() return self.moduleOrder or {}, self.modules or {} end
 
+    -- session counters shown in Settings › Info › This session: Window:Count("Teleports"), Count("Server hops", 1)
+    function Window:Count(name, amount)
+        name = tostring(name)
+        self.counts = self.counts or {}
+        self.countOrder = self.countOrder or {}
+        if self.counts[name] == nil then self.counts[name] = 0 table.insert(self.countOrder, name) end
+        self.counts[name] = self.counts[name] + (tonumber(amount) or 1)
+        for _, listener in ipairs(self._countListeners or {}) do Util.safe(listener, name, self.counts[name]) end
+        return self.counts[name]
+    end
+    function Window:GetCounts() return self.countOrder or {}, self.counts or {} end
+    function Window:OnCount(callback)
+        self._countListeners = self._countListeners or {}
+        table.insert(self._countListeners, callback)
+    end
+
     function Window:ReportError(source, message)
         source, message = tostring(source or "Script"), tostring(message or "Unknown error")
         self.errors = self.errors or {}

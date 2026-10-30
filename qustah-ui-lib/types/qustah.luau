@@ -280,6 +280,8 @@ export type Window = {
 	AddTag: (self: Window, text: string, opts: { Color: Paint?, Style: ("Solid" | "Soft")? }?) -> any,
 	SetModule: (self: Window, name: string, state: "On" | "Off" | "Limited" | "Error", detail: string?, meta: { Icon: string?, Tab: string? }?) -> (),
 	GetDebugInfo: (self: Window) -> string,
+	Count: (self: Window, name: string, amount: number?) -> number,
+	ShowVersionHistory: (self: Window) -> any,
 	ReportError: (self: Window, source: string, message: string) -> (),
 	OnKick: (self: Window, callback: (info: KickInfo) -> ()) -> (),
 	GetKicks: (self: Window) -> { any },

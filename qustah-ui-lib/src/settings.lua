@@ -259,6 +259,10 @@ return function(window, cfg)
     if type(window.cfg.Changelog) == "table" then
         aboutButtons:Button({ Title = "What's new", Icon = "newspaper", Callback = function() window:ShowChangelog() end })
     end
+    -- every version's notes (Changelog.History), under the other buttons
+    if type(window.cfg.Changelog) == "table" then
+        about:Button({ Title = "Version history", Icon = "history", Style = "Ghost", Callback = function() window:ShowVersionHistory() end })
+    end
     if window.cfg.Tour then
         aboutButtons:Button({ Title = "Show the tour", Icon = "map", Callback = function()
             local spec = window.cfg.Tour
@@ -363,6 +367,44 @@ return function(window, cfg)
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)
     update()
+    -- this session: how long, how many errors, the script's own counters (Window:Count), Lua memory
+    window._startedAt = window._startedAt or os.clock()
+    local sessionCard = infoPage:Card({ Title = "This session", Side = "Right", Icon = "timer" })
+    local uptimeRow = sessionCard:Info({ Title = "Running for", Value = "0s" })
+    local errorsRow = sessionCard:Info({ Title = "Errors caught", Value = "0" })
+    local countRows = {}
+    local memoryRow = sessionCard:Info({ Title = "Lua memory", Value = "--" })
+    memoryRow.Row.LayoutOrder = 10000 -- (stays last when counters are added)
+    local function memory()
+        local ok, kb = pcall(collectgarbage, "count")
+        if not ok or type(kb) ~= "number" then ok, kb = pcall(function() return gcinfo() end) end
+        return ok and type(kb) == "number" and kb or nil
+    end
+    local function refreshSession()
+        local seconds = math.floor(os.clock() - window._startedAt)
+        uptimeRow:Set(seconds >= 3600 and string.format("%dh %02dm", seconds // 3600, (seconds // 60) % 60)
+            or (seconds >= 60 and string.format("%dm %02ds", seconds // 60, seconds % 60) or (seconds .. "s")))
+        local total = 0
+        for _, entry in ipairs(window:GetErrors()) do total = total + entry.count end
+        errorsRow:Set(tostring(total))
+        errorsRow:SetColor(total > 0 and RED or "text")
+        local order, counts = window:GetCounts()
+        for _, name in ipairs(order) do
+            countRows[name] = countRows[name] or sessionCard:Info({ Title = name })
+            countRows[name]:Set(tostring(counts[name]))
+        end
+        local kb = memory()
+        memoryRow:Set(kb and string.format("%.1f MB", kb / 1024) or "unavailable")
+    end
+    window:OnCount(function() if infoPage.frame.Visible then refreshSession() end end)
+    task.spawn(function()
+        while window.alive do
+            if window.visible and infoPage.frame.Visible then refreshSession() end
+            task.wait(1)
+        end
+    end)
+    refreshSession()
+
     window.settingsTab = tab
     return tab
 end

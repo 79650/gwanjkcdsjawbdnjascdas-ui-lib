@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.11 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.12 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6542,7 +6542,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.11",
+Version="1.9.12",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -7692,6 +7692,9 @@ local aboutButtons=(type(window.cfg.Changelog)=="table"and window.cfg.Tour)and a
 if type(window.cfg.Changelog)=="table"then
 aboutButtons:Button({Title="What's new",Icon="newspaper",Callback=function()window:ShowChangelog()end})
 end
+if type(window.cfg.Changelog)=="table"then
+about:Button({Title="Version history",Icon="history",Style="Ghost",Callback=function()window:ShowVersionHistory()end})
+end
 if window.cfg.Tour then
 aboutButtons:Button({Title="Show the tour",Icon="map",Callback=function()
 local spec=window.cfg.Tour
@@ -7787,6 +7790,42 @@ end
 window:OnStatusChanged(update)
 Theme.onChange(function()if infoPage.frame.Parent then update()end end)
 update()
+window._startedAt=window._startedAt or os.clock()
+local sessionCard=infoPage:Card({Title="This session",Side="Right",Icon="timer"})
+local uptimeRow=sessionCard:Info({Title="Running for",Value="0s"})
+local errorsRow=sessionCard:Info({Title="Errors caught",Value="0"})
+local countRows={}
+local memoryRow=sessionCard:Info({Title="Lua memory",Value="--"})
+memoryRow.Row.LayoutOrder=10000
+local function memory()
+local ok,kb=pcall(collectgarbage,"count")
+if not ok or type(kb)~="number"then ok,kb=pcall(function()return gcinfo()end)end
+return ok and type(kb)=="number"and kb or nil
+end
+local function refreshSession()
+local seconds=math.floor(os.clock()-window._startedAt)
+uptimeRow:Set(seconds>=3600 and string.format("%dh %02dm",seconds//3600,(seconds//60)%60)
+or(seconds>=60 and string.format("%dm %02ds",seconds//60,seconds%60)or(seconds.."s")))
+local total=0
+for _,entry in ipairs(window:GetErrors())do total=total+entry.count end
+errorsRow:Set(tostring(total))
+errorsRow:SetColor(total>0 and RED or"text")
+local order,counts=window:GetCounts()
+for _,name in ipairs(order)do
+countRows[name]=countRows[name]or sessionCard:Info({Title=name})
+countRows[name]:Set(tostring(counts[name]))
+end
+local kb=memory()
+memoryRow:Set(kb and string.format("%.1f MB",kb/1024)or"unavailable")
+end
+window:OnCount(function()if infoPage.frame.Visible then refreshSession()end end)
+task.spawn(function()
+while window.alive do
+if window.visible and infoPage.frame.Visible then refreshSession()end
+task.wait(1)
+end
+end)
+refreshSession()
 window.settingsTab=tab
 return tab
 end
@@ -7896,6 +7935,20 @@ if state=="Error"then self:ReportError(name,detail or"Module stopped with an err
 changed(self)
 end
 function Window:GetModules()return self.moduleOrder or{},self.modules or{}end
+function Window:Count(name,amount)
+name=tostring(name)
+self.counts=self.counts or{}
+self.countOrder=self.countOrder or{}
+if self.counts[name]==nil then self.counts[name]=0 table.insert(self.countOrder,name)end
+self.counts[name]=self.counts[name]+(tonumber(amount)or 1)
+for _,listener in ipairs(self._countListeners or{})do Util.safe(listener,name,self.counts[name])end
+return self.counts[name]
+end
+function Window:GetCounts()return self.countOrder or{},self.counts or{}end
+function Window:OnCount(callback)
+self._countListeners=self._countListeners or{}
+table.insert(self._countListeners,callback)
+end
 function Window:ReportError(source,message)
 source,message=tostring(source or"Script"),tostring(message or"Unknown error")
 self.errors=self.errors or{}
@@ -10172,6 +10225,24 @@ Title=tostring(log.Title or("What's new"..(log.Version and(" in "..tostring(log.
 Icon=log.Icon or"sparkles",Content=table.concat(lines,"\n"),
 Buttons={{Title=log.Button or"Got it",Style="Primary"}},
 })
+end
+function Window:ShowVersionHistory()
+local log=self.cfg.Changelog
+if type(log)~="table"then return nil end
+local versions={{Version=log.Version,Items=log.Items,Current=true}}
+for _,entry in ipairs(type(log.History)=="table"and log.History or{})do versions[#versions+1]=entry end
+local blocks={}
+for index,entry in ipairs(versions)do
+if index>6 then blocks[#blocks+1]="<font transparency=\"0.4\">and "..(#versions-6).." older</font>"break end
+local lines={"<b>"..tostring(entry.Version or"?").."</b>"..(entry.Current and"  <font transparency=\"0.4\">current</font>"or"")}
+for count,item in ipairs(entry.Items or{})do
+if count>6 then lines[#lines+1]="   …"break end
+lines[#lines+1]="•  "..tostring(item):gsub("<","&lt;")
+end
+blocks[#blocks+1]=table.concat(lines,"\n")
+end
+return self:Dialog({Title="Version history",Icon="history",Content=table.concat(blocks,"\n\n"),
+Buttons={{Title="Close",Style="Primary"}}})
 end
 function Window:_changelog()
 local log=self.cfg.Changelog

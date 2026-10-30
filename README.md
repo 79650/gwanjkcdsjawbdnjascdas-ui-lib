@@ -2,7 +2,7 @@
 
 ![Qustah UI](qustah-ui-lib/assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.9.11-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.12-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
@@ -857,11 +857,19 @@ The tab and page of a target open by themselves, and a long page scrolls to it. 
 ```lua
 Lib:CreateWindow({
     Title = "Qustāh", Version = "V1.2",
-    Changelog = { Version = "1.2", Items = { "Added auto farm", "Fixed ESP flicker" } },
+    Changelog = { Version = "1.2", Items = { "Added auto farm", "Fixed ESP flicker" },
+        History = { { Version = "1.1", Items = { "Server hop" } }, { Version = "1.0", Items = { "First release" } } } },
 })
 ```
 
-The "What's new" dialog opens once for each new version. `Window:ShowChangelog()` (and Settings › Info › What's new) opens it again.
+The "What's new" dialog opens once for each new version. `Window:ShowChangelog()` (and Settings › Info › What's new) opens it again. With `History`, Settings › Info › **Version history** (`Window:ShowVersionHistory()`) lists every version's notes, newest first.
+
+**This session** (Settings › Info): how long the script has run, the errors caught, Lua memory, and your own counters:
+
+```lua
+Window:Count("Teleports")          -- +1 (or Count("Coins", 250)); shown as a row, updated live
+Window:GetCounts()                 -- order, { [name] = value }
+```
 
 ## Links
 

@@ -195,6 +195,26 @@ return function(Window)
             Buttons = { { Title = log.Button or "Got it", Style = "Primary" } },
         })
     end
+    -- Changelog = { Version, Items, History = { { Version = "1.1", Items = {...} }, ... } }: every version's notes,
+    -- newest first (Settings › Info › Version history)
+    function Window:ShowVersionHistory()
+        local log = self.cfg.Changelog
+        if type(log) ~= "table" then return nil end
+        local versions = { { Version = log.Version, Items = log.Items, Current = true } }
+        for _, entry in ipairs(type(log.History) == "table" and log.History or {}) do versions[#versions + 1] = entry end
+        local blocks = {}
+        for index, entry in ipairs(versions) do
+            if index > 6 then blocks[#blocks + 1] = "<font transparency=\"0.4\">and " .. (#versions - 6) .. " older</font>" break end
+            local lines = { "<b>" .. tostring(entry.Version or "?") .. "</b>" .. (entry.Current and "  <font transparency=\"0.4\">current</font>" or "") }
+            for count, item in ipairs(entry.Items or {}) do
+                if count > 6 then lines[#lines + 1] = "   …" break end
+                lines[#lines + 1] = "•  " .. tostring(item):gsub("<", "&lt;")
+            end
+            blocks[#blocks + 1] = table.concat(lines, "\n")
+        end
+        return self:Dialog({ Title = "Version history", Icon = "history", Content = table.concat(blocks, "\n\n"),
+            Buttons = { { Title = "Close", Style = "Primary" } } })
+    end
     function Window:_changelog()
         local log = self.cfg.Changelog
         if type(log) ~= "table" then return end

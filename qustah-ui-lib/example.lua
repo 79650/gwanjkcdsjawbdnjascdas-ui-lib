@@ -21,7 +21,8 @@ local Window = Lib:CreateWindow({
     -- Scale = 1.1,                       -- the whole menu bigger / smaller (Settings › Menu › UI scale)
     -- MobileButton = "Auto",             -- reopen button while hidden: "Auto" = phones / tablets, true, false
     -- KeySystem = { Keys = { "QUSTAH-KEY" }, Url = "https://discord.gg/yourserver", Note = "Keys reset daily" },
-    Changelog = { Version = "1.00", Items = { "New Session card with live stats", "Tables, radio lists and line graphs" } }, -- shown once per version
+    Changelog = { Version = "1.00", Items = { "New Session card with live stats", "Tables, radio lists and line graphs" },   -- shown once per version
+        History = { { Version = "0.90", Items = { "First public build" } } } },                                      -- Settings › Info › Version history
     -- Accent = Color3.fromRGB(61, 151, 219), -- default is Qustah's neutral grey
 })
 

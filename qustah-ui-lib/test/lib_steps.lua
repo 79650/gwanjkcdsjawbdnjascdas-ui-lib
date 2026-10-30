@@ -579,6 +579,13 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     end
     wait(0.2)
     check("reset interface brings the defaults back", W.__ui_glow.Value == true)
+    window:Count("Teleports") window:Count("Teleports") window:Count("Server hops", 3) wait(1.1)
+    local sessionRows = findIn("This session", "Teleports")
+    check("session counters", sessionRows and sessionRows:FindFirstChild("Value").Text == "2" and findIn("This session", "Server hops"):FindFirstChild("Value").Text == "3")
+    check("lua memory row", findIn("This session", "Lua memory"):FindFirstChild("Value").Text:find("MB") ~= nil or findIn("This session", "Lua memory"):FindFirstChild("Value").Text == "unavailable")
+    local vh = window:ShowVersionHistory() wait(0.1)
+    check("version history dialog", window._dialog ~= nil and window._dialog.Frame:FindFirstChild("Content", true).Text:find("current", 1, true) ~= nil)
+    if window._dialog then window._dialog:Close() end
     window:ClearErrors()
 
     -- window memory
