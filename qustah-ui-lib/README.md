@@ -63,18 +63,18 @@ Every option, with code, is in **[DOCS.md](DOCS.md)**. **[example.lua](example.l
 
 <table>
 <tr>
-<td width="20%" valign="top"><b>Switches</b><br><br><code>Toggle</code><br><code>Checkbox</code></td>
-<td width="20%" valign="top"><b>Numbers</b><br><br><code>Slider</code><br><code>Range</code><br><code>Stepper</code></td>
-<td width="20%" valign="top"><b>Choices</b><br><br><code>Dropdown</code><br><code>Segment</code><br><code>Radio</code></td>
-<td width="20%" valign="top"><b>Colours</b><br><br><code>ColorPicker</code><br><code>Gradient</code><br><code>Swatches</code></td>
-<td width="20%" valign="top"><b>Text input</b><br><br><code>Input</code><br><code>TextArea</code><br><code>ActionInput</code><br><code>Keybind</code></td>
+<td width="20%" valign="top"><b>Switches</b><br><br>Toggle<br>Checkbox</td>
+<td width="20%" valign="top"><b>Numbers</b><br><br>Slider<br>Range<br>Stepper</td>
+<td width="20%" valign="top"><b>Choices</b><br><br>Dropdown<br>Segment<br>Radio</td>
+<td width="20%" valign="top"><b>Colours</b><br><br>ColorPicker<br>Gradient<br>Swatches</td>
+<td width="20%" valign="top"><b>Text input</b><br><br>Input<br>TextArea<br>ActionInput<br>Keybind</td>
 </tr>
 <tr>
-<td width="20%" valign="top"><b>Buttons</b><br><br><code>Button</code></td>
-<td width="20%" valign="top"><b>Text</b><br><br><code>Label</code><br><code>Paragraph</code><br><code>Info</code><br><code>Divider</code><br><code>Code</code></td>
-<td width="20%" valign="top"><b>Live data</b><br><br><code>Progress</code><br><code>Stat</code><br><code>Graph</code><br><code>Console</code><br><code>Table</code></td>
-<td width="20%" valign="top"><b>Visual</b><br><br><code>Image</code><br><code>ImagePicker</code><br><code>PlayerList</code><br><code>Viewport</code></td>
-<td width="20%" valign="top"><b>Layout</b><br><br><code>Section</code><br><code>Row</code><br><code>Group</code><br><code>Tabs</code></td>
+<td width="20%" valign="top"><b>Buttons</b><br><br>Button</td>
+<td width="20%" valign="top"><b>Text</b><br><br>Label<br>Paragraph<br>Info<br>Divider<br>Code</td>
+<td width="20%" valign="top"><b>Live data</b><br><br>Progress<br>Stat<br>Graph<br>Console<br>Table</td>
+<td width="20%" valign="top"><b>Visual</b><br><br>Image<br>ImagePicker<br>PlayerList<br>Viewport</td>
+<td width="20%" valign="top"><b>Layout</b><br><br>Section<br>Row<br>Group<br>Tabs</td>
 </tr>
 </table>
 
@@ -84,10 +84,10 @@ Every option, with code, is in **[DOCS.md](DOCS.md)**. **[example.lua](example.l
 
 <table>
 <tr>
-<td width="20%" valign="top"><b>Build</b><br><br><a href="DOCS.md#window"><code>Window</code></a><br><a href="DOCS.md#tabs-pages-and-cards"><code>Tabs, pages and cards</code></a><br><a href="DOCS.md#elements"><code>Elements</code></a><br><a href="DOCS.md#flags"><code>Flags</code></a></td>
-<td width="20%" valign="top"><b>Talk to the user</b><br><br><a href="DOCS.md#notifications"><code>Notifications</code></a><br><a href="DOCS.md#dialogs"><code>Dialogs</code></a><br><a href="DOCS.md#tour"><code>Tour</code></a><br><a href="DOCS.md#changelog"><code>Changelog</code></a></td>
-<td width="20%" valign="top"><b>Save and style</b><br><br><a href="DOCS.md#configs-and-profiles"><code>Configs and profiles</code></a><br><a href="DOCS.md#themes"><code>Themes</code></a><br><a href="DOCS.md#icons"><code>Icons</code></a></td>
-<td width="20%" valign="top"><b>Built in</b><br><br><a href="DOCS.md#built-in-tabs"><code>Dashboard and Settings</code></a><br><a href="DOCS.md#overlays"><code>Overlays</code></a><br><a href="DOCS.md#window-extras"><code>Window extras</code></a><br><a href="DOCS.md#links"><code>Links</code></a></td>
-<td width="20%" valign="top"><b>Ship it</b><br><br><a href="DOCS.md#status-errors-and-kicks"><code>Status, errors and kicks</code></a><br><a href="DOCS.md#key-system"><code>Key system</code></a><br><a href="DOCS.md#secure-mode"><code>Secure mode</code></a><br><a href="DOCS.md#development"><code>Development</code></a></td>
+<td width="20%" valign="top"><b>Build</b><br><br><a href="DOCS.md#window">Window</a><br><a href="DOCS.md#tabs-pages-and-cards">Tabs, pages and cards</a><br><a href="DOCS.md#elements">Elements</a><br><a href="DOCS.md#flags">Flags</a></td>
+<td width="20%" valign="top"><b>Talk to the user</b><br><br><a href="DOCS.md#notifications">Notifications</a><br><a href="DOCS.md#dialogs">Dialogs</a><br><a href="DOCS.md#tour">Tour</a><br><a href="DOCS.md#changelog">Changelog</a></td>
+<td width="20%" valign="top"><b>Save and style</b><br><br><a href="DOCS.md#configs-and-profiles">Configs and profiles</a><br><a href="DOCS.md#themes">Themes</a><br><a href="DOCS.md#icons">Icons</a></td>
+<td width="20%" valign="top"><b>Built in</b><br><br><a href="DOCS.md#built-in-tabs">Dashboard and Settings</a><br><a href="DOCS.md#overlays">Overlays</a><br><a href="DOCS.md#window-extras">Window extras</a><br><a href="DOCS.md#links">Links</a></td>
+<td width="20%" valign="top"><b>Ship it</b><br><br><a href="DOCS.md#status-errors-and-kicks">Status, errors and kicks</a><br><a href="DOCS.md#key-system">Key system</a><br><a href="DOCS.md#secure-mode">Secure mode</a><br><a href="DOCS.md#development">Development</a></td>
 </tr>
 </table>
