@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.16 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.17 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7397,7 +7397,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.16",
+    Version = "1.9.17",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -9875,6 +9875,39 @@ function Util.fade(group, duration, target)
     end
     return Util.tween(group, duration, { GroupTransparency = target })
 end
+-- Fades a window-sized frame in / out through a CanvasGroup that only exists while the fade runs. A CanvasGroup
+-- draws everything inside it into a texture first, and in game that texture can come out softer than the screen
+-- (thin icons and small text look blurry), so the frame sits outside one whenever it is simply shown.
+local fadeLayers = setmetatable({}, { __mode = "k" })
+function Util.fadeFrame(frame, duration, target)
+    local state = fadeLayers[frame]
+    if not state then
+        state = { token = 0, hidden = not frame.Visible }
+        state.layer = create("CanvasGroup", {
+            Name = frame.Name .. "Fade", BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), GroupTransparency = 0,
+        })
+        fadeLayers[frame] = state
+    end
+    state.token = state.token + 1
+    local token, layer = state.token, state.layer
+    if frame.Parent ~= layer then
+        state.home = frame.Parent
+        layer.ZIndex = frame.ZIndex
+        layer.GroupTransparency = state.hidden and 1 or 0
+        layer.Parent = state.home
+        frame.Parent = layer
+    end
+    local tween = Util.tween(layer, duration, { GroupTransparency = target })
+    tween.Completed:Connect(function()
+        if state.token ~= token or frame.Parent ~= layer then return end
+        state.hidden = target >= 1
+        if state.hidden then frame.Visible = false end
+        frame.Parent = state.home
+        layer.Parent = nil
+    end)
+    return tween
+end
+
 -- Sets an outline's normal transparency (respected by Util.fade); applied now unless its group is faded out.
 function Util.setRest(strokeObject, value)
     strokeObject:SetAttribute("QRest", value)
@@ -10691,9 +10724,11 @@ function Window:_build()
     self.gui = gui
     UIFont.register(gui, maid)
 
-    local main = create("CanvasGroup", {
+    -- a plain Frame: a CanvasGroup would draw the whole menu into a texture (softer icons and text in game);
+    -- Util.fadeFrame puts it in one only while it fades in or out
+    local main = create("Frame", {
         Name = "Window", Size = UDim2.fromOffset(self.width, self.height), BorderSizePixel = 0,
-        GroupTransparency = 0, ClipsDescendants = true, Parent = gui,
+        ClipsDescendants = true, Parent = gui,
     })
     Theme.bind(main, "BackgroundColor3", "base")
     corner(main, 12)
@@ -10805,6 +10840,10 @@ function Window:_build()
     ---------------------------------------------------------------- footer
     local footer = create("Frame", { Name = "Footer", Position = UDim2.new(0, 0, 1, -FOOTER), Size = UDim2.new(1, 0, 0, FOOTER), BorderSizePixel = 0, Parent = main })
     Theme.bind(footer, "BackgroundColor3", "footer")
+    -- rounded bottom corners like the window (its clipping is square now), square top edge
+    corner(footer, 12)
+    local footerFill = create("Frame", { Name = "TopFill", Size = UDim2.new(1, 0, 0, 13), BorderSizePixel = 0, ZIndex = 0, Parent = footer })
+    Theme.bind(footerFill, "BackgroundColor3", "footer")
     local footerLine = create("Frame", { Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.45, Parent = footer })
     Theme.bind(footerLine, "BackgroundColor3", "line")
     -- status mark: solar "record-bold" (a filled dot) in the status colour; asset id inlined so the solar set is not downloaded
@@ -10842,7 +10881,7 @@ function Window:_build()
     self.grip = grip
 
     ---------------------------------------------------------------- dock
-    local dock = create("CanvasGroup", { Name = "Dock", Size = UDim2.fromOffset(DOCK_WIDTH, DOCK_TOP), BorderSizePixel = 0, BackgroundTransparency = 0.03, ZIndex = 40, ClipsDescendants = true, Parent = gui })
+    local dock = create("Frame", { Name = "Dock", Size = UDim2.fromOffset(DOCK_WIDTH, DOCK_TOP), BorderSizePixel = 0, BackgroundTransparency = 0.03, ZIndex = 40, ClipsDescendants = true, Parent = gui })
     Theme.bind(dock, "BackgroundColor3", "dock")
     corner(dock, 20)
     Theme.bind(stroke(dock), "Color", "line")
@@ -11317,13 +11356,13 @@ function Window:SetVisible(visible)
     local token = self._token
     if visible then
         self.main.Visible = true
-        Util.fade(self.main, 0.14, 0)
-        Util.fade(self.dock, 0.14, 0)
+        Util.fadeFrame(self.main, 0.14, 0)
+        Util.fadeFrame(self.dock, 0.14, 0)
         self:_layout()
     else
         self._drag = nil
-        Util.fade(self.main, 0.12, 1)
-        Util.fade(self.dock, 0.12, 1)
+        Util.fadeFrame(self.main, 0.12, 1)
+        Util.fadeFrame(self.dock, 0.12, 1)
         task.delay(0.13, function()
             if self.alive and token == self._token and not self.visible then
                 self.main.Visible = false

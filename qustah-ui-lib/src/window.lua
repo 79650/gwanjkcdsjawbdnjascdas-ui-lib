@@ -477,9 +477,11 @@ function Window:_build()
     self.gui = gui
     UIFont.register(gui, maid)
 
-    local main = create("CanvasGroup", {
+    -- a plain Frame: a CanvasGroup would draw the whole menu into a texture (softer icons and text in game);
+    -- Util.fadeFrame puts it in one only while it fades in or out
+    local main = create("Frame", {
         Name = "Window", Size = UDim2.fromOffset(self.width, self.height), BorderSizePixel = 0,
-        GroupTransparency = 0, ClipsDescendants = true, Parent = gui,
+        ClipsDescendants = true, Parent = gui,
     })
     Theme.bind(main, "BackgroundColor3", "base")
     corner(main, 12)
@@ -591,6 +593,10 @@ function Window:_build()
     ---------------------------------------------------------------- footer
     local footer = create("Frame", { Name = "Footer", Position = UDim2.new(0, 0, 1, -FOOTER), Size = UDim2.new(1, 0, 0, FOOTER), BorderSizePixel = 0, Parent = main })
     Theme.bind(footer, "BackgroundColor3", "footer")
+    -- rounded bottom corners like the window (its clipping is square now), square top edge
+    corner(footer, 12)
+    local footerFill = create("Frame", { Name = "TopFill", Size = UDim2.new(1, 0, 0, 13), BorderSizePixel = 0, ZIndex = 0, Parent = footer })
+    Theme.bind(footerFill, "BackgroundColor3", "footer")
     local footerLine = create("Frame", { Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.45, Parent = footer })
     Theme.bind(footerLine, "BackgroundColor3", "line")
     -- status mark: solar "record-bold" (a filled dot) in the status colour; asset id inlined so the solar set is not downloaded
@@ -628,7 +634,7 @@ function Window:_build()
     self.grip = grip
 
     ---------------------------------------------------------------- dock
-    local dock = create("CanvasGroup", { Name = "Dock", Size = UDim2.fromOffset(DOCK_WIDTH, DOCK_TOP), BorderSizePixel = 0, BackgroundTransparency = 0.03, ZIndex = 40, ClipsDescendants = true, Parent = gui })
+    local dock = create("Frame", { Name = "Dock", Size = UDim2.fromOffset(DOCK_WIDTH, DOCK_TOP), BorderSizePixel = 0, BackgroundTransparency = 0.03, ZIndex = 40, ClipsDescendants = true, Parent = gui })
     Theme.bind(dock, "BackgroundColor3", "dock")
     corner(dock, 20)
     Theme.bind(stroke(dock), "Color", "line")
@@ -1103,13 +1109,13 @@ function Window:SetVisible(visible)
     local token = self._token
     if visible then
         self.main.Visible = true
-        Util.fade(self.main, 0.14, 0)
-        Util.fade(self.dock, 0.14, 0)
+        Util.fadeFrame(self.main, 0.14, 0)
+        Util.fadeFrame(self.dock, 0.14, 0)
         self:_layout()
     else
         self._drag = nil
-        Util.fade(self.main, 0.12, 1)
-        Util.fade(self.dock, 0.12, 1)
+        Util.fadeFrame(self.main, 0.12, 1)
+        Util.fadeFrame(self.dock, 0.12, 1)
         task.delay(0.13, function()
             if self.alive and token == self._token and not self.visible then
                 self.main.Visible = false

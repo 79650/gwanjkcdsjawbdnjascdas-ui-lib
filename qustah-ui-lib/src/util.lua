@@ -123,6 +123,39 @@ function Util.fade(group, duration, target)
     end
     return Util.tween(group, duration, { GroupTransparency = target })
 end
+-- Fades a window-sized frame in / out through a CanvasGroup that only exists while the fade runs. A CanvasGroup
+-- draws everything inside it into a texture first, and in game that texture can come out softer than the screen
+-- (thin icons and small text look blurry), so the frame sits outside one whenever it is simply shown.
+local fadeLayers = setmetatable({}, { __mode = "k" })
+function Util.fadeFrame(frame, duration, target)
+    local state = fadeLayers[frame]
+    if not state then
+        state = { token = 0, hidden = not frame.Visible }
+        state.layer = create("CanvasGroup", {
+            Name = frame.Name .. "Fade", BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), GroupTransparency = 0,
+        })
+        fadeLayers[frame] = state
+    end
+    state.token = state.token + 1
+    local token, layer = state.token, state.layer
+    if frame.Parent ~= layer then
+        state.home = frame.Parent
+        layer.ZIndex = frame.ZIndex
+        layer.GroupTransparency = state.hidden and 1 or 0
+        layer.Parent = state.home
+        frame.Parent = layer
+    end
+    local tween = Util.tween(layer, duration, { GroupTransparency = target })
+    tween.Completed:Connect(function()
+        if state.token ~= token or frame.Parent ~= layer then return end
+        state.hidden = target >= 1
+        if state.hidden then frame.Visible = false end
+        frame.Parent = state.home
+        layer.Parent = nil
+    end)
+    return tween
+end
+
 -- Sets an outline's normal transparency (respected by Util.fade); applied now unless its group is faded out.
 function Util.setRest(strokeObject, value)
     strokeObject:SetAttribute("QRest", value)

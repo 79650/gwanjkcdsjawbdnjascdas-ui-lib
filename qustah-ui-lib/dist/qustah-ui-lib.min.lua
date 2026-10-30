@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.16 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.17 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6571,7 +6571,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.16",
+Version="1.9.17",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -8735,6 +8735,35 @@ end
 end
 return Util.tween(group,duration,{GroupTransparency=target})
 end
+local fadeLayers=setmetatable({},{__mode="k"})
+function Util.fadeFrame(frame,duration,target)
+local state=fadeLayers[frame]
+if not state then
+state={token=0,hidden=not frame.Visible}
+state.layer=create("CanvasGroup",{
+Name=frame.Name.."Fade",BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.fromScale(1,1),GroupTransparency=0,
+})
+fadeLayers[frame]=state
+end
+state.token=state.token+1
+local token,layer=state.token,state.layer
+if frame.Parent~=layer then
+state.home=frame.Parent
+layer.ZIndex=frame.ZIndex
+layer.GroupTransparency=state.hidden and 1 or 0
+layer.Parent=state.home
+frame.Parent=layer
+end
+local tween=Util.tween(layer,duration,{GroupTransparency=target})
+tween.Completed:Connect(function()
+if state.token~=token or frame.Parent~=layer then return end
+state.hidden=target>=1
+if state.hidden then frame.Visible=false end
+frame.Parent=state.home
+layer.Parent=nil
+end)
+return tween
+end
 function Util.setRest(strokeObject,value)
 strokeObject:SetAttribute("QRest",value)
 local group=strokeObject.Parent
@@ -9432,9 +9461,9 @@ local gui=Util.screenGui("QustahUI_"..self.Title:gsub("%W",""),50)
 maid:give(gui)
 self.gui=gui
 UIFont.register(gui,maid)
-local main=create("CanvasGroup",{
+local main=create("Frame",{
 Name="Window",Size=UDim2.fromOffset(self.width,self.height),BorderSizePixel=0,
-GroupTransparency=0,ClipsDescendants=true,Parent=gui,
+ClipsDescendants=true,Parent=gui,
 })
 Theme.bind(main,"BackgroundColor3","base")
 corner(main,12)
@@ -9533,6 +9562,9 @@ Util.list(self.hintRight,8,Enum.FillDirection.Horizontal,Enum.HorizontalAlignmen
 self.hints={}
 local footer=create("Frame",{Name="Footer",Position=UDim2.new(0,0,1,-FOOTER),Size=UDim2.new(1,0,0,FOOTER),BorderSizePixel=0,Parent=main})
 Theme.bind(footer,"BackgroundColor3","footer")
+corner(footer,12)
+local footerFill=create("Frame",{Name="TopFill",Size=UDim2.new(1,0,0,13),BorderSizePixel=0,ZIndex=0,Parent=footer})
+Theme.bind(footerFill,"BackgroundColor3","footer")
 local footerLine=create("Frame",{Size=UDim2.new(1,0,0,1),BorderSizePixel=0,BackgroundTransparency=0.45,Parent=footer})
 Theme.bind(footerLine,"BackgroundColor3","line")
 local dot=create("ImageLabel",{
@@ -9567,7 +9599,7 @@ Rotation=-45,BorderSizePixel=0,ZIndex=11,Parent=grip,
 Theme.bind(mark,"BackgroundColor3","muted")
 end
 self.grip=grip
-local dock=create("CanvasGroup",{Name="Dock",Size=UDim2.fromOffset(DOCK_WIDTH,DOCK_TOP),BorderSizePixel=0,BackgroundTransparency=0.03,ZIndex=40,ClipsDescendants=true,Parent=gui})
+local dock=create("Frame",{Name="Dock",Size=UDim2.fromOffset(DOCK_WIDTH,DOCK_TOP),BorderSizePixel=0,BackgroundTransparency=0.03,ZIndex=40,ClipsDescendants=true,Parent=gui})
 Theme.bind(dock,"BackgroundColor3","dock")
 corner(dock,20)
 Theme.bind(stroke(dock),"Color","line")
@@ -9986,13 +10018,13 @@ self._token=(self._token or 0)+1
 local token=self._token
 if visible then
 self.main.Visible=true
-Util.fade(self.main,0.14,0)
-Util.fade(self.dock,0.14,0)
+Util.fadeFrame(self.main,0.14,0)
+Util.fadeFrame(self.dock,0.14,0)
 self:_layout()
 else
 self._drag=nil
-Util.fade(self.main,0.12,1)
-Util.fade(self.dock,0.12,1)
+Util.fadeFrame(self.main,0.12,1)
+Util.fadeFrame(self.dock,0.12,1)
 task.delay(0.13,function()
 if self.alive and token==self._token and not self.visible then
 self.main.Visible=false
