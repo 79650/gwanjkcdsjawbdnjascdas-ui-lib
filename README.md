@@ -11,7 +11,7 @@ Dock navigation, real profiles, 20 themes and 18k icons, loaded with one line.
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 
-[Install](#install) · [Quick start](#quick-start) · [Screenshots](#screenshots) · [Documentation](qustah-ui-lib/DOCS.md) · [Example](qustah-ui-lib/example.lua)
+[Install](#install) · [Quick start](#quick-start) · [Screenshots](#screenshots) · [Documentation](#documentation) · [Example](qustah-ui-lib/example.lua)
 
 </div>
 
@@ -55,7 +55,11 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 <p align="center"><sub>6 of the 20 built-in themes. You can also make your own and share it as a code.</sub></p>
 
-## Elements
+## Documentation
+
+Every option, with code, is in **[DOCS.md](qustah-ui-lib/DOCS.md)**. **[example.lua](qustah-ui-lib/example.lua)** builds the window in the GIF and uses every element once.
+
+### Elements
 
 <table>
 <tr>
@@ -74,11 +78,9 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 </tr>
 </table>
 
-Every element can be saved in profiles (Flag), depend on another one (DependsOn), show a tooltip or help hint, be locked with a reason, and flashes red if its callback errors.
+<sub>Every element can be saved in profiles, depend on another element, show a tooltip or help hint, be locked with a reason, and flashes red when its callback errors.</sub>
 
-## Documentation
-
-Everything is explained with code in **[DOCS.md](qustah-ui-lib/DOCS.md)**, and **[example.lua](qustah-ui-lib/example.lua)** builds the window in the screenshots.
+### Guides
 
 <table>
 <tr>
