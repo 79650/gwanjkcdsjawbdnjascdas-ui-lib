@@ -66,7 +66,7 @@ function Card.new(page, column, cfg, order)
     if cfg.Title then
         -- accent dot with a soft glow + medium heading (Qustah card title); Icon = "name" replaces the dot
         local head = create("Frame", { Name = "Heading", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = 0, Parent = frame })
-        local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 13, "accent", { Name = "CardIcon", Position = UDim2.fromOffset(-1, 3) })
+        local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 14, "accent", { Name = "CardIcon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, -1, 0.5, 0) })
         -- Dot = false (or CreateWindow({ CardDots = false }) for every card): plain title when there is no icon
         local dotted = cfg.Dot
         if dotted == nil then dotted = not (page.window and page.window.cfg and page.window.cfg.CardDots == false) end
@@ -389,7 +389,7 @@ function Card:Section(cfg)
     local line = create("Frame", { Name = "Line", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, Parent = head })
     Theme.bind(line, "BackgroundColor3", "line")
     local x = 0
-    local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 13, "accent", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, 11) })
+    local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 14, "accent", { Name = "SectionIcon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, 11) })
     if icon then x = 20 end
     local title = label(head, tostring(cfg.Title or ""), 11, { Name = "Title", Position = UDim2.fromOffset(x, 1), Size = UDim2.new(1, -x - 24, 0, 20), Font = Enum.Font.GothamMedium })
     Theme.bind(title, "TextColor3", "heading")

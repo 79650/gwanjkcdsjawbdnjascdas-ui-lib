@@ -44,7 +44,7 @@ return function(card, cfg)
     corner(chip, 10)
     Util.list(chip, 4, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
     Util.padding(chip, 7, 8, 0, 0)
-    local chipIcon = Icons.themed(chip, "trending-up", 11, "success", { Name = "Arrow", LayoutOrder = 1 })
+    local chipIcon = Icons.themed(chip, "trending-up", 12, "success", { Name = "Arrow", LayoutOrder = 1 })
     local chipText = label(chip, "", 9, { Name = "Text", Size = UDim2.fromOffset(0, 20), AutomaticSize = Enum.AutomaticSize.X, Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None, LayoutOrder = 2 })
 
     local element = Base.element(card, "Stat", {}, holder, title, nil)

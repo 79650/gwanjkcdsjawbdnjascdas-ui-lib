@@ -138,7 +138,7 @@ function Page:Warning(text, opts)
     edge.Transparency = 0.55
     Util.padding(banner, 12, 12, 9, 9)
     local Icons = require("icons")
-    local icon = Icons.themed(banner, opts.Icon or (level == "info" and "info" or "triangle-alert"), 15, role, { Position = UDim2.fromOffset(0, 1) })
+    local icon = Icons.themed(banner, opts.Icon or (level == "info" and "info" or "triangle-alert"), 14, role, { Name = "BannerIcon", Position = UDim2.fromOffset(0, 1) })
     -- text column right of the icon
     local column = create("Frame", { Name = "Body", BackgroundTransparency = 1, Position = UDim2.fromOffset(icon and 26 or 0, 0), Size = UDim2.new(1, icon and -26 or 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = banner })
     Util.list(column, 2)

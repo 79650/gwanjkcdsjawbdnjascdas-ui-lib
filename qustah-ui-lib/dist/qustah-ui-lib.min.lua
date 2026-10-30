@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.15 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.16 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -73,7 +73,7 @@ Util.padding(frame,14,14,8,10)
 Util.list(frame,4)
 if cfg.Title then
 local head=create("Frame",{Name="Heading",BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=0,Parent=frame})
-local icon=cfg.Icon and Icons.themed(head,cfg.Icon,13,"accent",{Name="CardIcon",Position=UDim2.fromOffset(-1,3)})
+local icon=cfg.Icon and Icons.themed(head,cfg.Icon,14,"accent",{Name="CardIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,-1,0.5,0)})
 local dotted=cfg.Dot
 if dotted==nil then dotted=not(page.window and page.window.cfg and page.window.cfg.CardDots==false)end
 local lead=icon and 18 or(dotted and 13 or 0)
@@ -365,7 +365,7 @@ local head=create("TextButton",{Name="Header",Text="",AutoButtonColor=false,Back
 local line=create("Frame",{Name="Line",AnchorPoint=Vector2.new(0,1),Position=UDim2.new(0,0,1,0),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,Parent=head})
 Theme.bind(line,"BackgroundColor3","line")
 local x=0
-local icon=cfg.Icon and Icons.themed(head,cfg.Icon,13,"accent",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,11)})
+local icon=cfg.Icon and Icons.themed(head,cfg.Icon,14,"accent",{Name="SectionIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,11)})
 if icon then x=20 end
 local title=label(head,tostring(cfg.Title or""),11,{Name="Title",Position=UDim2.fromOffset(x,1),Size=UDim2.new(1,-x-24,0,20),Font=Enum.Font.GothamMedium})
 Theme.bind(title,"TextColor3","heading")
@@ -828,7 +828,7 @@ corner(holder,8)
 Theme.bind(stroke(holder),"Color","line")
 Util.padding(holder,6,7,0,0)
 Util.list(holder,4,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
-Icons.themed(holder,icon,9,"muted",{Name="Icon",LayoutOrder=1})
+Icons.themed(holder,icon,10,"muted",{Name="Icon",LayoutOrder=1})
 local text=label(holder,"--",9,{Name="Text",Size=UDim2.fromOffset(0,16),AutomaticSize=Enum.AutomaticSize.X,LayoutOrder=2,Font=Enum.Font.GothamMedium})
 Theme.bind(text,"TextColor3","text")
 return text
@@ -1254,7 +1254,7 @@ desc=label(row,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(0,23)
 Theme.bind(desc,"TextColor3","muted")
 end
 if cfg.Icon and not opts.noIcon then
-local icon=Icons.themed(row,cfg.Icon,14,"muted",{Name="RowIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,cfg.Desc and 12 or height/2)})
+local icon=Icons.themed(row,cfg.Icon,14,"muted",{Name="RowIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,cfg.Desc and 12 or(opts.titleHeight or height)/2)})
 if icon then
 title.Position=UDim2.new(0,22,0,title.Position.Y.Offset)
 title.Size=UDim2.new(1,title.Size.X.Offset-22,0,title.Size.Y.Offset)
@@ -1623,7 +1623,7 @@ hover={bg="danger",bgT=0.74,text="danger"}},
 Link={bg="hover",bgT=1,text="accent",edge="accent",edgeT=1,
 hover={bg="hover",bgT=1,text="heading"}},
 }
-local SIZES={Small={22,9,11},Default={28,10,13},Large={34,11,15}}
+local SIZES={Small={22,9,12},Default={28,10,14},Large={34,11,16}}
 local ARROW=26
 local ITEM=26
 local function styleName(value)
@@ -4434,7 +4434,7 @@ if sideIcons then
 local stride=step>0 and math.max(step,(max-min)/10)or(max-min)/10
 for index,key in ipairs({"From","To"})do
 local name=sideIcons[key]or sideIcons[index]
-local icon=name and Icons.themed(row,name,13,"muted",{
+local icon=name and Icons.themed(row,name,14,"muted",{
 Name=key.."Icon",AnchorPoint=Vector2.new(index==1 and 0 or 1,0.5),Position=UDim2.new(index==1 and 0 or 1,0,0,top+9),
 })
 if icon then
@@ -4497,7 +4497,7 @@ local chip=create("Frame",{Name="Delta",AnchorPoint=Vector2.new(1,0.5),Position=
 corner(chip,10)
 Util.list(chip,4,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
 Util.padding(chip,7,8,0,0)
-local chipIcon=Icons.themed(chip,"trending-up",11,"success",{Name="Arrow",LayoutOrder=1})
+local chipIcon=Icons.themed(chip,"trending-up",12,"success",{Name="Arrow",LayoutOrder=1})
 local chipText=label(chip,"",9,{Name="Text",Size=UDim2.fromOffset(0,20),AutomaticSize=Enum.AutomaticSize.X,Font=Enum.Font.GothamMedium,TextTruncate=Enum.TextTruncate.None,LayoutOrder=2})
 local element=Base.element(card,"Stat",{},holder,title,nil)
 local decimals=math.max(0,math.floor(tonumber(cfg.Decimals)or 0))
@@ -6571,7 +6571,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.15",
+Version="1.9.16",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -7552,12 +7552,18 @@ Callback=function(key)window:SetToggleKey(key)end,
 })
 window._menuListeners=window._menuListeners or{}
 table.insert(window._menuListeners,function(key)if menuKey.Value~=key then menuKey:Set(key,true)end end)
-local SCALES={"80%","90%","100%","110%","125%","150%"}
-local current=math.floor((window:GetUIScale()*100)+0.5).."%"
+local SCALES={"80%","100%","120%"}
+local percent=math.floor((window:GetUIScale()*100)+0.5)
+local nearest=100
+for _,text in ipairs(SCALES)do
+local value=tonumber(text:match("%d+"))
+if math.abs(value-percent)<math.abs(nearest-percent)then nearest=value end
+end
 scaleDropdown=menu:Dropdown({
-Title="UI scale",Desc="Bigger or smaller menu",Options=SCALES,Default=table.find(SCALES,current)and current or"100%",
+Title="UI scale",Desc="Bigger or smaller menu",Options=SCALES,Default=nearest.."%",
 Callback=function(text)window:SetUIScale((tonumber(text:match("%d+"))or 100)/100)end,
 })
+window._scaleDropdown=scaleDropdown
 menu:Toggle({Title="Free mouse",Desc="Free cursor while open",Icon="hand",Flag="__ui_mouse",
 Default=window.unlockMouse~=false,Callback=function(on)window:SetMouseUnlock(on)end})
 menu:Toggle({Title="Anonymous mode",Desc="Hides your name and avatar",Icon="venetian-mask",Flag="__ui_anon",Default=window.anonymous==true,
@@ -9131,7 +9137,7 @@ Theme.bind(edge,"Color",role)
 edge.Transparency=0.55
 Util.padding(banner,12,12,9,9)
 local Icons=require("icons")
-local icon=Icons.themed(banner,opts.Icon or(level=="info"and"info"or"triangle-alert"),15,role,{Position=UDim2.fromOffset(0,1)})
+local icon=Icons.themed(banner,opts.Icon or(level=="info"and"info"or"triangle-alert"),14,role,{Name="BannerIcon",Position=UDim2.fromOffset(0,1)})
 local column=create("Frame",{Name="Body",BackgroundTransparency=1,Position=UDim2.fromOffset(icon and 26 or 0,0),Size=UDim2.new(1,icon and-26 or 0,0,0),AutomaticSize=Enum.AutomaticSize.Y,Parent=banner})
 Util.list(column,2)
 local title

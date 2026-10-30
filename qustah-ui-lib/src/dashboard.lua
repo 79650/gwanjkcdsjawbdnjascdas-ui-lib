@@ -48,7 +48,7 @@ return function(window, cfg)
         Theme.bind(stroke(holder), "Color", "line")
         Util.padding(holder, 6, 7, 0, 0)
         Util.list(holder, 4, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
-        Icons.themed(holder, icon, 9, "muted", { Name = "Icon", LayoutOrder = 1 })
+        Icons.themed(holder, icon, 10, "muted", { Name = "Icon", LayoutOrder = 1 })
         local text = label(holder, "--", 9, { Name = "Text", Size = UDim2.fromOffset(0, 16), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 2, Font = Enum.Font.GothamMedium })
         Theme.bind(text, "TextColor3", "text")
         return text

@@ -42,7 +42,7 @@ local STYLES = {
     Link = { bg = "hover", bgT = 1, text = "accent", edge = "accent", edgeT = 1,
         hover = { bg = "hover", bgT = 1, text = "heading" } },
 }
-local SIZES = { Small = { 22, 9, 11 }, Default = { 28, 10, 13 }, Large = { 34, 11, 15 } }
+local SIZES = { Small = { 22, 9, 12 }, Default = { 28, 10, 14 }, Large = { 34, 11, 16 } } -- height, text, icon (icon and height both even: no half pixel)
 local ARROW = 26 -- width of the split button's arrow part
 local ITEM = 26  -- menu row height
 

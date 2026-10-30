@@ -1403,6 +1403,10 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.setViewport(1280, 720) wait(0.2)
     window:SetUIScale(1) wait()
     check("ui scale back", window.scale.Scale == 1 and window.memory.uiScale == nil)
+    do
+        local opts = window._scaleDropdown and window._scaleDropdown.Options
+        check("ui scale options are 80 / 100 / 120", opts and table.concat(opts, ",") == "80%,100%,120%")
+    end
 
     -- stepper
     local st8 = t8:Stepper({ Title = "Count", Flag = "stepCount", Min = 0, Max = 5, Step = 1, Default = 4 })
@@ -1664,6 +1668,49 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     ghostTab:SetHidden(true)
     check("hidden tab: selectable from code", (function() ghostTab:Select() wait() return window.current == ghostTab end)())
     tabNamed("Live"):Select() wait()
+
+    -- icons sit on the middle of their text (card, section, row, banner, buttons) at 80 / 100 / 120 %
+    do
+        local function axis(o, parentH)
+            local size = o.Size.Y.Offset + o.Size.Y.Scale * parentH
+            return o.Position.Y.Offset + o.Position.Y.Scale * parentH - o.AnchorPoint.Y * size + size / 2, size
+        end
+        local function same(name, a, b)
+            local ok = true
+            for _, scale in ipairs({ 0.8, 1, 1.2 }) do
+                if math.floor(a * scale + 0.5) ~= math.floor(b * scale + 0.5) then ok = false end
+            end
+            check("icon centred: " .. name, ok and math.abs(a - b) < 0.01)
+        end
+        local ic = tabNamed("Live").Pages[1]:Card({ Title = "Icons", Icon = "gauge" })
+        local head = ic.frame:FindFirstChild("Heading")
+        local hh = head.Size.Y.Offset
+        same("card title", axis(head:FindFirstChild("CardIcon"), hh), axis(ic.titleLabel, hh))
+        local sec = ic:Section({ Title = "Sub", Icon = "settings-2" })
+        local sh = ic.frame:FindFirstChild("Section_Sub"):FindFirstChild("Header")
+        same("section title", axis(sh:FindFirstChild("SectionIcon"), sh.Size.Y.Offset), axis(sh:FindFirstChild("Title"), sh.Size.Y.Offset))
+        local t1 = ic:Toggle({ Title = "Plain row", Icon = "eye" })
+        local t2 = ic:Toggle({ Title = "Row with desc", Desc = "a description", Icon = "eye" })
+        for _, t in ipairs({ t1, t2 }) do
+            local h = t.Row.Size.Y.Offset
+            same(t.Title, axis(t.Row:FindFirstChild("RowIcon"), h), axis(t.Row:FindFirstChild("Title"), h))
+        end
+        local page = tabNamed("Live").Pages[1]
+        page:Warning("Icon check", { Title = "Banner" })
+        local banner
+        for _, o in ipairs(page.frame:GetDescendants()) do if o.Name == "BannerIcon" then banner = o.Parent end end
+        local bodyY = banner:FindFirstChild("Body").Position.Y.Offset
+        same("warning banner", axis(banner:FindFirstChild("BannerIcon"), 0), bodyY + axis(banner:FindFirstChild("Body"):FindFirstChild("Title"), 0))
+        -- buttons and chips centre their icon with a list layout: icon and line heights must both be even
+        local even = true
+        for _, size in ipairs({ "Small", "Default", "Large" }) do
+            local b = ic:Button({ Title = "Btn " .. size, Icon = "zap", Size = size })
+            local icon = b.Row:FindFirstChild("ButtonIcon", true)
+            if not icon or icon.Size.Y.Offset % 2 ~= 0 or b.Row.Size.Y.Offset % 2 ~= 0 then even = false end
+        end
+        check("icon centred: button icons even on even heights", even)
+        ic.frame:Destroy()
+    end
 
     -- one colour panel open at a time
     do

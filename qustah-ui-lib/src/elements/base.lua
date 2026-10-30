@@ -100,7 +100,7 @@ function Base.row(card, cfg, height, opts)
     end
     -- Icon = "name": a small icon before the title (title / description move right)
     if cfg.Icon and not opts.noIcon then
-        local icon = Icons.themed(row, cfg.Icon, 14, "muted", { Name = "RowIcon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, cfg.Desc and 12 or height / 2) })
+        local icon = Icons.themed(row, cfg.Icon, 14, "muted", { Name = "RowIcon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, cfg.Desc and 12 or (opts.titleHeight or height) / 2) })
         if icon then
             title.Position = UDim2.new(0, 22, 0, title.Position.Y.Offset)
             title.Size = UDim2.new(1, title.Size.X.Offset - 22, 0, title.Size.Y.Offset)

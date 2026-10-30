@@ -114,7 +114,7 @@ return function(card, cfg)
         local stride = step > 0 and math.max(step, (max - min) / 10) or (max - min) / 10
         for index, key in ipairs({ "From", "To" }) do
             local name = sideIcons[key] or sideIcons[index]
-            local icon = name and Icons.themed(row, name, 13, "muted", {
+            local icon = name and Icons.themed(row, name, 14, "muted", {
                 Name = key .. "Icon", AnchorPoint = Vector2.new(index == 1 and 0 or 1, 0.5), Position = UDim2.new(index == 1 and 0 or 1, 0, 0, top + 9),
             })
             if icon then

@@ -77,12 +77,19 @@ return function(window, cfg)
     window._menuListeners = window._menuListeners or {}
     table.insert(window._menuListeners, function(key) if menuKey.Value ~= key then menuKey:Set(key, true) end end)
     -- UI scale: this PC only (not part of profiles)
-    local SCALES = { "80%", "90%", "100%", "110%", "125%", "150%" }
-    local current = math.floor((window:GetUIScale() * 100) + 0.5) .. "%"
+    local SCALES = { "80%", "100%", "120%" }
+    -- another scale (CreateWindow({ Scale = 1.1 }), or one saved from the older list) stays as it is; the list shows the nearest
+    local percent = math.floor((window:GetUIScale() * 100) + 0.5)
+    local nearest = 100
+    for _, text in ipairs(SCALES) do
+        local value = tonumber(text:match("%d+"))
+        if math.abs(value - percent) < math.abs(nearest - percent) then nearest = value end
+    end
     scaleDropdown = menu:Dropdown({
-        Title = "UI scale", Desc = "Bigger or smaller menu", Options = SCALES, Default = table.find(SCALES, current) and current or "100%",
+        Title = "UI scale", Desc = "Bigger or smaller menu", Options = SCALES, Default = nearest .. "%",
         Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
     })
+    window._scaleDropdown = scaleDropdown
     menu:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Icon = "hand", Flag = "__ui_mouse",
         Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
     menu:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "venetian-mask", Flag = "__ui_anon", Default = window.anonymous == true,
