@@ -117,9 +117,3 @@ Everything is explained with code in **[DOCS.md](DOCS.md)**, and **[example.lua]
 <td width="20%" valign="top"><b>Ship it</b><br><br><a href="DOCS.md#status-errors-and-kicks">Status, errors and kicks</a><br><a href="DOCS.md#key-system">Key system</a><br><a href="DOCS.md#secure-mode">Secure mode</a><br><a href="DOCS.md#development">Development</a></td>
 </tr>
 </table>
-
-<br>
-
-<div align="center">
-<sub>Icons from <a href="https://github.com/Footagesus/Icons">Footagesus/Icons</a> (MIT) · made for Qustah</sub>
-</div>
