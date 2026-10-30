@@ -1,6 +1,6 @@
 <div align="center">
 
-![Qustah UI](qustah-ui-lib/assets/banner.png)
+![Qustah UI](qustah-ui-lib/assets/banner-live.png)
 
 ![version](https://img.shields.io/badge/version-1.9.14-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
@@ -84,7 +84,7 @@ The example script's tabs: Dashboard, then Visuals, Combat, Player, Live, Compon
 
 <table>
 <tr>
-<td width="50%"><img src="qustah-ui-lib/assets/screens/dashboard.png" alt="Dashboard"><br><sub><b>Dashboard</b> (built in): profile, live chips, session, module tiles, server tools</sub></td>
+<td width="50%"><img src="qustah-ui-lib/assets/screens/live.png" alt="Live tab"><br><sub><b>Live</b>: graphs, progress, rolling stats, console, table</sub></td>
 <td width="50%"><img src="qustah-ui-lib/assets/screens/visuals.png" alt="Visuals tab"><br><sub><b>Visuals</b>: page strip, bindable toggle, badge, slider, range, multi dropdown</sub></td>
 </tr>
 <tr>
@@ -92,7 +92,7 @@ The example script's tabs: Dashboard, then Visuals, Combat, Player, Live, Compon
 <td><img src="qustah-ui-lib/assets/screens/player.png" alt="Player tab"><br><sub><b>Player</b>: icon rows, key caps, 3D preview, split and hold buttons</sub></td>
 </tr>
 <tr>
-<td><img src="qustah-ui-lib/assets/screens/live.png" alt="Live tab"><br><sub><b>Live</b>: graphs, progress, rolling stats, console, table</sub></td>
+<td><img src="qustah-ui-lib/assets/screens/dashboard.png" alt="Dashboard"><br><sub><b>Dashboard</b> (built in): profile, live chips, session, module tiles, server tools</sub></td>
 <td><img src="qustah-ui-lib/assets/screens/buttons.png" alt="Components tab, Buttons page"><br><sub><b>Components › Buttons</b>: every style, cooldown, key, confirm, rows</sub></td>
 </tr>
 <tr>
