@@ -20,7 +20,7 @@ return function(window, cfg)
     local infoPage = tab:Page("Info")
 
     ------------------------------------------------------------ interface
-    local look = interface:Card({ Title = "Appearance", Side = "Left" })
+    local look = interface:Card({ Title = "Appearance", Side = "Left", Icon = "palette" })
     local picker
     local swatches
     local function syncSwatches()
@@ -65,7 +65,7 @@ return function(window, cfg)
         Callback = function(on) Glow.setEnabled(on) end,
     })
 
-    local menu = interface:Card({ Title = "Menu", Side = "Right" })
+    local menu = interface:Card({ Title = "Menu", Side = "Right", Icon = "settings-2" })
     local menuKey = menu:Keybind({
         Title = "Menu key", Desc = "Opens and closes the menu", Flag = "__ui_menu_key", Default = window.key,
         Callback = function(key) window:SetToggleKey(key) end,
@@ -184,7 +184,7 @@ return function(window, cfg)
             end
         end })
 
-    local look2 = interface:Card({ Title = "Window", Side = "Left" })
+    local look2 = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
     look2:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "venetian-mask", Flag = "__ui_anon", Default = window.anonymous == true,
         Callback = function(on) window:SetAnonymous(on) end })
     if window.OnAnonymousChanged then
@@ -207,7 +207,7 @@ return function(window, cfg)
         Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
     look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
 
-    local overlays = interface:Card({ Title = "Overlays", Side = "Right" })
+    local overlays = interface:Card({ Title = "Overlays", Side = "Right", Icon = "layers" })
     overlays:Toggle({ Title = "Watermark", Desc = "Name · FPS · ping · clock", Flag = "__ui_hud_watermark", Callback = function(on) window:Watermark(on) end })
     overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
     overlays:Toggle({ Title = "Session bar", Desc = "FPS · ping · players · time", Flag = "__ui_hud_session", Callback = function(on) window:SessionBar(on) end })
@@ -221,7 +221,7 @@ return function(window, cfg)
     Profiles(window, profiles, window.Config.Defaults)
 
     ------------------------------------------------------------ info
-    local about = infoPage:Card({ Title = "About", Side = "Left" })
+    local about = infoPage:Card({ Title = "About", Side = "Left", Icon = "info" })
     if window.Version ~= "" then about:Info({ Title = window.Title, Value = window.Version }) end
     about:Info({ Title = "qustah-ui-lib", Value = "v" .. tostring(window.Lib.Version) })
     for _, entry in ipairs(cfg.Info or {}) do about:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
@@ -264,11 +264,11 @@ return function(window, cfg)
         showKicks()
     end
 
-    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left" })
+    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes" })
     local moduleRows = {}
     local noModules = modulesCard:Label("No modules reported")
 
-    local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right" })
+    local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right", Icon = "bug" })
     errorsCard:Toggle({
         Title = "Debug mode", Desc = "A notification for every new error", Flag = "__ui_debug", Default = window.cfg.Debug == true,
         Callback = function(on) window.debug = on end,

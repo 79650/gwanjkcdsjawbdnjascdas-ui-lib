@@ -67,7 +67,11 @@ function Card.new(page, column, cfg, order)
         -- accent dot with a soft glow + medium heading (Qustah card title); Icon = "name" replaces the dot
         local head = create("Frame", { Name = "Heading", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = 0, Parent = frame })
         local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 13, "accent", { Name = "CardIcon", Position = UDim2.fromOffset(-1, 3) })
-        for ring = 3, (icon and 4 or 0), -1 do
+        -- Dot = false (or CreateWindow({ CardDots = false }) for every card): plain title when there is no icon
+        local dotted = cfg.Dot
+        if dotted == nil then dotted = not (page.window and page.window.cfg and page.window.cfg.CardDots == false) end
+        local lead = icon and 18 or (dotted and 13 or 0)
+        for ring = 3, ((icon or not dotted) and 4 or 0), -1 do
             local dot = create("Frame", {
                 Name = ring == 0 and "Dot" or "Glow", Position = UDim2.fromOffset(-ring, 7 - ring), Size = UDim2.fromOffset(6 + ring * 2, 6 + ring * 2),
                 BorderSizePixel = 0, BackgroundTransparency = ring == 0 and 0 or 0.91, Parent = head,
@@ -76,7 +80,7 @@ function Card.new(page, column, cfg, order)
             corner(dot, ring == 0 and 3 or 6)
         end
         local collapsible = cfg.Collapsible ~= false
-        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(icon and 18 or 13, 0), Size = UDim2.new(1, (icon and -18 or -13) - (collapsible and 22 or 0), 1, 0), Font = Enum.Font.GothamMedium })
+        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(lead, 0), Size = UDim2.new(1, -lead - (collapsible and 22 or 0), 1, 0), Font = Enum.Font.GothamMedium })
         Theme.bind(title, "TextColor3", "heading")
         self.titleLabel = title
         -- Desc = "...": a muted line under the title

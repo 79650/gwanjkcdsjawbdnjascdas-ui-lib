@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.6 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.7 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -82,7 +82,11 @@ function Card.new(page, column, cfg, order)
         -- accent dot with a soft glow + medium heading (Qustah card title); Icon = "name" replaces the dot
         local head = create("Frame", { Name = "Heading", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = 0, Parent = frame })
         local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 13, "accent", { Name = "CardIcon", Position = UDim2.fromOffset(-1, 3) })
-        for ring = 3, (icon and 4 or 0), -1 do
+        -- Dot = false (or CreateWindow({ CardDots = false }) for every card): plain title when there is no icon
+        local dotted = cfg.Dot
+        if dotted == nil then dotted = not (page.window and page.window.cfg and page.window.cfg.CardDots == false) end
+        local lead = icon and 18 or (dotted and 13 or 0)
+        for ring = 3, ((icon or not dotted) and 4 or 0), -1 do
             local dot = create("Frame", {
                 Name = ring == 0 and "Dot" or "Glow", Position = UDim2.fromOffset(-ring, 7 - ring), Size = UDim2.fromOffset(6 + ring * 2, 6 + ring * 2),
                 BorderSizePixel = 0, BackgroundTransparency = ring == 0 and 0 or 0.91, Parent = head,
@@ -91,7 +95,7 @@ function Card.new(page, column, cfg, order)
             corner(dot, ring == 0 and 3 or 6)
         end
         local collapsible = cfg.Collapsible ~= false
-        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(icon and 18 or 13, 0), Size = UDim2.new(1, (icon and -18 or -13) - (collapsible and 22 or 0), 1, 0), Font = Enum.Font.GothamMedium })
+        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(lead, 0), Size = UDim2.new(1, -lead - (collapsible and 22 or 0), 1, 0), Font = Enum.Font.GothamMedium })
         Theme.bind(title, "TextColor3", "heading")
         self.titleLabel = title
         -- Desc = "...": a muted line under the title
@@ -897,7 +901,7 @@ return function(window, cfg)
     end
 
     ------------------------------------------------------------ session / info / server
-    local session = page:Card({ Title = "Session", Side = "Left" })
+    local session = page:Card({ Title = "Session", Side = "Left", Icon = "id-card" })
     local userId = session:Info({ Title = "User ID", Value = "#" .. player.UserId, Copy = function() return tostring(player.UserId) end })
     if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on) userId:Set(on and "hidden" or ("#" .. player.UserId)) end) end
     session:Info({ Title = "Account created", Value = os.date("%d %b %Y", os.time() - player.AccountAge * 86400) })
@@ -911,14 +915,14 @@ return function(window, cfg)
     session:Info({ Title = "Game ID", Value = "#" .. game.GameId, Copy = function() return tostring(game.GameId) end })
     session:Info({ Title = "Place ID", Value = "#" .. game.PlaceId, Copy = function() return tostring(game.PlaceId) end })
 
-    local info = page:Card({ Title = "Info", Side = "Right" })
+    local info = page:Card({ Title = "Info", Side = "Right", Icon = "info" })
     if window.Version ~= "" then info:Info({ Title = "GUI version", Value = window.Version }) end
     for _, entry in ipairs(cfg.Info or {}) do info:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
     local playerCount = info:Info({ Title = "Players", Value = "--" })
     local ping = info:Info({ Title = "Ping", Value = "--" })
 
     if cfg.Server ~= false then
-        local server = page:Card({ Title = "Server", Side = "Right" })
+        local server = page:Card({ Title = "Server", Side = "Right", Icon = "server" })
         local busy = false
         local function teleport(hop)
             if busy then window:Notify({ Title = "Server", Content = "Teleport already pending" }) return end
@@ -956,7 +960,7 @@ return function(window, cfg)
 
     ------------------------------------------------------------ modules (Window:SetModule)
     if cfg.Modules ~= false then
-        local modulesCard = page:Card({ Title = "Modules", Side = "Left" })
+        local modulesCard = page:Card({ Title = "Modules", Side = "Left", Icon = "boxes" })
         local empty = modulesCard:Label("Modules report here with Window:SetModule(name, state)")
         local rows = {}
         local COLORS = { On = "success", Limited = "warning", Error = "danger" }
@@ -7162,7 +7166,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.6",
+    Version = "1.9.7",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -7821,7 +7825,7 @@ return function(window, page, defaults)
     end
 
     ------------------------------------------------------------ current
-    local current = page:Card({ Title = "Current" })
+    local current = page:Card({ Title = "Current", Icon = "bookmark" })
     local activeInfo = current:Info({ Title = "Profile", Value = "Default" })
     local changesInfo = current:Info({ Title = "Changes", Value = "--" })
     local bar = create("Frame", { Name = "CurrentActions", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 24), LayoutOrder = current:_order(), Parent = current.body })
@@ -7926,7 +7930,7 @@ return function(window, page, defaults)
 
     ------------------------------------------------------------ new / import
     -- one card, two tabs in its header; each tab is a single field with the action inside it
-    local newCard = page:Card({ Title = "New profile" })
+    local newCard = page:Card({ Title = "New profile", Icon = "plus" })
     local sections = newCard:Tabs({ "Create", "Import" })
     local function count(flags) local n = 0 for _ in pairs(flags or {}) do n = n + 1 end return n end
     sections.Create:ActionInput({
@@ -7983,7 +7987,7 @@ return function(window, page, defaults)
     })
 
     ------------------------------------------------------------ saved list
-    local listCard = page:Card({ Title = "Saved" })
+    local listCard = page:Card({ Title = "Saved", Icon = "folder-open" })
     local search = create("TextBox", {
         Name = "Search", Text = "", PlaceholderText = "Search profiles...", TextSize = 10, Font = Enum.Font.Gotham,
         TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, BorderSizePixel = 0,
@@ -8218,7 +8222,7 @@ return function(window, cfg)
     local infoPage = tab:Page("Info")
 
     ------------------------------------------------------------ interface
-    local look = interface:Card({ Title = "Appearance", Side = "Left" })
+    local look = interface:Card({ Title = "Appearance", Side = "Left", Icon = "palette" })
     local picker
     local swatches
     local function syncSwatches()
@@ -8263,7 +8267,7 @@ return function(window, cfg)
         Callback = function(on) Glow.setEnabled(on) end,
     })
 
-    local menu = interface:Card({ Title = "Menu", Side = "Right" })
+    local menu = interface:Card({ Title = "Menu", Side = "Right", Icon = "settings-2" })
     local menuKey = menu:Keybind({
         Title = "Menu key", Desc = "Opens and closes the menu", Flag = "__ui_menu_key", Default = window.key,
         Callback = function(key) window:SetToggleKey(key) end,
@@ -8382,7 +8386,7 @@ return function(window, cfg)
             end
         end })
 
-    local look2 = interface:Card({ Title = "Window", Side = "Left" })
+    local look2 = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
     look2:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "venetian-mask", Flag = "__ui_anon", Default = window.anonymous == true,
         Callback = function(on) window:SetAnonymous(on) end })
     if window.OnAnonymousChanged then
@@ -8405,7 +8409,7 @@ return function(window, cfg)
         Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
     look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
 
-    local overlays = interface:Card({ Title = "Overlays", Side = "Right" })
+    local overlays = interface:Card({ Title = "Overlays", Side = "Right", Icon = "layers" })
     overlays:Toggle({ Title = "Watermark", Desc = "Name · FPS · ping · clock", Flag = "__ui_hud_watermark", Callback = function(on) window:Watermark(on) end })
     overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
     overlays:Toggle({ Title = "Session bar", Desc = "FPS · ping · players · time", Flag = "__ui_hud_session", Callback = function(on) window:SessionBar(on) end })
@@ -8419,7 +8423,7 @@ return function(window, cfg)
     Profiles(window, profiles, window.Config.Defaults)
 
     ------------------------------------------------------------ info
-    local about = infoPage:Card({ Title = "About", Side = "Left" })
+    local about = infoPage:Card({ Title = "About", Side = "Left", Icon = "info" })
     if window.Version ~= "" then about:Info({ Title = window.Title, Value = window.Version }) end
     about:Info({ Title = "qustah-ui-lib", Value = "v" .. tostring(window.Lib.Version) })
     for _, entry in ipairs(cfg.Info or {}) do about:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
@@ -8462,11 +8466,11 @@ return function(window, cfg)
         showKicks()
     end
 
-    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left" })
+    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes" })
     local moduleRows = {}
     local noModules = modulesCard:Label("No modules reported")
 
-    local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right" })
+    local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right", Icon = "bug" })
     errorsCard:Toggle({
         Title = "Debug mode", Desc = "A notification for every new error", Flag = "__ui_debug", Default = window.cfg.Debug == true,
         Callback = function(on) window.debug = on end,

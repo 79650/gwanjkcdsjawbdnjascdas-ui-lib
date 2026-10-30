@@ -73,7 +73,7 @@ return function(window, page, defaults)
     end
 
     ------------------------------------------------------------ current
-    local current = page:Card({ Title = "Current" })
+    local current = page:Card({ Title = "Current", Icon = "bookmark" })
     local activeInfo = current:Info({ Title = "Profile", Value = "Default" })
     local changesInfo = current:Info({ Title = "Changes", Value = "--" })
     local bar = create("Frame", { Name = "CurrentActions", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 24), LayoutOrder = current:_order(), Parent = current.body })
@@ -178,7 +178,7 @@ return function(window, page, defaults)
 
     ------------------------------------------------------------ new / import
     -- one card, two tabs in its header; each tab is a single field with the action inside it
-    local newCard = page:Card({ Title = "New profile" })
+    local newCard = page:Card({ Title = "New profile", Icon = "plus" })
     local sections = newCard:Tabs({ "Create", "Import" })
     local function count(flags) local n = 0 for _ in pairs(flags or {}) do n = n + 1 end return n end
     sections.Create:ActionInput({
@@ -235,7 +235,7 @@ return function(window, page, defaults)
     })
 
     ------------------------------------------------------------ saved list
-    local listCard = page:Card({ Title = "Saved" })
+    local listCard = page:Card({ Title = "Saved", Icon = "folder-open" })
     local search = create("TextBox", {
         Name = "Search", Text = "", PlaceholderText = "Search profiles...", TextSize = 10, Font = Enum.Font.Gotham,
         TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, BorderSizePixel = 0,

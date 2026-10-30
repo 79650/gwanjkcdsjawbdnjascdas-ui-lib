@@ -1746,6 +1746,15 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         local U = Lib.Util
         check("textWidth cache", U.textWidth("cache me", 10) == U.textWidth("cache me", 10))
         c5.frame:Destroy()
+        -- card heading: dot by default, Icon replaces it, Dot = false leaves the plain title
+        local cd1 = misc5:Card({ Title = "Dotted" })
+        local cd2 = misc5:Card({ Title = "Iconed", Icon = "info" })
+        local cd3 = misc5:Card({ Title = "Plain", Dot = false })
+        local function head(c) return c.frame:FindFirstChild("Heading") end
+        check("card dot by default", head(cd1):FindFirstChild("Dot") ~= nil)
+        check("card icon replaces the dot", head(cd2):FindFirstChild("CardIcon") ~= nil and head(cd2):FindFirstChild("Dot") == nil)
+        check("Dot = false: plain title at the edge", head(cd3):FindFirstChild("Dot") == nil and cd3.titleLabel.Position.X.Offset == 0)
+        cd1.frame:Destroy() cd2.frame:Destroy() cd3.frame:Destroy()
         -- hiding fades the window outline together with the inside (and it comes back with it)
         window:SetAccentGlow(false)
         window:SetVisible(false) wait(0.3)

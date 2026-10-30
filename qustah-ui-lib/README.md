@@ -2,7 +2,7 @@
 
 ![Qustah UI](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.9.6-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.7-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
@@ -191,6 +191,7 @@ local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both c
 
 **Cards**
 - The arrow in the header folds the card. `Collapsible = false` removes the arrow, `Collapsed = true` starts folded, and the folded state is remembered.
+- The title starts with an accent dot; `Icon = "name"` puts an icon there instead. `Dot = false` leaves the plain title, and `CreateWindow({ CardDots = false })` does that for every card without an icon.
 - Methods: `card:SetCollapsed(bool)`, `card:SetTitle()`, `card:SetDesc()`, `card:SetVisible()`.
 - A card with nothing visible in it shows "Nothing here" (`Empty = "your text"`, or `Empty = false`).
 

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.6 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.7 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -74,7 +74,10 @@ Util.list(frame,4)
 if cfg.Title then
 local head=create("Frame",{Name="Heading",BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=0,Parent=frame})
 local icon=cfg.Icon and Icons.themed(head,cfg.Icon,13,"accent",{Name="CardIcon",Position=UDim2.fromOffset(-1,3)})
-for ring=3,(icon and 4 or 0),-1 do
+local dotted=cfg.Dot
+if dotted==nil then dotted=not(page.window and page.window.cfg and page.window.cfg.CardDots==false)end
+local lead=icon and 18 or(dotted and 13 or 0)
+for ring=3,((icon or not dotted)and 4 or 0),-1 do
 local dot=create("Frame",{
 Name=ring==0 and"Dot"or"Glow",Position=UDim2.fromOffset(-ring,7-ring),Size=UDim2.fromOffset(6+ring*2,6+ring*2),
 BorderSizePixel=0,BackgroundTransparency=ring==0 and 0 or 0.91,Parent=head,
@@ -83,7 +86,7 @@ Theme.bind(dot,"BackgroundColor3","accent")
 corner(dot,ring==0 and 3 or 6)
 end
 local collapsible=cfg.Collapsible~=false
-local title=label(head,tostring(cfg.Title),10,{Position=UDim2.fromOffset(icon and 18 or 13,0),Size=UDim2.new(1,(icon and-18 or-13)-(collapsible and 22 or 0),1,0),Font=Enum.Font.GothamMedium})
+local title=label(head,tostring(cfg.Title),10,{Position=UDim2.fromOffset(lead,0),Size=UDim2.new(1,-lead-(collapsible and 22 or 0),1,0),Font=Enum.Font.GothamMedium})
 Theme.bind(title,"TextColor3","heading")
 self.titleLabel=title
 if cfg.Desc then
@@ -783,7 +786,7 @@ username.Text=on and"hidden"or("@"..player.Name.." · #"..player.UserId)
 avatar.Image=on and""or avatarImage
 end)
 end
-local session=page:Card({Title="Session",Side="Left"})
+local session=page:Card({Title="Session",Side="Left",Icon="id-card"})
 local userId=session:Info({Title="User ID",Value="#"..player.UserId,Copy=function()return tostring(player.UserId)end})
 if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on)userId:Set(on and"hidden"or("#"..player.UserId))end)end
 session:Info({Title="Account created",Value=os.date("%d %b %Y",os.time()-player.AccountAge*86400)})
@@ -796,13 +799,13 @@ session:Info({Title="Executor",Value=executor})
 session:Divider()
 session:Info({Title="Game ID",Value="#"..game.GameId,Copy=function()return tostring(game.GameId)end})
 session:Info({Title="Place ID",Value="#"..game.PlaceId,Copy=function()return tostring(game.PlaceId)end})
-local info=page:Card({Title="Info",Side="Right"})
+local info=page:Card({Title="Info",Side="Right",Icon="info"})
 if window.Version~=""then info:Info({Title="GUI version",Value=window.Version})end
 for _,entry in ipairs(cfg.Info or{})do info:Info({Title=entry[1],Value=entry[2],Copy=entry.Copy})end
 local playerCount=info:Info({Title="Players",Value="--"})
 local ping=info:Info({Title="Ping",Value="--"})
 if cfg.Server~=false then
-local server=page:Card({Title="Server",Side="Right"})
+local server=page:Card({Title="Server",Side="Right",Icon="server"})
 local busy=false
 local function teleport(hop)
 if busy then window:Notify({Title="Server",Content="Teleport already pending"})return end
@@ -838,7 +841,7 @@ actions:Button({Title="Server hop",Icon="shuffle",Confirm=true,Callback=function
 server:Info({Title="Job ID",Value=game.JobId~=""and(game.JobId:sub(1,8).."...")or"studio",Copy=function()return game.JobId end})
 end
 if cfg.Modules~=false then
-local modulesCard=page:Card({Title="Modules",Side="Left"})
+local modulesCard=page:Card({Title="Modules",Side="Left",Icon="boxes"})
 local empty=modulesCard:Label("Modules report here with Window:SetModule(name, state)")
 local rows={}
 local COLORS={On="success",Limited="warning",Error="danger"}
@@ -6355,7 +6358,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.6",
+Version="1.9.7",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -6921,7 +6924,7 @@ say(ok and("Saved \""..name.."\"")or err,not ok)
 refresh()
 return ok
 end
-local current=page:Card({Title="Current"})
+local current=page:Card({Title="Current",Icon="bookmark"})
 local activeInfo=current:Info({Title="Profile",Value="Default"})
 local changesInfo=current:Info({Title="Changes",Value="--"})
 local bar=create("Frame",{Name="CurrentActions",BackgroundTransparency=1,Size=UDim2.new(1,0,0,24),LayoutOrder=current:_order(),Parent=current.body})
@@ -7018,7 +7021,7 @@ changesInfo:Set("Saved")
 changesInfo:SetColor(GREEN)
 end
 end
-local newCard=page:Card({Title="New profile"})
+local newCard=page:Card({Title="New profile",Icon="plus"})
 local sections=newCard:Tabs({"Create","Import"})
 local function count(flags)local n=0 for _ in pairs(flags or{})do n=n+1 end return n end
 sections.Create:ActionInput({
@@ -7071,7 +7074,7 @@ refresh()
 say(on and("Profiles for this game (#"..game.GameId..")")or"Shared profiles for all games")
 end,
 })
-local listCard=page:Card({Title="Saved"})
+local listCard=page:Card({Title="Saved",Icon="folder-open"})
 local search=create("TextBox",{
 Name="Search",Text="",PlaceholderText="Search profiles...",TextSize=10,Font=Enum.Font.Gotham,
 TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=false,BorderSizePixel=0,
@@ -7285,7 +7288,7 @@ local tab=window:Tab({Title=cfg.Title or"Settings",Icon=cfg.Icon or"settings",Di
 local interface=tab:Page("Interface")
 local profiles=tab:Page("Profiles",{Columns=1})
 local infoPage=tab:Page("Info")
-local look=interface:Card({Title="Appearance",Side="Left"})
+local look=interface:Card({Title="Appearance",Side="Left",Icon="palette"})
 local picker
 local swatches
 local function syncSwatches()
@@ -7326,7 +7329,7 @@ look:Toggle({
 Title="Text glow",Desc="Shine on the title and highlights",Flag="__ui_glow",Default=Glow.enabled,
 Callback=function(on)Glow.setEnabled(on)end,
 })
-local menu=interface:Card({Title="Menu",Side="Right"})
+local menu=interface:Card({Title="Menu",Side="Right",Icon="settings-2"})
 local menuKey=menu:Keybind({
 Title="Menu key",Desc="Opens and closes the menu",Flag="__ui_menu_key",Default=window.key,
 Callback=function(key)window:SetToggleKey(key)end,
@@ -7441,7 +7444,7 @@ refreshThemeList(name)
 window:Notify({Title="Theme imported",Content=name,Icon="palette"})
 end
 end})
-local look2=interface:Card({Title="Window",Side="Left"})
+local look2=interface:Card({Title="Window",Side="Left",Icon="app-window"})
 look2:Toggle({Title="Anonymous mode",Desc="Hides your name and avatar",Icon="venetian-mask",Flag="__ui_anon",Default=window.anonymous==true,
 Callback=function(on)window:SetAnonymous(on)end})
 if window.OnAnonymousChanged then
@@ -7463,7 +7466,7 @@ Default=window.accentGlow==true,Callback=function(on)window:SetAccentGlow(on)end
 look2:Toggle({Title="Blur game",Desc="Blurs the game while open",Flag="__ui_blur",
 Default=window.blur==true,Callback=function(on)window:SetBlur(on)end})
 look2:Button({Title="Fullscreen",Icon="maximize-2",Callback=function()window:ToggleFullscreen()end})
-local overlays=interface:Card({Title="Overlays",Side="Right"})
+local overlays=interface:Card({Title="Overlays",Side="Right",Icon="layers"})
 overlays:Toggle({Title="Watermark",Desc="Name · FPS · ping · clock",Flag="__ui_hud_watermark",Callback=function(on)window:Watermark(on)end})
 overlays:Toggle({Title="Keybind list",Desc="Bound keys on screen",Flag="__ui_hud_keys",Callback=function(on)window:KeybindList(on)end})
 overlays:Toggle({Title="Session bar",Desc="FPS · ping · players · time",Flag="__ui_hud_session",Callback=function(on)window:SessionBar(on)end})
@@ -7472,7 +7475,7 @@ Title="Performance",Options={"Off","Header","Floating"},Default="Off",Flag="__ui
 Callback=function(mode)window:StatsMonitor(mode)end,
 })
 Profiles(window,profiles,window.Config.Defaults)
-local about=infoPage:Card({Title="About",Side="Left"})
+local about=infoPage:Card({Title="About",Side="Left",Icon="info"})
 if window.Version~=""then about:Info({Title=window.Title,Value=window.Version})end
 about:Info({Title="qustah-ui-lib",Value="v"..tostring(window.Lib.Version)})
 for _,entry in ipairs(cfg.Info or{})do about:Info({Title=entry[1],Value=entry[2],Copy=entry.Copy})end
@@ -7511,10 +7514,10 @@ window:OnKick(showKicks)
 Theme.onChange(function()if infoPage.frame.Parent then showKicks()end end)
 showKicks()
 end
-local modulesCard=infoPage:Card({Title="Modules",Side="Left"})
+local modulesCard=infoPage:Card({Title="Modules",Side="Left",Icon="boxes"})
 local moduleRows={}
 local noModules=modulesCard:Label("No modules reported")
-local errorsCard=infoPage:Card({Title="Errors",Side="Right"})
+local errorsCard=infoPage:Card({Title="Errors",Side="Right",Icon="bug"})
 errorsCard:Toggle({
 Title="Debug mode",Desc="A notification for every new error",Flag="__ui_debug",Default=window.cfg.Debug==true,
 Callback=function(on)window.debug=on end,

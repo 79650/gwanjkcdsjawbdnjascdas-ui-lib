@@ -53,7 +53,7 @@ return function(window, cfg)
     end
 
     ------------------------------------------------------------ session / info / server
-    local session = page:Card({ Title = "Session", Side = "Left" })
+    local session = page:Card({ Title = "Session", Side = "Left", Icon = "id-card" })
     local userId = session:Info({ Title = "User ID", Value = "#" .. player.UserId, Copy = function() return tostring(player.UserId) end })
     if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on) userId:Set(on and "hidden" or ("#" .. player.UserId)) end) end
     session:Info({ Title = "Account created", Value = os.date("%d %b %Y", os.time() - player.AccountAge * 86400) })
@@ -67,14 +67,14 @@ return function(window, cfg)
     session:Info({ Title = "Game ID", Value = "#" .. game.GameId, Copy = function() return tostring(game.GameId) end })
     session:Info({ Title = "Place ID", Value = "#" .. game.PlaceId, Copy = function() return tostring(game.PlaceId) end })
 
-    local info = page:Card({ Title = "Info", Side = "Right" })
+    local info = page:Card({ Title = "Info", Side = "Right", Icon = "info" })
     if window.Version ~= "" then info:Info({ Title = "GUI version", Value = window.Version }) end
     for _, entry in ipairs(cfg.Info or {}) do info:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
     local playerCount = info:Info({ Title = "Players", Value = "--" })
     local ping = info:Info({ Title = "Ping", Value = "--" })
 
     if cfg.Server ~= false then
-        local server = page:Card({ Title = "Server", Side = "Right" })
+        local server = page:Card({ Title = "Server", Side = "Right", Icon = "server" })
         local busy = false
         local function teleport(hop)
             if busy then window:Notify({ Title = "Server", Content = "Teleport already pending" }) return end
@@ -112,7 +112,7 @@ return function(window, cfg)
 
     ------------------------------------------------------------ modules (Window:SetModule)
     if cfg.Modules ~= false then
-        local modulesCard = page:Card({ Title = "Modules", Side = "Left" })
+        local modulesCard = page:Card({ Title = "Modules", Side = "Left", Icon = "boxes" })
         local empty = modulesCard:Label("Modules report here with Window:SetModule(name, state)")
         local rows = {}
         local COLORS = { On = "success", Limited = "warning", Error = "danger" }

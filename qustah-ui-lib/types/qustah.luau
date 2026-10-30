@@ -171,6 +171,7 @@ export type CardConfig = {
 	Side: ("Left" | "Right")?,
 	Wide: boolean?,
 	Collapsible: boolean?,
+	Dot: boolean?,
 	Collapsed: boolean?,
 	DependsOn: Dependency?,
 	Empty: (string | false)?,
@@ -340,6 +341,7 @@ export type WindowConfig = {
 	Secure: boolean?,
 	Tour: (boolean | { any })?,
 	TourDelay: number?,
+	CardDots: boolean?,
 	TourId: string?,
 	Changelog: { Version: string?, Title: string?, Content: string?, Items: { string }?, Button: string?, Delay: number? }?,
 	KeySystem: {
