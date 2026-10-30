@@ -49,38 +49,6 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 <p align="center"><img src="assets/screens/tabs.gif" alt="Switching between the example's tabs" width="820"></p>
 
-<table>
-<tr>
-<td width="50%" align="center"><img src="assets/screens/live.png" alt="Live"><br><sub>Live</sub></td>
-<td width="50%" align="center"><img src="assets/screens/visuals.png" alt="Visuals"><br><sub>Visuals</sub></td>
-</tr>
-<tr>
-<td width="50%" align="center"><img src="assets/screens/inputs.png" alt="Components › Inputs"><br><sub>Components › Inputs</sub></td>
-<td width="50%" align="center"><img src="assets/screens/settings.png" alt="Settings"><br><sub>Settings</sub></td>
-</tr>
-</table>
-
-<details>
-<summary><b>More screenshots</b></summary>
-<br>
-
-<table>
-<tr>
-<td width="50%" align="center"><img src="assets/screens/dashboard.png" alt="Dashboard"><br><sub>Dashboard</sub></td>
-<td width="50%" align="center"><img src="assets/screens/combat.png" alt="Combat"><br><sub>Combat</sub></td>
-</tr>
-<tr>
-<td width="50%" align="center"><img src="assets/screens/player.png" alt="Player"><br><sub>Player</sub></td>
-<td width="50%" align="center"><img src="assets/screens/appearance.png" alt="Visuals › Appearance"><br><sub>Visuals › Appearance</sub></td>
-</tr>
-<tr>
-<td width="50%" align="center"><img src="assets/screens/buttons.png" alt="Components › Buttons"><br><sub>Components › Buttons</sub></td>
-<td width="50%" align="center"><img src="assets/screens/content.png" alt="Components › Content"><br><sub>Components › Content</sub></td>
-</tr>
-</table>
-
-</details>
-
 ### Themes
 
 <p align="center"><img src="assets/screens/themes.png" alt="Dark, Light, Tokyo Night, Cyberpunk, Gruvbox and Mint themes"></p>
