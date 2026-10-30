@@ -1669,6 +1669,44 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("hidden tab: selectable from code", (function() ghostTab:Select() wait() return window.current == ghostTab end)())
     tabNamed("Live"):Select() wait()
 
+    -- sharp lucide icons from the 16 / 32 px sheets (getcustomasset), plain asset ids otherwise
+    do
+        local Icons = Lib.Icons
+        local E = getfenv(0)
+        local oldCustom = E.getcustomasset
+        E.getcustomasset = function(path) return "rbxasset://custom/" .. path end
+        for _, f in ipairs({ "lucide-16.png", "lucide-32-1.png", "lucide-32-2.png" }) do MOCK.files["QustahUI/icons/v1-" .. f] = "\137PNG" end
+        Icons._resetAtlas()
+        local card = tabNamed("Live").Pages[1]:Card({ Title = "Sharp" })
+        local t = card:Toggle({ Title = "Sharp eye", Icon = "eye" })
+        local icon = t.Row:FindFirstChild("RowIcon")
+        check("sharp icons: on-disk sheets are used at once", Icons._atlas.ready and icon.Image:find("v1%-lucide%-16%.png") ~= nil)
+        check("sharp icons: a 16 px cell", icon.ImageRectSize == Vector2.new(16, 16) and icon.ImageRectOffset.X % 18 == 1 and icon.ImageRectOffset.Y % 18 == 1)
+        local big = Icons.Image("eye", { Size = UDim2.fromOffset(24, 24) })
+        check("sharp icons: bigger than 16 px uses the 32 px sheet", big.Image:find("lucide%-32%-") ~= nil and big.ImageRectSize == Vector2.new(32, 32) and big.ImageRectOffset.X % 34 == 1)
+        local same = Icons.Image("eye", { Size = UDim2.fromOffset(14, 14) })
+        check("sharp icons: same icon, same cell", same.ImageRectOffset == icon.ImageRectOffset)
+        local other = Icons.Image("ghost", { Size = UDim2.fromOffset(14, 14) })
+        check("sharp icons: another icon, another cell", other.ImageRectOffset ~= icon.ImageRectOffset)
+        local brand = Icons.Image("github", { Size = UDim2.fromOffset(14, 14) })
+        check("sharp icons: a name missing from the sheets keeps its asset id", brand.Image:find("^rbxassetid://") ~= nil)
+        local web = Icons.Image("rbxassetid://123", { Size = UDim2.fromOffset(14, 14) })
+        check("sharp icons: plain images untouched", web.Image == "rbxassetid://123")
+        -- without getcustomasset: the asset ids, as before
+        E.getcustomasset = nil
+        Icons._resetAtlas()
+        local plain = Icons.Image("eye", { Size = UDim2.fromOffset(14, 14) })
+        check("sharp icons: without getcustomasset the asset id is used", plain.Image:find("^rbxassetid://") ~= nil and plain.ImageRectSize == Vector2.new(0, 0))
+        -- turned off
+        E.getcustomasset = function(path) return "rbxasset://custom/" .. path end
+        Icons.Sharp = false Icons._resetAtlas()
+        local off = Icons.Image("eye", { Size = UDim2.fromOffset(14, 14) })
+        check("sharp icons: Icons.Sharp = false keeps the asset ids", off.Image:find("^rbxassetid://") ~= nil)
+        Icons.Sharp = true
+        E.getcustomasset = oldCustom Icons._resetAtlas()
+        card.frame:Destroy()
+    end
+
     -- icons sit on the middle of their text (card, section, row, banner, buttons) at 80 / 100 / 120 %
     do
         local function axis(o, parentH)

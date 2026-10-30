@@ -646,6 +646,8 @@ Lib:CreateWindow({ Title = "Qustāh", Icon = "https://example.com/logo.png" })
 
 Sets other than lucide download once, the first time you use them.
 
+**Sharp lucide icons.** Roblox shrinks a big image badly, so a lucide icon drawn small from its asset looks jagged. The library draws lucide icons from small sheets instead (16 px for icons up to 16 px on screen, 32 px above, picked again when the UI scale changes). The sheets (about 1 MB) are downloaded once into `QustahUI/icons` and shown through `getcustomasset`; without that function, or until the download is done, the asset ids are used. `Lib.Icons.Sharp = false` (before the first window) turns this off. `tools/gen_atlas.py` redraws the sheets from lucide's SVGs.
+
 ```lua
 Lib.Icons.SetDefault("solar")                            -- use solar without the prefix
 Lib.Icons.Image("house", { Size = UDim2.fromOffset(24, 24), Parent = frame })
@@ -654,7 +656,7 @@ Lib.Icons.Add("mine", { skull = "rbxassetid://123" })    -- "mine:skull"
 Lib.Icons.List("lucide")
 ```
 
-Icons are from [Footagesus/Icons](https://github.com/Footagesus/Icons) (MIT, [`icons/LICENSE`](icons/LICENSE)).
+Icons are from [Footagesus/Icons](https://github.com/Footagesus/Icons) (MIT, [`icons/LICENSE`](icons/LICENSE)); the sharp sheets are drawn from [lucide](https://github.com/lucide-icons/lucide) (ISC).
 
 ---
 

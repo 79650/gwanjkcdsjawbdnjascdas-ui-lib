@@ -119,11 +119,132 @@ local function fetch(url, done)
     end)
 end
 
+-- Sharp lucide icons. Roblox shrinks a big image badly (it skips pixels, so a 256 px icon drawn at 14 px looks
+-- jagged), so lucide icons come from small sheets drawn at 16 and 32 px (icons/atlas, tools/gen_atlas.py): the
+-- 16 px sheet for icons up to 16 px on screen, the 32 px sheet above. The sheets are downloaded once into
+-- QustahUI/icons and shown through getcustomasset; without it (or before they are ready) the asset ids are used.
+-- Lib.Icons.Sharp = false before the first window turns this off.
+Icons.Sharp = true
+Icons.AtlasFolder = "QustahUI/icons"
+local Atlas = require("icons_atlas")
+local atlas = { started = false, ready = false, index = nil, pages = {} }
+local sharpImages = setmetatable({}, { __mode = "k" }) -- image -> lucide name, so they switch sheets / get re-drawn
+local applySharp
+
+local function atlasIndex()
+    if not atlas.index then
+        atlas.index = {}
+        local i = 0
+        for name in string.gmatch(Atlas.Names, "[^,]+") do i = i + 1 atlas.index[name] = i end
+    end
+    return atlas.index
+end
+
+-- the place of icon number `index` for an icon `pixels` tall on screen: image, offset, size
+local function atlasRect(index, pixels)
+    local size = pixels <= 16 and 16 or 32
+    local sheet = Atlas.Sheets[size]
+    local page = math.floor((index - 1) / sheet.PerPage) + 1
+    local k = (index - 1) % sheet.PerPage
+    local pitch = size + 2
+    local image = atlas.pages[Atlas.Pages[size][page]]
+    if not image then return nil end
+    return image, Vector2.new((k % sheet.Columns) * pitch + 1, math.floor(k / sheet.Columns) * pitch + 1), Vector2.new(size, size)
+end
+
+local function startAtlas()
+    if atlas.started then return end
+    atlas.started = true
+    if Icons.Sharp == false then return end
+    local custom = getcustomasset or getsynasset
+    if type(custom) ~= "function" or type(writefile) ~= "function" or type(isfile) ~= "function" then return end
+    local files = {}
+    for _, list in pairs(Atlas.Pages) do for _, file in ipairs(list) do files[#files + 1] = file end end
+    local function path(file) return Icons.AtlasFolder .. "/v" .. Atlas.Version .. "-" .. file end
+    local function finish()
+        for _, file in ipairs(files) do
+            local ok, id = pcall(custom, path(file))
+            if not ok or type(id) ~= "string" or id == "" then return false end
+            atlas.pages[file] = id
+        end
+        atlas.ready = true
+        for image, name in pairs(sharpImages) do if name and image.Parent then pcall(applySharp, image, name) end end
+        return true
+    end
+    local function cached()
+        for _, file in ipairs(files) do
+            local ok, exists = pcall(isfile, path(file))
+            if not (ok and exists) then return false end
+        end
+        return true
+    end
+    -- already on disk: sharp from the first frame
+    if cached() then finish() return end
+    task.spawn(function()
+        local ok = pcall(function()
+            if type(makefolder) == "function" and type(isfolder) == "function" then
+                if not isfolder("QustahUI") then makefolder("QustahUI") end
+                if not isfolder(Icons.AtlasFolder) then makefolder(Icons.AtlasFolder) end
+            end
+            for _, file in ipairs(files) do
+                if not isfile(path(file)) then
+                    local body = game:HttpGet(Icons.Source .. "atlas/" .. file)
+                    assert(type(body) == "string" and body:sub(2, 4) == "PNG", "not a png")
+                    writefile(path(file), body)
+                end
+            end
+        end)
+        if ok then finish() else require("util").log("[qustah-ui-lib] sharp icons could not be downloaded; using the plain ones") end
+    end)
+end
+
+-- (tests) start over: forget the loaded sheets
+function Icons._resetAtlas() atlas.started, atlas.ready, atlas.pages = false, false, {} end
+Icons._atlas = atlas
+
+-- the lucide name behind an icon name ("eye", "lucide:eye"), when the sheets have it
+local function lucideName(name)
+    if type(name) ~= "string" then return nil end
+    local set, icon = name:match("^([%w_%-]+):(.+)$")
+    if set then if set:lower() ~= "lucide" then return nil end name = icon
+    elseif Icons.Default ~= "lucide" then return nil end
+    return atlasIndex()[name] and name or nil
+end
+
+local function pixelsOf(image)
+    local size = image.AbsoluteSize
+    if size and size.Y > 0 then return math.max(size.X, size.Y) end
+    return math.max(image.Size.X.Offset, image.Size.Y.Offset)
+end
+
+applySharp = function(image, name)
+    if not atlas.ready then return false end
+    local picture, offset, size = atlasRect(atlasIndex()[name], pixelsOf(image))
+    if not picture then return false end
+    image.Image, image.ImageRectOffset, image.ImageRectSize = picture, offset, size
+    return true
+end
+
 -- Puts the icon on an ImageLabel / ImageButton (two-tone icons get their extra parts as children).
 function Icons.Apply(image, name)
     for _, child in ipairs(image:GetChildren()) do if child.Name == "IconPart" then child:Destroy() end end
     local icon = Icons.Get(name)
-    if not icon then return false end
+    if not icon then sharpImages[image] = nil return false end
+    local sharp = not icon.Url and lucideName(name)
+    if sharp then
+        startAtlas()
+        if sharpImages[image] == nil then
+            -- a bigger / smaller menu (UI scale) can move the icon to the other sheet
+            image:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                local current = sharpImages[image]
+                if current then applySharp(image, current) end
+            end)
+        end
+        sharpImages[image] = sharp
+        if applySharp(image, sharp) then return true end
+    elseif sharpImages[image] then
+        sharpImages[image] = false
+    end
     if icon.Url then
         image.ImageColor3 = Color3.new(1, 1, 1)
         image.ImageRectSize, image.ImageRectOffset = ZERO, ZERO
