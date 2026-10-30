@@ -1,4 +1,5 @@
 -- card:Graph({ Title, Source = "FPS" | "Ping" | function() return number end, Max, Suffix, Height = 70, Points = 40, Interval = 0.5,
+--              Compact = true (stat tile: small title, big value, the graph under it - two fit side by side in a Row),
 --              Style = "Bars" | "Line" })
 -- A small live chart. "FPS" / "Ping" use the library's shared sampler; a function is sampled every Interval
 -- seconds while the graph is on screen. :Push(value) adds a sample by hand.
@@ -56,7 +57,17 @@ return function(card, cfg)
             Theme.bind(entry.legend, "TextColor3", "muted")
         end
     end
-    local area = create("Frame", { Name = "Area", Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, BackgroundTransparency = 0.4, ClipsDescendants = true, Parent = holder })
+    -- Compact = true (one series): small muted title, the value big under it, then the graph (a stat tile)
+    local top = 24
+    if cfg.Compact and value then
+        top = 40
+        holder.Size = UDim2.new(1, 0, 0, height + top)
+        title.TextSize, title.Size = 9, UDim2.new(1, 0, 0, 14)
+        Theme.bind(title, "TextColor3", "muted")
+        value.AnchorPoint, value.Position, value.Size = Vector2.new(0, 0), UDim2.fromOffset(0, 14), UDim2.new(1, 0, 0, 22)
+        value.TextXAlignment, value.TextSize, value.Font = Enum.TextXAlignment.Left, 17, Enum.Font.GothamBold
+    end
+    local area = create("Frame", { Name = "Area", Position = UDim2.fromOffset(0, top), Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, BackgroundTransparency = 0.4, ClipsDescendants = true, Parent = holder })
     Theme.bind(area, "BackgroundColor3", "base")
     corner(area, 6)
 

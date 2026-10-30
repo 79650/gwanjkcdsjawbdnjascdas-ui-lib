@@ -2,7 +2,7 @@
 
 ![Qustah UI](qustah-ui-lib/assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.9.8-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.9-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
@@ -513,6 +513,9 @@ Card:Graph({ Title = "Network", Style = "Line", Series = {   -- lines, several i
     { Name = "FPS", Source = "FPS" },
     { Name = "Ping", Source = "Ping", Color = "warning" },
 } })
+local tiles = Card:Row()                                   -- stat tiles: small title, big number, a small graph under it
+tiles:Graph({ Title = "FPS", Style = "Line", Source = "FPS", Compact = true, Height = 34 })
+tiles:Graph({ Title = "PING", Style = "Line", Source = "Ping", Compact = true, Height = 34, Color = "warning" })
 
 local log = Card:Console({ Title = "Log", Height = 140, MaxLines = 200 })
 log:Append("Loaded", "success")        -- "info" | "success" | "warning" | "error"

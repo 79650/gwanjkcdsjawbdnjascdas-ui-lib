@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.8 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.9 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -3111,7 +3111,16 @@ entry.legend=label(item,entry.name.." --",9,{Name="Text",AutomaticSize=Enum.Auto
 Theme.bind(entry.legend,"TextColor3","muted")
 end
 end
-local area=create("Frame",{Name="Area",Position=UDim2.fromOffset(0,24),Size=UDim2.new(1,0,0,height),BorderSizePixel=0,BackgroundTransparency=0.4,ClipsDescendants=true,Parent=holder})
+local top=24
+if cfg.Compact and value then
+top=40
+holder.Size=UDim2.new(1,0,0,height+top)
+title.TextSize,title.Size=9,UDim2.new(1,0,0,14)
+Theme.bind(title,"TextColor3","muted")
+value.AnchorPoint,value.Position,value.Size=Vector2.new(0,0),UDim2.fromOffset(0,14),UDim2.new(1,0,0,22)
+value.TextXAlignment,value.TextSize,value.Font=Enum.TextXAlignment.Left,17,Enum.Font.GothamBold
+end
+local area=create("Frame",{Name="Area",Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,0,height),BorderSizePixel=0,BackgroundTransparency=0.4,ClipsDescendants=true,Parent=holder})
 Theme.bind(area,"BackgroundColor3","base")
 corner(area,6)
 local bars={}
@@ -6422,7 +6431,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.8",
+Version="1.9.9",
 Flags={},
 Windows={},
 Theme=Theme,

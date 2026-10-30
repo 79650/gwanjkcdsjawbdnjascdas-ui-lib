@@ -140,7 +140,7 @@ export type Container = {
 	Code: (self: Container, cfg: { Title: string?, Code: string?, Copy: boolean?, MaxHeight: number?, Highlight: boolean? }) -> Element<string>,
 	Progress: (self: Container, cfg: ElementConfig & { Value: number?, Max: number?, Suffix: string?, Steps: number?, Indeterminate: boolean?, Format: ((value: number, max: number) -> string)? }) -> Progress,
 	Stat: (self: Container, cfg: { Title: string?, Value: number?, Icon: string?, Prefix: string?, Suffix: string?, Decimals: number?, Separator: string?, Delta: ("percent" | "absolute" | false)?, Invert: boolean?, Format: ((value: number) -> string)? }) -> Stat,
-	Graph: (self: Container, cfg: { Title: string?, Source: any?, Max: number?, Suffix: string?, Height: number?, Points: number?, Interval: number?, Style: ("Bars" | "Line")?, Series: { { Name: string?, Source: any?, Color: Paint?, Suffix: string? } }? }) -> Graph,
+	Graph: (self: Container, cfg: { Title: string?, Source: any?, Max: number?, Suffix: string?, Height: number?, Points: number?, Interval: number?, Style: ("Bars" | "Line")?, Compact: boolean?, Color: Paint?, Series: { { Name: string?, Source: any?, Color: Paint?, Suffix: string? } }? }) -> Graph,
 	Console: (self: Container, cfg: { Title: string?, Height: number?, MaxLines: number?, Follow: boolean?, Time: boolean?, Copy: boolean? }) -> Console,
 	Table: (self: Container, cfg: { Title: string?, Columns: { any }, Rows: { { any } }?, Height: number?, Search: boolean?, Sortable: boolean?, SortBy: any?, Descending: boolean?, OnRowClick: ((row: { any }, index: number) -> ())? }) -> Table,
 	Image: (self: Container, cfg: { Image: string, Height: number?, Radius: number?, Fit: ("Crop" | "Fit")?, Caption: string? }) -> Element<string>,
