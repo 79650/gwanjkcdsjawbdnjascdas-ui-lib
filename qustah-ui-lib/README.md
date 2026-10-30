@@ -53,7 +53,7 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 <td width="50%"><img src="assets/screens/visuals.png" alt="Visuals tab"><br><sub><b>Visuals</b>: page strip, bindable toggle, badge, slider, range, multi dropdown</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="assets/screens/buttons.png" alt="Components tab, Buttons page"><br><sub><b>Components › Buttons</b>: every style, cooldown, key, confirm, rows</sub></td>
+<td width="50%"><img src="assets/screens/inputs.png" alt="Components tab, Inputs page"><br><sub><b>Components › Inputs</b>: validation, stepper, text area, image picker, radio</sub></td>
 <td width="50%"><img src="assets/screens/settings.png" alt="Settings"><br><sub><b>Settings</b> (built in): appearance, window, behaviour, profiles, info</sub></td>
 </tr>
 </table>
@@ -72,7 +72,7 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 <td width="50%"><img src="assets/screens/appearance.png" alt="Visuals, Appearance page"><br><sub><b>Visuals › Appearance</b>: colour pickers, gradient, swatches</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="assets/screens/inputs.png" alt="Components tab, Inputs page"><br><sub><b>Components › Inputs</b>: validation, stepper, text area, image picker, radio</sub></td>
+<td width="50%"><img src="assets/screens/buttons.png" alt="Components tab, Buttons page"><br><sub><b>Components › Buttons</b>: every style, cooldown, key, confirm, rows</sub></td>
 <td width="50%"><img src="assets/screens/content.png" alt="Components tab, Content page"><br><sub><b>Components › Content</b>: notifications, dialog, image, group, code</sub></td>
 </tr>
 <tr>
