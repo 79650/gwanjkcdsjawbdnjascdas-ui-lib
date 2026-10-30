@@ -6470,7 +6470,7 @@ __modules["mobile"]=function()
 local Util=require("util")
 local Theme=require("theme")
 local Icons=require("icons")
-local create,corner,stroke,label,tween=Util.create,Util.corner,Util.stroke,Util.label,Util.tween
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
 return function(Window)
 function Window:SetMobileButton(on,remember)
 self.mobileButton=on==true
