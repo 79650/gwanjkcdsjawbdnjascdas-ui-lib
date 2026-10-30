@@ -102,7 +102,7 @@ return function(Window)
         if not edge then return end
         if not self.accentGlow then
             Theme.bind(edge, "Color", "edge")
-            edge.Transparency, edge.Thickness = 0, 1
+            Util.setRest(edge, 0) edge.Thickness = 1
             return
         end
         Theme.bind(edge, "Color", "accent")
@@ -110,9 +110,9 @@ return function(Window)
         local last = 0
         self._glowConnection = Util.Services.RunService.Heartbeat:Connect(function()
             local now = os.clock()
-            if now - last < 1 / 30 then return end
+            if now - last < 1 / 30 or not self.visible then return end -- (nothing to animate while the menu is hidden)
             last = now
-            edge.Transparency = 0.55 + math.sin(now * 2.1) * 0.25 -- breathes between 0.3 and 0.8
+            Util.setRest(edge, 0.55 + math.sin(now * 2.1) * 0.25) -- breathes between 0.3 and 0.8
         end)
         self.maid:give(self._glowConnection)
     end

@@ -108,6 +108,28 @@ function Util.tween(object, duration, props, style, direction)
     return tween
 end
 
+-- Fades a CanvasGroup in / out (target 0 = shown, 1 = hidden) together with its own outline.
+-- (A UIStroke on the CanvasGroup itself is drawn outside the group, so GroupTransparency alone leaves the
+-- border hanging on screen while the inside fades.) Each outline's resting transparency is remembered.
+function Util.fade(group, duration, target)
+    for _, child in ipairs(group:GetChildren()) do
+        if child:IsA("UIStroke") then
+            local rest = child:GetAttribute("QRest")
+            if rest == nil then rest = child.Transparency child:SetAttribute("QRest", rest) end
+            -- coming in from hidden: the outline starts hidden too instead of showing before the inside
+            if target < 1 and group.GroupTransparency >= 0.99 then child.Transparency = 1 end
+            Util.tween(child, duration, { Transparency = 1 - (1 - rest) * (1 - target) })
+        end
+    end
+    return Util.tween(group, duration, { GroupTransparency = target })
+end
+-- Sets an outline's normal transparency (respected by Util.fade); applied now unless its group is faded out.
+function Util.setRest(strokeObject, value)
+    strokeObject:SetAttribute("QRest", value)
+    local group = strokeObject.Parent
+    if not (group and group:IsA("CanvasGroup") and group.GroupTransparency > 0.01) then strokeObject.Transparency = value end
+end
+
 -- Runs a user callback; an error is reported but never breaks the UI.
 function Util.safe(callback, ...)
     if type(callback) ~= "function" then return end

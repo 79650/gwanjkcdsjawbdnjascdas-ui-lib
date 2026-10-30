@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.5 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.6 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -5987,7 +5987,7 @@ function Gate.run(Lib, cfg)
     if not spec.Url then panel.Size = UDim2.fromOffset(340, 178) line.Visible = false end
 
     tween(shade, 0.2, { BackgroundTransparency = 0.45 })
-    tween(panel, 0.2, { GroupTransparency = 0 })
+    Util.fade(panel, 0.2, 0)
     tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
 
     local result, busy = nil, false
@@ -6042,7 +6042,7 @@ function Gate.run(Lib, cfg)
     if result == nil then result = false end
     if genv.__QustahKeyGate == replaced then genv.__QustahKeyGate = nil end
     tween(shade, 0.18, { BackgroundTransparency = 1 })
-    tween(panel, 0.18, { GroupTransparency = 1 })
+    Util.fade(panel, 0.18, 1)
     task.delay(0.2, function() gui:Destroy() end)
     if result == false then Util.safe(spec.OnCancel) end
     return result
@@ -7162,7 +7162,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.5",
+    Version = "1.9.6",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -7327,9 +7327,9 @@ return function(Window)
         local show = self.mobileButton and self.alive and not self.visible
         if show then
             pill.Visible = true
-            tween(pill, 0.18, { GroupTransparency = 0 })
+            Util.fade(pill, 0.18, 0)
         else
-            tween(pill, 0.12, { GroupTransparency = 1 })
+            Util.fade(pill, 0.12, 1)
             task.delay(0.13, function()
                 if pill.Parent and not (self.mobileButton and self.alive and not self.visible) then pill.Visible = false end
             end)
@@ -7524,7 +7524,7 @@ function Notify.show(Lib, cfg)
         closed = true
         if timer then timer:Disconnect() timer = nil end
         for index, item in ipairs(Lib._openToasts or {}) do if item == entry then table.remove(Lib._openToasts, index) break end end
-        tween(toast, 0.25, { GroupTransparency = 1 })
+        Util.fade(toast, 0.25, 1)
         task.delay(0.27, function() if toast.Parent then toast:Destroy() end end)
     end
     entry.dismiss = dismiss
@@ -7588,7 +7588,7 @@ function Notify.show(Lib, cfg)
             end)
         end
     end
-    tween(toast, 0.2, { GroupTransparency = 0 })
+    Util.fade(toast, 0.2, 0)
 
     -- Sound = true (a short built-in ping) or an asset id; Volume 0-1
     if cfg.Sound then
@@ -7695,7 +7695,7 @@ function Notify.pill(Lib, cfg)
     while #open >= 3 do
         local old = table.remove(open, 1)
         old:SetAttribute("Closing", true)
-        tween(old, 0.15, { GroupTransparency = 1 })
+        Util.fade(old, 0.15, 1)
         task.delay(0.16, function() if old.Parent then old:Destroy() end end)
     end
     local text = tostring(cfg.Text or cfg.Title or "")
@@ -7724,14 +7724,14 @@ function Notify.pill(Lib, cfg)
     create("UISizeConstraint", { MaxSize = Vector2.new(320, 30), Parent = caption })
 
     local scale = create("UIScale", { Scale = 0.92, Parent = pill })
-    tween(pill, 0.18, { GroupTransparency = 0 })
+    Util.fade(pill, 0.18, 0)
     tween(scale, 0.22, { Scale = 1 }, Enum.EasingStyle.Back)
     local closed = false
     local function close()
         if closed or not pill.Parent then return end
         closed = true
         pill:SetAttribute("Closing", true)
-        tween(pill, 0.2, { GroupTransparency = 1 })
+        Util.fade(pill, 0.2, 1)
         tween(scale, 0.2, { Scale = 0.94 })
         task.delay(0.22, function() if pill.Parent then pill:Destroy() end end)
     end
@@ -9484,6 +9484,28 @@ function Util.tween(object, duration, props, style, direction)
     return tween
 end
 
+-- Fades a CanvasGroup in / out (target 0 = shown, 1 = hidden) together with its own outline.
+-- (A UIStroke on the CanvasGroup itself is drawn outside the group, so GroupTransparency alone leaves the
+-- border hanging on screen while the inside fades.) Each outline's resting transparency is remembered.
+function Util.fade(group, duration, target)
+    for _, child in ipairs(group:GetChildren()) do
+        if child:IsA("UIStroke") then
+            local rest = child:GetAttribute("QRest")
+            if rest == nil then rest = child.Transparency child:SetAttribute("QRest", rest) end
+            -- coming in from hidden: the outline starts hidden too instead of showing before the inside
+            if target < 1 and group.GroupTransparency >= 0.99 then child.Transparency = 1 end
+            Util.tween(child, duration, { Transparency = 1 - (1 - rest) * (1 - target) })
+        end
+    end
+    return Util.tween(group, duration, { GroupTransparency = target })
+end
+-- Sets an outline's normal transparency (respected by Util.fade); applied now unless its group is faded out.
+function Util.setRest(strokeObject, value)
+    strokeObject:SetAttribute("QRest", value)
+    local group = strokeObject.Parent
+    if not (group and group:IsA("CanvasGroup") and group.GroupTransparency > 0.01) then strokeObject.Transparency = value end
+end
+
 -- Runs a user callback; an error is reported but never breaks the UI.
 function Util.safe(callback, ...)
     if type(callback) ~= "function" then return end
@@ -10833,13 +10855,13 @@ function Window:SetVisible(visible)
     local token = self._token
     if visible then
         self.main.Visible = true
-        tween(self.main, 0.14, { GroupTransparency = 0 })
-        tween(self.dock, 0.14, { GroupTransparency = 0 })
+        Util.fade(self.main, 0.14, 0)
+        Util.fade(self.dock, 0.14, 0)
         self:_layout()
     else
         self._drag = nil
-        tween(self.main, 0.12, { GroupTransparency = 1 })
-        tween(self.dock, 0.12, { GroupTransparency = 1 })
+        Util.fade(self.main, 0.12, 1)
+        Util.fade(self.dock, 0.12, 1)
         task.delay(0.13, function()
             if self.alive and token == self._token and not self.visible then
                 self.main.Visible = false
@@ -11088,7 +11110,7 @@ return function(Window)
         if not edge then return end
         if not self.accentGlow then
             Theme.bind(edge, "Color", "edge")
-            edge.Transparency, edge.Thickness = 0, 1
+            Util.setRest(edge, 0) edge.Thickness = 1
             return
         end
         Theme.bind(edge, "Color", "accent")
@@ -11096,9 +11118,9 @@ return function(Window)
         local last = 0
         self._glowConnection = Util.Services.RunService.Heartbeat:Connect(function()
             local now = os.clock()
-            if now - last < 1 / 30 then return end
+            if now - last < 1 / 30 or not self.visible then return end -- (nothing to animate while the menu is hidden)
             last = now
-            edge.Transparency = 0.55 + math.sin(now * 2.1) * 0.25 -- breathes between 0.3 and 0.8
+            Util.setRest(edge, 0.55 + math.sin(now * 2.1) * 0.25) -- breathes between 0.3 and 0.8
         end)
         self.maid:give(self._glowConnection)
     end

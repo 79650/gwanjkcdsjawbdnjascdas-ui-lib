@@ -1017,13 +1017,13 @@ function Window:SetVisible(visible)
     local token = self._token
     if visible then
         self.main.Visible = true
-        tween(self.main, 0.14, { GroupTransparency = 0 })
-        tween(self.dock, 0.14, { GroupTransparency = 0 })
+        Util.fade(self.main, 0.14, 0)
+        Util.fade(self.dock, 0.14, 0)
         self:_layout()
     else
         self._drag = nil
-        tween(self.main, 0.12, { GroupTransparency = 1 })
-        tween(self.dock, 0.12, { GroupTransparency = 1 })
+        Util.fade(self.main, 0.12, 1)
+        Util.fade(self.dock, 0.12, 1)
         task.delay(0.13, function()
             if self.alive and token == self._token and not self.visible then
                 self.main.Visible = false

@@ -128,7 +128,7 @@ function Gate.run(Lib, cfg)
     if not spec.Url then panel.Size = UDim2.fromOffset(340, 178) line.Visible = false end
 
     tween(shade, 0.2, { BackgroundTransparency = 0.45 })
-    tween(panel, 0.2, { GroupTransparency = 0 })
+    Util.fade(panel, 0.2, 0)
     tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
 
     local result, busy = nil, false
@@ -183,7 +183,7 @@ function Gate.run(Lib, cfg)
     if result == nil then result = false end
     if genv.__QustahKeyGate == replaced then genv.__QustahKeyGate = nil end
     tween(shade, 0.18, { BackgroundTransparency = 1 })
-    tween(panel, 0.18, { GroupTransparency = 1 })
+    Util.fade(panel, 0.18, 1)
     task.delay(0.2, function() gui:Destroy() end)
     if result == false then Util.safe(spec.OnCancel) end
     return result

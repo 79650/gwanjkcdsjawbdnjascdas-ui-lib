@@ -1746,6 +1746,14 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         local U = Lib.Util
         check("textWidth cache", U.textWidth("cache me", 10) == U.textWidth("cache me", 10))
         c5.frame:Destroy()
+        -- hiding fades the window outline together with the inside (and it comes back with it)
+        window:SetAccentGlow(false)
+        window:SetVisible(false) wait(0.3)
+        check("hide fades the outline too", window.mainStroke.Transparency >= 0.99 and window.main.GroupTransparency >= 0.99)
+        window:SetVisible(true) wait(0.3)
+        check("show brings the outline back", window.mainStroke.Transparency <= 0.01 and window.main.GroupTransparency <= 0.01)
+        local dockEdge = window.dock:FindFirstChildWhichIsA("UIStroke")
+        check("dock outline back too", dockEdge and dockEdge.Transparency <= 0.01)
     end
 
     -- re-creating a window with the same title replaces the old one

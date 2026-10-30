@@ -108,7 +108,7 @@ function Notify.show(Lib, cfg)
         closed = true
         if timer then timer:Disconnect() timer = nil end
         for index, item in ipairs(Lib._openToasts or {}) do if item == entry then table.remove(Lib._openToasts, index) break end end
-        tween(toast, 0.25, { GroupTransparency = 1 })
+        Util.fade(toast, 0.25, 1)
         task.delay(0.27, function() if toast.Parent then toast:Destroy() end end)
     end
     entry.dismiss = dismiss
@@ -172,7 +172,7 @@ function Notify.show(Lib, cfg)
             end)
         end
     end
-    tween(toast, 0.2, { GroupTransparency = 0 })
+    Util.fade(toast, 0.2, 0)
 
     -- Sound = true (a short built-in ping) or an asset id; Volume 0-1
     if cfg.Sound then
@@ -279,7 +279,7 @@ function Notify.pill(Lib, cfg)
     while #open >= 3 do
         local old = table.remove(open, 1)
         old:SetAttribute("Closing", true)
-        tween(old, 0.15, { GroupTransparency = 1 })
+        Util.fade(old, 0.15, 1)
         task.delay(0.16, function() if old.Parent then old:Destroy() end end)
     end
     local text = tostring(cfg.Text or cfg.Title or "")
@@ -308,14 +308,14 @@ function Notify.pill(Lib, cfg)
     create("UISizeConstraint", { MaxSize = Vector2.new(320, 30), Parent = caption })
 
     local scale = create("UIScale", { Scale = 0.92, Parent = pill })
-    tween(pill, 0.18, { GroupTransparency = 0 })
+    Util.fade(pill, 0.18, 0)
     tween(scale, 0.22, { Scale = 1 }, Enum.EasingStyle.Back)
     local closed = false
     local function close()
         if closed or not pill.Parent then return end
         closed = true
         pill:SetAttribute("Closing", true)
-        tween(pill, 0.2, { GroupTransparency = 1 })
+        Util.fade(pill, 0.2, 1)
         tween(scale, 0.2, { Scale = 0.94 })
         task.delay(0.22, function() if pill.Parent then pill:Destroy() end end)
     end

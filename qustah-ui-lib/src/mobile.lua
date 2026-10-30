@@ -22,9 +22,9 @@ return function(Window)
         local show = self.mobileButton and self.alive and not self.visible
         if show then
             pill.Visible = true
-            tween(pill, 0.18, { GroupTransparency = 0 })
+            Util.fade(pill, 0.18, 0)
         else
-            tween(pill, 0.12, { GroupTransparency = 1 })
+            Util.fade(pill, 0.12, 1)
             task.delay(0.13, function()
                 if pill.Parent and not (self.mobileButton and self.alive and not self.visible) then pill.Visible = false end
             end)
