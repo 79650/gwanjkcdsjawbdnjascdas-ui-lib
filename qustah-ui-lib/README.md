@@ -85,22 +85,24 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 ## Elements
 
-30 elements, grouped by what they do. Click a group for its options.
+<table>
+<tr>
+<td width="20%" valign="top"><b>Switches</b><br><br><code>Toggle</code><br><code>Checkbox</code></td>
+<td width="20%" valign="top"><b>Numbers</b><br><br><code>Slider</code><br><code>Range</code><br><code>Stepper</code></td>
+<td width="20%" valign="top"><b>Choices</b><br><br><code>Dropdown</code><br><code>Segment</code><br><code>Radio</code></td>
+<td width="20%" valign="top"><b>Colours</b><br><br><code>ColorPicker</code><br><code>Gradient</code><br><code>Swatches</code></td>
+<td width="20%" valign="top"><b>Text input</b><br><br><code>Input</code><br><code>TextArea</code><br><code>ActionInput</code><br><code>Keybind</code></td>
+</tr>
+<tr>
+<td width="20%" valign="top"><b>Buttons</b><br><br><code>Button</code></td>
+<td width="20%" valign="top"><b>Text</b><br><br><code>Label</code><br><code>Paragraph</code><br><code>Info</code><br><code>Divider</code><br><code>Code</code></td>
+<td width="20%" valign="top"><b>Live data</b><br><br><code>Progress</code><br><code>Stat</code><br><code>Graph</code><br><code>Console</code><br><code>Table</code></td>
+<td width="20%" valign="top"><b>Visual</b><br><br><code>Image</code><br><code>ImagePicker</code><br><code>PlayerList</code><br><code>Viewport</code></td>
+<td width="20%" valign="top"><b>Layout</b><br><br><code>Section</code><br><code>Row</code><br><code>Group</code><br><code>Tabs</code></td>
+</tr>
+</table>
 
-| Group | Elements | Highlights |
-|---|---|---|
-| [**Switches**](DOCS.md#toggle-and-checkbox) | `Toggle` `Checkbox` | <sub>On / off, with key binds and locks</sub> |
-| [**Numbers**](DOCS.md#slider-and-range) | `Slider` `Range` `Stepper` | <sub>Drag, two handles, or [-] 8 [+]</sub> |
-| [**Choices**](DOCS.md#dropdown-segment-and-radio) | `Dropdown` `Segment` `Radio` | <sub>Search, multi-select, icons per option</sub> |
-| [**Keys**](DOCS.md#keybind) | `Keybind` | <sub>Single keys, mouse buttons, chords</sub> |
-| [**Colours**](DOCS.md#colorpicker-gradient-and-swatches) | `ColorPicker` `Gradient` `Swatches` | <sub>Hex, alpha, rainbow, presets</sub> |
-| [**Text input**](DOCS.md#input-textarea-and-actioninput) | `Input` `TextArea` `ActionInput` | <sub>Live validation, counters, own button</sub> |
-| [**Buttons**](DOCS.md#button) | `Button` | <sub>7 styles, cooldown, hold, confirm, menu, toggle</sub> |
-| [**Text**](DOCS.md#text-label-paragraph-info-divider-and-code) | `Label` `Paragraph` `Info` `Divider` `Code` | <sub>Copyable values, highlighted code</sub> |
-| [**Live data**](DOCS.md#live-data-progress-stat-graph-console-and-table) | `Progress` `Stat` `Graph` `Console` `Table` | <sub>Graphs, rolling numbers, logs, sortable tables</sub> |
-| [**Visual**](DOCS.md#visual-image-imagepicker-playerlist-and-viewport) | `Image` `ImagePicker` `PlayerList` `Viewport` | <sub>Images, pickers, player lists, 3D preview</sub> |
-
-Every element has **Flags** (saved in profiles), **DependsOn**, **tooltips**, **locks with a reason**, **help hints** and a **red flash on errors**. Cards hold them in **Sections**, **Rows**, **Groups** and **Tabs**.
+Every element can be saved in profiles (Flag), depend on another one (DependsOn), show a tooltip or help hint, be locked with a reason, and flashes red if its callback errors.
 
 ## Documentation
 
