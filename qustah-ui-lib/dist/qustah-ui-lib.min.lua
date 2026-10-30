@@ -4777,16 +4777,16 @@ element:_call(cfg.Custom,open)
 end)
 end
 if dots then
-local list=Util.list(grid,4,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
-local function spread()
-local count=#entries+(customEntry and 1 or 0)
-local scale=card.window.scale and card.window.scale.Scale or 1
-local width=holder.AbsoluteSize.X/scale
-if width<=0 or count<2 then return end
-list.Padding=UDim.new(0,math.clamp(math.floor((width-count*22)/(count-1)),1,14))
+local all={}
+for _,entry in ipairs(entries)do all[#all+1]=entry.button end
+if customEntry then all[#all+1]=customEntry.button end
+local count=#all
+create("UISizeConstraint",{MaxSize=Vector2.new(count*22+(count-1)*14,math.huge),Parent=grid})
+for index,button in ipairs(all)do
+local t=count>1 and(index-1)/(count-1)or 0
+button.AnchorPoint=Vector2.new(0,0.5)
+button.Position=UDim2.new(t,-t*22,0.5,0)
 end
-holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(spread)
-spread()
 end
 local function place()
 if dots then return end
