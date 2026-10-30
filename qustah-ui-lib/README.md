@@ -85,16 +85,22 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 ## Elements
 
-| | | | | |
-|---|---|---|---|---|
-| Toggle | Checkbox | Slider | Range | Stepper |
-| Dropdown | Radio | Segment | Keybind | ColorPicker |
-| Gradient | Swatches | Input | TextArea | ActionInput |
-| Button | Label | Paragraph | Info | Divider |
-| Code | Progress | Stat | Graph | Console |
-| Table | Image | ImagePicker | PlayerList | Viewport |
+30 elements, grouped by what they do. Click a group for its options.
 
-<sub>All elements share Flags, DependsOn, Tooltips, Lock with a reason, Help hints, Risky styling, MoveUp/MoveDown and error flashes. You lay them out with Tabs, Sections, Rows and Groups inside a card.</sub>
+| Group | Elements | Highlights |
+|---|---|---|
+| [**Switches**](DOCS.md#toggle-and-checkbox) | `Toggle` `Checkbox` | <sub>On / off, with key binds and locks</sub> |
+| [**Numbers**](DOCS.md#slider-and-range) | `Slider` `Range` `Stepper` | <sub>Drag, two handles, or [-] 8 [+]</sub> |
+| [**Choices**](DOCS.md#dropdown-segment-and-radio) | `Dropdown` `Segment` `Radio` | <sub>Search, multi-select, icons per option</sub> |
+| [**Keys**](DOCS.md#keybind) | `Keybind` | <sub>Single keys, mouse buttons, chords</sub> |
+| [**Colours**](DOCS.md#colorpicker-gradient-and-swatches) | `ColorPicker` `Gradient` `Swatches` | <sub>Hex, alpha, rainbow, presets</sub> |
+| [**Text input**](DOCS.md#input-textarea-and-actioninput) | `Input` `TextArea` `ActionInput` | <sub>Live validation, counters, own button</sub> |
+| [**Buttons**](DOCS.md#button) | `Button` | <sub>7 styles, cooldown, hold, confirm, menu, toggle</sub> |
+| [**Text**](DOCS.md#text-label-paragraph-info-divider-and-code) | `Label` `Paragraph` `Info` `Divider` `Code` | <sub>Copyable values, highlighted code</sub> |
+| [**Live data**](DOCS.md#live-data-progress-stat-graph-console-and-table) | `Progress` `Stat` `Graph` `Console` `Table` | <sub>Graphs, rolling numbers, logs, sortable tables</sub> |
+| [**Visual**](DOCS.md#visual-image-imagepicker-playerlist-and-viewport) | `Image` `ImagePicker` `PlayerList` `Viewport` | <sub>Images, pickers, player lists, 3D preview</sub> |
+
+Every element has **Flags** (saved in profiles), **DependsOn**, **tooltips**, **locks with a reason**, **help hints** and a **red flash on errors**. Cards hold them in **Sections**, **Rows**, **Groups** and **Tabs**.
 
 ## Documentation
 
