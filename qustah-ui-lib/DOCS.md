@@ -648,6 +648,14 @@ Sets other than lucide download once, the first time you use them.
 
 **Sharp lucide icons.** Roblox shrinks a big image badly, so a lucide icon drawn small from its asset looks jagged. The library draws lucide icons from small sheets instead (16 px for icons up to 16 px on screen, 32 px above, picked again when the UI scale changes). The sheets (about 1 MB) are downloaded once into `QustahUI/icons` and shown through `getcustomasset`; without that function, or until the download is done, the asset ids are used. `Lib.Icons.Sharp = false` (before the first window) turns this off. `tools/gen_atlas.py` redraws the sheets from lucide's SVGs.
 
+**A script's own sheet.** For the sharpest result, draw just your script's icons at every size they show at (no scaling at all; small sizes get slightly bolder lines): `python3 tools/gen_sheet.py <lucide icons dir> myscript 1 "eye,ghost,settings" 7-22 out/`. Host `out/myscript-1.png` somewhere raw and load it before the window:
+
+```lua
+Lib.Icons.UseSheet(require(path.to.myscript_manifest), "https://raw.githubusercontent.com/you/repo/main/icons/")
+```
+
+Icons and sizes in that sheet come from it; everything else from the lucide sheets.
+
 ```lua
 Lib.Icons.SetDefault("solar")                            -- use solar without the prefix
 Lib.Icons.Image("house", { Size = UDim2.fromOffset(24, 24), Parent = frame })

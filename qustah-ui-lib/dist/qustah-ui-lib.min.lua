@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.18 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.19 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6083,33 +6083,25 @@ local image=atlas.pages[Atlas.Pages[size][page]]
 if not image then return nil end
 return image,Vector2.new((k%sheet.Columns)*pitch+1,math.floor(k/sheet.Columns)*pitch+1),Vector2.new(size,size)
 end
-local function startAtlas()
-if atlas.started then return end
-atlas.started=true
-if Icons.Sharp==false then return end
+local function loadFiles(prefix,source,files,done)
 local custom=getcustomasset or getsynasset
 if type(custom)~="function"or type(writefile)~="function"or type(isfile)~="function"then return end
-local files={}
-for _,list in pairs(Atlas.Pages)do for _,file in ipairs(list)do files[#files+1]=file end end
-local function path(file)return Icons.AtlasFolder.."/v"..Atlas.Version.."-"..file end
+local function path(file)return Icons.AtlasFolder.."/"..prefix..file end
 local function finish()
+local ids={}
 for _,file in ipairs(files)do
 local ok,id=pcall(custom,path(file))
-if not ok or type(id)~="string"or id==""then return false end
-atlas.pages[file]=id
+if not ok or type(id)~="string"or id==""then return end
+ids[file]=id
 end
-atlas.ready=true
-for image,name in pairs(sharpImages)do if name and image.Parent then pcall(applySharp,image,name)end end
-return true
+done(ids)
 end
-local function cached()
+local cached=true
 for _,file in ipairs(files)do
 local ok,exists=pcall(isfile,path(file))
-if not(ok and exists)then return false end
+if not(ok and exists)then cached=false end
 end
-return true
-end
-if cached()then finish()return end
+if cached then finish()return end
 task.spawn(function()
 local ok=pcall(function()
 if type(makefolder)=="function"and type(isfolder)=="function"then
@@ -6118,7 +6110,7 @@ if not isfolder(Icons.AtlasFolder)then makefolder(Icons.AtlasFolder)end
 end
 for _,file in ipairs(files)do
 if not isfile(path(file))then
-local body=game:HttpGet(Icons.Source.."atlas/"..file)
+local body=game:HttpGet(source..file)
 assert(type(body)=="string"and body:sub(2,4)=="PNG","not a png")
 writefile(path(file),body)
 end
@@ -6127,14 +6119,60 @@ end)
 if ok then finish()else require("util").log("[qustah-ui-lib] sharp icons could not be downloaded; using the plain ones")end
 end)
 end
-function Icons._resetAtlas()atlas.started,atlas.ready,atlas.pages=false,false,{}end
+local function redrawSharp()
+for image,name in pairs(sharpImages)do if name and image.Parent then pcall(applySharp,image,name)end end
+end
+local function startAtlas()
+if atlas.started then return end
+atlas.started=true
+if Icons.Sharp==false then return end
+local files={}
+for _,list in pairs(Atlas.Pages)do for _,file in ipairs(list)do files[#files+1]=file end end
+loadFiles("v"..Atlas.Version.."-",Icons.Source.."atlas/",files,function(ids)
+atlas.pages=ids
+atlas.ready=true
+redrawSharp()
+end)
+end
+local customSheets={}
+function Icons.UseSheet(manifest,source)
+if type(manifest)~="table"or type(source)~="string"then return end
+local sheet={manifest=manifest,index={},ready=false,ids={}}
+local i=0
+for name in string.gmatch(manifest.Names or"","[^,]+")do i=i+1 sheet.index[name]=i end
+customSheets[#customSheets+1]=sheet
+if Icons.Sharp==false then return end
+loadFiles(tostring(manifest.Id).."-v"..tostring(manifest.Version).."-",source,manifest.Files or{},function(ids)
+sheet.ids=ids
+sheet.ready=true
+redrawSharp()
+end)
+end
+local function sheetRect(name,pixels)
+local size=math.floor(pixels+0.5)
+for _,sheet in ipairs(customSheets)do
+local index=sheet.ready and sheet.index[name]
+local place=index and sheet.manifest.Sizes[size]
+if place then
+local page,y0,cols=place[1],place[2],place[3]
+local pitch=size+2
+local image=sheet.ids[sheet.manifest.Files[page]]
+if image then
+return image,Vector2.new(((index-1)%cols)*pitch+1,y0+math.floor((index-1)/cols)*pitch+1),Vector2.new(size,size)
+end
+end
+end
+end
+function Icons._resetAtlas()atlas.started,atlas.ready,atlas.pages=false,false,{}table.clear(customSheets)end
 Icons._atlas=atlas
 local function lucideName(name)
 if type(name)~="string"then return nil end
 local set,icon=name:match("^([%w_%-]+):(.+)$")
 if set then if set:lower()~="lucide"then return nil end name=icon
 elseif Icons.Default~="lucide"then return nil end
-return atlasIndex()[name]and name or nil
+if atlasIndex()[name]then return name end
+for _,sheet in ipairs(customSheets)do if sheet.index[name]then return name end end
+return nil
 end
 local function pixelsOf(image)
 local size=image.AbsoluteSize
@@ -6142,8 +6180,12 @@ if size and size.Y>0 then return math.max(size.X,size.Y)end
 return math.max(image.Size.X.Offset,image.Size.Y.Offset)
 end
 applySharp=function(image,name)
-if not atlas.ready then return false end
-local picture,offset,size=atlasRect(atlasIndex()[name],pixelsOf(image))
+local pixels=pixelsOf(image)
+local picture,offset,size=sheetRect(name,pixels)
+if not picture then
+if not atlas.ready or not atlasIndex()[name]then return false end
+picture,offset,size=atlasRect(atlasIndex()[name],pixels)
+end
 if not picture then return false end
 image.Image,image.ImageRectOffset,image.ImageRectSize=picture,offset,size
 return true
@@ -6682,7 +6724,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.18",
+Version="1.9.19",
 Flags={},
 Windows={},
 Theme=Theme,

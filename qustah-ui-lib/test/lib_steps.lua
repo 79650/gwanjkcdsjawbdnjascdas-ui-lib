@@ -1692,6 +1692,22 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         check("sharp icons: a name missing from the sheets keeps its asset id", brand.Image:find("^rbxassetid://") ~= nil)
         local web = Icons.Image("rbxassetid://123", { Size = UDim2.fromOffset(14, 14) })
         check("sharp icons: plain images untouched", web.Image == "rbxassetid://123")
+        -- a script's own sheet: exact cells for the sizes it has, the lucide sheets for the rest
+        local manifest = { Id = "demo", Version = 3, Files = { "demo-1.png" }, Names = "ghost,eye",
+            Sizes = { [14] = { 1, 40, 10 }, [11] = { 1, 0, 12 } } }
+        MOCK.files["QustahUI/icons/demo-v3-demo-1.png"] = "\137PNG"
+        Icons.UseSheet(manifest, "https://example.com/icons/")
+        local g14 = Icons.Image("ghost", { Size = UDim2.fromOffset(14, 14) })
+        check("own sheet: exact 14 px cell", g14.Image:find("demo%-v3%-demo%-1%.png") ~= nil and g14.ImageRectSize == Vector2.new(14, 14) and g14.ImageRectOffset == Vector2.new(1, 41))
+        local e14 = Icons.Image("eye", { Size = UDim2.fromOffset(14, 14) })
+        check("own sheet: second icon, next cell", e14.ImageRectOffset == Vector2.new(17, 41))
+        local g11 = Icons.Image("ghost", { Size = UDim2.fromOffset(11, 11) })
+        check("own sheet: another size, its own row", g11.ImageRectSize == Vector2.new(11, 11) and g11.ImageRectOffset == Vector2.new(1, 1))
+        local g20 = Icons.Image("ghost", { Size = UDim2.fromOffset(20, 20) })
+        check("own sheet: a size it lacks falls back to the lucide sheets", g20.Image:find("lucide%-32") ~= nil)
+        local x14 = Icons.Image("x", { Size = UDim2.fromOffset(14, 14) })
+        check("own sheet: an icon it lacks falls back too", x14.Image:find("lucide%-16") ~= nil)
+
         -- without getcustomasset: the asset ids, as before
         E.getcustomasset = nil
         Icons._resetAtlas()
