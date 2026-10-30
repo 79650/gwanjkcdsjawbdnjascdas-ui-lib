@@ -8,10 +8,11 @@ Dock navigation, real profiles, 20 themes and 18k icons, loaded with one line.
 <br>
 
 ![version](https://img.shields.io/badge/version-1.9.14-2b2b2f?style=flat-square&labelColor=18181a)
-![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
-![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
+![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
+![size](https://img.shields.io/badge/min-467_KB-2b2b2f?style=flat-square&labelColor=18181a)
+![license](https://img.shields.io/badge/license-MIT-2b2b2f?style=flat-square&labelColor=18181a)
 
-[Install](#install) · [Quick start](#quick-start) · [Showcase](#showcase) · [Documentation](#documentation) · [Example](qustah-ui-lib/example.lua)
+[Install](#install) · [Quick start](#quick-start) · [Showcase](#showcase) · [Documentation](#documentation) · [Example](qustah-ui-lib/example.lua) · [License](LICENSE)
 
 </div>
 
@@ -19,7 +20,7 @@ Dock navigation, real profiles, 20 themes and 18k icons, loaded with one line.
 
 - **Finished look.** Dock, two-column cards, footer bar, key hints and smooth animations.
 - **Real profiles.** Save, autoload, share codes and per-game lists. An interrupted save never damages a profile.
-- **20 themes.** Tokyo Night, Catppuccin, Dracula and more, all contrast-checked. Make your own and share it as a code.
+- **20 themes.** Tokyo Night, Cyberpunk, Gruvbox, Mint and more, all contrast-checked. Make your own and share it as a code.
 - **18k icons.** Write an icon's name anywhere (`"eye"`, `"solar:target-bold"`). Lucide is built in.
 - **Hard to break.** A callback error flashes the element red and is listed; the UI keeps working.
 - **Ready to ship.** One line adds a Dashboard and a full Settings tab. Key system, tour, "What's new" and autocomplete types included.
@@ -36,6 +37,7 @@ local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/79650/gwa
 
 ```lua
 local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder = "Qustah" })
+Window:DashboardTab()         -- first tab: profile, session, modules, server tools
 
 local Main = Window:Tab({ Title = "Main", Icon = "eye" }):Card({ Title = "General" })
 Main:Toggle({ Title = "ESP", Flag = "esp", Default = true, Callback = function(on) print(on) end })
