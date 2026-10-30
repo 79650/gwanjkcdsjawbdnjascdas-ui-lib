@@ -49,12 +49,12 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 <table>
 <tr>
-<td width="50%"><img src="assets/screens/dashboard.png" alt="Dashboard"><br><sub><b>Dashboard</b> (built in): profile, live chips, session, module tiles, server tools</sub></td>
-<td width="50%"><img src="assets/screens/combat.png" alt="Combat tab"><br><sub><b>Combat</b>: page warning, risky toggle, locks, presets, chord keybinds</sub></td>
+<td width="50%"><img src="assets/screens/live.png" alt="Live tab"><br><sub><b>Live</b>: graphs, progress, rolling stats, console, table</sub></td>
+<td width="50%"><img src="assets/screens/visuals.png" alt="Visuals tab"><br><sub><b>Visuals</b>: page strip, bindable toggle, badge, slider, range, multi dropdown</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="assets/screens/player.png" alt="Player tab"><br><sub><b>Player</b>: icon rows, key caps, 3D preview, split and hold buttons</sub></td>
 <td width="50%"><img src="assets/screens/buttons.png" alt="Components tab, Buttons page"><br><sub><b>Components › Buttons</b>: every style, cooldown, key, confirm, rows</sub></td>
+<td width="50%"><img src="assets/screens/settings.png" alt="Settings"><br><sub><b>Settings</b> (built in): appearance, window, behaviour, profiles, info</sub></td>
 </tr>
 </table>
 
@@ -64,16 +64,16 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 <table>
 <tr>
-<td width="50%"><img src="assets/screens/live.png" alt="Live tab"><br><sub><b>Live</b>: graphs, progress, rolling stats, console, table</sub></td>
-<td width="50%"><img src="assets/screens/visuals.png" alt="Visuals tab"><br><sub><b>Visuals</b>: page strip, bindable toggle, badge, slider, range, multi dropdown</sub></td>
+<td width="50%"><img src="assets/screens/dashboard.png" alt="Dashboard"><br><sub><b>Dashboard</b> (built in): profile, live chips, session, module tiles, server tools</sub></td>
+<td width="50%"><img src="assets/screens/combat.png" alt="Combat tab"><br><sub><b>Combat</b>: page warning, risky toggle, locks, presets, chord keybinds</sub></td>
 </tr>
 <tr>
+<td width="50%"><img src="assets/screens/player.png" alt="Player tab"><br><sub><b>Player</b>: icon rows, key caps, 3D preview, split and hold buttons</sub></td>
 <td width="50%"><img src="assets/screens/appearance.png" alt="Visuals, Appearance page"><br><sub><b>Visuals › Appearance</b>: colour pickers, gradient, swatches</sub></td>
-<td width="50%"><img src="assets/screens/inputs.png" alt="Components tab, Inputs page"><br><sub><b>Components › Inputs</b>: validation, stepper, text area, image picker, radio</sub></td>
 </tr>
 <tr>
+<td width="50%"><img src="assets/screens/inputs.png" alt="Components tab, Inputs page"><br><sub><b>Components › Inputs</b>: validation, stepper, text area, image picker, radio</sub></td>
 <td width="50%"><img src="assets/screens/content.png" alt="Components tab, Content page"><br><sub><b>Components › Content</b>: notifications, dialog, image, group, code</sub></td>
-<td width="50%"><img src="assets/screens/settings.png" alt="Settings"><br><sub><b>Settings</b> (built in): appearance, window, behaviour, profiles, info</sub></td>
 </tr>
 <tr>
 <td width="50%"><img src="assets/screens/tokyo.png" alt="Tokyo Night theme"><br><sub>Tokyo Night theme</sub></td>
@@ -106,20 +106,17 @@ Every element can be saved in profiles (Flag), depend on another one (DependsOn)
 
 ## Documentation
 
-The full reference is in **[DOCS.md](DOCS.md)**. [example.lua](example.lua) uses every element once.
+Everything is explained with code in **[DOCS.md](DOCS.md)**, and **[example.lua](example.lua)** builds the window in the screenshots.
 
-| | |
-|---|---|
-| [**Window**](DOCS.md#window)<br><sub>Every CreateWindow option</sub> | [**Icons**](DOCS.md#icons)<br><sub>Lucide, Solar and other icon sets</sub> |
-| [**Tabs, pages and cards**](DOCS.md#tabs-pages-and-cards)<br><sub>Dock tabs, page strips, two-column cards</sub> | [**Status, errors and kicks**](DOCS.md#status-errors-and-kicks)<br><sub>Module health, error list, kick log</sub> |
-| [**Elements**](DOCS.md#elements)<br><sub>All 30 elements and their options</sub> | [**Window extras**](DOCS.md#window-extras)<br><sub>Header buttons, tags, phones and tablets</sub> |
-| [**Flags**](DOCS.md#flags)<br><sub>Reading and setting values, reset to default</sub> | [**Key system**](DOCS.md#key-system)<br><sub>Key screen before the window opens</sub> |
-| [**Notifications**](DOCS.md#notifications)<br><sub>Notifications, toasts, progress toasts</sub> | [**Tour**](DOCS.md#tour)<br><sub>First-run guide</sub> |
-| [**Dialogs**](DOCS.md#dialogs)<br><sub>Dialogs and confirms</sub> | [**Changelog**](DOCS.md#changelog)<br><sub>"What's new" and version history</sub> |
-| [**Configs and profiles**](DOCS.md#configs-and-profiles)<br><sub>Saving, autoload, share codes, your own data</sub> | [**Links**](DOCS.md#links)<br><sub>Discord and other link buttons</sub> |
-| [**Built-in tabs**](DOCS.md#built-in-tabs)<br><sub>Dashboard and Settings</sub> | [**Secure mode**](DOCS.md#secure-mode)<br><sub>Random GUI names, silent console</sub> |
-| [**Overlays**](DOCS.md#overlays)<br><sub>Watermark, keybind list, session bar, key hints</sub> | [**Development**](DOCS.md#development)<br><sub>Project layout, build, autocomplete types</sub> |
-| [**Themes**](DOCS.md#themes)<br><sub>20 themes, custom themes, theme codes</sub> |  |
+<table>
+<tr>
+<td width="20%" valign="top"><b>Build</b><br><br><a href="DOCS.md#window">Window</a><br><a href="DOCS.md#tabs-pages-and-cards">Tabs, pages and cards</a><br><a href="DOCS.md#elements">Elements</a><br><a href="DOCS.md#flags">Flags</a></td>
+<td width="20%" valign="top"><b>Talk to the user</b><br><br><a href="DOCS.md#notifications">Notifications</a><br><a href="DOCS.md#dialogs">Dialogs</a><br><a href="DOCS.md#tour">Tour</a><br><a href="DOCS.md#changelog">Changelog</a></td>
+<td width="20%" valign="top"><b>Save and style</b><br><br><a href="DOCS.md#configs-and-profiles">Configs and profiles</a><br><a href="DOCS.md#themes">Themes</a><br><a href="DOCS.md#icons">Icons</a></td>
+<td width="20%" valign="top"><b>Built in</b><br><br><a href="DOCS.md#built-in-tabs">Dashboard and Settings</a><br><a href="DOCS.md#overlays">Overlays</a><br><a href="DOCS.md#window-extras">Window extras</a><br><a href="DOCS.md#links">Links</a></td>
+<td width="20%" valign="top"><b>Ship it</b><br><br><a href="DOCS.md#status-errors-and-kicks">Status, errors and kicks</a><br><a href="DOCS.md#key-system">Key system</a><br><a href="DOCS.md#secure-mode">Secure mode</a><br><a href="DOCS.md#development">Development</a></td>
+</tr>
+</table>
 
 <br>
 
