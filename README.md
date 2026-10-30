@@ -2,7 +2,7 @@
 
 ![Qustah UI](qustah-ui-lib/assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.9.12-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.13-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
@@ -676,20 +676,17 @@ Window:DashboardTab({ Info = { { "Code revision", "571" } }, Server = true })   
 Window:SettingsTab()                                                             -- as the last tab
 ```
 
-**Dashboard:** profile card (avatar, name, session time and live FPS / ping / players chips), Session (account, executor, version and your `Info` rows; the ids folded under "Details"), Modules (a grid of tiles), Server (Rejoin, Server hop, Job ID).
+**Dashboard:** profile card (avatar, name, session time and live FPS / ping / players chips), Session (account, executor, version and your `Info` rows; the ids folded under "Details"), Modules (a grid of tiles: icon, name and the state under it in its colour), Server (Rejoin, Server hop, Job ID).
 
 **Settings › Interface**
-- theme, accent (presets and custom colour), font, text glow
-- theme editor
-- menu key, welcome toast
-- menu: UI scale, UI sounds, haptics, mobile button
-- window: anonymous mode, transparency, background, free mouse, live background, edge glow, blur, fullscreen
-- overlays
-- Unload
+- Appearance: theme, accent (a row of colour dots; the last one opens a picker for any colour), font, text glow
+- Window: transparency, background image (and its visibility once one is set), animated background, edge glow, blur
+- Behaviour: menu key, UI scale, free mouse, anonymous mode, UI sounds, haptics (touch devices), mobile button, welcome toast, Reset layout, Unload, Reset interface (only the look goes back to its defaults)
+- Overlays, Theme editor
 
 **Settings › Profiles:** see [Configs and profiles](#configs-and-profiles).
 
-**Settings › Info:** versions, secure mode state, kick list, modules, errors (Debug mode, Copy report, Clear), "What's new" and "Show the tour" when those are set.
+**Settings › Info:** versions, secure mode state, link buttons (`Links`), "What's new", "Show the tour" and "Version history" when those are set, kick list, modules, errors (a Debug switch in the card's title, Copy debug info, Clear), and This session (uptime, errors caught, your `Window:Count` counters, Lua memory).
 
 ## Overlays
 

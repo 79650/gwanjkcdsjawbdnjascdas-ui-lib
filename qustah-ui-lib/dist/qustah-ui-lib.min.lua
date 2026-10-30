@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.12 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.13 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -910,7 +910,7 @@ local tiles,gridRows={},{}
 local function rowFor(index)
 local number=math.ceil(index/2)
 if not gridRows[number]then
-local holder=create("Frame",{Name="Row"..number,BackgroundTransparency=1,Size=UDim2.new(1,0,0,34),LayoutOrder=number,Parent=grid})
+local holder=create("Frame",{Name="Row"..number,BackgroundTransparency=1,Size=UDim2.new(1,0,0,38),LayoutOrder=number,Parent=grid})
 Util.list(holder,6,Enum.FillDirection.Horizontal)
 gridRows[number]=holder
 end
@@ -926,12 +926,12 @@ Theme.bind(button,"BackgroundColor3","input")
 corner(button,7)
 local edge=stroke(button)
 Theme.bind(edge,"Color","line")
-local icon=create("ImageLabel",{Name="Icon",BackgroundTransparency=1,AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,10,0.5,0),Size=UDim2.fromOffset(13,13),Visible=false,Parent=button})
-local title=label(button,name,10,{Name="Title",Position=UDim2.fromOffset(10,0),Size=UDim2.new(1,-70,1,0),Font=Enum.Font.GothamMedium})
+local icon=create("ImageLabel",{Name="Icon",BackgroundTransparency=1,AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,10,0.5,0),Size=UDim2.fromOffset(14,14),Visible=false,Parent=button})
+local title=label(button,name,10,{Name="Title",Position=UDim2.fromOffset(10,5),Size=UDim2.new(1,-18,0,15),Font=Enum.Font.GothamMedium})
 Theme.bind(title,"TextColor3","text")
-local pill=label(button,"",8,{Name="State",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,0),Size=UDim2.fromOffset(0,16),AutomaticSize=Enum.AutomaticSize.X,TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamBold})
-corner(pill,8)
-Util.padding(pill,7,7,0,0)
+local pill=label(button,"",8,{Name="State",Position=UDim2.fromOffset(20,20),Size=UDim2.new(1,-28,0,12),Font=Enum.Font.GothamBold})
+local stateDot=create("Frame",{Name="StateDot",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.fromOffset(10,26),Size=UDim2.fromOffset(5,5),BorderSizePixel=0,Parent=button})
+corner(stateDot,3)
 button.MouseEnter:Connect(function()Theme.tweenTo(edge,"Color","accentEdge",0.1)end)
 button.MouseLeave:Connect(function()Theme.tweenTo(edge,"Color","line",0.1)end)
 button.Activated:Connect(function()
@@ -939,7 +939,7 @@ local meta=window.moduleMeta and window.moduleMeta[name]
 local target=meta and meta.Tab and tabNamed(meta.Tab)
 if target then require("sounds").Play("click")target:Select()end
 end)
-tiles[name]={button=button,icon=icon,title=title,pill=pill}
+tiles[name]={button=button,icon=icon,title=title,pill=pill,dot=stateDot}
 return tiles[name]
 end
 local function update()
@@ -954,12 +954,14 @@ t.icon.Visible=hasIcon
 if hasIcon then Theme.bind(t.icon,"ImageColor3",module.state=="Off"and"muted"or"heading")end
 local role=COLORS[module.state]or"muted"
 t.pill.Text=string.upper(module.state)
-local pillWidth=Util.textWidth(t.pill.Text,8,Enum.Font.GothamBold)+14
-t.title.Position=UDim2.fromOffset(hasIcon and 30 or 10,0)
-t.title.Size=UDim2.new(1,-(hasIcon and 30 or 10)-pillWidth-12,1,0)
+local lead=hasIcon and 31 or 10
+t.title.Position=UDim2.fromOffset(lead,5)
+t.title.Size=UDim2.new(1,-lead-8,0,15)
+t.dot.Position=UDim2.fromOffset(lead,26)
+t.pill.Position=UDim2.fromOffset(lead+9,20)
+t.pill.Size=UDim2.new(1,-lead-17,0,12)
 Theme.bind(t.pill,"TextColor3",role)
-Theme.bind(t.pill,"BackgroundColor3",role)
-t.pill.BackgroundTransparency=0.86
+Theme.bind(t.dot,"BackgroundColor3",role)
 Theme.bind(t.title,"TextColor3",module.state=="Off"and"muted"or"text")
 t.button:SetAttribute("Detail",module.detail)
 end
@@ -2365,7 +2367,7 @@ corner(alphaCursor,2)
 Theme.bind(stroke(alphaCursor,nil,0.2),"Color","base")
 end
 local side=create("Frame",{Name="Side",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,4),Size=UDim2.fromOffset(92,150),Parent=panel})
-local preview=create("Frame",{Size=UDim2.new(1,0,0,26),BorderSizePixel=0,Parent=side})
+local preview=create("Frame",{Name="Preview",Size=UDim2.new(1,0,0,26),BorderSizePixel=0,Parent=side})
 corner(preview,6)
 Theme.bind(stroke(preview,nil,0.2),"Color","buttonEdge")
 local hex=create("TextBox",{
@@ -3457,8 +3459,8 @@ local valueNeed=Util.textWidth(value.Text,10,Enum.Font.GothamMedium)
 local titleWidth=width*0.42
 if need>titleWidth then
 titleWidth=math.max(titleWidth,math.min(need,width-valueNeed-8))
-elseif valueNeed+2>width-titleWidth then
-titleWidth=math.max(need,width-valueNeed-2)
+elseif valueNeed+10>width-titleWidth then
+titleWidth=math.max(need,width-valueNeed-10)
 end
 title.Size=UDim2.new(0,titleWidth-6,1,0)
 value.Position=UDim2.new(0,titleWidth,0,0)
@@ -6542,7 +6544,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.12",
+Version="1.9.13",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -8138,6 +8140,10 @@ function Theme.bind(object,property,role)
 local entry=bound[object]or track(object)
 entry[property]=role
 object[property]=Theme.get(role)
+if property=="TextColor3"and entry.PlaceholderColor3==nil and object:IsA("TextBox")then
+entry.PlaceholderColor3="muted"
+object.PlaceholderColor3=Theme.get("muted")
+end
 return object
 end
 function Theme.tweenTo(object,property,role,duration)

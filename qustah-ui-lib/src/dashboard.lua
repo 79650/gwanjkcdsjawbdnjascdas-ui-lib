@@ -140,7 +140,7 @@ return function(window, cfg)
         local function rowFor(index)
             local number = math.ceil(index / 2)
             if not gridRows[number] then
-                local holder = create("Frame", { Name = "Row" .. number, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = number, Parent = grid })
+                local holder = create("Frame", { Name = "Row" .. number, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 38), LayoutOrder = number, Parent = grid })
                 Util.list(holder, 6, Enum.FillDirection.Horizontal)
                 gridRows[number] = holder
             end
@@ -156,12 +156,13 @@ return function(window, cfg)
             corner(button, 7)
             local edge = stroke(button)
             Theme.bind(edge, "Color", "line")
-            local icon = create("ImageLabel", { Name = "Icon", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 10, 0.5, 0), Size = UDim2.fromOffset(13, 13), Visible = false, Parent = button })
-            local title = label(button, name, 10, { Name = "Title", Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -70, 1, 0), Font = Enum.Font.GothamMedium })
+            local icon = create("ImageLabel", { Name = "Icon", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 10, 0.5, 0), Size = UDim2.fromOffset(14, 14), Visible = false, Parent = button })
+            local title = label(button, name, 10, { Name = "Title", Position = UDim2.fromOffset(10, 5), Size = UDim2.new(1, -18, 0, 15), Font = Enum.Font.GothamMedium })
             Theme.bind(title, "TextColor3", "text")
-            local pill = label(button, "", 8, { Name = "State", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(0, 16), AutomaticSize = Enum.AutomaticSize.X, TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold })
-            corner(pill, 8)
-            Util.padding(pill, 7, 7, 0, 0)
+            -- the state under the name: a small dot and the word, in the state's colour
+            local pill = label(button, "", 8, { Name = "State", Position = UDim2.fromOffset(20, 20), Size = UDim2.new(1, -28, 0, 12), Font = Enum.Font.GothamBold })
+            local stateDot = create("Frame", { Name = "StateDot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromOffset(10, 26), Size = UDim2.fromOffset(5, 5), BorderSizePixel = 0, Parent = button })
+            corner(stateDot, 3)
             button.MouseEnter:Connect(function() Theme.tweenTo(edge, "Color", "accentEdge", 0.1) end)
             button.MouseLeave:Connect(function() Theme.tweenTo(edge, "Color", "line", 0.1) end)
             button.Activated:Connect(function()
@@ -169,7 +170,7 @@ return function(window, cfg)
                 local target = meta and meta.Tab and tabNamed(meta.Tab)
                 if target then require("sounds").Play("click") target:Select() end
             end)
-            tiles[name] = { button = button, icon = icon, title = title, pill = pill }
+            tiles[name] = { button = button, icon = icon, title = title, pill = pill, dot = stateDot }
             return tiles[name]
         end
         local function update()
@@ -184,13 +185,14 @@ return function(window, cfg)
                 if hasIcon then Theme.bind(t.icon, "ImageColor3", module.state == "Off" and "muted" or "heading") end
                 local role = COLORS[module.state] or "muted"
                 t.pill.Text = string.upper(module.state)
-                -- the name gets everything the icon and the pill leave
-                local pillWidth = Util.textWidth(t.pill.Text, 8, Enum.Font.GothamBold) + 14
-                t.title.Position = UDim2.fromOffset(hasIcon and 30 or 10, 0)
-                t.title.Size = UDim2.new(1, -(hasIcon and 30 or 10) - pillWidth - 12, 1, 0)
+                local lead = hasIcon and 31 or 10
+                t.title.Position = UDim2.fromOffset(lead, 5)
+                t.title.Size = UDim2.new(1, -lead - 8, 0, 15)
+                t.dot.Position = UDim2.fromOffset(lead, 26)
+                t.pill.Position = UDim2.fromOffset(lead + 9, 20)
+                t.pill.Size = UDim2.new(1, -lead - 17, 0, 12)
                 Theme.bind(t.pill, "TextColor3", role)
-                Theme.bind(t.pill, "BackgroundColor3", role)
-                t.pill.BackgroundTransparency = 0.86
+                Theme.bind(t.dot, "BackgroundColor3", role)
                 Theme.bind(t.title, "TextColor3", module.state == "Off" and "muted" or "text")
                 t.button:SetAttribute("Detail", module.detail)
             end

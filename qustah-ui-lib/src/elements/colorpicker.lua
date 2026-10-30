@@ -73,7 +73,7 @@ return function(card, cfg)
     end
 
     local side = create("Frame", { Name = "Side", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 4), Size = UDim2.fromOffset(92, 150), Parent = panel })
-    local preview = create("Frame", { Size = UDim2.new(1, 0, 0, 26), BorderSizePixel = 0, Parent = side })
+    local preview = create("Frame", { Name = "Preview", Size = UDim2.new(1, 0, 0, 26), BorderSizePixel = 0, Parent = side })
     corner(preview, 6)
     Theme.bind(stroke(preview, nil, 0.2), "Color", "buttonEdge")
     local hex = create("TextBox", {

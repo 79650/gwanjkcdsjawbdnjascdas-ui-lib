@@ -111,6 +111,11 @@ function Theme.bind(object, property, role)
     local entry = bound[object] or track(object)
     entry[property] = role
     object[property] = Theme.get(role)
+    -- a text box's placeholder follows the theme too (muted) unless something else was chosen for it
+    if property == "TextColor3" and entry.PlaceholderColor3 == nil and object:IsA("TextBox") then
+        entry.PlaceholderColor3 = "muted"
+        object.PlaceholderColor3 = Theme.get("muted")
+    end
     return object
 end
 

@@ -31,8 +31,8 @@ return function(card, cfg)
         local titleWidth = width * 0.42
         if need > titleWidth then
             titleWidth = math.max(titleWidth, math.min(need, width - valueNeed - 8)) -- a long name takes what a short value leaves
-        elseif valueNeed + 2 > width - titleWidth then
-            titleWidth = math.max(need, width - valueNeed - 2)
+        elseif valueNeed + 10 > width - titleWidth then
+            titleWidth = math.max(need, width - valueNeed - 10) -- (a little slack: fonts measure a few px wider on some screens)
         end
         title.Size = UDim2.new(0, titleWidth - 6, 1, 0)
         value.Position = UDim2.new(0, titleWidth, 0, 0)
