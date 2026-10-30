@@ -84,6 +84,26 @@ return function(Window)
         return table.concat(lines, "\n")
     end
 
+    -- everything a bug report needs, as plain text: script / lib versions, executor, game, screen, theme, modules, errors
+    function Window:GetDebugInfo()
+        local executor = "Unknown"
+        pcall(function()
+            if type(identifyexecutor) == "function" then executor = table.concat({ identifyexecutor() }, " ")
+            elseif type(getexecutorname) == "function" then executor = tostring(getexecutorname()) end
+        end)
+        local camera = workspace.CurrentCamera
+        local screen = camera and camera.ViewportSize or Vector2.zero
+        local lines = {
+            string.format("%s %s · qustah-ui-lib v%s", self.Title, self.Version ~= "" and self.Version or "-", tostring(self.Lib and self.Lib.Version or "?")),
+            "executor: " .. executor,
+            string.format("game: %s · place %s · job %s", tostring(game.GameId), tostring(game.PlaceId), game.JobId ~= "" and game.JobId or "studio"),
+            string.format("screen: %dx%d · ui scale %d%% · theme %s", screen.X, screen.Y, math.floor((self.GetUIScale and self:GetUIScale() or 1) * 100 + 0.5), tostring(require("theme").pack or "Dark")),
+            string.format("files: %s · secure: %s", (type(writefile) == "function" and type(readfile) == "function") and "yes" or "no", Util.secure and "on" or "off"),
+            "",
+        }
+        return table.concat(lines, "\n") .. self:GetErrorReport()
+    end
+
     function Window:SetStatus(text, color)
         self._manualStatus = text ~= nil and { text = tostring(text), color = color } or nil
         self:_refreshStatus()

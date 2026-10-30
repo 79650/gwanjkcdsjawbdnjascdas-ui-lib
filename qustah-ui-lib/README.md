@@ -2,7 +2,7 @@
 
 ![Qustah UI](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.9.10-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.11-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
@@ -175,6 +175,7 @@ local Left  = Overview:Card({ Title = "General" })          -- cards alternate b
 local Right = Overview:Card({ Title = "Colors", Side = "Right", Icon = "palette", Desc = "Card description" })
 local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both columns, sits at the top
 local Under = Overview:Card({ Title = "Notes", Wide = "Bottom" }) -- spans both columns, under them
+Overview:MatchHeights(Left, Right)                              -- side-by-side cards as tall as the tallest
 ```
 
 **Tabs**
@@ -192,6 +193,7 @@ local Under = Overview:Card({ Title = "Notes", Wide = "Bottom" }) -- spans both 
 - `Warning = "..."` or `page:Warning("text", { Title, Icon, Level = "warning" | "danger" | "info" })` puts a banner at the top of the page.
 
 **Cards**
+- `card:HeaderSwitch({ Title = "Debug", Flag, Default, Callback })` puts a small switch in the card's title row.
 - The arrow in the header folds the card. `Collapsible = false` removes the arrow, `Collapsed = true` starts folded, and the folded state is remembered.
 - The title starts with an accent dot; `Icon = "name"` puts an icon there instead. `Dot = false` leaves the plain title, and `CreateWindow({ CardDots = false })` does that for every card without an icon.
 - Methods: `card:SetCollapsed(bool)`, `card:SetTitle()`, `card:SetDesc()`, `card:SetVisible()`.
@@ -373,6 +375,7 @@ Card:Gradient({ Title = "Chams", Flag = "chams", Default = { Color3.new(1, 0, 0)
 
 Card:Swatches({ Title = "Name color", Flag = "nameColor", Default = "Blue",
     Callback = function(color, name) end })      -- without Colors = { { "Blue", Color3 }, ... } it uses 8 presets
+Card:Swatches({ Title = "Accent", Style = "Dots", Custom = function(open) end })   -- one row of round dots, the last for "any colour"
 ```
 
 The picker has a saturation square, a hue bar, a HEX box, Random and Rainbow. It also accepts `"RRGGBB"` strings.
@@ -859,6 +862,14 @@ Lib:CreateWindow({
 ```
 
 The "What's new" dialog opens once for each new version. `Window:ShowChangelog()` (and Settings › Info › What's new) opens it again.
+
+## Links
+
+```lua
+Lib:CreateWindow({ Links = { { Title = "Discord", Url = "https://discord.gg/...", Icon = "message-circle" }, { Title = "Website", Url = "https://..." } } })
+```
+
+Settings › Info › About gets a button for each link (two per row); a click copies the link, since a game can't open a browser. Errors › **Copy debug info** (`Window:GetDebugInfo()`) copies the versions, executor, game, screen, theme, modules and errors in one go for a bug report.
 
 ## Secure mode
 

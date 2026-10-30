@@ -559,8 +559,26 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     settingsTab.Pages[3]:Select() wait(0.1)
     window:ReportError("ESP", "render failed") wait(0.1)
     check("info lists errors", findIn("Errors", "Content").Text:find("render failed") ~= nil)
-    MOCK.click(find("Copy report"):FindFirstChild("Button")) wait(0.1)
-    check("copy report", type(MOCK.clipboard) == "string" and MOCK.clipboard:find("render failed") ~= nil)
+    MOCK.click(find("Copy debug info"):FindFirstChild("Button")) wait(0.1)
+    check("copy debug info", type(MOCK.clipboard) == "string" and MOCK.clipboard:find("render failed") ~= nil and MOCK.clipboard:find("executor:", 1, true) ~= nil)
+    local dbg = W.__ui_debug
+    check("debug switch in the Errors header", dbg and dbg.Row.Name == "HeaderSwitch")
+    local accentDots = findIn("Accent", "Custom colour")
+    check("accent dots + custom dot", accentDots ~= nil and findIn("Accent", "Blue"):FindFirstChild("Dot").Size.X.Offset == 18)
+    MOCK.click(accentDots) wait(0.1)
+    check("custom dot opens the colour panel", W.__ui_accent.Row.Parent:FindFirstChild("Picker").Visible == true)
+    MOCK.click(accentDots) wait(0.1)
+    check("background visibility hidden without an image", W.__ui_bg_alpha.Row.Visible == false)
+    W.__ui_bg:Set("123456") wait(0.1)
+    check("background visibility shows with an image", W.__ui_bg_alpha.Row.Visible == true)
+    W.__ui_bg:Set("") wait(0.1)
+    W.__ui_glow:Set(false) wait(0.1)
+    MOCK.click(find("Reset interface"):FindFirstChild("Button")) wait(0.1)
+    if window._dialog then
+        for _, d in ipairs(window._dialog.Frame:GetDescendants()) do if d:IsA("TextButton") and d.Text == "Reset" then MOCK.click(d) end end
+    end
+    wait(0.2)
+    check("reset interface brings the defaults back", W.__ui_glow.Value == true)
     window:ClearErrors()
 
     -- window memory

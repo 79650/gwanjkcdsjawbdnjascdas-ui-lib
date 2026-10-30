@@ -172,6 +172,44 @@ function Page:Card(cfg)
     return Card.new(self, side == "Right" and self.right or self.left, cfg, self.order)
 end
 
+-- page:MatchHeights(cardA, cardB, ...): side-by-side cards grow to the tallest one (the extra room goes under
+-- their last element), and follow when any of them changes height.
+function Page:MatchHeights(...)
+    local cards = { ... }
+    local constraints = {}
+    for index, card in ipairs(cards) do
+        constraints[index] = create("UISizeConstraint", { Name = "MatchHeight", Parent = card.frame })
+    end
+    local busy = false
+    local function natural(card)
+        local layout = card.frame:FindFirstChildOfClass("UIListLayout")
+        local scale = self.window.scale and self.window.scale.Scale or 1
+        local content = layout and layout.AbsoluteContentSize.Y or 0
+        if content <= 0 then return 0 end
+        return content / scale + 18 -- (the card's padding: 8 above, 10 below)
+    end
+    local function apply()
+        if busy then return end
+        busy = true
+        local tallest = 0
+        for _, card in ipairs(cards) do
+            if card.frame.Visible and not card.Collapsed then tallest = math.max(tallest, natural(card)) end
+        end
+        for index, card in ipairs(cards) do
+            local want = (card.frame.Visible and not card.Collapsed) and tallest or 0
+            constraints[index].MinSize = Vector2.new(0, math.floor(want))
+        end
+        busy = false
+    end
+    for _, card in ipairs(cards) do
+        local layout = card.frame:FindFirstChildOfClass("UIListLayout")
+        if layout then layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() task.defer(apply) end) end
+        card.frame:GetPropertyChangedSignal("Visible"):Connect(function() task.defer(apply) end)
+    end
+    task.defer(apply)
+    return apply
+end
+
 function Page:Select()
     local tab = self.tab
     tab.current = self

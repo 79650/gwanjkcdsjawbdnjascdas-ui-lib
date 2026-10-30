@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.10 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.11 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -434,6 +434,52 @@ local title=label(box,tostring(cfg.Title):upper(),8,{Name="Title",Size=UDim2.new
 Theme.bind(title,"TextColor3","muted")
 end
 return sub(self,box)
+end
+function Card:HeaderSwitch(cfg)
+cfg=cfg or{}
+local head=self.titleLabel and self.titleLabel.Parent
+if not head then return nil end
+local right=self._chevron and 22 or 0
+local holder=create("TextButton",{Name="HeaderSwitch",Text="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-right,0.5,0),Size=UDim2.fromOffset(28,16),Parent=head})
+local track=create("Frame",{Name="Track",Size=UDim2.fromScale(1,1),BorderSizePixel=0,Parent=holder})
+corner(track,8)
+local knob=create("Frame",{Name="Knob",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,2,0.5,0),Size=UDim2.fromOffset(12,12),BorderSizePixel=0,Parent=track})
+corner(knob,6)
+Theme.bind(knob,"BackgroundColor3","knob")
+local caption
+if cfg.Title then
+caption=label(head,tostring(cfg.Title),9,{Name="HeaderSwitchTitle",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-(right+34),0.5,0),Size=UDim2.fromOffset(Util.textWidth(cfg.Title,9,Enum.Font.Gotham)+2,16),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(caption,"TextColor3","muted")
+end
+local used=right+34+(caption and caption.Size.X.Offset+6 or 0)
+self.titleLabel.Size=UDim2.new(1,self.titleLabel.Size.X.Offset-(used-right),1,0)
+local element={Type="HeaderSwitch",Flag=cfg.Flag,Value=cfg.Default==true,Row=holder,_changed={}}
+local function paint(animate)
+local t=animate and 0.12 or 0
+Theme.tweenTo(track,"BackgroundColor3",element.Value and"toggleOn"or"input",t)
+Util.tween(knob,t,{Position=UDim2.new(0,element.Value and 14 or 2,0.5,0)})
+end
+local window=self.window
+function element:Set(on,silent)
+on=on==true
+local changed=on~=self.Value
+self.Value=on
+paint(true)
+if self.Flag then window.Lib.Flags[self.Flag]=on window:_flagChanged(self.Flag)end
+if changed and not silent then Util.safe(cfg.Callback,on)end
+end
+function element:Get()return self.Value end
+function element:_save()return self.Value end
+function element:_load(value)self:Set(value==true)end
+holder.Activated:Connect(function()require("sounds").Play("click")element:Set(not element.Value)end)
+holder.MouseEnter:Connect(function()if cfg.Tooltip then window:_tip(cfg.Tooltip)end end)
+holder.MouseLeave:Connect(function()window:_hideTip()end)
+if cfg.Flag then
+window.Lib.Flags[cfg.Flag]=element.Value
+window:_register(cfg.Flag,element)
+end
+paint(false)
+return element
 end
 function Card:SetTitle(text)if self.titleLabel then self.titleLabel.Text=tostring(text)end end
 function Card:SetVisible(visible)self.frame.Visible=visible~=false end
@@ -4633,11 +4679,12 @@ local PRESETS={
 }
 return function(card,cfg)
 local colors=cfg.Colors or PRESETS
+local dots=cfg.Style=="Dots"
 local maxColumns=math.max(1,tonumber(cfg.Columns)or 4)
 local columns=maxColumns
 local rowsCount=math.ceil(#colors/columns)
 local top=(cfg.Title and 20 or 0)+(cfg.Desc and 16 or 0)+(cfg.Title and 4 or 0)
-local holder=create("Frame",{Name=tostring(cfg.Title or"Swatches"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,top+rowsCount*34),LayoutOrder=card:_order(),Parent=card.body})
+local holder=create("Frame",{Name=tostring(cfg.Title or"Swatches"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,top+(dots and 28 or rowsCount*34)),LayoutOrder=card:_order(),Parent=card.body})
 local title,desc
 if cfg.Title then
 title=label(holder,tostring(cfg.Title),11,{Name="Title",Size=UDim2.new(1,0,0,20)})
@@ -4650,16 +4697,50 @@ end
 local grid=create("Frame",{Name="Grid",BackgroundTransparency=1,Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,1,-top),Parent=holder})
 local element=Base.element(card,"Swatches",cfg,holder,title,desc)
 local entries,byName={},{}
+local customEntry
 local function render()
 for _,entry in ipairs(entries)do
 local on=entry.name==element.Value
+if dots then
+entry.outline.Transparency=on and 0 or 1
+else
 Theme.tweenTo(entry.button,"BackgroundColor3",on and"selected"or"card",0.1)
 Theme.tweenTo(entry.text,"TextColor3",on and"heading"or"muted",0.1)
 entry.outline.Transparency=on and 0.3 or 1
 end
 end
+if customEntry then
+local custom=element.Value==nil and element.Color~=nil
+customEntry.outline.Transparency=custom and 0 or 1
+customEntry.fill.BackgroundColor3=custom and element.Color or Color3.new(1,1,1)
+customEntry.fill.BackgroundTransparency=custom and 0 or 1
+if customEntry.icon then customEntry.icon.Visible=not custom end
+end
+end
+local function dot(name,color)
+local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundTransparency=1,Size=UDim2.fromOffset(26,26),Parent=grid})
+local fill=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(18,18),BorderSizePixel=0,BackgroundColor3=color or Color3.new(1,1,1),Parent=button})
+corner(fill,9)
+local ringFrame=create("Frame",{Name="Ring",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Parent=button})
+corner(ringFrame,13)
+local outline=stroke(ringFrame,nil,1,1.5)
+Theme.bind(outline,"Color","heading")
+Util.hoverPop(button,1.08)
+button.MouseEnter:Connect(function()card.window:_tip(name)end)
+button.MouseLeave:Connect(function()card.window:_hideTip()end)
+return button,fill,outline
+end
 for index,item in ipairs(colors)do
 local name,color=tostring(item[1]or item.Name),item[2]or item.Color
+if dots then
+local button,fill,outline=dot(name,color)
+button.LayoutOrder=index
+local entry={name=name,color=color,button=button,outline=outline,fill=fill}
+entries[#entries+1]=entry
+byName[name]=entry
+button.Activated:Connect(function()if not element.Locked then element:Set(name)end end)
+continue
+end
 local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,LayoutOrder=index,Parent=grid})
 corner(button,6)
 local outline=stroke(button,Color3.new(1,1,1),1)
@@ -4680,7 +4761,35 @@ end)
 button.MouseLeave:Connect(render)
 button.Activated:Connect(function()if not element.Locked then element:Set(name)end end)
 end
+if dots and type(cfg.Custom)=="function"then
+local button,fill,outline=dot("Custom colour",Color3.new(1,1,1))
+button.LayoutOrder=#entries+1
+fill.BackgroundTransparency=1
+local edge=stroke(fill,nil,0,1)
+Theme.bind(edge,"Color","muted")
+local icon=require("icons").themed(fill,"plus",11,"muted",{Name="Plus",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+customEntry={button=button,fill=fill,outline=outline,icon=icon}
+local open=false
+button.Activated:Connect(function()
+if element.Locked then return end
+open=not open
+element:_call(cfg.Custom,open)
+end)
+end
+if dots then
+local list=Util.list(grid,8,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+local function spread()
+local count=#entries+(customEntry and 1 or 0)
+local scale=card.window.scale and card.window.scale.Scale or 1
+local width=holder.AbsoluteSize.X/scale
+if width<=0 or count<2 then return end
+list.Padding=UDim.new(0,math.clamp(math.floor((width-count*26)/(count-1)),2,14))
+end
+holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(spread)
+spread()
+end
 local function place()
+if dots then return end
 local width=holder.AbsoluteSize.X
 columns=width>0 and math.clamp(math.floor((width+6)/90),2,maxColumns)or maxColumns
 columns=math.min(columns,math.max(1,#entries))
@@ -4692,6 +4801,7 @@ end
 holder.Size=UDim2.new(1,0,0,top+math.ceil(#entries/columns)*34)
 end
 holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+if dots then return end
 local before=columns
 local width=holder.AbsoluteSize.X
 local want=width>0 and math.min(math.clamp(math.floor((width+6)/90),2,maxColumns),#entries)or maxColumns
@@ -6432,7 +6542,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.10",
+Version="1.9.11",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -7382,16 +7492,18 @@ syncSwatches()
 end,
 })
 swatches=look:Swatches({
-Title="Accent",Default="Neutral",
+Title="Accent",Default="Neutral",Style="Dots",
+Custom=function(open)if picker then picker:SetOpen(open)end end,
 Callback=function(color,name)
 if name=="Neutral"then color=Theme.neutral(Theme.pack)end
 if picker then picker:Set(color)end
 end,
 })
 picker=look:ColorPicker({
-Title="Custom accent",Desc="Any colour, saved with the profile",Flag="__ui_accent",Default=Theme.get("accentUser"),
+Title="Custom accent",Flag="__ui_accent",Default=Theme.get("accentUser"),
 Callback=function(color)Theme.set("accent",color)syncSwatches()end,
 })
+picker.Row.Visible=false
 syncSwatches()
 look:Dropdown({
 Title="Font",Options=UIFont.order,Default="Gotham",Flag="__ui_font",
@@ -7403,33 +7515,43 @@ look:Toggle({
 Title="Text glow",Desc="Shine on the title and highlights",Flag="__ui_glow",Default=Glow.enabled,
 Callback=function(on)Glow.setEnabled(on)end,
 })
-local menu=interface:Card({Title="Menu",Side="Right",Icon="settings-2"})
+local scaleDropdown
+local menu=interface:Card({Title="Behaviour",Side="Right",Icon="settings-2"})
 local menuKey=menu:Keybind({
 Title="Menu key",Desc="Opens and closes the menu",Flag="__ui_menu_key",Default=window.key,
 Callback=function(key)window:SetToggleKey(key)end,
 })
 window._menuListeners=window._menuListeners or{}
 table.insert(window._menuListeners,function(key)if menuKey.Value~=key then menuKey:Set(key,true)end end)
-menu:Toggle({
-Title="Welcome toast",Desc="Greets a new account on first open",
-Default=window:_state("welcomeToast")~=false and window.cfg.Welcome~=false,
-Callback=function(on)window:_state("welcomeToast",on)end,
-})
 local SCALES={"80%","90%","100%","110%","125%","150%"}
 local current=math.floor((window:GetUIScale()*100)+0.5).."%"
-menu:Dropdown({
+scaleDropdown=menu:Dropdown({
 Title="UI scale",Desc="Bigger or smaller menu",Options=SCALES,Default=table.find(SCALES,current)and current or"100%",
 Callback=function(text)window:SetUIScale((tonumber(text:match("%d+"))or 100)/100)end,
 })
+menu:Toggle({Title="Free mouse",Desc="Free cursor while open",Icon="hand",Flag="__ui_mouse",
+Default=window.unlockMouse~=false,Callback=function(on)window:SetMouseUnlock(on)end})
+menu:Toggle({Title="Anonymous mode",Desc="Hides your name and avatar",Icon="venetian-mask",Flag="__ui_anon",Default=window.anonymous==true,
+Callback=function(on)window:SetAnonymous(on)end})
+if window.OnAnonymousChanged then
+window:OnAnonymousChanged(function(on)local t=window.flags.__ui_anon if t and t.Value~=on then t:Set(on,true)end end)
+end
 local Sounds=require("sounds")
 menu:Toggle({
 Title="UI sounds",Desc="Soft clicks on buttons and switches",Flag="__ui_sounds",Default=Sounds.Enabled,
 Callback=function(on)Sounds.Enabled=on end,
 })
 local Haptics=require("haptics")
-menu:Toggle({Title="Haptics",Desc="Buzz on taps (phones)",Default=Haptics.Enabled,Callback=function(on)Haptics.Enabled=on end})
+if Util.Services.UserInputService.TouchEnabled then
+menu:Toggle({Title="Haptics",Desc="Buzz on taps",Default=Haptics.Enabled,Callback=function(on)Haptics.Enabled=on end})
+end
 menu:Toggle({Title="Mobile button",Desc="Reopen button while hidden",Default=window.mobileButton==true,
 Callback=function(on)window:SetMobileButton(on,true)end})
+menu:Toggle({
+Title="Welcome toast",Desc="Greets a new account on first open",
+Default=window:_state("welcomeToast")~=false and window.cfg.Welcome~=false,
+Callback=function(on)window:_state("welcomeToast",on)end,
+})
 local menuActions=menu:Row({Widths={3,2}})
 menuActions:Button({
 Title="Reset layout",Icon="rotate-ccw",Tooltip="Puts the window back to its default size and place",
@@ -7446,7 +7568,47 @@ Callback=function()
 window:Confirm("Unload "..window.Title.."?","The menu and everything it runs will be removed.",function()window:Destroy()end,"Unload",true)
 end,
 })
-local editorCard=interface:Card({Title="Theme editor",Side="Right",Icon="paintbrush"})
+local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
+"__ui_live","__ui_edge_glow","__ui_blur","__ui_hud_watermark","__ui_hud_keys","__ui_hud_session","__ui_hud_stats"}
+menu:Button({Title="Reset interface",Icon="paintbrush",Style="Ghost",Callback=function()
+window:Confirm("Reset the interface?","Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.",function()
+for _,flag in ipairs(LOOK_FLAGS)do
+local element=window.flags[flag]
+local default=window.Config.Defaults[flag]
+if element and default~=nil then
+pcall(element._load or element.Set,element,default)
+if element._updateReset then pcall(element._updateReset,element)end
+end
+end
+window:SetUIScale(1)
+if scaleDropdown then scaleDropdown:Set("100%",true)end
+window:Notify({Title="Interface reset",Content="The menu looks like the first time",Icon="paintbrush"})
+end,"Reset")
+end})
+local look2=interface:Card({Title="Window",Side="Left",Icon="app-window"})
+look2:Slider({Title="Transparency",Flag="__ui_transparency",Min=0,Max=60,Default=0,Suffix="%",
+Callback=function(value)window:SetBackgroundTransparency(value/100)end})
+local bgAlpha
+look2:Input({Title="Background",Placeholder="image id or url",Flag="__ui_bg",
+Callback=function(text)window:SetBackgroundImage(text~=""and text or nil,bgAlpha and(1-bgAlpha.Value/100)or 0.85)end})
+bgAlpha=look2:Slider({Title="Background visibility",Flag="__ui_bg_alpha",Min=0,Max=60,Default=15,Suffix="%",
+DependsOn={Flag="__ui_bg",Value=function(text)return type(text)=="string"and text~=""end,Mode="Hide"},
+Callback=function(value)if window._background then window._background.ImageTransparency=1-value/100 end end})
+look2:Toggle({Title="Animated background",Desc="Slow glow behind the menu",Icon="blend",Flag="__ui_live",
+Default=window.liveBackground==true,Callback=function(on)window:SetLiveBackground(on)end})
+look2:Toggle({Title="Edge glow",Desc="Pulsing accent border",Flag="__ui_edge_glow",
+Default=window.accentGlow==true,Callback=function(on)window:SetAccentGlow(on)end})
+look2:Toggle({Title="Blur game",Desc="Blurs the game while open",Flag="__ui_blur",
+Default=window.blur==true,Callback=function(on)window:SetBlur(on)end})
+local overlays=interface:Card({Title="Overlays",Side="Right",Icon="layers"})
+overlays:Toggle({Title="Watermark",Desc="Name · FPS · ping · clock",Flag="__ui_hud_watermark",Callback=function(on)window:Watermark(on)end})
+overlays:Toggle({Title="Keybind list",Desc="Bound keys on screen",Flag="__ui_hud_keys",Callback=function(on)window:KeybindList(on)end})
+overlays:Toggle({Title="Session bar",Desc="FPS · ping · players · time",Flag="__ui_hud_session",Callback=function(on)window:SessionBar(on)end})
+overlays:Dropdown({
+Title="Performance",Options={"Off","Header","Floating"},Default="Off",Flag="__ui_hud_stats",
+Callback=function(mode)window:StatsMonitor(mode)end,
+})
+local editorCard=interface:Card({Title="Theme editor",Side="Left",Icon="paintbrush"})
 local editor=editorCard:Section({Title="Edit colours",Opened=false})
 local ROLE_NAMES={"Background","Cards","Inputs","Outlines","Text","Muted text","Headings","Dock","Icons","Accent"}
 local ROLE_OF={}
@@ -7518,36 +7680,6 @@ refreshThemeList(name)
 window:Notify({Title="Theme imported",Content=name,Icon="palette"})
 end
 end})
-local look2=interface:Card({Title="Window",Side="Left",Icon="app-window"})
-look2:Toggle({Title="Anonymous mode",Desc="Hides your name and avatar",Icon="venetian-mask",Flag="__ui_anon",Default=window.anonymous==true,
-Callback=function(on)window:SetAnonymous(on)end})
-if window.OnAnonymousChanged then
-window:OnAnonymousChanged(function(on)local t=window.flags.__ui_anon if t and t.Value~=on then t:Set(on,true)end end)
-end
-look2:Slider({Title="Transparency",Flag="__ui_transparency",Min=0,Max=60,Default=0,Suffix="%",
-Callback=function(value)window:SetBackgroundTransparency(value/100)end})
-local bgAlpha
-look2:Input({Title="Background",Placeholder="image id or url",Flag="__ui_bg",
-Callback=function(text)window:SetBackgroundImage(text~=""and text or nil,bgAlpha and(1-bgAlpha.Value/100)or 0.85)end})
-bgAlpha=look2:Slider({Title="Background visibility",Flag="__ui_bg_alpha",Min=0,Max=60,Default=15,Suffix="%",
-Callback=function(value)if window._background then window._background.ImageTransparency=1-value/100 end end})
-look2:Toggle({Title="Free mouse",Desc="Free cursor while open",Icon="hand",Flag="__ui_mouse",
-Default=window.unlockMouse~=false,Callback=function(on)window:SetMouseUnlock(on)end})
-look2:Toggle({Title="Animated background",Desc="Slow glow behind the menu",Icon="blend",Flag="__ui_live",
-Default=window.liveBackground==true,Callback=function(on)window:SetLiveBackground(on)end})
-look2:Toggle({Title="Edge glow",Desc="Pulsing accent border",Flag="__ui_edge_glow",
-Default=window.accentGlow==true,Callback=function(on)window:SetAccentGlow(on)end})
-look2:Toggle({Title="Blur game",Desc="Blurs the game while open",Flag="__ui_blur",
-Default=window.blur==true,Callback=function(on)window:SetBlur(on)end})
-look2:Button({Title="Fullscreen",Icon="maximize-2",Callback=function()window:ToggleFullscreen()end})
-local overlays=interface:Card({Title="Overlays",Side="Right",Icon="layers"})
-overlays:Toggle({Title="Watermark",Desc="Name · FPS · ping · clock",Flag="__ui_hud_watermark",Callback=function(on)window:Watermark(on)end})
-overlays:Toggle({Title="Keybind list",Desc="Bound keys on screen",Flag="__ui_hud_keys",Callback=function(on)window:KeybindList(on)end})
-overlays:Toggle({Title="Session bar",Desc="FPS · ping · players · time",Flag="__ui_hud_session",Callback=function(on)window:SessionBar(on)end})
-overlays:Dropdown({
-Title="Performance",Options={"Off","Header","Floating"},Default="Off",Flag="__ui_hud_stats",
-Callback=function(mode)window:StatsMonitor(mode)end,
-})
 Profiles(window,profiles,window.Config.Defaults)
 local about=infoPage:Card({Title="About",Side="Left",Icon="info"})
 if window.Version~=""then about:Info({Title=window.Title,Value=window.Version})end
@@ -7566,9 +7698,25 @@ local spec=window.cfg.Tour
 window:Tour(type(spec)=="table"and spec or nil,{Id=window.cfg.TourId,Force=true})
 end})
 end
+if type(window.cfg.Links)=="table"and#window.cfg.Links>0 then
+local linkRow
+for index,link in ipairs(window.cfg.Links)do
+if index%2==1 then linkRow=about:Row()end
+linkRow:Button({Title=tostring(link.Title or"Link"),Icon=link.Icon or"link",Style="Soft",Tooltip=tostring(link.Url or""),
+Callback=function()
+local clipboard=setclipboard or toclipboard
+if type(clipboard)=="function"and pcall(clipboard,tostring(link.Url or""))then
+window:Notify({Title="Link copied",Content=tostring(link.Title or"Link").." · paste it in your browser",Icon=link.Icon or"link"})
+else
+window:Notify({Title=tostring(link.Title or"Link"),Content=tostring(link.Url or""),Duration=10})
+end
+end})
+end
+end
 if window.GetKicks and window.cfg.KickLog~=false then
 local kicksCard=infoPage:Card({Title="Disconnects",Side="Left",Icon="log-out",Desc="Kicks and drops, with Roblox's reason"})
 local kickText=kicksCard:Paragraph({Content="None yet"})
+local kicksClear
 local function showKicks()
 local list=window:GetKicks()
 local lines={}
@@ -7579,8 +7727,9 @@ Util.toHex(Theme.get((entry.Code==277 or entry.Code==279)and"warning"or"danger")
 (tostring(entry.Reason or""):gsub("<","&lt;")),Util.toHex(Theme.get("muted")),Util.ago(entry.Time))
 end
 kickText:Set(#lines>0 and table.concat(lines,"\n")or"None yet")
+if kicksClear then kicksClear:SetVisible(#lines>0)end
 end
-kicksCard:Button({Title="Clear",Icon="trash-2",Callback=function()
+kicksClear=kicksCard:Button({Title="Clear",Icon="trash-2",Callback=function()
 window.Config:WriteJSON("kicks",{list={}})
 showKicks()
 end})
@@ -7592,19 +7741,17 @@ local modulesCard=infoPage:Card({Title="Modules",Side="Left",Icon="boxes"})
 local moduleRows={}
 local noModules=modulesCard:Label("No modules reported")
 local errorsCard=infoPage:Card({Title="Errors",Side="Right",Icon="bug"})
-errorsCard:Toggle({
-Title="Debug mode",Desc="A notification for every new error",Flag="__ui_debug",Default=window.cfg.Debug==true,
-Callback=function(on)window.debug=on end,
-})
+errorsCard:HeaderSwitch({Title="Debug",Flag="__ui_debug",Default=window.cfg.Debug==true,Tooltip="A notification for every new error",
+Callback=function(on)window.debug=on end})
 local errorCount=errorsCard:Info({Title="Errors",Value="0"})
 local errorText=errorsCard:Paragraph({Content="No errors"})
 local errorButtons=errorsCard:Row()
 errorButtons:Button({
-Title="Copy report",Icon="copy",
+Title="Copy debug info",Icon="clipboard-copy",Tooltip="Executor, versions, game, modules and errors - paste it into a bug report",
 Callback=function()
 local clipboard=setclipboard or toclipboard
-if type(clipboard)=="function"and pcall(clipboard,window:GetErrorReport())then
-window:Notify({Title="Copied",Content="Error report copied to clipboard"})
+if type(clipboard)=="function"and pcall(clipboard,window:GetDebugInfo())then
+window:Notify({Title="Copied",Content="Debug info copied - paste it into your bug report",Icon="clipboard-copy"})
 else
 window:Notify({Title="Clipboard",Content="setclipboard is not available",Color=RED})
 end
@@ -7631,7 +7778,7 @@ if index<=8 then
 lines[#lines+1]=string.format("<font color=\"#%s\">%s</font>%s  %s",Util.toHex(Theme.get("danger")),entry.source,entry.count>1 and(" ×"..entry.count)or"",(tostring(entry.message):gsub("<","&lt;")))
 end
 end
-if#errors>8 then lines[#lines+1]="+"..(#errors-8).." more (Copy report)"end
+if#errors>8 then lines[#lines+1]="+"..(#errors-8).." more (Copy debug info)"end
 errorCount:Set(#errors==0 and"0"or(#errors..(total>#errors and(" ("..total.."×)")or"")))
 errorCount:SetColor(#errors>0 and RED or"text")
 errorText:Set(#lines>0 and table.concat(lines,"\n")or"No errors")
@@ -7793,6 +7940,24 @@ lines[#lines+1]=string.format("x%d %s: %s",entry.count,entry.source,entry.messag
 end
 if#(self.errors or{})==0 then lines[#lines+1]="no errors"end
 return table.concat(lines,"\n")
+end
+function Window:GetDebugInfo()
+local executor="Unknown"
+pcall(function()
+if type(identifyexecutor)=="function"then executor=table.concat({identifyexecutor()}," ")
+elseif type(getexecutorname)=="function"then executor=tostring(getexecutorname())end
+end)
+local camera=workspace.CurrentCamera
+local screen=camera and camera.ViewportSize or Vector2.zero
+local lines={
+string.format("%s %s · qustah-ui-lib v%s",self.Title,self.Version~=""and self.Version or"-",tostring(self.Lib and self.Lib.Version or"?")),
+"executor: "..executor,
+string.format("game: %s · place %s · job %s",tostring(game.GameId),tostring(game.PlaceId),game.JobId~=""and game.JobId or"studio"),
+string.format("screen: %dx%d · ui scale %d%% · theme %s",screen.X,screen.Y,math.floor((self.GetUIScale and self:GetUIScale()or 1)*100+0.5),tostring(require("theme").pack or"Dark")),
+string.format("files: %s · secure: %s",(type(writefile)=="function"and type(readfile)=="function")and"yes"or"no",Util.secure and"on"or"off"),
+"",
+}
+return table.concat(lines,"\n")..self:GetErrorReport()
 end
 function Window:SetStatus(text,color)
 self._manualStatus=text~=nil and{text=tostring(text),color=color}or nil
@@ -8909,6 +9074,41 @@ self.cards=self.cards-1
 return Card.new(self,cfg.Wide=="Bottom"and self.wideBottom or self.wide,cfg,self.order)
 end
 return Card.new(self,side=="Right"and self.right or self.left,cfg,self.order)
+end
+function Page:MatchHeights(...)
+local cards={...}
+local constraints={}
+for index,card in ipairs(cards)do
+constraints[index]=create("UISizeConstraint",{Name="MatchHeight",Parent=card.frame})
+end
+local busy=false
+local function natural(card)
+local layout=card.frame:FindFirstChildOfClass("UIListLayout")
+local scale=self.window.scale and self.window.scale.Scale or 1
+local content=layout and layout.AbsoluteContentSize.Y or 0
+if content<=0 then return 0 end
+return content/scale+18
+end
+local function apply()
+if busy then return end
+busy=true
+local tallest=0
+for _,card in ipairs(cards)do
+if card.frame.Visible and not card.Collapsed then tallest=math.max(tallest,natural(card))end
+end
+for index,card in ipairs(cards)do
+local want=(card.frame.Visible and not card.Collapsed)and tallest or 0
+constraints[index].MinSize=Vector2.new(0,math.floor(want))
+end
+busy=false
+end
+for _,card in ipairs(cards)do
+local layout=card.frame:FindFirstChildOfClass("UIListLayout")
+if layout then layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()task.defer(apply)end)end
+card.frame:GetPropertyChangedSignal("Visible"):Connect(function()task.defer(apply)end)
+end
+task.defer(apply)
+return apply
 end
 function Page:Select()
 local tab=self.tab

@@ -120,7 +120,7 @@ export type Container = {
 	Keybind: (self: Container, cfg: ElementConfig & { Default: any?, Chord: boolean?, Mode: ("Press" | "Hold")?, Callback: Callback<any>?, Pressed: Callback<any>? }) -> Keybind,
 	ColorPicker: (self: Container, cfg: ElementConfig & { Default: (Color3 | string)?, Apply: boolean?, Rainbow: boolean?, RainbowSpeed: number?, Alpha: boolean?, Transparency: number?, Callback: ((color: Color3, transparency: number?) -> ())? }) -> ColorPicker,
 	Gradient: (self: Container, cfg: ElementConfig & { Default: { Color3 }?, Rotation: number?, Callback: ((sequence: ColorSequence, a: Color3, b: Color3) -> ())? }) -> Element<{ Color3 }>,
-	Swatches: (self: Container, cfg: ElementConfig & { Colors: { any }?, Default: string?, Columns: number?, Callback: ((color: Color3, name: string) -> ())? }) -> Element<string>,
+	Swatches: (self: Container, cfg: ElementConfig & { Colors: { any }?, Default: string?, Columns: number?, Style: ("Grid" | "Dots")?, Custom: ((open: boolean) -> ())?, Callback: ((color: Color3, name: string) -> ())? }) -> Element<string>,
 	Input: (self: Container, cfg: ElementConfig & { Default: string?, Placeholder: string?, Numeric: boolean?, ClearOnFocus: boolean?, Finished: boolean?, Callback: Callback<string>? }) -> Element<string>,
 	ActionInput: (self: Container, cfg: ElementConfig & { Placeholder: string?, Button: string?, Hint: string?, Validate: ((text: string) -> (boolean?, string?))?, ClearOnAction: boolean?, Callback: Callback<string>? }) -> Element<string>,
 	Button: (self: Container, cfg: ElementConfig & { Confirm: (boolean | string)?, Callback: Callback<>?,
@@ -161,6 +161,7 @@ export type Card = Container & {
 	SetTitle: (self: Card, text: string) -> (),
 	SetDesc: (self: Card, text: string) -> (),
 	SetVisible: (self: Card, visible: boolean) -> (),
+	HeaderSwitch: (self: Card, cfg: { Title: string?, Flag: string?, Default: boolean?, Tooltip: string?, Callback: ((on: boolean) -> ())? }) -> Element<boolean>,
 	Collapsed: boolean?,
 }
 
@@ -180,6 +181,7 @@ export type CardConfig = {
 export type Page = {
 	Name: string,
 	Card: (self: Page, cfg: CardConfig?) -> Card,
+	MatchHeights: (self: Page, ...Card) -> () -> (),
 	Warning: (self: Page, text: string, opts: { Title: string?, Icon: string?, Level: ("warning" | "danger" | "info")? }?) -> any,
 	Select: (self: Page) -> (),
 }
@@ -277,6 +279,7 @@ export type Window = {
 	HeaderButton: (self: Window, cfg: { Icon: string?, Tooltip: string?, Callback: Callback<>? }) -> any,
 	AddTag: (self: Window, text: string, opts: { Color: Paint?, Style: ("Solid" | "Soft")? }?) -> any,
 	SetModule: (self: Window, name: string, state: "On" | "Off" | "Limited" | "Error", detail: string?, meta: { Icon: string?, Tab: string? }?) -> (),
+	GetDebugInfo: (self: Window) -> string,
 	ReportError: (self: Window, source: string, message: string) -> (),
 	OnKick: (self: Window, callback: (info: KickInfo) -> ()) -> (),
 	GetKicks: (self: Window) -> { any },
@@ -343,6 +346,7 @@ export type WindowConfig = {
 	Tour: (boolean | { any })?,
 	TourDelay: number?,
 	CardDots: boolean?,
+	Links: { { Title: string, Url: string, Icon: string? } }?,
 	TourId: string?,
 	Changelog: { Version: string?, Title: string?, Content: string?, Items: { string }?, Button: string?, Delay: number? }?,
 	KeySystem: {

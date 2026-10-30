@@ -42,17 +42,20 @@ return function(window, cfg)
             syncSwatches()
         end,
     })
+    -- accent: one row of colour dots; the last one opens a picker for any colour (saved with the profile)
     swatches = look:Swatches({
-        Title = "Accent", Default = "Neutral",
+        Title = "Accent", Default = "Neutral", Style = "Dots",
+        Custom = function(open) if picker then picker:SetOpen(open) end end,
         Callback = function(color, name)
             if name == "Neutral" then color = Theme.neutral(Theme.pack) end
             if picker then picker:Set(color) end
         end,
     })
     picker = look:ColorPicker({
-        Title = "Custom accent", Desc = "Any colour, saved with the profile", Flag = "__ui_accent", Default = Theme.get("accentUser"),
+        Title = "Custom accent", Flag = "__ui_accent", Default = Theme.get("accentUser"),
         Callback = function(color) Theme.set("accent", color) syncSwatches() end,
     })
+    picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
     look:Dropdown({
         Title = "Font", Options = UIFont.order, Default = "Gotham", Flag = "__ui_font",
@@ -65,34 +68,45 @@ return function(window, cfg)
         Callback = function(on) Glow.setEnabled(on) end,
     })
 
-    local menu = interface:Card({ Title = "Menu", Side = "Right", Icon = "settings-2" })
+    local scaleDropdown
+    local menu = interface:Card({ Title = "Behaviour", Side = "Right", Icon = "settings-2" })
     local menuKey = menu:Keybind({
         Title = "Menu key", Desc = "Opens and closes the menu", Flag = "__ui_menu_key", Default = window.key,
         Callback = function(key) window:SetToggleKey(key) end,
     })
     window._menuListeners = window._menuListeners or {}
     table.insert(window._menuListeners, function(key) if menuKey.Value ~= key then menuKey:Set(key, true) end end)
-    menu:Toggle({
-        Title = "Welcome toast", Desc = "Greets a new account on first open",
-        Default = window:_state("welcomeToast") ~= false and window.cfg.Welcome ~= false,
-        Callback = function(on) window:_state("welcomeToast", on) end,
-    })
     -- UI scale: this PC only (not part of profiles)
     local SCALES = { "80%", "90%", "100%", "110%", "125%", "150%" }
     local current = math.floor((window:GetUIScale() * 100) + 0.5) .. "%"
-    menu:Dropdown({
+    scaleDropdown = menu:Dropdown({
         Title = "UI scale", Desc = "Bigger or smaller menu", Options = SCALES, Default = table.find(SCALES, current) and current or "100%",
         Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
     })
+    menu:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Icon = "hand", Flag = "__ui_mouse",
+        Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
+    menu:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "venetian-mask", Flag = "__ui_anon", Default = window.anonymous == true,
+        Callback = function(on) window:SetAnonymous(on) end })
+    if window.OnAnonymousChanged then
+        window:OnAnonymousChanged(function(on) local t = window.flags.__ui_anon if t and t.Value ~= on then t:Set(on, true) end end)
+    end
     local Sounds = require("sounds")
     menu:Toggle({
         Title = "UI sounds", Desc = "Soft clicks on buttons and switches", Flag = "__ui_sounds", Default = Sounds.Enabled,
         Callback = function(on) Sounds.Enabled = on end,
     })
     local Haptics = require("haptics")
-    menu:Toggle({ Title = "Haptics", Desc = "Buzz on taps (phones)", Default = Haptics.Enabled, Callback = function(on) Haptics.Enabled = on end })
+    -- (phones / tablets only: nothing to buzz on a PC)
+    if Util.Services.UserInputService.TouchEnabled then
+        menu:Toggle({ Title = "Haptics", Desc = "Buzz on taps", Default = Haptics.Enabled, Callback = function(on) Haptics.Enabled = on end })
+    end
     menu:Toggle({ Title = "Mobile button", Desc = "Reopen button while hidden", Default = window.mobileButton == true,
         Callback = function(on) window:SetMobileButton(on, true) end })
+    menu:Toggle({
+        Title = "Welcome toast", Desc = "Greets a new account on first open",
+        Default = window:_state("welcomeToast") ~= false and window.cfg.Welcome ~= false,
+        Callback = function(on) window:_state("welcomeToast", on) end,
+    })
     local menuActions = menu:Row({ Widths = { 3, 2 } })
     menuActions:Button({
         Title = "Reset layout", Icon = "rotate-ccw", Tooltip = "Puts the window back to its default size and place",
@@ -109,9 +123,52 @@ return function(window, cfg)
             window:Confirm("Unload " .. window.Title .. "?", "The menu and everything it runs will be removed.", function() window:Destroy() end, "Unload", true)
         end,
     })
+    -- the look of the menu back to its defaults (theme, accent, font, window, overlays, scale) - nothing else changes
+    local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
+        "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats" }
+    menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
+        window:Confirm("Reset the interface?", "Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.", function()
+            for _, flag in ipairs(LOOK_FLAGS) do
+                local element = window.flags[flag]
+                local default = window.Config.Defaults[flag]
+                if element and default ~= nil then
+                    pcall(element._load or element.Set, element, default)
+                    if element._updateReset then pcall(element._updateReset, element) end
+                end
+            end
+            window:SetUIScale(1)
+            if scaleDropdown then scaleDropdown:Set("100%", true) end
+            window:Notify({ Title = "Interface reset", Content = "The menu looks like the first time", Icon = "paintbrush" })
+        end, "Reset")
+    end })
+
+    local look2 = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
+    look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
+        Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
+    local bgAlpha
+    look2:Input({ Title = "Background", Placeholder = "image id or url", Flag = "__ui_bg",
+        Callback = function(text) window:SetBackgroundImage(text ~= "" and text or nil, bgAlpha and (1 - bgAlpha.Value / 100) or 0.85) end })
+    bgAlpha = look2:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
+        DependsOn = { Flag = "__ui_bg", Value = function(text) return type(text) == "string" and text ~= "" end, Mode = "Hide" },
+        Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
+    look2:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Icon = "blend", Flag = "__ui_live",
+        Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
+    look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
+        Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
+    look2:Toggle({ Title = "Blur game", Desc = "Blurs the game while open", Flag = "__ui_blur",
+        Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
+
+    local overlays = interface:Card({ Title = "Overlays", Side = "Right", Icon = "layers" })
+    overlays:Toggle({ Title = "Watermark", Desc = "Name · FPS · ping · clock", Flag = "__ui_hud_watermark", Callback = function(on) window:Watermark(on) end })
+    overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
+    overlays:Toggle({ Title = "Session bar", Desc = "FPS · ping · players · time", Flag = "__ui_hud_session", Callback = function(on) window:SessionBar(on) end })
+    overlays:Dropdown({
+        Title = "Performance", Options = { "Off", "Header", "Floating" }, Default = "Off", Flag = "__ui_hud_stats",
+        Callback = function(mode) window:StatsMonitor(mode) end,
+    })
 
     ------------------------------------------------------------ theme editor
-    local editorCard = interface:Card({ Title = "Theme editor", Side = "Right", Icon = "paintbrush" })
+    local editorCard = interface:Card({ Title = "Theme editor", Side = "Left", Icon = "paintbrush" })
     local editor = editorCard:Section({ Title = "Edit colours", Opened = false })
     local ROLE_NAMES = { "Background", "Cards", "Inputs", "Outlines", "Text", "Muted text", "Headings", "Dock", "Icons", "Accent" }
     local ROLE_OF = {}
@@ -184,37 +241,6 @@ return function(window, cfg)
             end
         end })
 
-    local look2 = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
-    look2:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "venetian-mask", Flag = "__ui_anon", Default = window.anonymous == true,
-        Callback = function(on) window:SetAnonymous(on) end })
-    if window.OnAnonymousChanged then
-        window:OnAnonymousChanged(function(on) local t = window.flags.__ui_anon if t and t.Value ~= on then t:Set(on, true) end end)
-    end
-    look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
-        Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
-    local bgAlpha
-    look2:Input({ Title = "Background", Placeholder = "image id or url", Flag = "__ui_bg",
-        Callback = function(text) window:SetBackgroundImage(text ~= "" and text or nil, bgAlpha and (1 - bgAlpha.Value / 100) or 0.85) end })
-    bgAlpha = look2:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
-        Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
-    look2:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Icon = "hand", Flag = "__ui_mouse",
-        Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
-    look2:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Icon = "blend", Flag = "__ui_live",
-        Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
-    look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
-        Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
-    look2:Toggle({ Title = "Blur game", Desc = "Blurs the game while open", Flag = "__ui_blur",
-        Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
-    look2:Button({ Title = "Fullscreen", Icon = "maximize-2", Callback = function() window:ToggleFullscreen() end })
-
-    local overlays = interface:Card({ Title = "Overlays", Side = "Right", Icon = "layers" })
-    overlays:Toggle({ Title = "Watermark", Desc = "Name · FPS · ping · clock", Flag = "__ui_hud_watermark", Callback = function(on) window:Watermark(on) end })
-    overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
-    overlays:Toggle({ Title = "Session bar", Desc = "FPS · ping · players · time", Flag = "__ui_hud_session", Callback = function(on) window:SessionBar(on) end })
-    overlays:Dropdown({
-        Title = "Performance", Options = { "Off", "Header", "Floating" }, Default = "Off", Flag = "__ui_hud_stats",
-        Callback = function(mode) window:StatsMonitor(mode) end,
-    })
 
     ------------------------------------------------------------ profiles
     -- Default profile = each element's starting value (recorded as elements are created, any order)
@@ -240,10 +266,29 @@ return function(window, cfg)
         end })
     end
 
+    -- CreateWindow({ Links = { { Title = "Discord", Url = "https://discord.gg/...", Icon = "message-circle" }, ... } }):
+    -- buttons that copy the link (a game can't open a browser), two per row
+    if type(window.cfg.Links) == "table" and #window.cfg.Links > 0 then
+        local linkRow
+        for index, link in ipairs(window.cfg.Links) do
+            if index % 2 == 1 then linkRow = about:Row() end
+            linkRow:Button({ Title = tostring(link.Title or "Link"), Icon = link.Icon or "link", Style = "Soft", Tooltip = tostring(link.Url or ""),
+                Callback = function()
+                    local clipboard = setclipboard or toclipboard
+                    if type(clipboard) == "function" and pcall(clipboard, tostring(link.Url or "")) then
+                        window:Notify({ Title = "Link copied", Content = tostring(link.Title or "Link") .. " · paste it in your browser", Icon = link.Icon or "link" })
+                    else
+                        window:Notify({ Title = tostring(link.Title or "Link"), Content = tostring(link.Url or ""), Duration = 10 })
+                    end
+                end })
+        end
+    end
+
     -- kicks / disconnects seen by the kick watcher (kick.lua)
     if window.GetKicks and window.cfg.KickLog ~= false then
         local kicksCard = infoPage:Card({ Title = "Disconnects", Side = "Left", Icon = "log-out", Desc = "Kicks and drops, with Roblox's reason" })
         local kickText = kicksCard:Paragraph({ Content = "None yet" })
+        local kicksClear
         local function showKicks()
             local list = window:GetKicks()
             local lines = {}
@@ -254,8 +299,9 @@ return function(window, cfg)
                     (tostring(entry.Reason or ""):gsub("<", "&lt;")), Util.toHex(Theme.get("muted")), Util.ago(entry.Time))
             end
             kickText:Set(#lines > 0 and table.concat(lines, "\n") or "None yet")
+            if kicksClear then kicksClear:SetVisible(#lines > 0) end -- (nothing to clear: no button)
         end
-        kicksCard:Button({ Title = "Clear", Icon = "trash-2", Callback = function()
+        kicksClear = kicksCard:Button({ Title = "Clear", Icon = "trash-2", Callback = function()
             window.Config:WriteJSON("kicks", { list = {} })
             showKicks()
         end })
@@ -269,19 +315,18 @@ return function(window, cfg)
     local noModules = modulesCard:Label("No modules reported")
 
     local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right", Icon = "bug" })
-    errorsCard:Toggle({
-        Title = "Debug mode", Desc = "A notification for every new error", Flag = "__ui_debug", Default = window.cfg.Debug == true,
-        Callback = function(on) window.debug = on end,
-    })
+    -- debug mode: a small switch in the card's title row (a notification for every new error)
+    errorsCard:HeaderSwitch({ Title = "Debug", Flag = "__ui_debug", Default = window.cfg.Debug == true, Tooltip = "A notification for every new error",
+        Callback = function(on) window.debug = on end })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
     local errorText = errorsCard:Paragraph({ Content = "No errors" })
     local errorButtons = errorsCard:Row()
     errorButtons:Button({
-        Title = "Copy report", Icon = "copy",
+        Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report",
         Callback = function()
             local clipboard = setclipboard or toclipboard
-            if type(clipboard) == "function" and pcall(clipboard, window:GetErrorReport()) then
-                window:Notify({ Title = "Copied", Content = "Error report copied to clipboard" })
+            if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
+                window:Notify({ Title = "Copied", Content = "Debug info copied - paste it into your bug report", Icon = "clipboard-copy" })
             else
                 window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
             end
@@ -309,7 +354,7 @@ return function(window, cfg)
                 lines[#lines + 1] = string.format("<font color=\"#%s\">%s</font>%s  %s", Util.toHex(Theme.get("danger")), entry.source, entry.count > 1 and (" ×" .. entry.count) or "", (tostring(entry.message):gsub("<", "&lt;")))
             end
         end
-        if #errors > 8 then lines[#lines + 1] = "+" .. (#errors - 8) .. " more (Copy report)" end
+        if #errors > 8 then lines[#lines + 1] = "+" .. (#errors - 8) .. " more (Copy debug info)" end
         errorCount:Set(#errors == 0 and "0" or (#errors .. (total > #errors and (" (" .. total .. "×)") or "")))
         errorCount:SetColor(#errors > 0 and RED or "text")
         errorText:Set(#lines > 0 and table.concat(lines, "\n") or "No errors")

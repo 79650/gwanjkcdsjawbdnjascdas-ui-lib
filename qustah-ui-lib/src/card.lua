@@ -468,6 +468,55 @@ function Card:Group(cfg)
     return sub(self, box)
 end
 
+-- card:HeaderSwitch({ Title = "Debug", Flag, Default, Tooltip, Callback = function(on) end }) -> a small switch with a
+-- muted caption in the card's title row (left of the fold arrow). :Set(on), :Get(); saved with the profile via Flag.
+function Card:HeaderSwitch(cfg)
+    cfg = cfg or {}
+    local head = self.titleLabel and self.titleLabel.Parent
+    if not head then return nil end
+    local right = self._chevron and 22 or 0
+    local holder = create("TextButton", { Name = "HeaderSwitch", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -right, 0.5, 0), Size = UDim2.fromOffset(28, 16), Parent = head })
+    local track = create("Frame", { Name = "Track", Size = UDim2.fromScale(1, 1), BorderSizePixel = 0, Parent = holder })
+    corner(track, 8)
+    local knob = create("Frame", { Name = "Knob", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 2, 0.5, 0), Size = UDim2.fromOffset(12, 12), BorderSizePixel = 0, Parent = track })
+    corner(knob, 6)
+    Theme.bind(knob, "BackgroundColor3", "knob")
+    local caption
+    if cfg.Title then
+        caption = label(head, tostring(cfg.Title), 9, { Name = "HeaderSwitchTitle", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(right + 34), 0.5, 0), Size = UDim2.fromOffset(Util.textWidth(cfg.Title, 9, Enum.Font.Gotham) + 2, 16), TextXAlignment = Enum.TextXAlignment.Right })
+        Theme.bind(caption, "TextColor3", "muted")
+    end
+    local used = right + 34 + (caption and caption.Size.X.Offset + 6 or 0)
+    self.titleLabel.Size = UDim2.new(1, self.titleLabel.Size.X.Offset - (used - right), 1, 0)
+    local element = { Type = "HeaderSwitch", Flag = cfg.Flag, Value = cfg.Default == true, Row = holder, _changed = {} }
+    local function paint(animate)
+        local t = animate and 0.12 or 0
+        Theme.tweenTo(track, "BackgroundColor3", element.Value and "toggleOn" or "input", t)
+        Util.tween(knob, t, { Position = UDim2.new(0, element.Value and 14 or 2, 0.5, 0) })
+    end
+    local window = self.window
+    function element:Set(on, silent)
+        on = on == true
+        local changed = on ~= self.Value
+        self.Value = on
+        paint(true)
+        if self.Flag then window.Lib.Flags[self.Flag] = on window:_flagChanged(self.Flag) end
+        if changed and not silent then Util.safe(cfg.Callback, on) end
+    end
+    function element:Get() return self.Value end
+    function element:_save() return self.Value end
+    function element:_load(value) self:Set(value == true) end
+    holder.Activated:Connect(function() require("sounds").Play("click") element:Set(not element.Value) end)
+    holder.MouseEnter:Connect(function() if cfg.Tooltip then window:_tip(cfg.Tooltip) end end)
+    holder.MouseLeave:Connect(function() window:_hideTip() end)
+    if cfg.Flag then
+        window.Lib.Flags[cfg.Flag] = element.Value
+        window:_register(cfg.Flag, element) -- (profiles save / load it, its default is remembered)
+    end
+    paint(false)
+    return element
+end
+
 function Card:SetTitle(text) if self.titleLabel then self.titleLabel.Text = tostring(text) end end
 function Card:SetVisible(visible) self.frame.Visible = visible ~= false end
 
