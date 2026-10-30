@@ -169,7 +169,7 @@ export type CardConfig = {
 	Desc: string?,
 	Icon: string?,
 	Side: ("Left" | "Right")?,
-	Wide: boolean?,
+	Wide: (boolean | "Bottom")?,
 	Collapsible: boolean?,
 	Dot: boolean?,
 	Collapsed: boolean?,

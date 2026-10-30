@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.9 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.10 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7248,7 +7248,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.9",
+    Version = "1.9.10",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -9991,7 +9991,11 @@ function Page.new(tab, name, cfg)
         Util.list(object, 10)
         return object
     end
+    -- Wide = "Bottom": full-width cards under the two columns
+    local wideBottom = create("Frame", { Name = "WideBottom", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = content })
+    Util.list(wideBottom, 10)
     self.frame, self.wide, self.left, self.right = frame, wide, column("Left", 1), column("Right", 2)
+    self.wideBottom = wideBottom
     self.content = content
     if self.cfg.Warning then task.defer(function() self:Warning(self.cfg.Warning) end) end
 
@@ -10047,7 +10051,7 @@ function Page:_columns(width)
 end
 
 -- Page:Card({ Title = "General", Side = "Left" | "Right", Wide = true }) - without Side the cards alternate
--- left / right; Wide cards span both columns and sit above them.
+-- left / right; Wide cards span both columns and sit above them (Wide = "Bottom": under them).
 -- page:Warning("These features can get you banned", { Title = "Risky", Icon = "triangle-alert", Level = "warning" | "danger" | "info" })
 -- A banner at the top of the page. Returns { SetText, SetVisible, Frame }. Tab:Page(name, { Warning = "..." }) too.
 function Page:Warning(text, opts)
@@ -10092,7 +10096,7 @@ function Page:Card(cfg)
     self.order = self.order + 1
     if cfg.Wide then
         self.cards = self.cards - 1 -- a wide card does not take a turn in the left / right alternation
-        return Card.new(self, self.wide, cfg, self.order)
+        return Card.new(self, cfg.Wide == "Bottom" and self.wideBottom or self.wide, cfg, self.order)
     end
     return Card.new(self, side == "Right" and self.right or self.left, cfg, self.order)
 end

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.9 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.10 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6432,7 +6432,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.9",
+Version="1.9.10",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -8815,7 +8815,10 @@ LayoutOrder=order,Parent=holder,
 Util.list(object,10)
 return object
 end
+local wideBottom=create("Frame",{Name="WideBottom",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=3,Parent=content})
+Util.list(wideBottom,10)
 self.frame,self.wide,self.left,self.right=frame,wide,column("Left",1),column("Right",2)
+self.wideBottom=wideBottom
 self.content=content
 if self.cfg.Warning then task.defer(function()self:Warning(self.cfg.Warning)end)end
 local function fade(top)
@@ -8903,7 +8906,7 @@ if side~="Left"and side~="Right"then side=(self.cards%2==1)and"Left"or"Right"end
 self.order=self.order+1
 if cfg.Wide then
 self.cards=self.cards-1
-return Card.new(self,self.wide,cfg,self.order)
+return Card.new(self,cfg.Wide=="Bottom"and self.wideBottom or self.wide,cfg,self.order)
 end
 return Card.new(self,side=="Right"and self.right or self.left,cfg,self.order)
 end

@@ -2,7 +2,7 @@
 
 ![Qustah UI](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.9.9-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.10-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
@@ -174,6 +174,7 @@ local Appearance = Visuals:Page("Appearance", { Columns = 1 })
 local Left  = Overview:Card({ Title = "General" })          -- cards alternate between the left and right columns
 local Right = Overview:Card({ Title = "Colors", Side = "Right", Icon = "palette", Desc = "Card description" })
 local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both columns, sits at the top
+local Under = Overview:Card({ Title = "Notes", Wide = "Bottom" }) -- spans both columns, under them
 ```
 
 **Tabs**
