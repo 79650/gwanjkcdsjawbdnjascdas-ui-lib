@@ -5786,7 +5786,7 @@ end
 __modules["elements/viewport"] = function()
 -- card:Viewport({ Object = workspace.Model | BasePart, Height = 170, Interactive = true, Spin = false, Distance })
 -- A 3D preview of a clone of the object (an avatar, a weapon...). Drag to turn it, wheel to zoom.
--- :SetObject(obj) swaps the model; :SetSpin(true) turns it slowly.
+-- :SetObject(obj) swaps the model; :SetSpin(true) turns it slowly. element.Model is the clone on show.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -5826,7 +5826,7 @@ return function(card, cfg)
     end
     function element:SetObject(object)
         world:ClearAllChildren()
-        self.Value = object
+        self.Value, self.Model = object, nil
         empty.Visible = object == nil
         if not object then return end
         local ok, copy = pcall(function()
@@ -5843,6 +5843,7 @@ return function(card, cfg)
         end
         if copy:IsA("BasePart") then copy.Anchored = true end
         copy.Parent = world
+        self.Model = copy -- (the clone being shown: a script can recolour it)
         local okBox, cf, size = pcall(function()
             if copy:IsA("Model") then return copy:GetBoundingBox() end
             return copy.CFrame, copy.Size

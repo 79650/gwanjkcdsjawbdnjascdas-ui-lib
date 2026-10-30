@@ -5158,7 +5158,7 @@ camera.Focus=CFrame.new(center)
 end
 function element:SetObject(object)
 world:ClearAllChildren()
-self.Value=object
+self.Value,self.Model=object,nil
 empty.Visible=object==nil
 if not object then return end
 local ok,copy=pcall(function()
@@ -5174,6 +5174,7 @@ if d:IsA("LuaSourceContainer")then d:Destroy()elseif d:IsA("BasePart")then d.Anc
 end
 if copy:IsA("BasePart")then copy.Anchored=true end
 copy.Parent=world
+self.Model=copy
 local okBox,cf,size=pcall(function()
 if copy:IsA("Model")then return copy:GetBoundingBox()end
 return copy.CFrame,copy.Size
