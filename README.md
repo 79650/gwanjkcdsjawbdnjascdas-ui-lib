@@ -11,7 +11,7 @@ Dock navigation, real profiles, 20 themes and 18k icons, loaded with one line.
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 
-[Install](#install) · [Quick start](#quick-start) · [Screenshots](#screenshots) · [Documentation](#documentation) · [Example](qustah-ui-lib/example.lua)
+[Install](#install) · [Quick start](#quick-start) · [Showcase](#showcase) · [Documentation](#documentation) · [Example](qustah-ui-lib/example.lua)
 
 </div>
 
@@ -45,7 +45,7 @@ Window:SettingsTab()          -- theme, font, menu key, profiles...
 Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 ```
 
-## Screenshots
+## Showcase
 
 <p align="center"><img src="qustah-ui-lib/assets/screens/tabs.gif" alt="Switching between the example's tabs" width="820"></p>
 
