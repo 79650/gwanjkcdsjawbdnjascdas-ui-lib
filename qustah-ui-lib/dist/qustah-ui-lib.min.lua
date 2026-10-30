@@ -9131,28 +9131,43 @@ return Card.new(self,side=="Right"and self.right or self.left,cfg,self.order)
 end
 function Page:MatchHeights(...)
 local cards={...}
-local constraints={}
+local spacers={}
 for index,card in ipairs(cards)do
-constraints[index]=create("UISizeConstraint",{Name="MatchHeight",Parent=card.frame})
+spacers[index]=create("Frame",{Name="MatchSpacer",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),LayoutOrder=1e6,Visible=false,Parent=card.frame})
 end
 local busy=false
-local function natural(card)
-local layout=card.frame:FindFirstChildOfClass("UIListLayout")
+local function natural(card,spacer)
 local scale=self.window.scale and self.window.scale.Scale or 1
-local content=layout and layout.AbsoluteContentSize.Y or 0
-if content<=0 then return 0 end
-return content/scale+18
+local layout=card.frame:FindFirstChildOfClass("UIListLayout")
+local gap=layout and layout.Padding.Offset or 4
+local content=layout and layout.AbsoluteContentSize.Y/scale or 0
+if content>0 then
+if spacer.Visible then content=content-spacer.Size.Y.Offset-gap end
+else
+local count=0
+for _,child in ipairs(card.frame:GetChildren())do
+if child:IsA("GuiObject")and child.Visible and child~=spacer then
+content=content+child.AbsoluteSize.Y/scale
+count=count+1
+end
+end
+content=content+math.max(0,count-1)*gap
+end
+return content
 end
 local function apply()
 if busy then return end
 busy=true
-local tallest=0
-for _,card in ipairs(cards)do
-if card.frame.Visible and not card.Collapsed then tallest=math.max(tallest,natural(card))end
+local heights,tallest={},0
+for index,card in ipairs(cards)do
+heights[index]=(card.frame.Visible and not card.Collapsed)and natural(card,spacers[index])or 0
+tallest=math.max(tallest,heights[index])
 end
 for index,card in ipairs(cards)do
-local want=(card.frame.Visible and not card.Collapsed)and tallest or 0
-constraints[index].MinSize=Vector2.new(0,math.floor(want))
+local extra=math.floor(tallest-heights[index]-4)
+local show=card.frame.Visible and not card.Collapsed and extra>0
+spacers[index].Visible=show
+spacers[index].Size=UDim2.new(1,0,0,show and extra or 0)
 end
 busy=false
 end
@@ -9160,6 +9175,7 @@ for _,card in ipairs(cards)do
 local layout=card.frame:FindFirstChildOfClass("UIListLayout")
 if layout then layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()task.defer(apply)end)end
 card.frame:GetPropertyChangedSignal("Visible"):Connect(function()task.defer(apply)end)
+card.frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()task.defer(apply)end)
 end
 task.defer(apply)
 return apply
