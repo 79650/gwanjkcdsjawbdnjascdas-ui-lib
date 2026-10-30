@@ -170,9 +170,11 @@ return function(card, cfg)
     local function revert()
         if applyMode and element.Value then h, s, v = element.Value:ToHSV() render() end
     end
+    element._panel = panel
     function element:SetOpen(open)
         if not open then revert() end
         panel.Visible = open == true
+        Base.trackPanel(window, self, open == true)
     end
 
     -- rainbow: hue walks around the wheel; callbacks are throttled to ~20 per second

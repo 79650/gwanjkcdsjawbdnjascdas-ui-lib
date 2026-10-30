@@ -62,9 +62,13 @@ return function(card, cfg)
     function element:Get() return a, b end
     function element:GetSequence() return ColorSequence.new(a, b) end
     function element:_save() return { Util.toHex(a), Util.toHex(b) } end
-    function element:SetOpen(open) section.Visible = open == true end
+    element._panel = section
+    function element:SetOpen(open)
+        section.Visible = open == true
+        Base.trackPanel(window, self, open == true)
+    end
 
-    local function toggleOpen() if not element.Locked then section.Visible = not section.Visible end end
+    local function toggleOpen() if not element.Locked then element:SetOpen(not section.Visible) end end
     row.Activated:Connect(toggleOpen)
     preview.Activated:Connect(toggleOpen)
 

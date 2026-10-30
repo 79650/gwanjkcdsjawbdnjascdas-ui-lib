@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.14 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.15 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -1574,6 +1574,27 @@ title.Text=element._titleBefore or tostring(element.Title or"")
 Theme.bind(title,"TextColor3",element._risky and"danger"or"text")
 end)
 end
+function Base.trackPanel(window,element,open)
+if not window then return end
+local list=window._openPanels or{}
+window._openPanels=list
+local index=table.find(list,element)
+if not open then
+if index then table.remove(list,index)end
+return
+end
+if not index then list[#list+1]=element end
+if window.cfg and window.cfg.OnePickerOpen==false then return end
+local row=element.Row
+for i=#list,1,-1 do
+local other=list[i]
+local holder=other._panel
+if other~=element and not(row and holder and row:IsDescendantOf(holder))then
+table.remove(list,i)
+other:SetOpen(false)
+end
+end
+end
 function Base.finish(element,cfg)
 if cfg.Locked then element:Lock(cfg.LockedTitle or cfg.LockedReason)end
 return element
@@ -2462,9 +2483,11 @@ end
 local function revert()
 if applyMode and element.Value then h,s,v=element.Value:ToHSV()render()end
 end
+element._panel=panel
 function element:SetOpen(open)
 if not open then revert()end
 panel.Visible=open==true
+Base.trackPanel(window,self,open==true)
 end
 element.Rainbow=false
 local rainbowConnection
@@ -3103,8 +3126,12 @@ end
 function element:Get()return a,b end
 function element:GetSequence()return ColorSequence.new(a,b)end
 function element:_save()return{Util.toHex(a),Util.toHex(b)}end
-function element:SetOpen(open)section.Visible=open==true end
-local function toggleOpen()if not element.Locked then section.Visible=not section.Visible end end
+element._panel=section
+function element:SetOpen(open)
+section.Visible=open==true
+Base.trackPanel(window,self,open==true)
+end
+local function toggleOpen()if not element.Locked then element:SetOpen(not section.Visible)end end
 row.Activated:Connect(toggleOpen)
 preview.Activated:Connect(toggleOpen)
 local default=type(cfg.Default)=="table"and cfg.Default or{Color3.fromRGB(215,120,120),Color3.fromRGB(120,140,230)}
@@ -6544,7 +6571,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.14",
+Version="1.9.15",
 Flags={},
 Windows={},
 Theme=Theme,

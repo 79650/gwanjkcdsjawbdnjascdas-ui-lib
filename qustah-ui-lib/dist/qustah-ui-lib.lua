@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.14 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.15 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1795,6 +1795,30 @@ function Base.failed(element, title)
 end
 
 -- Applied by every element after its first Set: initial lock state.
+-- One colour panel open at a time (CreateWindow({ OnePickerOpen = false }) turns this off): opening a colour picker
+-- or gradient closes the other open ones, except the one it sits inside (a gradient's own Start / End pickers).
+function Base.trackPanel(window, element, open)
+    if not window then return end
+    local list = window._openPanels or {}
+    window._openPanels = list
+    local index = table.find(list, element)
+    if not open then
+        if index then table.remove(list, index) end
+        return
+    end
+    if not index then list[#list + 1] = element end
+    if window.cfg and window.cfg.OnePickerOpen == false then return end
+    local row = element.Row
+    for i = #list, 1, -1 do
+        local other = list[i]
+        local holder = other._panel
+        if other ~= element and not (row and holder and row:IsDescendantOf(holder)) then
+            table.remove(list, i)
+            other:SetOpen(false)
+        end
+    end
+end
+
 function Base.finish(element, cfg)
     if cfg.Locked then element:Lock(cfg.LockedTitle or cfg.LockedReason) end
     return element
@@ -2794,9 +2818,11 @@ return function(card, cfg)
     local function revert()
         if applyMode and element.Value then h, s, v = element.Value:ToHSV() render() end
     end
+    element._panel = panel
     function element:SetOpen(open)
         if not open then revert() end
         panel.Visible = open == true
+        Base.trackPanel(window, self, open == true)
     end
 
     -- rainbow: hue walks around the wheel; callbacks are throttled to ~20 per second
@@ -3509,9 +3535,13 @@ return function(card, cfg)
     function element:Get() return a, b end
     function element:GetSequence() return ColorSequence.new(a, b) end
     function element:_save() return { Util.toHex(a), Util.toHex(b) } end
-    function element:SetOpen(open) section.Visible = open == true end
+    element._panel = section
+    function element:SetOpen(open)
+        section.Visible = open == true
+        Base.trackPanel(window, self, open == true)
+    end
 
-    local function toggleOpen() if not element.Locked then section.Visible = not section.Visible end end
+    local function toggleOpen() if not element.Locked then element:SetOpen(not section.Visible) end end
     row.Activated:Connect(toggleOpen)
     preview.Activated:Connect(toggleOpen)
 
@@ -7367,7 +7397,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.14",
+    Version = "1.9.15",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

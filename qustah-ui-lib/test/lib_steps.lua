@@ -1665,6 +1665,34 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("hidden tab: selectable from code", (function() ghostTab:Select() wait() return window.current == ghostTab end)())
     tabNamed("Live"):Select() wait()
 
+    -- one colour panel open at a time
+    do
+        local pc = tabNamed("Live").Pages[1]:Card({ Title = "OnePanel" })
+        local c1 = pc:ColorPicker({ Title = "First colour" })
+        local c2 = pc:ColorPicker({ Title = "Second colour" })
+        local gr = pc:Gradient({ Title = "Ramp" })
+        c1:SetOpen(true) wait(0.1)
+        check("one panel: first opens", c1._panel.Visible)
+        c2:SetOpen(true) wait(0.1)
+        check("one panel: opening the second closes the first", c2._panel.Visible and not c1._panel.Visible)
+        MOCK.click(c1.Row) wait(0.1)
+        check("one panel: clicking a row works the same", c1._panel.Visible and not c2._panel.Visible)
+        gr:SetOpen(true) wait(0.1)
+        check("one panel: a gradient closes the picker", gr._panel.Visible and not c1._panel.Visible)
+        local startPicker
+        -- the gradient's own Start picker opens inside it without closing it
+        for _, o in ipairs(gr._panel:GetDescendants()) do if o.Name == "Picker" then startPicker = o break end end
+        MOCK.click(gr._panel:FindFirstChild("Start", true)) wait(0.1)
+        check("one panel: a gradient's own picker keeps the gradient open", gr._panel.Visible and startPicker and startPicker.Visible)
+        c2:SetOpen(true) wait(0.1)
+        check("one panel: another picker closes the gradient", c2._panel.Visible and not gr._panel.Visible)
+        window.cfg.OnePickerOpen = false
+        c1:SetOpen(true) wait(0.1)
+        check("one panel: OnePickerOpen = false keeps both", c1._panel.Visible and c2._panel.Visible)
+        window.cfg.OnePickerOpen = nil
+        c1:SetOpen(false) c2:SetOpen(false)
+    end
+
     -- tab badge
     local misc = tabNamed("Live")
     misc:SetBadge(3)

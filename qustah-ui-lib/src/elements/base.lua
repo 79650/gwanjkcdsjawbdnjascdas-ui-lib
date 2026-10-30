@@ -461,6 +461,30 @@ function Base.failed(element, title)
 end
 
 -- Applied by every element after its first Set: initial lock state.
+-- One colour panel open at a time (CreateWindow({ OnePickerOpen = false }) turns this off): opening a colour picker
+-- or gradient closes the other open ones, except the one it sits inside (a gradient's own Start / End pickers).
+function Base.trackPanel(window, element, open)
+    if not window then return end
+    local list = window._openPanels or {}
+    window._openPanels = list
+    local index = table.find(list, element)
+    if not open then
+        if index then table.remove(list, index) end
+        return
+    end
+    if not index then list[#list + 1] = element end
+    if window.cfg and window.cfg.OnePickerOpen == false then return end
+    local row = element.Row
+    for i = #list, 1, -1 do
+        local other = list[i]
+        local holder = other._panel
+        if other ~= element and not (row and holder and row:IsDescendantOf(holder)) then
+            table.remove(list, i)
+            other:SetOpen(false)
+        end
+    end
+end
+
 function Base.finish(element, cfg)
     if cfg.Locked then element:Lock(cfg.LockedTitle or cfg.LockedReason) end
     return element

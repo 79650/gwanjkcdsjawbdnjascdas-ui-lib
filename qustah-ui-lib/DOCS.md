@@ -35,6 +35,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
+| `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
 | `Secure` | `false` | [Secure mode](#secure-mode) |
@@ -274,6 +275,8 @@ Card:Swatches({ Title = "Accent", Style = "Dots", Custom = function(open) end })
 ```
 
 The picker has a saturation square, a hue bar, a HEX box, Random and Rainbow. It also accepts `"RRGGBB"` strings.
+
+Only one colour panel is open at a time: opening a picker or gradient closes the one that was open (a gradient's own Start / End pickers open inside it). `picker:SetOpen(true)` opens one from code. `CreateWindow({ OnePickerOpen = false })` lets several stay open.
 
 ### Input, TextArea and ActionInput
 
