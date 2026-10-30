@@ -47,14 +47,16 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 ## Screenshots
 
+<p align="center"><img src="assets/screens/tabs.gif" alt="Switching between the example's tabs" width="820"></p>
+
 <table>
 <tr>
-<td width="50%"><img src="assets/screens/live.png" alt="Live tab"><br><sub><b>Live</b>: graphs, progress, rolling stats, console, table</sub></td>
-<td width="50%"><img src="assets/screens/visuals.png" alt="Visuals tab"><br><sub><b>Visuals</b>: page strip, bindable toggle, badge, slider, range, multi dropdown</sub></td>
+<td width="50%" align="center"><img src="assets/screens/live.png" alt="Live"><br><sub>Live</sub></td>
+<td width="50%" align="center"><img src="assets/screens/visuals.png" alt="Visuals"><br><sub>Visuals</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="assets/screens/inputs.png" alt="Components tab, Inputs page"><br><sub><b>Components › Inputs</b>: validation, stepper, text area, image picker, radio</sub></td>
-<td width="50%"><img src="assets/screens/settings.png" alt="Settings"><br><sub><b>Settings</b> (built in): appearance, window, behaviour, profiles, info</sub></td>
+<td width="50%" align="center"><img src="assets/screens/inputs.png" alt="Components › Inputs"><br><sub>Components › Inputs</sub></td>
+<td width="50%" align="center"><img src="assets/screens/settings.png" alt="Settings"><br><sub>Settings</sub></td>
 </tr>
 </table>
 
@@ -64,24 +66,26 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 <table>
 <tr>
-<td width="50%"><img src="assets/screens/dashboard.png" alt="Dashboard"><br><sub><b>Dashboard</b> (built in): profile, live chips, session, module tiles, server tools</sub></td>
-<td width="50%"><img src="assets/screens/combat.png" alt="Combat tab"><br><sub><b>Combat</b>: page warning, risky toggle, locks, presets, chord keybinds</sub></td>
+<td width="50%" align="center"><img src="assets/screens/dashboard.png" alt="Dashboard"><br><sub>Dashboard</sub></td>
+<td width="50%" align="center"><img src="assets/screens/combat.png" alt="Combat"><br><sub>Combat</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="assets/screens/player.png" alt="Player tab"><br><sub><b>Player</b>: icon rows, key caps, 3D preview, split and hold buttons</sub></td>
-<td width="50%"><img src="assets/screens/appearance.png" alt="Visuals, Appearance page"><br><sub><b>Visuals › Appearance</b>: colour pickers, gradient, swatches</sub></td>
+<td width="50%" align="center"><img src="assets/screens/player.png" alt="Player"><br><sub>Player</sub></td>
+<td width="50%" align="center"><img src="assets/screens/appearance.png" alt="Visuals › Appearance"><br><sub>Visuals › Appearance</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="assets/screens/buttons.png" alt="Components tab, Buttons page"><br><sub><b>Components › Buttons</b>: every style, cooldown, key, confirm, rows</sub></td>
-<td width="50%"><img src="assets/screens/content.png" alt="Components tab, Content page"><br><sub><b>Components › Content</b>: notifications, dialog, image, group, code</sub></td>
-</tr>
-<tr>
-<td width="50%"><img src="assets/screens/tokyo.png" alt="Tokyo Night theme"><br><sub>Tokyo Night theme</sub></td>
-<td width="50%"><img src="assets/screens/light.png" alt="Light theme"><br><sub>Light theme</sub></td>
+<td width="50%" align="center"><img src="assets/screens/buttons.png" alt="Components › Buttons"><br><sub>Components › Buttons</sub></td>
+<td width="50%" align="center"><img src="assets/screens/content.png" alt="Components › Content"><br><sub>Components › Content</sub></td>
 </tr>
 </table>
 
 </details>
+
+### Themes
+
+<p align="center"><img src="assets/screens/themes.png" alt="Dark, Light, Tokyo Night, Cyberpunk, Gruvbox and Mint themes"></p>
+
+<p align="center"><sub>6 of the 20 built-in themes. You can also make your own and share it as a code.</sub></p>
 
 ## Elements
 

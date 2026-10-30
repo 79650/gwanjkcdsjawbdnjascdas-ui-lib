@@ -53,6 +53,10 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
   w.flags.__ui_theme:Set("Light") shot("light")
   tab("Live") shot("live_light")
   C.Pages[1]:Select() tab("Components") shot("buttons_light")
+  -- theme grid (README): the same page in six themes
+  for _, th in ipairs({ { "Dark", "theme_dark" }, { "Light", "theme_light" }, { "Tokyo Night", "theme_tokyonight" }, { "Cyberpunk", "theme_cyberpunk" }, { "Gruvbox", "theme_gruvbox" }, { "Mint", "theme_mint" } }) do
+    w.flags.__ui_theme:Set(th[1]) tab("Visuals") V.Pages[1]:Select() shot(th[2])
+  end
   w.flags.__ui_theme:Set("Dark")
   -- smart buttons caught mid-way (README "Smart buttons" image); a hidden tab so the dock stays the example's
   local B2 = w:Tab({ Title = "Smart", Icon = "zap" }) hideTab(B2)
@@ -124,4 +128,6 @@ for s in $(grep -o "^SHOT .*" "$OUT/run.txt" | cut -d' ' -f2); do
   rect=$(grep "^RECT $s " "$OUT/run.txt" | cut -d' ' -f3)
   BG=transparent SS=3 OUTSCALE=2 python3 "$TOOLS/render.py" "$OUT/run.txt" "$s" "$OUT/$s.png" "$rect" rgba >/dev/null
 done
+python3 "$HERE/showcase_themes.py" "$OUT" "$OUT/themes.png" >/dev/null
+python3 "$HERE/showcase_gif.py" "$OUT" "$OUT/tabs.gif" >/dev/null
 rm -f "$STEPS"; ls "$OUT"
