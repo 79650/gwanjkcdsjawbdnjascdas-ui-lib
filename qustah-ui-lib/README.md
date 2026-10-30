@@ -2,7 +2,7 @@
 
 ![Qustah UI](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.9.13-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.14-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
@@ -80,14 +80,28 @@ Window.Config:LoadAutoLoad()  -- loads the profile marked as autoload
 
 ## Screenshots
 
+The example script's tabs: Dashboard, then Visuals, Combat, Player, Live, Components and Server, then the built-in Settings.
+
 <table>
 <tr>
-<td width="50%"><img src="assets/screens/visuals.png" alt="Visuals tab"><br><sub>Cards, toggles, sliders, page strip, key hints</sub></td>
-<td width="50%"><img src="assets/screens/silent.png" alt="Silent tab"><br><sub>Page warning, risky toggle, DependsOn locks</sub></td>
+<td width="50%"><img src="assets/screens/dashboard.png" alt="Dashboard"><br><sub><b>Dashboard</b> (built in): profile, live chips, session, module tiles, server tools</sub></td>
+<td width="50%"><img src="assets/screens/visuals.png" alt="Visuals tab"><br><sub><b>Visuals</b>: page strip, bindable toggle, badge, slider, range, multi dropdown</sub></td>
 </tr>
 <tr>
-<td><img src="assets/screens/misc.png" alt="Misc tab"><br><sub>Live stats, graphs, segmented progress, console</sub></td>
-<td><img src="assets/screens/dashboard.png" alt="Dashboard"><br><sub>Built-in Dashboard</sub></td>
+<td><img src="assets/screens/combat.png" alt="Combat tab"><br><sub><b>Combat</b>: page warning, risky toggle, locks, presets, chord keybinds</sub></td>
+<td><img src="assets/screens/player.png" alt="Player tab"><br><sub><b>Player</b>: icon rows, key caps, 3D preview, split and hold buttons</sub></td>
+</tr>
+<tr>
+<td><img src="assets/screens/live.png" alt="Live tab"><br><sub><b>Live</b>: graphs, progress, rolling stats, console, table</sub></td>
+<td><img src="assets/screens/buttons.png" alt="Components tab, Buttons page"><br><sub><b>Components › Buttons</b>: every style, cooldown, key, confirm, rows</sub></td>
+</tr>
+<tr>
+<td><img src="assets/screens/inputs.png" alt="Components tab, Inputs page"><br><sub><b>Components › Inputs</b>: validation, stepper, text area, image picker, radio</sub></td>
+<td><img src="assets/screens/content.png" alt="Components tab, Content page"><br><sub><b>Components › Content</b>: notifications, dialog, image, group, code</sub></td>
+</tr>
+<tr>
+<td><img src="assets/screens/settings.png" alt="Settings"><br><sub><b>Settings</b> (built in): appearance, window, behaviour, profiles, info</sub></td>
+<td><img src="assets/screens/appearance.png" alt="Visuals, Appearance page"><br><sub><b>Visuals › Appearance</b>: colour pickers, gradient, swatches</sub></td>
 </tr>
 <tr>
 <td><img src="assets/screens/tokyo.png" alt="Tokyo Night theme"><br><sub>Tokyo Night theme</sub></td>
@@ -183,6 +197,7 @@ Overview:MatchHeights(Left, Right)                              -- side-by-side 
 - `Divider = true` puts a line above the tab.
 - `Header = true` also shows the tab as a text tab in the header.
 - `Tab:Card()` adds a card to the first page without creating one.
+- `tab:SetHidden(true)` (or `Window:Tab({ Hidden = true })`) takes the icon out of the dock without leaving a gap; the tab still opens from code (`Select`, `Window:SelectTab`).
 - `tab:SetBadge(3)` puts a number on the tab's dock icon (`"NEW"`, `true` for a dot, `0` / `nil` hides it; a second argument picks the colour, e.g. `"danger"`).
 - `tab:SetActive(true)` puts a small green dot at the bottom corner of the dock icon (something in this tab is running); `false` hides it.
 - `Build = function(tab) ... end`: the tab's content is made later, so a big script starts faster. It builds itself 1.5 s after start (its key binds work without opening it); `BuildDelay = false` waits until the tab is opened. `Window:BuildAll()` builds every lazy tab now.

@@ -194,6 +194,7 @@ export type Tab = {
 	Card: (self: Tab, cfg: CardConfig?) -> Card,
 	Select: (self: Tab) -> (),
 	SetBadge: (self: Tab, value: (number | string | boolean)?, color: Paint?) -> (),
+	SetHidden: (self: Tab, hidden: boolean) -> (),
 	SetActive: (self: Tab, on: boolean, color: Paint?) -> (),
 }
 
@@ -254,7 +255,7 @@ export type Window = {
 	Version: string,
 	Config: Config,
 	Flags: { [string]: any },
-	Tab: (self: Window, cfg: string | { Title: string, Icon: string?, Divider: boolean?, Header: boolean?, Build: ((tab: Tab) -> ())?, BuildDelay: (number | false)? }) -> Tab,
+	Tab: (self: Window, cfg: string | { Title: string, Icon: string?, Divider: boolean?, Header: boolean?, Hidden: boolean?, Build: ((tab: Tab) -> ())?, BuildDelay: (number | false)? }) -> Tab,
 	BuildAll: (self: Window) -> (),
 	SetUIScale: (self: Window, scale: number) -> (),
 	GetUIScale: (self: Window) -> number,

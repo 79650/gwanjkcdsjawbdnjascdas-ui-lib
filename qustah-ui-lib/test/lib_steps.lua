@@ -161,8 +161,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("two pages make a strip", visuals.strip.Visible == true)
     visuals.Pages[2]:Select() wait()
     check("page switch", visuals.Pages[2].frame.Visible and not visuals.Pages[1].frame.Visible)
-    MOCK.click(find("SilentTab")) wait()
-    check("tab switch hides strip for one-page tab", window.current.Title == "Silent" and not visuals.strip.Visible)
+    MOCK.click(find("CombatTab")) wait()
+    check("tab switch hides strip for one-page tab", window.current.Title == "Combat" and not visuals.strip.Visible)
 
     -- segment, key hint, location, dock dividers
     check("segment default", F.aimPart == "Head")
@@ -175,7 +175,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.click(hintBadge) wait(0.1)
     MOCK.press(Enum.KeyCode.KeypadNine) wait(0.1)
     check("key hint rebind", F.espKey == Enum.KeyCode.KeypadNine and hintBadge.Text == "NUM 9")
-    check("location shows tab", window.locationLabel.Text == "Silent")
+    check("location shows tab", window.locationLabel.Text == "Combat")
     visuals:Select() wait()
     check("location shows tab › page", window.locationLabel.Text == "Visuals › Appearance")
     check("dock dividers after Dashboard and above Settings", #window.dockDividers == 2 and window.Tabs[2].Divider and window.Tabs[#window.Tabs].Divider)
@@ -288,7 +288,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("gradient load", F.chams[1] == E.Color3.fromRGB(255, 0, 0))
 
     -- chord keybind
-    local silentTab = tabNamed("Silent") silentTab:Select() wait(0.1)
+    local silentTab = tabNamed("Combat") silentTab:Select() wait(0.1)
     local mark = W.markKey
     check("chord default", mark.Chord and mark.Chord[1] == Enum.KeyCode.LeftControl and mark.Chord[2] == Enum.UserInputType.MouseButton1)
     check("chord saved", mark:_save() == "LeftControl+MouseButton1")
@@ -328,15 +328,15 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("player list drops leavers", findIn("Whitelist", "Newbie") == nil)
 
     -- image picker + graph
-    tabNamed("Misc"):Select() wait(0.1)
-    MOCK.click(findIn("Style", "Image2")) wait(0.1)
-    check("image picker", F.crosshair == "rbxassetid://12614416478")
+    tabNamed("Live"):Select() wait(0.1)
+    MOCK.click(findIn("Crosshair style", "Image2")) wait(0.1)
+    check("image picker", F.crosshair == "locate-fixed")
     wait(1.2)
     check("graph shows fps", findIn("FPS", "Value") and findIn("FPS", "Value").Text:find("FPS") ~= nil)
 
     -- status / errors / safe callbacks
     check("footer limited", window.statusText == "Limited")
-    local boom = tabNamed("Misc").Pages[1]:Card({ Title = "Boom" }):Toggle({ Title = "Explodes", Callback = function() error("kaboom") end })
+    local boom = tabNamed("Live").Pages[1]:Card({ Title = "Boom" }):Toggle({ Title = "Explodes", Callback = function() error("kaboom") end })
     boom:Set(true) wait(0.1)
     check("callback error reported", window.statusText == "Errors: 1" and #window:GetErrors() == 1)
     boom:Set(false) wait(0.1)
@@ -374,7 +374,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local settingsTab = tabNamed("Settings")
     settingsTab:Select() wait(0.1)
     check("header tabs shown", window.headerTabs.Visible == true and window.locationLabel.Visible == false)
-    tabNamed("Misc"):Select() wait(0.1)
+    tabNamed("Live"):Select() wait(0.1)
     check("header tabs hidden elsewhere", window.headerTabs.Visible == false)
     MOCK.click(window.headerTabs:FindFirstChild("Dashboard")) wait(0.1)
     check("header tab selects", window.current == tabNamed("Dashboard"))
@@ -394,10 +394,10 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("tab active dot", vt.button:FindFirstChild("ActiveDot") and vt.button.ActiveDot.Visible)
     vt:SetActive(false) wait()
     check("tab active dot hides", vt.button.ActiveDot.Visible == false)
-    local gRow = tabNamed("Misc"):Card({ Title = "GraphTiles" }):Row()
+    local gRow = tabNamed("Live"):Card({ Title = "GraphTiles" }):Row()
     local cg = gRow:Graph({ Title = "FPS", Style = "Line", Source = function() return 42 end, Compact = true, Height = 30 })
     check("compact graph: big value under the title", cg.Row:FindFirstChild("Value").TextSize == 17 and cg.Row:FindFirstChild("Area").Position.Y.Offset == 40)
-    local mpage = tabNamed("Misc").Pages[1]
+    local mpage = tabNamed("Live").Pages[1]
     local tall = mpage:Card({ Title = "TallOne", Side = "Left" })
     for i = 1, 4 do tall:Toggle({ Title = "T" .. i }) end
     local short = mpage:Card({ Title = "ShortOne", Side = "Right" })
@@ -406,7 +406,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local sp = short.frame:FindFirstChild("MatchSpacer")
     check("match heights: spacer under the shorter card", sp and sp.Visible and sp.Size.Y.Offset > 50 and not tall.frame.MatchSpacer.Visible)
     tall.frame:Destroy() short.frame:Destroy()
-    local wb = tabNamed("Misc").Pages[1]:Card({ Title = "UnderColumns", Wide = "Bottom" })
+    local wb = tabNamed("Live").Pages[1]:Card({ Title = "UnderColumns", Wide = "Bottom" })
     check("Wide = Bottom goes under the columns", wb.frame.Parent.Name == "WideBottom")
     wb.frame:Destroy()
     local det = find("Section_Details")
@@ -624,7 +624,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("icons: card icon", findIn("Targets", "CardIcon") ~= nil)
     check("icons: row icon", findIn("Aim key", "RowIcon") ~= nil)
     check("icons: button icon", findIn("Rejoin", "ButtonIcon") ~= nil and findIn("Rejoin", "Text").Text == "Rejoin")
-    local confirmButton = tabNamed("Misc").Pages[1]:Card({ Title = "ConfirmCard" }):Button({ Title = "Wipe all", Icon = "trash-2", Confirm = true })
+    local confirmButton = tabNamed("Live").Pages[1]:Card({ Title = "ConfirmCard" }):Button({ Title = "Wipe all", Icon = "trash-2", Confirm = true })
     local toolsHop = confirmButton.Row.Button
     MOCK.click(toolsHop) wait(0.1)
     check("icons: button confirm text", toolsHop:FindFirstChild("Text", true).Text ~= "Wipe all")
@@ -639,7 +639,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     store2:Apply({ lateFlag = true, espRange = 2000 })
     check("pending kept for unknown flag", store2.pending.lateFlag == true and F.espRange == 2000)
     check("snapshot keeps pending", store2:Snapshot().lateFlag == true)
-    local lateCard = tabNamed("Misc").Pages[1]:Card({ Title = "Late" })
+    local lateCard = tabNamed("Live").Pages[1]:Card({ Title = "Late" })
     local late = lateCard:Toggle({ Title = "Late toggle", Flag = "lateFlag" })
     wait(0.1)
     check("pending applied on create", late.Value == true and store2.pending.lateFlag == nil)
@@ -676,7 +676,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("toast CanClose = false", window:Notify({ Title = "x", CanClose = false }):FindFirstChild("Close") == nil)
 
     -- dropdown: option tables, AllowNone, locked, search
-    tabNamed("Silent"):Select() wait(0.1)
+    tabNamed("Combat"):Select() wait(0.1)
     local priority = W.priority
     check("dropdown table options", F.priority == "Closest" and priority.Options[4] == "Highest bounty")
     MOCK.click(priority.Row:FindFirstChild("Select")) wait(0.1)
@@ -688,7 +688,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("AllowNone clears", F.priority == nil)
     local many = {}
     for i = 1, 12 do many[i] = "Option " .. i end
-    local big = tabNamed("Silent").Pages[1]:Card({ Title = "Big" }):Dropdown({ Title = "Big list", Options = many })
+    local big = tabNamed("Combat").Pages[1]:Card({ Title = "Big" }):Dropdown({ Title = "Big list", Options = many })
     MOCK.click(big.Row:FindFirstChild("Select")) wait(0.1)
     local search = find("DropdownList"):FindFirstChild("Search", true)
     check("search box above 8 options", search ~= nil)
@@ -713,33 +713,33 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("bubble hides", fillSlider.Row:FindFirstChild("Bubble", true).Visible == false)
 
     -- new elements
-    tabNamed("Misc"):Select() wait(0.1)
+    tabNamed("Live"):Select() wait(0.1)
     local farmValue = findIn("Auto farm", "Value")
     check("progress text", farmValue and farmValue.Text == "3 / 10 quests")
     check("progress finished after delay", findIn("Loading assets", "Value").Text == "100%")
-    local spin = tabNamed("Misc").Pages[1]:Card({ Title = "Spin" }):Progress({ Title = "Spinner", Indeterminate = true })
+    local spin = tabNamed("Live").Pages[1]:Card({ Title = "Spin" }):Progress({ Title = "Spinner", Indeterminate = true })
     check("progress indeterminate", findIn("Spinner", "Value").Text == "Working...")
     spin:SetIndeterminate(false) spin:Set(50)
     check("progress percent", findIn("Spinner", "Value").Text == "50%")
-    local farmRow = find("Auto farm", find("Extras")).Parent
-    MOCK.click(find("Auto farm", find("Extras")):FindFirstChild("Button")) wait(0.1)
+    local farmRow = W.autoFarm.Row.Parent
+    MOCK.click(W.autoFarm.Row:FindFirstChild("Button")) wait(0.1)
     check("row toggle button works", farmValue.Text == "4 / 10 quests" and Lib.Flags.autoFarm == true)
     check("row widths 3:1", math.abs(farmRow:FindFirstChild("Auto farm").Size.X.Scale - 0.75) < 0.001 and math.abs(farmRow:FindFirstChild("inbox").Size.X.Scale - 0.25) < 0.001)
-    local rowFrame = tabNamed("Misc").Pages[1]:Card({ Title = "RowCard" }):Row()
+    local rowFrame = tabNamed("Live").Pages[1]:Card({ Title = "RowCard" }):Row()
     local ra, rb = rowFrame:Button({ Title = "Start" }), rowFrame:Button({ Title = "Stop" }) wait(0.1)
     check("row equal widths", ra.Row.Size.X.Scale == 0.5 and rb.Row.Size.X.Scale == 0.5)
     local advancedBody = find("Section_Advanced"):FindFirstChild("Body")
     check("section starts closed", advancedBody.Visible == false)
     MOCK.click(find("Section_Advanced"):FindFirstChild("Header")) wait(0.1)
     check("section opens", advancedBody.Visible == true and W.delay ~= nil)
-    check("group", find("Group_Server") ~= nil and find("Group_Server"):FindFirstChild("Region") ~= nil)
+    check("group", find("Group_Build") ~= nil and find("Group_Build"):FindFirstChild("Version") ~= nil)
     local codeText = find("loader.lua"):FindFirstChild("Code", true)
     check("code highlighted", codeText.Text:find("<font") ~= nil and codeText.Text:find("loadstring") ~= nil)
     MOCK.clipboard = nil
     MOCK.click(find("loader.lua"):FindFirstChild("Copy", true)) wait(0.1)
     check("code copy", MOCK.clipboard and MOCK.clipboard:find("HttpGet") ~= nil)
     check("viewport", find("Viewport") ~= nil and find("Viewport"):FindFirstChild("View") ~= nil)
-    local img = tabNamed("Misc").Pages[1]:Card({ Title = "Pics" }):Image({ Image = "rbxassetid://123", Caption = "logo" })
+    local img = tabNamed("Live").Pages[1]:Card({ Title = "Pics" }):Image({ Image = "rbxassetid://123", Caption = "logo" })
     check("image element", find("Picture", img.Row).Image == "rbxassetid://123" and findIn("Pics", "Caption").Text == "logo")
 
     -- window extras
@@ -763,7 +763,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("anonymous off", find("DisplayName").Text ~= "Anonymous" and F.__ui_anon == false)
 
     -- v1.5 dropdown: key / label values, images, chunks, drag select
-    local dcard = tabNamed("Misc").Pages[1]:Card({ Title = "Dd" })
+    local dcard = tabNamed("Live").Pages[1]:Card({ Title = "Dd" })
     local dict = dcard:Dropdown({ Title = "Mode", Options = { pvp = "PvP mode", farm = "Auto farm" }, Default = "farm" })
     check("dict dropdown value is the key", dict.Value == "farm" and dict.Row:FindFirstChild("Select"):FindFirstChildWhichIsA("TextLabel").Text == "Auto farm")
     dict:Set("PvP mode")
@@ -830,14 +830,14 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     window:KeybindList(false)
 
     -- risky + warning + card desc / collapse
-    tabNamed("Silent"):Select() wait(0.1)
+    tabNamed("Combat"):Select() wait(0.1)
     local riskyTitle = W.silentAim.Row:FindFirstChild("Title")
     check("risky title is red", riskyTitle.TextColor3 == Lib.Theme.get("danger") and W.silentAim.Row:FindFirstChild("Help") ~= nil)
     check("page warning", find("Warning") ~= nil and find("Warning"):FindFirstChild("Text", true).Text:find("ranked") ~= nil)
     local aimCard = W.silentAim.Card.frame
     check("card desc", aimCard:FindFirstChild("CardDesc") ~= nil)
     MOCK.click(aimCard:FindFirstChild("Collapse", true)) wait(0.2)
-    check("card collapses", W.silentAim.Row.Visible == false and window.memory.collapsed["Silent/Silent/Silent Aim"] == true)
+    check("card collapses", W.silentAim.Row.Visible == false and window.memory.collapsed["Combat/Combat/Silent Aim"] == true)
     MOCK.click(aimCard:FindFirstChild("Collapse", true)) wait(0.2)
     check("card expands", W.silentAim.Row.Visible == true and W.prediction.Row.Visible == true)
 
@@ -866,7 +866,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
 
     ------------------------------------------------------------------ v1.6 (Rayfield round)
     local misc
-    for _, t in ipairs(window.Tabs) do if t.Title == "Misc" then misc = t end end
+    for _, t in ipairs(window.Tabs) do if t.Title == "Live" then misc = t end end
     local tc = misc:Card({ Title = "V16" })
 
     -- secure mode: random gui names
@@ -918,8 +918,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local auto2 = tc:Toggle({ Title = "Auto one" })
     local autoButton = tc:Button({ Title = "Auto button" })
     window.cfg.AutoFlags = nil
-    check("auto flag from names", auto1.Flag == "Misc.V16.Auto one" and auto2.Flag == "Misc.V16.Auto one 2" and autoButton.Flag == nil)
-    check("auto flag registered", window.flags["Misc.V16.Auto one"] == auto1)
+    check("auto flag from names", auto1.Flag == "Live.V16.Auto one" and auto2.Flag == "Live.V16.Auto one 2" and autoButton.Flag == nil)
+    check("auto flag registered", window.flags["Live.V16.Auto one"] == auto1)
 
     -- callback error flash
     local errorsBefore = #window:GetErrors()
@@ -1470,10 +1470,10 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     window:Tab({ Title = "LazyAuto", BuildDelay = 0.2, Build = function() auto = auto + 1 end })
     wait(0.5)
     check("lazy tab builds itself in the background", auto == 1)
-    window:SelectTab("Misc")
+    window:SelectTab("Live")
 
     -- button styles, sizes, icon-only, Row widths
-    local bc = tabNamed("Misc").Pages[1]:Card({ Title = "Btn" })
+    local bc = tabNamed("Live").Pages[1]:Card({ Title = "Btn" })
     local fired = 0
     local styled = {}
     for _, name in ipairs({ "Default", "Primary", "Soft", "Outline", "Ghost", "Danger", "Link" }) do
@@ -1504,7 +1504,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("row equal by default", e1.Row.Size.X.Scale == 0.5 and e2.Row.Size.X.Scale == 0.5)
 
     -- button extras: cooldown, hold, loading, bind, toggle, menu, badge
-    local bx = tabNamed("Misc").Pages[1]:Card({ Title = "BtnX" })
+    local bx = tabNamed("Live").Pages[1]:Card({ Title = "BtnX" })
     local count = 0
     local cool = bx:Button({ Title = "Cool", Cooldown = 1, Callback = function() count = count + 1 end })
     MOCK.click(cool.Row.Button) wait(0.1)
@@ -1631,7 +1631,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("no reset on built-in settings", window.flags.__ui_theme.Row:FindFirstChild("Reset") == nil)
 
     -- presets
-    local pc = tabNamed("Misc").Pages[1]:Card({ Title = "Aim presets" })
+    local pc = tabNamed("Live").Pages[1]:Card({ Title = "Aim presets" })
     pc:Slider({ Title = "P fov", Flag = "pFov", Min = 0, Max = 500, Default = 100 })
     pc:Toggle({ Title = "P smooth", Flag = "pSmooth", Default = false })
     local presetChanges = {}
@@ -1655,8 +1655,18 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     presets:Select("Off") wait(0.1)
     check("presets: Add", presets:Get() == "Off" and Lib.Flags.pFov == 0)
 
+    -- hidden tab: no dock icon, no gap
+    local dockBefore = window.dockHeight
+    local ghostTab = window:Tab({ Title = "GhostTab", Icon = "ghost", Hidden = true })
+    check("hidden tab: not in the dock", not ghostTab.button.Visible and window.dockHeight == dockBefore)
+    ghostTab:SetHidden(false)
+    check("hidden tab: shown again", ghostTab.button.Visible and window.dockHeight > dockBefore)
+    ghostTab:SetHidden(true)
+    check("hidden tab: selectable from code", (function() ghostTab:Select() wait() return window.current == ghostTab end)())
+    tabNamed("Live"):Select() wait()
+
     -- tab badge
-    local misc = tabNamed("Misc")
+    local misc = tabNamed("Live")
     misc:SetBadge(3)
     check("tab badge number", misc.button.Badge.Visible and misc.button.Badge.Text.Text == "3")
     misc:SetBadge(250)
@@ -1667,27 +1677,27 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("tab badge hides", not misc.button.Badge.Visible and misc.Badge == nil)
 
     -- key conflicts
-    local kc = tabNamed("Misc").Pages[1]:Card({ Title = "Keys" })
+    local kc = tabNamed("Live").Pages[1]:Card({ Title = "Keys" })
     local function conflictWith(name) for _, list in pairs(window:GetKeyConflicts()) do if table.find(list, name) then return list end end end
-    local k1 = kc:Toggle({ Title = "Fly", Bind = Enum.KeyCode.KeypadFive })
+    local k1 = kc:Toggle({ Title = "Hover", Bind = Enum.KeyCode.KeypadFive })
     local k2 = kc:Button({ Title = "Dash", Bind = Enum.KeyCode.KeypadFive })
-    local k3 = kc:Keybind({ Title = "Noclip", Default = Enum.KeyCode.KeypadSix })
+    local k3 = kc:Keybind({ Title = "Phase", Default = Enum.KeyCode.KeypadSix })
     wait(0.1)
-    check("conflict found", conflictWith("Fly") ~= nil and k1.KeyConflict ~= nil and k2.KeyConflict ~= nil)
+    check("conflict found", conflictWith("Hover") ~= nil and k1.KeyConflict ~= nil and k2.KeyConflict ~= nil)
     check("conflict tag is yellow", k1.Row.Bind.TextColor3 == Lib.Theme.get("warning") and k2.Row.Button.Key:FindFirstChildWhichIsA("TextLabel").TextColor3 == Lib.Theme.get("warning"))
     check("conflict tooltip text", k1._conflictTip and k1._conflictTip:find("Dash") ~= nil)
     check("no conflict on a free key", k3.KeyConflict == nil)
     local notesBefore = #(Lib.NotifyHistory or {})
     k3:Set(Enum.KeyCode.KeypadFive) wait(0.1)
-    check("third one joins the conflict", k3.KeyConflict ~= nil and #conflictWith("Fly") == 3)
+    check("third one joins the conflict", k3.KeyConflict ~= nil and #conflictWith("Hover") == 3)
     k2:SetBind(Enum.KeyCode.KeypadSeven) k3:Set(Enum.KeyCode.KeypadSix) wait(0.1)
-    check("conflict clears", k1.KeyConflict == nil and k2.KeyConflict == nil and conflictWith("Fly") == nil and k1.Row.Bind.TextColor3 ~= Lib.Theme.get("warning"))
+    check("conflict clears", k1.KeyConflict == nil and k2.KeyConflict == nil and conflictWith("Hover") == nil and k1.Row.Bind.TextColor3 ~= Lib.Theme.get("warning"))
     local k4 = kc:Keybind({ Title = "Opens menu", Default = window.key }) wait(0.1)
     check("menu key conflict", k4.KeyConflict ~= nil and table.find(k4.KeyConflict, "Menu") ~= nil)
     k4:Set(Enum.KeyCode.KeypadNine) wait(0.1)
 
     -- input validate
-    local vc = tabNamed("Misc").Pages[1]:Card({ Title = "Validate" })
+    local vc = tabNamed("Live").Pages[1]:Card({ Title = "Validate" })
     local got
     local vin = vc:Input({ Title = "Job ID", Flag = "vJob", Validate = function(text)
         if text == "" then return nil end
@@ -1753,7 +1763,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     ------------------------------------------------------------------ v1.9.5 audit round
     do
         local misc5
-        for _, t in ipairs(window.Tabs) do if t.Title == "Misc" then misc5 = t end end
+        for _, t in ipairs(window.Tabs) do if t.Title == "Live" then misc5 = t end end
         misc5:Select() wait(0.2)
         local c5 = misc5:Card({ Title = "Audit195" })
         -- a long value next to a short name borrows room from the name

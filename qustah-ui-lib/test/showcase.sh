@@ -28,39 +28,34 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     print(string.format("RECT %s %.1f,%.1f,%.1f,%.1f", name, w.topLeft.X - 14, w.topLeft.Y - 14, (w.width + 12 + 40) * s + 28, w.height * s + 28))
     print("SHOT " .. name)
   end
+  local function hideTab(t) t:SetHidden(true) end
   tab("Dashboard") shot("dashboard")
   local V = tab("Visuals") V.Pages[1]:Select() shot("visuals")
   V.Pages[2]:Select() shot("appearance")
-  tab("Silent") shot("silent")
-  tab("Misc") shot("misc")
+  tab("Combat") shot("combat")
+  local P = tab("Player")
+  -- (the renderer can't draw 3D: a stand-in figure inside the Viewport for the picture)
+  for _, o in ipairs(P.Pages[1].frame:GetDescendants()) do
+    if o:IsA("ViewportFrame") then
+      local fig = Instance.new("ImageLabel")
+      fig.BackgroundTransparency = 1 fig.Image = "rbxassetid://125020872044147" fig.ImageColor3 = Lib.Theme.get("muted")
+      fig.AnchorPoint = Vector2.new(0.5, 0.5) fig.Position = UDim2.fromScale(0.5, 0.5) fig.Size = UDim2.fromOffset(96, 96) fig.Parent = o
+    end
+  end
+  shot("player")
+  tab("Live") shot("live")
+  local C = tab("Components") C.Pages[1]:Select() shot("buttons")
+  C.Pages[2]:Select() shot("inputs")
+  C.Pages[3]:Select() shot("content")
   tab("Server") shot("server")
   local T = tab("Settings") T.Pages[1]:Select() shot("settings")
   w.flags.__ui_theme:Set("Tokyo Night") tab("Visuals") V.Pages[1]:Select() shot("tokyo")
   w.flags.__ui_theme:Set("Light") shot("light")
-  tab("Misc") shot("misc_light")
-  tab("Silent") shot("silent_light")
+  tab("Live") shot("live_light")
+  C.Pages[1]:Select() tab("Components") shot("buttons_light")
   w.flags.__ui_theme:Set("Dark")
-  -- button styles page (README "Buttons" image)
-  local B = w:Tab({ Title = "Buttons", Icon = "mouse-pointer-click" })
-  local S = B:Card({ Title = "Styles" })
-  local styleRows = { { "Default", "refresh-cw", "Rejoin" }, { "Primary", "play", "Start farm" }, { "Soft", "sparkles", "Redeem codes" },
-    { "Outline", "shuffle", "Server hop" }, { "Ghost", "rotate-ccw", "Reset to default" }, { "Danger", "trash-2", "Delete profile" }, { "Link", "external-link", "Open Discord" } }
-  for _, r in ipairs(styleRows) do S:Button({ Title = r[3], Icon = r[2], Style = r[1] }) end
-  local L = B:Card({ Title = "Sizes and layout", Side = "Right" })
-  L:Button({ Title = "Small", Size = "Small", Icon = "minimize-2" })
-  L:Button({ Title = "Large", Size = "Large", Style = "Primary", Icon = "zap" })
-  local r1 = L:Row()
-  r1:Button({ Title = "Rejoin", Icon = "refresh-cw" }) r1:Button({ Title = "Server hop", Icon = "shuffle" })
-  local r2 = L:Row({ Widths = { 3, 1 } })
-  r2:Button({ Title = "Save config", Icon = "save", Style = "Primary" }) r2:Button({ Icon = "trash-2", Style = "Danger" })
-  local r3 = L:Row()
-  for _, i in ipairs({ "play", "pause", "square", "skip-forward" }) do r3:Button({ Icon = i, Style = "Soft" }) end
-  L:Button({ Title = "Next step", Icon = "arrow-right", IconSide = "Right", Style = "Outline" })
-  L:Button({ Title = "Teleport to spawn", Icon = "map-pin", Align = "Left" })
-  B:Select() wait() shot("buttons")
-  w.flags.__ui_theme:Set("Light") shot("buttons_light")
-  w.flags.__ui_theme:Set("Dark")
-  local B2 = w:Tab({ Title = "Smart", Icon = "zap" })
+  -- smart buttons caught mid-way (README "Smart buttons" image); a hidden tab so the dock stays the example's
+  local B2 = w:Tab({ Title = "Smart", Icon = "zap" }) hideTab(B2)
   local X = B2:Card({ Title = "Smart buttons" })
   local cd = X:Button({ Title = "Server hop", Icon = "shuffle", Cooldown = 5 })
   local hd = X:Button({ Title = "Hold to wipe data", Icon = "trash-2", Style = "Danger", Hold = 1.5 })
@@ -94,7 +89,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
   print("SHOT smart")
   MOCK.fire(hd.Row.Button, "InputEnded", MOCK.input(Enum.KeyCode.Unknown, Enum.UserInputType.MouseButton1))
   -- presets, key conflict, input validation, tab badges
-  local F = w:Tab({ Title = "Combat", Icon = "swords" })
+  local F = w:Tab({ Title = "Aimbot", Icon = "swords" }) hideTab(F)
   local A = F:Card({ Title = "Aimbot" })
   A:Slider({ Title = "FOV", Flag = "shFov", Min = 10, Max = 500, Default = 120, Suffix = "px" })
   A:Slider({ Title = "Smoothness", Flag = "shSmooth", Min = 0, Max = 1, Step = 0.05, Default = 0.3 })
@@ -111,10 +106,11 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
   A.frame:FindFirstChild("Rage", true) -- (exists)
   w:SetFlag("shFov", 400) w:SetFlag("shSmooth", 0) w:SetFlag("shPred", true)
   MOCK.fire(job.Row.Box, "Focused") job.Row.Box.Text = "8f2a" wait(0.2)
-  for _, t in ipairs(w.Tabs) do if t.Title == "Misc" then t:SetBadge(3) elseif t.Title == "Server" then t:SetBadge(true, "danger") end end
+  for _, t in ipairs(w.Tabs) do if t.Title == "Live" then t:SetBadge(3) elseif t.Title == "Server" then t:SetBadge(true, "danger") end end
   shot("features")
   MOCK.fire(job.Row.Box, "FocusLost", false)
   -- the tour, on its "Menu key" step
+  tab("Dashboard")
   local tour = w:Tour(nil, { Id = "showcase" })
   tour:Go(4) wait(0.3)
   shot("tour")

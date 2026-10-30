@@ -255,6 +255,7 @@ function Tab.new(window, cfg)
             if self._build and window.alive then self:Build() end
         end)
     end
+    self.Hidden = cfg.Hidden == true -- not in the dock (Tab:SetHidden)
     self.Divider = cfg.Divider == true or window._dividerNext == true -- a short line above this tab in the dock
     window._dividerNext = nil
     local button = create("TextButton", {
@@ -358,6 +359,13 @@ function Tab:SetBadge(value, color)
         badge.Position = UDim2.new(1, 3, 0, -2)
     end
     badge.Visible = true
+end
+
+-- Takes the tab's icon out of the dock (and back); the tab still works from code (Select, SelectTab, Tour).
+function Tab:SetHidden(hidden)
+    self.Hidden = hidden == true
+    self.window:_layoutDock()
+    self.window:_layout()
 end
 
 function Tab:Page(name, cfg)
@@ -835,6 +843,8 @@ function Window:_layoutDock()
     self.dockDividers = {}
     local cursor = DOCK_TOP
     for _, tab in ipairs(self.Tabs) do
+        if tab.Hidden then tab.button.Visible = false continue end
+        tab.button.Visible = true
         if tab.Divider then
             local divider = create("Frame", { Name = "Divider", Position = UDim2.fromOffset(9, cursor + 1), Size = UDim2.fromOffset(22, 1), BorderSizePixel = 0, ZIndex = 42, Parent = self.dock })
             Theme.bind(divider, "BackgroundColor3", "line")

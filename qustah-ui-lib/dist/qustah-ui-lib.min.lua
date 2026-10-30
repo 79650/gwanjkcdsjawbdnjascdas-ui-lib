@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.13 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.14 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6544,7 +6544,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.13",
+Version="1.9.14",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9208,6 +9208,7 @@ task.delay(tonumber(cfg.BuildDelay)or 1.5,function()
 if self._build and window.alive then self:Build()end
 end)
 end
+self.Hidden=cfg.Hidden==true
 self.Divider=cfg.Divider==true or window._dividerNext==true
 window._dividerNext=nil
 local button=create("TextButton",{
@@ -9300,6 +9301,11 @@ badge.Size=UDim2.fromOffset(math.max(14,Util.textWidth(text,8,Enum.Font.GothamBo
 badge.Position=UDim2.new(1,3,0,-2)
 end
 badge.Visible=true
+end
+function Tab:SetHidden(hidden)
+self.Hidden=hidden==true
+self.window:_layoutDock()
+self.window:_layout()
 end
 function Tab:Page(name,cfg)
 local page=Page.new(self,tostring(name or("Page "..(#self.Pages+1))),cfg)
@@ -9719,6 +9725,8 @@ for _,divider in ipairs(self.dockDividers)do divider:Destroy()end
 self.dockDividers={}
 local cursor=DOCK_TOP
 for _,tab in ipairs(self.Tabs)do
+if tab.Hidden then tab.button.Visible=false continue end
+tab.button.Visible=true
 if tab.Divider then
 local divider=create("Frame",{Name="Divider",Position=UDim2.fromOffset(9,cursor+1),Size=UDim2.fromOffset(22,1),BorderSizePixel=0,ZIndex=42,Parent=self.dock})
 Theme.bind(divider,"BackgroundColor3","line")
