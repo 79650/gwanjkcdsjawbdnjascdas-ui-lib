@@ -448,7 +448,7 @@ corner(knob,6)
 Theme.bind(knob,"BackgroundColor3","knob")
 local caption
 if cfg.Title then
-caption=label(head,tostring(cfg.Title),9,{Name="HeaderSwitchTitle",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-(right+34),0.5,0),Size=UDim2.fromOffset(Util.textWidth(cfg.Title,9,Enum.Font.Gotham)+2,16),TextXAlignment=Enum.TextXAlignment.Right})
+caption=label(head,tostring(cfg.Title),9,{Name="HeaderSwitchTitle",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-(right+34),0.5,0),Size=UDim2.fromOffset(Util.textWidth(cfg.Title,9,Enum.Font.Gotham)+8,16),TextXAlignment=Enum.TextXAlignment.Right,TextTruncate=Enum.TextTruncate.None})
 Theme.bind(caption,"TextColor3","muted")
 end
 local used=right+34+(caption and caption.Size.X.Offset+6 or 0)
@@ -4718,11 +4718,11 @@ if customEntry.icon then customEntry.icon.Visible=not custom end
 end
 end
 local function dot(name,color)
-local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundTransparency=1,Size=UDim2.fromOffset(26,26),Parent=grid})
-local fill=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(18,18),BorderSizePixel=0,BackgroundColor3=color or Color3.new(1,1,1),Parent=button})
-corner(fill,9)
+local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundTransparency=1,Size=UDim2.fromOffset(22,22),Parent=grid})
+local fill=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(16,16),BorderSizePixel=0,BackgroundColor3=color or Color3.new(1,1,1),Parent=button})
+corner(fill,8)
 local ringFrame=create("Frame",{Name="Ring",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Parent=button})
-corner(ringFrame,13)
+corner(ringFrame,11)
 local outline=stroke(ringFrame,nil,1,1.5)
 Theme.bind(outline,"Color","heading")
 Util.hoverPop(button,1.08)
@@ -4777,13 +4777,13 @@ element:_call(cfg.Custom,open)
 end)
 end
 if dots then
-local list=Util.list(grid,8,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+local list=Util.list(grid,4,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
 local function spread()
 local count=#entries+(customEntry and 1 or 0)
 local scale=card.window.scale and card.window.scale.Scale or 1
 local width=holder.AbsoluteSize.X/scale
 if width<=0 or count<2 then return end
-list.Padding=UDim.new(0,math.clamp(math.floor((width-count*26)/(count-1)),2,14))
+list.Padding=UDim.new(0,math.clamp(math.floor((width-count*22)/(count-1)),1,14))
 end
 holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(spread)
 spread()
@@ -7757,7 +7757,7 @@ window:Notify({Title="Clipboard",Content="setclipboard is not available",Color=R
 end
 end,
 })
-errorButtons:Button({Title="Clear",Icon="trash-2",Callback=function()window:ClearErrors()end})
+local clearErrors=errorButtons:Button({Title="Clear",Icon="trash-2",Callback=function()window:ClearErrors()end})
 local STATE={On=GREEN,Off=nil,Limited="warning",Error=RED}
 local function update()
 local order,modules=window:GetModules()
@@ -7782,6 +7782,7 @@ if#errors>8 then lines[#lines+1]="+"..(#errors-8).." more (Copy debug info)"end
 errorCount:Set(#errors==0 and"0"or(#errors..(total>#errors and(" ("..total.."×)")or"")))
 errorCount:SetColor(#errors>0 and RED or"text")
 errorText:Set(#lines>0 and table.concat(lines,"\n")or"No errors")
+clearErrors:SetVisible(#errors>0)
 end
 window:OnStatusChanged(update)
 Theme.onChange(function()if infoPage.frame.Parent then update()end end)

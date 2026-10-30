@@ -59,11 +59,11 @@ return function(card, cfg)
     end
     -- Dots: a round dot with a ring around the chosen one (the name as a tooltip)
     local function dot(name, color)
-        local button = create("TextButton", { Name = name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, BackgroundTransparency = 1, Size = UDim2.fromOffset(26, 26), Parent = grid })
-        local fill = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(18, 18), BorderSizePixel = 0, BackgroundColor3 = color or Color3.new(1, 1, 1), Parent = button })
-        corner(fill, 9)
+        local button = create("TextButton", { Name = name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, BackgroundTransparency = 1, Size = UDim2.fromOffset(22, 22), Parent = grid })
+        local fill = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(16, 16), BorderSizePixel = 0, BackgroundColor3 = color or Color3.new(1, 1, 1), Parent = button })
+        corner(fill, 8)
         local ringFrame = create("Frame", { Name = "Ring", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = button })
-        corner(ringFrame, 13)
+        corner(ringFrame, 11)
         local outline = stroke(ringFrame, nil, 1, 1.5)
         Theme.bind(outline, "Color", "heading")
         Util.hoverPop(button, 1.08)
@@ -120,13 +120,13 @@ return function(card, cfg)
     end
     if dots then
         -- one row, the dots spread over the width (gaps 6 - 14 px)
-        local list = Util.list(grid, 8, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+        local list = Util.list(grid, 4, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
         local function spread()
             local count = #entries + (customEntry and 1 or 0)
             local scale = card.window.scale and card.window.scale.Scale or 1
             local width = holder.AbsoluteSize.X / scale
             if width <= 0 or count < 2 then return end
-            list.Padding = UDim.new(0, math.clamp(math.floor((width - count * 26) / (count - 1)), 2, 14))
+            list.Padding = UDim.new(0, math.clamp(math.floor((width - count * 22) / (count - 1)), 1, 14))
         end
         holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(spread)
         spread()

@@ -332,7 +332,7 @@ return function(window, cfg)
             end
         end,
     })
-    errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
+    local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
 
     local STATE = { On = GREEN, Off = nil, Limited = "warning", Error = RED }
     local function update()
@@ -358,6 +358,7 @@ return function(window, cfg)
         errorCount:Set(#errors == 0 and "0" or (#errors .. (total > #errors and (" (" .. total .. "×)") or "")))
         errorCount:SetColor(#errors > 0 and RED or "text")
         errorText:Set(#lines > 0 and table.concat(lines, "\n") or "No errors")
+        clearErrors:SetVisible(#errors > 0) -- (nothing to clear: Copy debug info takes the whole row)
     end
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)

@@ -483,7 +483,7 @@ function Card:HeaderSwitch(cfg)
     Theme.bind(knob, "BackgroundColor3", "knob")
     local caption
     if cfg.Title then
-        caption = label(head, tostring(cfg.Title), 9, { Name = "HeaderSwitchTitle", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(right + 34), 0.5, 0), Size = UDim2.fromOffset(Util.textWidth(cfg.Title, 9, Enum.Font.Gotham) + 2, 16), TextXAlignment = Enum.TextXAlignment.Right })
+        caption = label(head, tostring(cfg.Title), 9, { Name = "HeaderSwitchTitle", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(right + 34), 0.5, 0), Size = UDim2.fromOffset(Util.textWidth(cfg.Title, 9, Enum.Font.Gotham) + 8, 16), TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.None })
         Theme.bind(caption, "TextColor3", "muted")
     end
     local used = right + 34 + (caption and caption.Size.X.Offset + 6 or 0)

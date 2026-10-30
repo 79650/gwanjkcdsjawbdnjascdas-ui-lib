@@ -564,7 +564,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local dbg = W.__ui_debug
     check("debug switch in the Errors header", dbg and dbg.Row.Name == "HeaderSwitch")
     local accentDots = findIn("Accent", "Custom colour")
-    check("accent dots + custom dot", accentDots ~= nil and findIn("Accent", "Blue"):FindFirstChild("Dot").Size.X.Offset == 18)
+    check("accent dots + custom dot", accentDots ~= nil and findIn("Accent", "Blue"):FindFirstChild("Dot").Size.X.Offset == 16)
     MOCK.click(accentDots) wait(0.1)
     check("custom dot opens the colour panel", W.__ui_accent.Row.Parent:FindFirstChild("Picker").Visible == true)
     MOCK.click(accentDots) wait(0.1)
