@@ -250,6 +250,22 @@ end
 -- Tab:Page("Overview") adds a sub-page; with two or more pages the strip of page names appears.
 -- tab:SetBadge(3) / ("NEW") / (true) a dot / (nil, 0, false) hides it; color: a theme role or Color3 (default "accent").
 -- A small tag on the tab's dock button (new messages, an error, an update...).
+-- tab:SetActive(true): a small green dot at the bottom-right of the dock button (something in this tab is
+-- running); SetActive(false) hides it. Color: a theme role or Color3 (default "success"). Kept apart from SetBadge.
+function Tab:SetActive(on, color)
+    self.Active = on == true
+    local dot = self._activeDot
+    if not dot then
+        if not self.Active then return end
+        dot = create("Frame", { Name = "ActiveDot", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -1, 1, -1), Size = UDim2.fromOffset(7, 7), BorderSizePixel = 0, ZIndex = 45, Parent = self.button })
+        corner(dot, 4)
+        Theme.bind(Util.stroke(dot, nil, 0, 1.5), "Color", "dock")
+        self._activeDot = dot
+    end
+    Theme.bind(dot, "BackgroundColor3", color or "success")
+    dot.Visible = self.Active
+end
+
 function Tab:SetBadge(value, color)
     local shown = value ~= nil and value ~= false and value ~= 0 and tostring(value) ~= "" and tostring(value) ~= "0"
     self.Badge = shown and value or nil

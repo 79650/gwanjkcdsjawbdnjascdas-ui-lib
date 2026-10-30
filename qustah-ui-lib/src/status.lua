@@ -20,8 +20,13 @@ return function(Window)
         table.insert(self._statusListeners, callback)
     end
 
-    function Window:SetModule(name, state, detail)
+    -- meta (optional, kept between calls): { Icon = "eye", Tab = "ESP" } for the dashboard tiles
+    function Window:SetModule(name, state, detail, meta)
         name = tostring(name)
+        if type(meta) == "table" then
+            self.moduleMeta = self.moduleMeta or {}
+            self.moduleMeta[name] = meta
+        end
         self.modules = self.modules or {}
         self.moduleOrder = self.moduleOrder or {}
         if not self.modules[name] then table.insert(self.moduleOrder, name) end

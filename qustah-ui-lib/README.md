@@ -2,7 +2,7 @@
 
 ![Qustah UI](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-1.9.7-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.8-2b2b2f?style=flat-square&labelColor=18181a)
 ![luau](https://img.shields.io/badge/Luau-executor-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-420_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
@@ -182,6 +182,7 @@ local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both c
 - `Header = true` also shows the tab as a text tab in the header.
 - `Tab:Card()` adds a card to the first page without creating one.
 - `tab:SetBadge(3)` puts a number on the tab's dock icon (`"NEW"`, `true` for a dot, `0` / `nil` hides it; a second argument picks the colour, e.g. `"danger"`).
+- `tab:SetActive(true)` puts a small green dot at the bottom corner of the dock icon (something in this tab is running); `false` hides it.
 - `Build = function(tab) ... end`: the tab's content is made later, so a big script starts faster. It builds itself 1.5 s after start (its key binds work without opening it); `BuildDelay = false` waits until the tab is opened. `Window:BuildAll()` builds every lazy tab now.
 
 **Pages**
@@ -668,7 +669,7 @@ Window:DashboardTab({ Info = { { "Code revision", "571" } }, Server = true })   
 Window:SettingsTab()                                                             -- as the last tab
 ```
 
-**Dashboard:** profile card (avatar, name, session time), Session, Info, Modules, Server (Rejoin, Server hop, Job ID).
+**Dashboard:** profile card (avatar, name, session time and live FPS / ping / players chips), Session (account, executor, version and your `Info` rows; the ids folded under "Details"), Modules (a grid of tiles), Server (Rejoin, Server hop, Job ID).
 
 **Settings › Interface**
 - theme, accent (presets and custom colour), font, text glow
@@ -760,6 +761,7 @@ Icons are from [Footagesus/Icons](https://github.com/Footagesus/Icons) (MIT, [`i
 ```lua
 Window:SetModule("ESP", "On")                         -- "On" | "Off" | "Limited" | "Error", detail
 Window:SetModule("Mark", "Limited", "client-side only")
+Window:SetModule("ESP", "On", nil, { Icon = "eye", Tab = "Visuals" })   -- tile icon; a click on the tile opens that tab
 Window:ReportError("ESP", "attempt to index nil")
 Window:GetErrorReport()   Window:ClearErrors()
 ```

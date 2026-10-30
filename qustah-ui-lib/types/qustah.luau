@@ -192,6 +192,7 @@ export type Tab = {
 	Card: (self: Tab, cfg: CardConfig?) -> Card,
 	Select: (self: Tab) -> (),
 	SetBadge: (self: Tab, value: (number | string | boolean)?, color: Paint?) -> (),
+	SetActive: (self: Tab, on: boolean, color: Paint?) -> (),
 }
 
 export type NotifyConfig = {
@@ -275,7 +276,7 @@ export type Window = {
 	KeyHint: (self: Window, cfg: { Title: string?, Key: Key?, Side: ("Left" | "Right")?, Pressed: Callback<any>?, Callback: Callback<any>?, Flag: string? }) -> any,
 	HeaderButton: (self: Window, cfg: { Icon: string?, Tooltip: string?, Callback: Callback<>? }) -> any,
 	AddTag: (self: Window, text: string, opts: { Color: Paint?, Style: ("Solid" | "Soft")? }?) -> any,
-	SetModule: (self: Window, name: string, state: "On" | "Off" | "Limited" | "Error", detail: string?) -> (),
+	SetModule: (self: Window, name: string, state: "On" | "Off" | "Limited" | "Error", detail: string?, meta: { Icon: string?, Tab: string? }?) -> (),
 	ReportError: (self: Window, source: string, message: string) -> (),
 	OnKick: (self: Window, callback: (info: KickInfo) -> ()) -> (),
 	GetKicks: (self: Window) -> { any },

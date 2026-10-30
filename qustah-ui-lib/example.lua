@@ -201,9 +201,9 @@ Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Sid
 Window:SettingsTab() -- create it last: its Default profile remembers the values above
 
 -- module health: footer, Dashboard "Modules" and Settings › Info show it
-Window:SetModule("ESP", "On")
-Window:SetModule("Silent Aim", "Off")
-Window:SetModule("Mark", "Limited", "client-side only")
+Window:SetModule("ESP", "On", nil, { Icon = "eye", Tab = "Visuals" })        -- icon + tab for the Dashboard tile (a click opens it)
+Window:SetModule("Silent Aim", "Off", nil, { Icon = "crosshair", Tab = "Silent" })
+Window:SetModule("Mark", "Limited", "client-side only", { Icon = "target", Tab = "Silent" })
 
 -- your own data in profiles (saved / loaded / shared with them)
 Window.Config:SetData("waypoints", { { "Spawn", 0, 10, 0 } })

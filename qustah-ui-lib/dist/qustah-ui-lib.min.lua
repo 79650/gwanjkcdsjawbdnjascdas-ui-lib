@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.7 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.8 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -745,6 +745,8 @@ __modules["dashboard"]=function()
 local Util=require("util")
 local Theme=require("theme")
 local Glow=require("glow")
+local Icons=require("icons")
+local Stats=require("stats")
 local Services=Util.Services
 local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
 return function(window,cfg)
@@ -771,6 +773,22 @@ pcall(function()display.FontFace=Font.new(Font.fromEnum(Enum.Font.Gotham).Family
 Theme.bind(display,"TextColor3","heading")
 local username=label(body,"@"..player.Name.." · #"..player.UserId,10,{Name="Username",Position=UDim2.fromOffset(76,32),Size=UDim2.new(1,-250,0,15)})
 Theme.bind(username,"TextColor3","muted")
+local chipRow=create("Frame",{Name="Chips",BackgroundTransparency=1,Position=UDim2.fromOffset(76,50),Size=UDim2.new(1,-250,0,16),Parent=body})
+Util.list(chipRow,5,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+local function chip(name,icon,order)
+local holder=create("Frame",{Name=name,Size=UDim2.fromOffset(0,16),AutomaticSize=Enum.AutomaticSize.X,BorderSizePixel=0,LayoutOrder=order,Parent=chipRow})
+Theme.bind(holder,"BackgroundColor3","input")
+corner(holder,8)
+Theme.bind(stroke(holder),"Color","line")
+Util.padding(holder,6,7,0,0)
+Util.list(holder,4,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+Icons.themed(holder,icon,9,"muted",{Name="Icon",LayoutOrder=1})
+local text=label(holder,"--",9,{Name="Text",Size=UDim2.fromOffset(0,16),AutomaticSize=Enum.AutomaticSize.X,LayoutOrder=2,Font=Enum.Font.GothamMedium})
+Theme.bind(text,"TextColor3","text")
+return text
+end
+local fpsChip,pingChip,playersChip=chip("FPS","gauge",1),chip("Ping","wifi",2),chip("Players","users",3)
+Stats.start(window.Lib.maid)
 local caption=label(body,"SESSION",8,{Name="SessionCaption",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,12),Size=UDim2.fromOffset(150,12),TextXAlignment=Enum.TextXAlignment.Right})
 Theme.bind(caption,"TextColor3","muted")
 local uptime=label(body,"00:00:00",18,{Name="Uptime",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,28),Size=UDim2.fromOffset(150,24),TextXAlignment=Enum.TextXAlignment.Right})
@@ -787,8 +805,6 @@ avatar.Image=on and""or avatarImage
 end)
 end
 local session=page:Card({Title="Session",Side="Left",Icon="id-card"})
-local userId=session:Info({Title="User ID",Value="#"..player.UserId,Copy=function()return tostring(player.UserId)end})
-if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on)userId:Set(on and"hidden"or("#"..player.UserId))end)end
 session:Info({Title="Account created",Value=os.date("%d %b %Y",os.time()-player.AccountAge*86400)})
 local executor="Unknown"
 pcall(function()
@@ -796,14 +812,13 @@ if type(identifyexecutor)=="function"then executor=table.concat({identifyexecuto
 elseif type(getexecutorname)=="function"then executor=tostring(getexecutorname())end
 end)
 session:Info({Title="Executor",Value=executor})
-session:Divider()
-session:Info({Title="Game ID",Value="#"..game.GameId,Copy=function()return tostring(game.GameId)end})
-session:Info({Title="Place ID",Value="#"..game.PlaceId,Copy=function()return tostring(game.PlaceId)end})
-local info=page:Card({Title="Info",Side="Right",Icon="info"})
-if window.Version~=""then info:Info({Title="GUI version",Value=window.Version})end
-for _,entry in ipairs(cfg.Info or{})do info:Info({Title=entry[1],Value=entry[2],Copy=entry.Copy})end
-local playerCount=info:Info({Title="Players",Value="--"})
-local ping=info:Info({Title="Ping",Value="--"})
+if window.Version~=""then session:Info({Title="GUI version",Value=window.Version})end
+for _,entry in ipairs(cfg.Info or{})do session:Info({Title=entry[1],Value=entry[2],Copy=entry.Copy})end
+local details=session:Section({Title="Details",Icon="hash",Opened=false})
+local userId=details:Info({Title="User ID",Value="#"..player.UserId,Copy=function()return tostring(player.UserId)end})
+if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on)userId:Set(on and"hidden"or("#"..player.UserId))end)end
+details:Info({Title="Game ID",Value="#"..game.GameId,Copy=function()return tostring(game.GameId)end})
+details:Info({Title="Place ID",Value="#"..game.PlaceId,Copy=function()return tostring(game.PlaceId)end})
 if cfg.Server~=false then
 local server=page:Card({Title="Server",Side="Right",Icon="server"})
 local busy=false
@@ -841,18 +856,66 @@ actions:Button({Title="Server hop",Icon="shuffle",Confirm=true,Callback=function
 server:Info({Title="Job ID",Value=game.JobId~=""and(game.JobId:sub(1,8).."...")or"studio",Copy=function()return game.JobId end})
 end
 if cfg.Modules~=false then
-local modulesCard=page:Card({Title="Modules",Side="Left",Icon="boxes"})
+local modulesCard=page:Card({Title="Modules",Side="Right",Icon="boxes"})
 local empty=modulesCard:Label("Modules report here with Window:SetModule(name, state)")
-local rows={}
+local grid=create("Frame",{Name="ModuleGrid",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=modulesCard:_order(),Parent=modulesCard.body})
+Util.list(grid,6)
+local tiles,gridRows={},{}
+local function rowFor(index)
+local number=math.ceil(index/2)
+if not gridRows[number]then
+local holder=create("Frame",{Name="Row"..number,BackgroundTransparency=1,Size=UDim2.new(1,0,0,34),LayoutOrder=number,Parent=grid})
+Util.list(holder,6,Enum.FillDirection.Horizontal)
+gridRows[number]=holder
+end
+return gridRows[number]
+end
 local COLORS={On="success",Limited="warning",Error="danger"}
+local function tabNamed(name)
+for _,t in ipairs(window.Tabs)do if t.Title==name then return t end end
+end
+local function tile(name,index)
+local button=create("TextButton",{Name="Tile_"..name,Text="",AutoButtonColor=false,BorderSizePixel=0,Size=UDim2.new(0.5,-3,1,0),LayoutOrder=index,Parent=rowFor(index)})
+Theme.bind(button,"BackgroundColor3","input")
+corner(button,7)
+local edge=stroke(button)
+Theme.bind(edge,"Color","line")
+local icon=create("ImageLabel",{Name="Icon",BackgroundTransparency=1,AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,10,0.5,0),Size=UDim2.fromOffset(13,13),Visible=false,Parent=button})
+local title=label(button,name,10,{Name="Title",Position=UDim2.fromOffset(10,0),Size=UDim2.new(1,-70,1,0),Font=Enum.Font.GothamMedium})
+Theme.bind(title,"TextColor3","text")
+local pill=label(button,"",8,{Name="State",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,0),Size=UDim2.fromOffset(0,16),AutomaticSize=Enum.AutomaticSize.X,TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamBold})
+corner(pill,8)
+Util.padding(pill,7,7,0,0)
+button.MouseEnter:Connect(function()Theme.tweenTo(edge,"Color","accentEdge",0.1)end)
+button.MouseLeave:Connect(function()Theme.tweenTo(edge,"Color","line",0.1)end)
+button.Activated:Connect(function()
+local meta=window.moduleMeta and window.moduleMeta[name]
+local target=meta and meta.Tab and tabNamed(meta.Tab)
+if target then require("sounds").Play("click")target:Select()end
+end)
+tiles[name]={button=button,icon=icon,title=title,pill=pill}
+return tiles[name]
+end
 local function update()
 local order,modules=window:GetModules()
 empty:SetVisible(#order==0)
-for _,name in ipairs(order)do
-rows[name]=rows[name]or modulesCard:Info({Title=name})
+for index,name in ipairs(order)do
+local t=tiles[name]or tile(name,index)
 local module=modules[name]
-rows[name]:Set(module.state)
-rows[name]:SetColor(COLORS[module.state]or"muted")
+local meta=window.moduleMeta and window.moduleMeta[name]
+local hasIcon=meta and meta.Icon and Icons.Apply(t.icon,meta.Icon)or false
+t.icon.Visible=hasIcon
+if hasIcon then Theme.bind(t.icon,"ImageColor3",module.state=="Off"and"muted"or"heading")end
+local role=COLORS[module.state]or"muted"
+t.pill.Text=string.upper(module.state)
+local pillWidth=Util.textWidth(t.pill.Text,8,Enum.Font.GothamBold)+14
+t.title.Position=UDim2.fromOffset(hasIcon and 30 or 10,0)
+t.title.Size=UDim2.new(1,-(hasIcon and 30 or 10)-pillWidth-12,1,0)
+Theme.bind(t.pill,"TextColor3",role)
+Theme.bind(t.pill,"BackgroundColor3",role)
+t.pill.BackgroundTransparency=0.86
+Theme.bind(t.title,"TextColor3",module.state=="Off"and"muted"or"text")
+t.button:SetAttribute("Detail",module.detail)
 end
 end
 window:OnStatusChanged(update)
@@ -863,9 +926,10 @@ while window.alive do
 if window.visible and window.current==tab then
 local seconds=math.floor(os.clock()-started)
 uptime.Text=string.format("%02d:%02d:%02d",seconds//3600,(seconds//60)%60,seconds%60)
-playerCount:Set(#Players:GetPlayers().." / "..Players.MaxPlayers)
+playersChip.Text=#Players:GetPlayers().." / "..Players.MaxPlayers
+fpsChip.Text=(Stats.fps or 0).." FPS"
 local ok,value=pcall(function()return player:GetNetworkPing()end)
-ping:Set(ok and(math.floor(value*1000+0.5).." ms")or"--")
+pingChip.Text=ok and(math.floor(value*1000+0.5).." ms")or"--"
 end
 task.wait(1)
 end
@@ -6358,7 +6422,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.7",
+Version="1.9.8",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -7660,8 +7724,12 @@ function Window:OnStatusChanged(callback)
 self._statusListeners=self._statusListeners or{}
 table.insert(self._statusListeners,callback)
 end
-function Window:SetModule(name,state,detail)
+function Window:SetModule(name,state,detail,meta)
 name=tostring(name)
+if type(meta)=="table"then
+self.moduleMeta=self.moduleMeta or{}
+self.moduleMeta[name]=meta
+end
 self.modules=self.modules or{}
 self.moduleOrder=self.moduleOrder or{}
 if not self.modules[name]then table.insert(self.moduleOrder,name)end
@@ -8898,6 +8966,19 @@ local duration=animate and 0.14 or nil
 local transparency=selected and 0 or(self.hovered and 0.6 or 1)
 if duration then tween(self.button,duration,{BackgroundTransparency=transparency})else self.button.BackgroundTransparency=transparency end
 Theme.tweenTo(self.icon,self.iconProperty,selected and"accent"or(self.hovered and"heading"or"icon"),duration)
+end
+function Tab:SetActive(on,color)
+self.Active=on==true
+local dot=self._activeDot
+if not dot then
+if not self.Active then return end
+dot=create("Frame",{Name="ActiveDot",AnchorPoint=Vector2.new(1,1),Position=UDim2.new(1,-1,1,-1),Size=UDim2.fromOffset(7,7),BorderSizePixel=0,ZIndex=45,Parent=self.button})
+corner(dot,4)
+Theme.bind(Util.stroke(dot,nil,0,1.5),"Color","dock")
+self._activeDot=dot
+end
+Theme.bind(dot,"BackgroundColor3",color or"success")
+dot.Visible=self.Active
 end
 function Tab:SetBadge(value,color)
 local shown=value~=nil and value~=false and value~=0 and tostring(value)~=""and tostring(value)~="0"
