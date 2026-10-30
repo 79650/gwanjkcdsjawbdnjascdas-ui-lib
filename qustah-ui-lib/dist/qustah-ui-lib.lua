@@ -4584,7 +4584,7 @@ return function(card, cfg)
         highKnob.Position = UDim2.new(b, 5 - 10 * b, 0.5, 0)
         fill.Position = UDim2.new(a, 5 - 10 * a, 0, 0)
         fill.Size = UDim2.new(b - a, -10 * (b - a), 1, 0)
-        if not focused.low then lowBox.Text = format(low) .. suffix end
+        if not focused.low then lowBox.Text = format(low) end -- (the unit once, after the high value: "0 – 100 %")
         if not focused.high then highBox.Text = format(high) .. suffix end
         -- "low – high" packed against the right edge (boxes as wide as their text)
         local function width(object) return math.max(18, Util.textWidth(object.Text, 10, Enum.Font.GothamMedium) + (focused[object == lowBox and "low" or "high"] and 14 or 2)) end
