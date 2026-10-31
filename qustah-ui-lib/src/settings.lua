@@ -57,22 +57,16 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- Inter, Work Sans, Nunito Sans, Poppins, Rubik and Fira Sans come from Roblox's font library; Geist, Manrope and
-    -- JetBrains Mono download once the first time they are picked (only offered where the executor can show them)
-    -- CreateWindow({ Font = "Inter" }): the starting font (Gotham where that one can't be shown)
+    -- Gotham (Roblox's default) and fonts from Roblox's font library; CreateWindow({ Font = "Inter" }) starts with one
     local fonts = UIFont.available()
     local startFont = table.find(fonts, tostring(window.cfg.Font)) and tostring(window.cfg.Font) or "Gotham"
-    local fontDropdown = look:Dropdown({
+    look:Dropdown({
         Title = "Font", Options = fonts, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
         end,
     })
     if startFont ~= "Gotham" then UIFont.set(startFont) end
-    UIFont.onFailed = function(name)
-        if fontDropdown.Value == name then fontDropdown:Set("Gotham", true) end
-        window:Notify({ Title = "Font", Content = name .. " could not be downloaded; back to Gotham", Color = RED })
-    end
     look:Toggle({
         Title = "Text glow", Desc = "Shine on the title and highlights", Flag = "__ui_glow", Default = Glow.enabled,
         Callback = function(on) Glow.setEnabled(on) end,

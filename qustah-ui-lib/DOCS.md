@@ -35,7 +35,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
-| `Font` | `"Gotham"` | starting font, e.g. `"Inter"`, `"Poppins"`, `"Geist"` (list in [Themes](#themes)) |
+| `Font` | `"Gotham"` | starting font, e.g. `"Inter"`, `"Poppins"`, `"Silkscreen"` (list in [Themes](#themes)) |
 | `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
@@ -626,10 +626,11 @@ The theme editor in Settings lets you:
 - save the result under a name;
 - share or import it with a `QTHEME1:` code.
 
-Fonts:
-- Roblox's own: Gotham (default), BuilderSans, Montserrat, Ubuntu, Roboto, SourceSans, Nunito, Arimo.
-- From Roblox's font library, used by asset id (nothing to download, they work everywhere): **Inter**, **Work Sans**, **Nunito Sans**, **Poppins**, **Rubik**, **Fira Sans**.
-- Downloaded: **Geist**, **Manrope**, **JetBrains Mono**. The first time one is picked it downloads once into `QustahUI/fonts` (Regular, Medium, SemiBold and Bold, 60 - 80 KB each) and is shown through `getcustomasset`. Where the executor has no `getcustomasset` they are left out of the list; if a download fails the menu goes back to Gotham and says so. `tools/gen_fonts.py` builds the files from Google Fonts (OFL, licences in `fonts/`).
+Fonts (Settings › Interface › Font): **Gotham** (Roblox's default) and **Inter**, plus ten more:
+- clean: **Work Sans**, **Nunito Sans**, **Poppins**, **Rubik**, **Fira Sans**;
+- with some character: **Silkscreen** (pixel), **Fuzzy Bubbles** (bubbly), **M PLUS Rounded** (rounded), **Quicksand** (soft), **Sono Mono** (terminal).
+
+Everything but Gotham comes from Roblox's own font library by asset id (`Lib.Fonts.Library`), so nothing is downloaded and every executor shows them. Silkscreen is capitals only and has no Ş / ğ / ı; Roblox draws those in a fallback font.
 
 `Lib.Fonts.set("Inter")` picks one from code, `CreateWindow({ Font = "Inter" })` starts with it.
 
