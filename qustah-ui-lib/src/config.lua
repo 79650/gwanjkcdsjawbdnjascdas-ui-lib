@@ -221,6 +221,7 @@ function Config:Delete(name)
     local file = self.path .. "/" .. name .. ".json"
     if not isfile(file) then return false, "Config not found" end
     local ok, err = pcall(delfile, file)
+    for _, tmp in ipairs(Util.tmpFiles(file)) do if isfile(tmp) then pcall(delfile, tmp) end end
     return ok, not ok and tostring(err) or nil
 end
 
@@ -233,7 +234,7 @@ function Config:List()
     for _, file in ipairs(files) do
         -- (a profile whose first save was cut off only has its .tmp: listed, restored when read)
         local path = tostring(file):gsub("\\", "/")
-        local name = path:match("([^/]+)%.json$") or path:match("([^/]+)%.json%.tmp$")
+        local name = path:match("([^/]+)%.json$") or path:match("([^/]+)%.json%.tmp%.txt$") or path:match("([^/]+)%.json%.tmp$")
         local parent = path:match("^(.*)/[^/]+$") or ""
         if name and not seen[name] and (parent == "" or parent:sub(-#self.path) == self.path) then
             seen[name] = true
@@ -322,7 +323,8 @@ function Config:Exists(name)
     name = cleanName(name)
     if not can("isfile") or name == "" then return false end
     local file = self.path .. "/" .. name .. ".json"
-    return isfile(file) or isfile(file .. ".tmp")
+    for _, tmp in ipairs(Util.tmpFiles(file)) do if isfile(tmp) then return true end end
+    return isfile(file)
 end
 function Config:Rename(old, new)
     old, new = cleanName(old), cleanName(new)

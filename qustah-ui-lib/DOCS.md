@@ -558,9 +558,9 @@ Config:OnDataLoaded(function(data) end)
 
 - **Early loading:** you can call `LoadAutoLoad` before elements exist. Each value is applied when its element is created.
 - **Crash-safe saves:**
-  - every file is written to a `.tmp` first and checked;
+  - every file is written to a `.tmp.txt` copy first and checked (where the executor refuses that, straight to the file);
   - if the game closes mid-save, the profile isn't damaged;
-  - on the next start the profile is restored from the `.tmp` (`Config:OnRecovered(fn)`).
+  - on the next start the profile is restored from that copy (`Config:OnRecovered(fn)`).
 - **Per game:** with `CreateWindow({ PerGame = "Game" })` or the switch in Settings › Profiles, each game has its own list and autoload.
 
 The Settings › Profiles page does all of this in the UI:

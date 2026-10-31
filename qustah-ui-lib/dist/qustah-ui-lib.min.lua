@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.28 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.29 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -669,6 +669,7 @@ if not can("delfile","isfile")then return false,"delfile is not available"end
 local file=self.path.."/"..name..".json"
 if not isfile(file)then return false,"Config not found"end
 local ok,err=pcall(delfile,file)
+for _,tmp in ipairs(Util.tmpFiles(file))do if isfile(tmp)then pcall(delfile,tmp)end end
 return ok,not ok and tostring(err)or nil
 end
 function Config:List()
@@ -679,7 +680,7 @@ if not ok or type(files)~="table"then return names end
 local seen={}
 for _,file in ipairs(files)do
 local path=tostring(file):gsub("\\","/")
-local name=path:match("([^/]+)%.json$")or path:match("([^/]+)%.json%.tmp$")
+local name=path:match("([^/]+)%.json$")or path:match("([^/]+)%.json%.tmp%.txt$")or path:match("([^/]+)%.json%.tmp$")
 local parent=path:match("^(.*)/[^/]+$")or""
 if name and not seen[name]and(parent==""or parent:sub(-#self.path)==self.path)then
 seen[name]=true
@@ -758,7 +759,8 @@ function Config:Exists(name)
 name=cleanName(name)
 if not can("isfile")or name==""then return false end
 local file=self.path.."/"..name..".json"
-return isfile(file)or isfile(file..".tmp")
+for _,tmp in ipairs(Util.tmpFiles(file))do if isfile(tmp)then return true end end
+return isfile(file)
 end
 function Config:Rename(old,new)
 old,new=cleanName(old),cleanName(new)
@@ -6778,7 +6780,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.28",
+Version="1.9.29",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9705,11 +9707,18 @@ pcall(function()if syn and syn.protect_gui then syn.protect_gui(gui)elseif prote
 gui.Parent=Util.guiParent()
 return gui
 end
+function Util.tmpOf(path)return path..".tmp.txt"end
+local function tmpFiles(path)return{path..".tmp.txt",path..".tmp"}end
+Util.tmpFiles=tmpFiles
 function Util.writeAtomic(path,text)
 if type(writefile)~="function"then return false,"writefile is not available"end
-local tmp=path..".tmp"
+local tmp=Util.tmpOf(path)
 local ok,err=pcall(writefile,tmp,text)
+if not ok then
+ok,err=pcall(writefile,path,text)
 if not ok then return false,tostring(err)end
+return true
+end
 if type(readfile)=="function"then
 local read,back=pcall(readfile,tmp)
 if not read or(back~=text and(tostring(back):gsub("\r\n","\n"))~=(text:gsub("\r\n","\n")))then
@@ -9729,7 +9738,10 @@ local ok,data=pcall(function()return Services.HttpService:JSONDecode(readfile(fi
 if ok and type(data)=="table"then return data end
 return nil,"damaged"
 end
-local tmp=path..".tmp"
+local tmp=Util.tmpOf(path)
+for _,file in ipairs(tmpFiles(path))do
+if isfile(file)then tmp=file break end
+end
 local data,problem=decode(path)
 if data then
 if isfile(tmp)then

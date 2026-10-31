@@ -485,13 +485,24 @@ function Util.screenGui(name, order)
     return gui
 end
 
--- Crash-safe writes: the text goes to <file>.tmp first, is read back, then written over the file and the .tmp removed.
+-- The temporary copy of a file: <file>.tmp.txt (many executors only write known extensions such as .txt / .json and
+-- refuse ".tmp" with "Illegal extension"); <file>.tmp from older versions is still read.
+function Util.tmpOf(path) return path .. ".tmp.txt" end
+local function tmpFiles(path) return { path .. ".tmp.txt", path .. ".tmp" } end
+Util.tmpFiles = tmpFiles
+
+-- Crash-safe writes: the text goes to <file>.tmp.txt first, is read back, then written over the file and the .tmp removed.
 -- If the game closes half way, either the old file or a complete .tmp survives (Util.readJSON picks it up).
 function Util.writeAtomic(path, text)
     if type(writefile) ~= "function" then return false, "writefile is not available" end
-    local tmp = path .. ".tmp"
+    local tmp = Util.tmpOf(path)
     local ok, err = pcall(writefile, tmp, text)
-    if not ok then return false, tostring(err) end
+    if not ok then
+        -- no temporary copy possible here: write the file itself
+        ok, err = pcall(writefile, path, text)
+        if not ok then return false, tostring(err) end
+        return true
+    end
     if type(readfile) == "function" then
         local read, back = pcall(readfile, tmp)
         -- (some executors turn \n into \r\n on Windows)
@@ -514,7 +525,11 @@ function Util.readJSON(path)
         if ok and type(data) == "table" then return data end
         return nil, "damaged"
     end
-    local tmp = path .. ".tmp"
+    -- the temporary copy that is there (new name first), else the new name
+    local tmp = Util.tmpOf(path)
+    for _, file in ipairs(tmpFiles(path)) do
+        if isfile(file) then tmp = file break end
+    end
     local data, problem = decode(path)
     if data then
         if isfile(tmp) then

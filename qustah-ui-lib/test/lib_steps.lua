@@ -883,9 +883,27 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local cfgs = window.Config
     cfgs:Save("atomic")
     local apath = cfgs.path .. "/atomic.json"
-    check("atomic save writes, no tmp left", E.isfile(apath) and not E.isfile(apath .. ".tmp"))
+    check("atomic save writes, no tmp left", E.isfile(apath) and not E.isfile(apath .. ".tmp") and not E.isfile(apath .. ".tmp.txt"))
     local good = E.readfile(apath)
     MOCK.files[apath] = "{broken"
+    -- executors that only write known extensions ("Illegal extension" for .tmp)
+    do
+        local realWrite = E.writefile
+        E.writefile = function(path, text)
+            if not (path:match("%.json$") or path:match("%.txt$")) then error("Illegal extension") end
+            return realWrite(path, text)
+        end
+        local okStrict, errStrict = window.Config:Save("strict")
+        check("save works where only .json / .txt may be written", okStrict == true and E.isfile(window.Config.path .. "/strict.json"), tostring(errStrict))
+        E.writefile = function(path, text)
+            if path:match("%.tmp%.txt$") then error("Illegal extension") end
+            return realWrite(path, text)
+        end
+        local okDirect = window.Config:Save("strict2")
+        check("no temporary copy possible: the file is written directly", okDirect == true and E.isfile(window.Config.path .. "/strict2.json"))
+        E.writefile = realWrite
+        window.Config:Delete("strict") window.Config:Delete("strict2")
+    end
     MOCK.files[apath .. ".tmp"] = good
     local recovered
     cfgs:OnRecovered(function(name) recovered = name end)
