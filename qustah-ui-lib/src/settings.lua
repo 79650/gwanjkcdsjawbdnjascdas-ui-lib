@@ -96,8 +96,8 @@ return function(window, cfg)
     window._menuListeners = window._menuListeners or {}
     table.insert(window._menuListeners, function(key) if menuKey.Value ~= key then menuKey:Set(key, true) end end)
     -- UI scale: this PC only (not part of profiles)
-    local SCALES = { "80%", "100%", "120%" }
-    -- another scale (CreateWindow({ Scale = 1.1 }), or one saved from the older list) stays as it is; the list shows the nearest
+    local SCALES = { "80%", "100%", "110%", "120%" }
+    -- another scale (CreateWindow({ Scale = 0.9 }), or one saved from the older list) stays as it is; the list shows the nearest
     local percent = math.floor((window:GetUIScale() * 100) + 0.5)
     local nearest = 100
     for _, text in ipairs(SCALES) do

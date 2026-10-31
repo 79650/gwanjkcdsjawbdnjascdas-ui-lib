@@ -1423,7 +1423,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("ui scale back", window.scale.Scale == 1 and window.memory.uiScale == nil)
     do
         local opts = window._scaleDropdown and window._scaleDropdown.Options
-        check("ui scale options are 80 / 100 / 120", opts and table.concat(opts, ",") == "80%,100%,120%")
+        check("ui scale options are 80 / 100 / 110 / 120", opts and table.concat(opts, ",") == "80%,100%,110%,120%")
     end
 
     -- stepper

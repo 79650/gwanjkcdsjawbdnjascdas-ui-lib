@@ -42,7 +42,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
 | `Secure` | `false` | [Secure mode](#secure-mode) |
 | `Blur`, `BlurSize` | `false`, `12` | blur the game behind the open menu |
-| `Scale` | `1` | the whole menu bigger / smaller (0.6 – 1.5); Settings › Behaviour › UI scale offers 80 / 100 / 120 % |
+| `Scale` | `1` | the whole menu bigger / smaller (0.6 – 1.5); Settings › Behaviour › UI scale offers 80 / 100 / 110 / 120 % |
 | `MobileButton` | `"Auto"` | reopen button while the menu is hidden: `"Auto"` = phones / tablets, `true`, `false` |
 | `Sounds` | `false` | soft UI clicks (`Lib.Sounds`) |
 | `KeySystem` | — | key screen before the window opens ([Key system](#key-system)) |

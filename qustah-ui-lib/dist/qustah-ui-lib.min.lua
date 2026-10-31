@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.29 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.30 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6780,7 +6780,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.29",
+Version="1.9.30",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -7871,7 +7871,7 @@ Callback=function(key)window:SetToggleKey(key)end,
 })
 window._menuListeners=window._menuListeners or{}
 table.insert(window._menuListeners,function(key)if menuKey.Value~=key then menuKey:Set(key,true)end end)
-local SCALES={"80%","100%","120%"}
+local SCALES={"80%","100%","110%","120%"}
 local percent=math.floor((window:GetUIScale()*100)+0.5)
 local nearest=100
 for _,text in ipairs(SCALES)do
