@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Builds the downloadable UI fonts: fonts/<Family>/<Family>-<weight>.ttf (static Regular / Medium / SemiBold / Bold,
+"""Builds the downloadable UI fonts (the ones Roblox's own font library lacks): fonts/<Family>/<Family>-<weight>.ttf (static Regular / Medium / SemiBold / Bold,
 cut down to Latin + Turkish + punctuation so each file stays small) from Google Fonts' variable fonts (all OFL).
   git clone --depth 1 --filter=blob:none --sparse https://github.com/google/fonts.git /tmp/gfonts
-  (cd /tmp/gfonts && git sparse-checkout set ofl/inter ofl/geist ofl/manrope ofl/jetbrainsmono)
+  (cd /tmp/gfonts && git sparse-checkout set ofl/geist ofl/manrope ofl/jetbrainsmono)
   python3 tools/gen_fonts.py /tmp/gfonts/ofl
 """
 import pathlib, shutil, sys
@@ -13,7 +13,6 @@ from fontTools import subset
 SRC = pathlib.Path(sys.argv[1])
 OUT = pathlib.Path(__file__).resolve().parent.parent / "fonts"
 FAMILIES = {  # name -> (folder, file, extra axes)
-    "Inter": ("inter", "Inter[opsz,wght].ttf", {"opsz": 14}),
     "Geist": ("geist", "Geist[wght].ttf", {}),
     "Manrope": ("manrope", "Manrope[wght].ttf", {}),
     "JetBrainsMono": ("jetbrainsmono", "JetBrainsMono[wght].ttf", {}),

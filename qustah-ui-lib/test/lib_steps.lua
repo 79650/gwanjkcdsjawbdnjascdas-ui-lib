@@ -1730,29 +1730,40 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         local E = getfenv(0)
         local oldCustom = E.getcustomasset
         local fontFlag = window.flags.__ui_font
-        check("fonts: not offered without getcustomasset", table.find(Lib.Fonts.available(), "Inter") == nil and table.find(Lib.Fonts.available(), "Gotham") ~= nil)
+        check("fonts: downloadable ones not offered without getcustomasset", table.find(Lib.Fonts.available(), "Geist") == nil and table.find(Lib.Fonts.available(), "Gotham") ~= nil)
+        check("fonts: Roblox library fonts offered everywhere", table.find(Lib.Fonts.available(), "Inter") ~= nil and table.find(Lib.Fonts.available(), "Poppins") ~= nil)
+        -- a Roblox library font: its asset id, no download
+        fontFlag:Set("Poppins") wait(0.2)
+        local lib, faces = 0, 0
+        for _, o in ipairs(window.gui:GetDescendants()) do
+            if o:IsA("TextLabel") and o.FontFace then
+                faces = faces + 1
+                if tostring(o.FontFace.Family) == "rbxassetid://11702779409" then lib = lib + 1 end
+            end
+        end
+        check("fonts: a library font is used by its asset id", lib > 0 and lib == faces and MOCK.files["QustahUI/fonts/v1-Poppins.json"] == nil)
         E.getcustomasset = function(path) return "rbxasset://custom/" .. path end
-        check("fonts: the four are offered with it", table.concat(Lib.Fonts.available(), ","):find("Gotham,Inter,Geist,Manrope,JetBrains Mono") ~= nil)
+        check("fonts: the downloadable ones are offered with it", table.concat(Lib.Fonts.available(), ","):find("Geist,Manrope,JetBrains Mono") ~= nil)
         fontFlag:SetOptions(Lib.Fonts.available(), true)
-        for _, w in ipairs({ "Regular", "Medium", "SemiBold", "Bold" }) do MOCK.files["QustahUI/fonts/v1-Inter-" .. w .. ".ttf"] = "\0\1\0\0" end
-        fontFlag:Set("Inter") wait(0.2)
-        local family = MOCK.files["QustahUI/fonts/v1-Inter.json"]
-        check("fonts: family file lists the four weights", family and family:find("Inter%-Bold%.ttf") ~= nil and family:find("600") ~= nil)
+        for _, w in ipairs({ "Regular", "Medium", "SemiBold", "Bold" }) do MOCK.files["QustahUI/fonts/v1-Geist-" .. w .. ".ttf"] = "\0\1\0\0" end
+        fontFlag:Set("Geist") wait(0.2)
+        local family = MOCK.files["QustahUI/fonts/v1-Geist.json"]
+        check("fonts: family file lists the four weights", family and family:find("Geist%-Bold%.ttf") ~= nil and family:find("600") ~= nil)
         local probe = tabNamed("Live").Pages[1]:Card({ Title = "FontProbe" }):Label("probe") wait(0.2)
         local labels = {}
         for _, o in ipairs(window.gui:GetDescendants()) do if o:IsA("TextLabel") and o.FontFace then labels[#labels + 1] = o end end
         local custom = 0
-        for _, l in ipairs(labels) do if l.FontFace and tostring(l.FontFace.Family):find("v1%-Inter%.json") then custom = custom + 1 end end
+        for _, l in ipairs(labels) do if l.FontFace and tostring(l.FontFace.Family):find("v1%-Geist%.json") then custom = custom + 1 end end
         check("fonts: text uses the downloaded family", custom > #labels / 2)
         -- a font that can't be downloaded goes back to Gotham
         E.getcustomasset = function() error("blocked") end
         local notes = #(Lib.NotifyHistory or {})
-        fontFlag:Set("Geist") wait(0.5)
+        fontFlag:Set("Manrope") wait(0.5)
         check("fonts: a failed download goes back to Gotham", fontFlag.Value == "Gotham")
         E.getcustomasset = oldCustom
         fontFlag:Set("Gotham") wait(0.2)
         local back = 0
-        for _, o in ipairs(window.gui:GetDescendants()) do if o:IsA("TextLabel") and o.FontFace and tostring(o.FontFace.Family):find("Inter") then back = back + 1 end end
+        for _, o in ipairs(window.gui:GetDescendants()) do if o:IsA("TextLabel") and o.FontFace and (tostring(o.FontFace.Family):find("Geist") or tostring(o.FontFace.Family):find("rbxassetid")) then back = back + 1 end end
         check("fonts: Gotham puts the library font back", back == 0)
     end
 

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.21 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.22 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -6035,12 +6035,20 @@ __modules["font"] = function()
 -- semibold / bold) is kept. UIFont.set("Montserrat"), UIFont.register(gui, maid).
 local UIFont = { current = "Gotham", guis = {} }
 
-UIFont.order = { "Gotham", "Inter", "Geist", "Manrope", "JetBrains Mono", "BuilderSans", "Montserrat", "Ubuntu", "Roboto", "SourceSans", "Nunito", "Arimo" }
+UIFont.order = { "Gotham", "Inter", "Work Sans", "Nunito Sans", "Poppins", "Rubik", "Fira Sans", "Geist", "Manrope", "JetBrains Mono",
+    "BuilderSans", "Montserrat", "Ubuntu", "Roboto", "SourceSans", "Nunito", "Arimo" }
+
+-- Fonts from Roblox's own font library (Creator Marketplace), used by asset id like any built-in font: nothing to
+-- download, they work everywhere. (Inter is also what WindUI uses.)
+UIFont.Library = {
+    Inter = 12187365364, ["Work Sans"] = 12187373327, ["Nunito Sans"] = 12187363368,
+    Poppins = 11702779409, Rubik = 12187365977, ["Fira Sans"] = 12187374954,
+}
 
 -- Downloadable families (fonts/ in this repo, OFL, tools/gen_fonts.py): fetched once into QustahUI/fonts the first
 -- time one is chosen, described in a font-family file and shown through getcustomasset. Without getcustomasset
 -- they are not offered (UIFont.available()).
-UIFont.Downloadable = { Inter = "Inter", Geist = "Geist", Manrope = "Manrope", ["JetBrains Mono"] = "JetBrainsMono" }
+UIFont.Downloadable = { Geist = "Geist", Manrope = "Manrope", ["JetBrains Mono"] = "JetBrainsMono" }
 UIFont.Source = "https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/fonts/"
 UIFont.Folder = "QustahUI/fonts"
 UIFont.Version = 1
@@ -6066,6 +6074,7 @@ local function isText(object)
 end
 
 local function familyOf(name)
+    if UIFont.Library[name] then return "rbxassetid://" .. UIFont.Library[name] end
     if UIFont.Downloadable[name] then return loaded[name] or nil end
     local ok, face = pcall(function() return Font.fromEnum(Enum.Font[name]) end)
     return ok and face and face.Family or nil
@@ -7653,7 +7662,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.21",
+    Version = "1.9.22",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -8752,8 +8761,8 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- Inter, Geist, Manrope and JetBrains Mono download once the first time they are picked (only offered where
-    -- the executor can show downloaded files)
+    -- Inter, Work Sans, Nunito Sans, Poppins, Rubik and Fira Sans come from Roblox's font library; Geist, Manrope and
+    -- JetBrains Mono download once the first time they are picked (only offered where the executor can show them)
     -- CreateWindow({ Font = "Inter" }): the starting font (Gotham where that one can't be shown)
     local fonts = UIFont.available()
     local startFont = table.find(fonts, tostring(window.cfg.Font)) and tostring(window.cfg.Font) or "Gotham"

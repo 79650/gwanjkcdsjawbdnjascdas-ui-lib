@@ -35,7 +35,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
-| `Font` | `"Gotham"` | starting font: a Roblox one or a downloadable `"Inter"`, `"Geist"`, `"Manrope"`, `"JetBrains Mono"` (see [Themes](#themes)) |
+| `Font` | `"Gotham"` | starting font, e.g. `"Inter"`, `"Poppins"`, `"Geist"` (list in [Themes](#themes)) |
 | `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
@@ -626,9 +626,12 @@ The theme editor in Settings lets you:
 - save the result under a name;
 - share or import it with a `QTHEME1:` code.
 
-Fonts: Gotham, **Inter, Geist, Manrope, JetBrains Mono**, BuilderSans, Montserrat, Ubuntu, Roboto, SourceSans, Nunito, Arimo.
+Fonts:
+- Roblox's own: Gotham (default), BuilderSans, Montserrat, Ubuntu, Roboto, SourceSans, Nunito, Arimo.
+- From Roblox's font library, used by asset id (nothing to download, they work everywhere): **Inter**, **Work Sans**, **Nunito Sans**, **Poppins**, **Rubik**, **Fira Sans**.
+- Downloaded: **Geist**, **Manrope**, **JetBrains Mono**. The first time one is picked it downloads once into `QustahUI/fonts` (Regular, Medium, SemiBold and Bold, 60 - 80 KB each) and is shown through `getcustomasset`. Where the executor has no `getcustomasset` they are left out of the list; if a download fails the menu goes back to Gotham and says so. `tools/gen_fonts.py` builds the files from Google Fonts (OFL, licences in `fonts/`).
 
-The four in bold are not Roblox fonts: the first time one is picked it downloads once into `QustahUI/fonts` (Regular, Medium, SemiBold and Bold, about 70 - 180 KB each) and is shown through `getcustomasset`. Where the executor has no `getcustomasset` they are left out of the list. If a download fails the menu goes back to Gotham and says so. `Lib.Fonts.set("Inter")` picks one from code, `CreateWindow({ Font = "Inter" })` starts with it. The files are built by `tools/gen_fonts.py` from Google Fonts (OFL, licences in `fonts/`).
+`Lib.Fonts.set("Inter")` picks one from code, `CreateWindow({ Font = "Inter" })` starts with it.
 
 ## Icons
 

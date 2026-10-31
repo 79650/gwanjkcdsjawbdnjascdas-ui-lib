@@ -57,8 +57,8 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- Inter, Geist, Manrope and JetBrains Mono download once the first time they are picked (only offered where
-    -- the executor can show downloaded files)
+    -- Inter, Work Sans, Nunito Sans, Poppins, Rubik and Fira Sans come from Roblox's font library; Geist, Manrope and
+    -- JetBrains Mono download once the first time they are picked (only offered where the executor can show them)
     -- CreateWindow({ Font = "Inter" }): the starting font (Gotham where that one can't be shown)
     local fonts = UIFont.available()
     local startFont = table.find(fonts, tostring(window.cfg.Font)) and tostring(window.cfg.Font) or "Gotham"

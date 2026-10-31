@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.21 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.22 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -5351,8 +5351,13 @@ end
 end
 __modules["font"]=function()
 local UIFont={current="Gotham",guis={}}
-UIFont.order={"Gotham","Inter","Geist","Manrope","JetBrains Mono","BuilderSans","Montserrat","Ubuntu","Roboto","SourceSans","Nunito","Arimo"}
-UIFont.Downloadable={Inter="Inter",Geist="Geist",Manrope="Manrope",["JetBrains Mono"]="JetBrainsMono"}
+UIFont.order={"Gotham","Inter","Work Sans","Nunito Sans","Poppins","Rubik","Fira Sans","Geist","Manrope","JetBrains Mono",
+"BuilderSans","Montserrat","Ubuntu","Roboto","SourceSans","Nunito","Arimo"}
+UIFont.Library={
+Inter=12187365364,["Work Sans"]=12187373327,["Nunito Sans"]=12187363368,
+Poppins=11702779409,Rubik=12187365977,["Fira Sans"]=12187374954,
+}
+UIFont.Downloadable={Geist="Geist",Manrope="Manrope",["JetBrains Mono"]="JetBrainsMono"}
 UIFont.Source="https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/fonts/"
 UIFont.Folder="QustahUI/fonts"
 UIFont.Version=1
@@ -5372,6 +5377,7 @@ local function isText(object)
 return object:IsA("TextLabel")or object:IsA("TextButton")or object:IsA("TextBox")
 end
 local function familyOf(name)
+if UIFont.Library[name]then return"rbxassetid://"..UIFont.Library[name]end
 if UIFont.Downloadable[name]then return loaded[name]or nil end
 local ok,face=pcall(function()return Font.fromEnum(Enum.Font[name])end)
 return ok and face and face.Family or nil
@@ -6786,7 +6792,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.21",
+Version="1.9.22",
 Flags={},
 Windows={},
 Theme=Theme,

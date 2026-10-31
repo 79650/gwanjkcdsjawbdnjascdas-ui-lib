@@ -2,12 +2,20 @@
 -- semibold / bold) is kept. UIFont.set("Montserrat"), UIFont.register(gui, maid).
 local UIFont = { current = "Gotham", guis = {} }
 
-UIFont.order = { "Gotham", "Inter", "Geist", "Manrope", "JetBrains Mono", "BuilderSans", "Montserrat", "Ubuntu", "Roboto", "SourceSans", "Nunito", "Arimo" }
+UIFont.order = { "Gotham", "Inter", "Work Sans", "Nunito Sans", "Poppins", "Rubik", "Fira Sans", "Geist", "Manrope", "JetBrains Mono",
+    "BuilderSans", "Montserrat", "Ubuntu", "Roboto", "SourceSans", "Nunito", "Arimo" }
+
+-- Fonts from Roblox's own font library (Creator Marketplace), used by asset id like any built-in font: nothing to
+-- download, they work everywhere. (Inter is also what WindUI uses.)
+UIFont.Library = {
+    Inter = 12187365364, ["Work Sans"] = 12187373327, ["Nunito Sans"] = 12187363368,
+    Poppins = 11702779409, Rubik = 12187365977, ["Fira Sans"] = 12187374954,
+}
 
 -- Downloadable families (fonts/ in this repo, OFL, tools/gen_fonts.py): fetched once into QustahUI/fonts the first
 -- time one is chosen, described in a font-family file and shown through getcustomasset. Without getcustomasset
 -- they are not offered (UIFont.available()).
-UIFont.Downloadable = { Inter = "Inter", Geist = "Geist", Manrope = "Manrope", ["JetBrains Mono"] = "JetBrainsMono" }
+UIFont.Downloadable = { Geist = "Geist", Manrope = "Manrope", ["JetBrains Mono"] = "JetBrainsMono" }
 UIFont.Source = "https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/fonts/"
 UIFont.Folder = "QustahUI/fonts"
 UIFont.Version = 1
@@ -33,6 +41,7 @@ local function isText(object)
 end
 
 local function familyOf(name)
+    if UIFont.Library[name] then return "rbxassetid://" .. UIFont.Library[name] end
     if UIFont.Downloadable[name] then return loaded[name] or nil end
     local ok, face = pcall(function() return Font.fromEnum(Enum.Font[name]) end)
     return ok and face and face.Family or nil
