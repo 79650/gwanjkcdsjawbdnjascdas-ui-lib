@@ -341,6 +341,7 @@ export type WindowConfig = {
 	Welcome: boolean?,
 	AutoFlags: boolean?,
 	OnePickerOpen: boolean?,
+	Font: string?,
 	ResetButtons: boolean?,
 	Debug: boolean?,
 	KickLog: boolean?,
