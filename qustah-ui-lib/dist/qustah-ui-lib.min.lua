@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.34 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.35 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6899,7 +6899,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.34",
+Version="1.9.35",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -11061,6 +11061,7 @@ function Window:SetMouseUnlock(on)
 self.unlockMouse=on~=false
 self:_applyMouse()
 end
+local ICON_STEP="QustahUIMouseIcon"
 function Window:_applyMouse()
 local UserInputService=Util.Services.UserInputService
 local free=self.alive and self.visible and self.unlockMouse
@@ -11068,9 +11069,26 @@ if self._modal then self._modal.Modal=free==true end
 if free then
 if self._savedMouseIcon==nil then self._savedMouseIcon=UserInputService.MouseIconEnabled end
 UserInputService.MouseIconEnabled=true
-elseif self._savedMouseIcon~=nil then
+if not self._iconGuard then
+self._iconGuard=UserInputService:GetPropertyChangedSignal("MouseIconEnabled"):Connect(function()
+if not UserInputService.MouseIconEnabled then UserInputService.MouseIconEnabled=true end
+end)
+pcall(function()
+Util.Services.RunService:BindToRenderStep(ICON_STEP,Enum.RenderPriority.Last.Value+1,function()
+if not UserInputService.MouseIconEnabled then UserInputService.MouseIconEnabled=true end
+end)
+end)
+end
+else
+if self._iconGuard then
+self._iconGuard:Disconnect()
+self._iconGuard=nil
+pcall(function()Util.Services.RunService:UnbindFromRenderStep(ICON_STEP)end)
+end
+if self._savedMouseIcon~=nil then
 UserInputService.MouseIconEnabled=self._savedMouseIcon
 self._savedMouseIcon=nil
+end
 end
 end
 local setVisible=Window.SetVisible

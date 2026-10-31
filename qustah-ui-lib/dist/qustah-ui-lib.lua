@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.34 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.35 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7786,7 +7786,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.34",
+    Version = "1.9.35",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -12587,6 +12587,10 @@ return function(Window)
         self.unlockMouse = on ~= false
         self:_applyMouse()
     end
+    -- Games with their own cursor (Shindo's MOUSE gui) switch the system cursor off again and again: while the
+    -- menu frees the mouse it is switched back on right away and once per frame after the game's own scripts
+    -- (render step bound last), and handed back to the game when the menu closes.
+    local ICON_STEP = "QustahUIMouseIcon"
     function Window:_applyMouse()
         local UserInputService = Util.Services.UserInputService
         local free = self.alive and self.visible and self.unlockMouse
@@ -12594,9 +12598,26 @@ return function(Window)
         if free then
             if self._savedMouseIcon == nil then self._savedMouseIcon = UserInputService.MouseIconEnabled end
             UserInputService.MouseIconEnabled = true
-        elseif self._savedMouseIcon ~= nil then
-            UserInputService.MouseIconEnabled = self._savedMouseIcon
-            self._savedMouseIcon = nil
+            if not self._iconGuard then
+                self._iconGuard = UserInputService:GetPropertyChangedSignal("MouseIconEnabled"):Connect(function()
+                    if not UserInputService.MouseIconEnabled then UserInputService.MouseIconEnabled = true end
+                end)
+                pcall(function()
+                    Util.Services.RunService:BindToRenderStep(ICON_STEP, Enum.RenderPriority.Last.Value + 1, function()
+                        if not UserInputService.MouseIconEnabled then UserInputService.MouseIconEnabled = true end
+                    end)
+                end)
+            end
+        else
+            if self._iconGuard then
+                self._iconGuard:Disconnect()
+                self._iconGuard = nil
+                pcall(function() Util.Services.RunService:UnbindFromRenderStep(ICON_STEP) end)
+            end
+            if self._savedMouseIcon ~= nil then
+                UserInputService.MouseIconEnabled = self._savedMouseIcon
+                self._savedMouseIcon = nil
+            end
         end
     end
     local setVisible = Window.SetVisible

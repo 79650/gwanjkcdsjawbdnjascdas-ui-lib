@@ -846,8 +846,14 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     -- v1.5: mouse unlock
     local modal = window.main:FindFirstChild("MouseUnlock")
     check("mouse free while open", modal and modal.Modal == true and uis.MouseIconEnabled == true)
+    -- a game that keeps switching the system cursor off (its own cursor gui): back on while the menu is open
+    uis.MouseIconEnabled = false wait(0.1)
+    check("cursor stays visible while the menu is open", uis.MouseIconEnabled == true)
     window:SetVisible(false) wait(0.2)
     check("mouse back when hidden", modal.Modal == false)
+    uis.MouseIconEnabled = false wait(0.1)
+    check("menu closed: the game's cursor choice is left alone", uis.MouseIconEnabled == false)
+    uis.MouseIconEnabled = true
     window:SetVisible(true) wait(0.2)
     W.__ui_mouse:Set(false)
     check("mouse unlock switch", modal.Modal == false)
