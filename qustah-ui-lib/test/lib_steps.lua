@@ -1743,6 +1743,14 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         E.getcustomasset, E.http_request = oldCustom, oldRequest
     end
 
+    -- text width with a library / downloaded font: the label reports Enum.Font.Unknown, which GetTextSize refuses
+    do
+        local ok, w = pcall(Lib.Util.textWidth, "Visuals › Overview", 11, Enum.Font.Unknown)
+        check("textWidth: Enum.Font.Unknown measures with Gotham instead of erroring", ok and w == Lib.Util.textWidth("Visuals › Overview", 11, Enum.Font.Gotham))
+        local ok2, w2 = pcall(Lib.Util.textWidth, "abc", 10, nil)
+        check("textWidth: no font given works", ok2 and w2 > 0)
+    end
+
     -- fonts: Gotham + Inter + 10 more from Roblox's font library, all by asset id (nothing downloaded)
     do
         local fontFlag = window.flags.__ui_font
