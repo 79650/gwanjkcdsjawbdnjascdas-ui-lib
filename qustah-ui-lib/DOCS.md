@@ -37,6 +37,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
 | `Font` | `"Gotham"` | starting font, e.g. `"Inter"`, or a list such as `{ "Poppins", "Inter" }` (the first known one) (see [Themes](#themes)) |
 | `CodeFont` | `"Sono Mono"` | font of Code, Console and Log text, e.g. `"Silkscreen"` |
+| `SegmentStyle` | `"Boxed"` | look of every Segment: `"Boxed"`, `"Tab"`, `"Underline"`, `"Line"`, `"Dot"`, `"Divided"`, `"Ghost"`, `"Track"`, `"Pills"`, `"Capsule"` (see [Segment](#dropdown-segment-and-radio)) |
 | `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
@@ -231,6 +232,9 @@ Card:Dropdown({ Title = "Target", Flag = "priority", AllowNone = true, Options =
 Card:Dropdown({ Title = "Mode", Options = { pvp = "PvP mode", farm = "Auto farm" } })   -- the value is the key ("pvp")
 
 Card:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body", "Closest" }, Default = "Head" })
+-- Style (or CreateWindow({ SegmentStyle })): "Boxed" a framed button each · "Tab" words over a faint line, a short
+-- line slides under the chosen one · "Underline" / "Line" / "Dot" / "Divided" / "Ghost" lighter word styles ·
+-- "Track" one track with a sliding thumb · "Pills" / "Capsule" pills as wide as their word
 
 Card:Radio({ Title = "Priority", Flag = "priority", Options = {         -- every option visible, one chosen
     "Closest",

@@ -406,6 +406,22 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local sp = short.frame:FindFirstChild("MatchSpacer")
     check("match heights: spacer under the shorter card", sp and sp.Visible and sp.Size.Y.Offset > 50 and not tall.frame.MatchSpacer.Visible)
     tall.frame:Destroy() short.frame:Destroy()
+    -- Segment styles: Tab (a word-wide line slides to the chosen word), Capsule (the thumb fits the chosen word)
+    do
+        local scard = tabNamed("Live").Pages[1]:Card({ Title = "SegStyles" })
+        local tabSeg = scard:Segment({ Title = "Tab", Options = { "Always", "Hold" }, Style = "Tab" })
+        local bar = tabSeg.Row:FindFirstChild("Bar", true)
+        local w1 = bar and bar.Size.X.Offset
+        tabSeg:Set("Hold") wait(0.3)
+        check("segment Tab: the line is as wide as the word, moves to the chosen one", bar and w1 == Lib.Util.textWidth("Always", 10, Enum.Font.GothamMedium) + 16 and bar.Position.X.Scale == 0.75)
+        local cap = scard:Segment({ Title = "Capsule", Options = { "Head", "Body", "Closest" }, Style = "Capsule", Default = "Body" })
+        local thumb = cap.Row:FindFirstChild("Thumb", true)
+        local body = cap.Row:FindFirstChild("Body", true)
+        check("segment Capsule: the thumb sits on the chosen word", thumb and body and thumb.Position.X.Offset == body.Position.X.Offset and thumb.Size.X.Offset == body.Size.X.Offset)
+        local odd = scard:Segment({ Title = "Odd", Options = { "A", "B" }, Style = "Nope" })
+        check("segment: an unknown style is Boxed", odd.Style == "Boxed")
+        scard.frame:Destroy()
+    end
     -- FillColumn: the shorter column's card grows until both columns end on the same line
     do
         local fpage = tabNamed("Live"):Page("FillTest")

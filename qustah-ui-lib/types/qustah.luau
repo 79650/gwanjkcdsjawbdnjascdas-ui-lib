@@ -115,7 +115,7 @@ export type Container = {
 	TextArea: (self: Container, cfg: ElementConfig & { Placeholder: string?, Default: string?, Height: number?, MaxLength: number?, Finished: boolean?, Validate: ((text: string) -> (boolean?, string?))?, Callback: Callback<string>? }) -> Element<string> & { Valid: boolean? },
 	Range: (self: Container, cfg: ElementConfig & { Min: number?, Max: number?, Default: { number }?, Step: number?, Suffix: string?, MinGap: number?, Callback: Callback<{ number }>? }) -> Element<{ number }>,
 	Dropdown: (self: Container, cfg: ElementConfig & { Options: { any } | { [string]: string }, Default: any?, Multi: boolean?, AllowNone: boolean?, Search: boolean?, DragSelect: boolean?, Callback: Callback<any>? }) -> Dropdown,
-	Segment: (self: Container, cfg: ElementConfig & { Options: { string }, Default: string?, Callback: Callback<string>? }) -> Element<string>,
+	Segment: (self: Container, cfg: ElementConfig & { Options: { string }, Default: string?, Style: string?, Callback: Callback<string>? }) -> Element<string>,
 	Radio: (self: Container, cfg: ElementConfig & { Options: { any }, Default: any?, Callback: Callback<any>? }) -> Radio,
 	Keybind: (self: Container, cfg: ElementConfig & { Default: any?, Chord: boolean?, Mode: ("Press" | "Hold")?, Callback: Callback<any>?, Pressed: Callback<any>? }) -> Keybind,
 	ColorPicker: (self: Container, cfg: ElementConfig & { Default: (Color3 | string)?, Apply: boolean?, Rainbow: boolean?, RainbowSpeed: number?, Alpha: boolean?, Transparency: number?, Callback: ((color: Color3, transparency: number?) -> ())? }) -> ColorPicker,
