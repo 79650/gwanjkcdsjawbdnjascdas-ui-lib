@@ -51,6 +51,7 @@ function Window.new(Lib, cfg)
 
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
     if cfg.Secure then Util.secure = true end
+    if cfg.ConsoleLog == false then Util.quiet = true end
     if cfg.Sounds ~= nil then require("sounds").Enabled = cfg.Sounds == true end
     self:_makeFlags()
     self.Config = Config.new(self, cfg.Folder or self.Title:gsub("[^%w_%- ]", ""))

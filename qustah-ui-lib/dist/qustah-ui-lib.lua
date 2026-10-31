@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.33 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.34 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -4857,6 +4857,7 @@ return function(card, cfg)
     if not STYLES[style] then style = "Boxed" end
     local element = Base.element(card, "Segment", cfg, row, title, desc)
     element.Style = style
+    element.Options = options
     local buttons, outlines = {}, {}
     local count = math.max(1, #options)
     -- the moving part of Track (a thumb behind the chosen word) and Underline (a bar under it)
@@ -7785,7 +7786,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.33",
+    Version = "1.9.34",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -10737,9 +10738,11 @@ local Services = Util.Services
 -- random ScreenGui names, nothing printed to the console, avatars as rbxthumb content (no web lookup).
 local genv = (getgenv and getgenv()) or _G
 Util.secure = genv.QUSTAH_SECURE == true
--- Library messages go through here so secure mode can keep the console quiet.
+-- Library messages go through here so secure mode (or CreateWindow({ ConsoleLog = false })) keeps the console
+-- quiet: the game's own scripts can read the console.
+Util.quiet = false
 function Util.log(message)
-    if not Util.secure then warn(message) end
+    if not Util.secure and not Util.quiet then warn(message) end
 end
 
 -- create("Frame", { Size = ..., Parent = ... }, { children }) - Parent is applied last.
@@ -11375,6 +11378,7 @@ function Window.new(Lib, cfg)
 
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
     if cfg.Secure then Util.secure = true end
+    if cfg.ConsoleLog == false then Util.quiet = true end
     if cfg.Sounds ~= nil then require("sounds").Enabled = cfg.Sounds == true end
     self:_makeFlags()
     self.Config = Config.new(self, cfg.Folder or self.Title:gsub("[^%w_%- ]", ""))

@@ -15,9 +15,11 @@ local Services = Util.Services
 -- random ScreenGui names, nothing printed to the console, avatars as rbxthumb content (no web lookup).
 local genv = (getgenv and getgenv()) or _G
 Util.secure = genv.QUSTAH_SECURE == true
--- Library messages go through here so secure mode can keep the console quiet.
+-- Library messages go through here so secure mode (or CreateWindow({ ConsoleLog = false })) keeps the console
+-- quiet: the game's own scripts can read the console.
+Util.quiet = false
 function Util.log(message)
-    if not Util.secure then warn(message) end
+    if not Util.secure and not Util.quiet then warn(message) end
 end
 
 -- create("Frame", { Size = ..., Parent = ... }, { children }) - Parent is applied last.

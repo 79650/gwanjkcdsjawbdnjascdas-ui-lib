@@ -406,6 +406,17 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local sp = short.frame:FindFirstChild("MatchSpacer")
     check("match heights: spacer under the shorter card", sp and sp.Visible and sp.Size.Y.Offset > 50 and not tall.frame.MatchSpacer.Visible)
     tall.frame:Destroy() short.frame:Destroy()
+    -- ConsoleLog = false: library messages stay out of the console
+    do
+        local E = getfenv(0)
+        local warned, realWarn = 0, E.warn
+        E.warn = function() warned = warned + 1 end
+        Lib.Util.quiet = true
+        window:ReportError("Test", "quiet console")
+        Lib.Util.quiet = false
+        E.warn = realWarn
+        check("ConsoleLog = false: nothing in the console", warned == 0)
+    end
     -- Segment styles: Tab (a word-wide line slides to the chosen word), Capsule (the thumb fits the chosen word)
     do
         local scard = tabNamed("Live").Pages[1]:Card({ Title = "SegStyles" })

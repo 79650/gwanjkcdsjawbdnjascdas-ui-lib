@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.33 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.34 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -4300,6 +4300,7 @@ local STYLES={Boxed=true,Track=true,Underline=true,Line=true,Dot=true,Divided=tr
 if not STYLES[style]then style="Boxed"end
 local element=Base.element(card,"Segment",cfg,row,title,desc)
 element.Style=style
+element.Options=options
 local buttons,outlines={},{}
 local count=math.max(1,#options)
 local thumb,bar
@@ -6898,7 +6899,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.33",
+Version="1.9.34",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9470,8 +9471,9 @@ end,
 local Services=Util.Services
 local genv=(getgenv and getgenv())or _G
 Util.secure=genv.QUSTAH_SECURE==true
+Util.quiet=false
 function Util.log(message)
-if not Util.secure then warn(message)end
+if not Util.secure and not Util.quiet then warn(message)end
 end
 function Util.create(class,props,children)
 local object=Instance.new(class)
@@ -10003,6 +10005,7 @@ end
 env.__QustahUIWindows[self.Title]=self
 if typeof(cfg.Accent)=="Color3"then Theme.set("accent",cfg.Accent)end
 if cfg.Secure then Util.secure=true end
+if cfg.ConsoleLog==false then Util.quiet=true end
 if cfg.Sounds~=nil then require("sounds").Enabled=cfg.Sounds==true end
 self:_makeFlags()
 self.Config=Config.new(self,cfg.Folder or self.Title:gsub("[^%w_%- ]",""))

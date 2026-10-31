@@ -29,6 +29,7 @@ return function(card, cfg)
     if not STYLES[style] then style = "Boxed" end
     local element = Base.element(card, "Segment", cfg, row, title, desc)
     element.Style = style
+    element.Options = options
     local buttons, outlines = {}, {}
     local count = math.max(1, #options)
     -- the moving part of Track (a thumb behind the chosen word) and Underline (a bar under it)

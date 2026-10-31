@@ -40,6 +40,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `SegmentStyle` | `"Boxed"` | look of every Segment: `"Boxed"`, `"Tab"`, `"Underline"`, `"Line"`, `"Dot"`, `"Divided"`, `"Ghost"`, `"Track"`, `"Pills"`, `"Capsule"` (see [Segment](#dropdown-segment-and-radio)) |
 | `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |
+| `ConsoleLog` | `true` | `false`: nothing in the Roblox console (the game's scripts can read it); errors still show in Settings › Info and `Window:GetErrors()` |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
 | `Secure` | `false` | [Secure mode](#secure-mode) |
 | `Blur`, `BlurSize` | `false`, `12` | blur the game behind the open menu |
