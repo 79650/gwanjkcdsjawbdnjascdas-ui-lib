@@ -7,7 +7,7 @@ Dock navigation, real profiles, 20 themes and 18k icons, loaded with one line.
 
 <br>
 
-![version](https://img.shields.io/badge/version-1.9.25-2b2b2f?style=flat-square&labelColor=18181a)
+![version](https://img.shields.io/badge/version-1.9.26-2b2b2f?style=flat-square&labelColor=18181a)
 ![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-467_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![license](https://img.shields.io/badge/license-MIT-2b2b2f?style=flat-square&labelColor=18181a)

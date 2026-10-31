@@ -111,6 +111,7 @@ return function(card, cfg)
             TextTruncate = Enum.TextTruncate.None, RichText = true, Font = Enum.Font.Code, LayoutOrder = order,
             TextYAlignment = Enum.TextYAlignment.Top,
         })
+        row:SetAttribute("QCode", true) -- the code font (Sono Mono / CreateWindow CodeFont)
         local function paint()
             local prefix = stamp and ('<font color="#' .. Util.toHex(Theme.get("muted")) .. '">' .. stamp .. "</font>  ") or ""
             row.Text = prefix .. escape(text)

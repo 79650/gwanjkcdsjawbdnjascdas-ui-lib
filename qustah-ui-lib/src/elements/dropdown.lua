@@ -2,7 +2,7 @@
 -- Single: Value is the chosen option. Multi: Value is a list of chosen options.
 -- Options can be:
 --   strings                                   { "Head", "Body" }
---   tables                                    { { Title = "Head", Icon = "user", Image = "rbxassetid://..", Desc = "...", Locked = true } }
+--   tables                                    { { Title = "Head", Icon = "user", Image = "rbxassetid://..", Desc = "...", Locked = true, Font = family } }
 --   key / label pairs (Value = the key)       { pvp = "PvP mode", farm = "Auto farm" } or { { Value = "pvp", Title = "PvP mode" } }
 -- Search = true (automatic above 8 options) puts a filter box at the top; long lists are drawn in chunks while
 -- scrolling, so thousands of options stay fast. Multi lists can be ticked by dragging over them (DragSelect = false
@@ -251,6 +251,11 @@ return function(card, cfg)
             if entry.Image then corner(icon, 4) end
             if applyVisual(icon, entry, chosen(option) and "accent" or "muted") then textX = entry.Image and 30 or 26 else icon:Destroy() icon = nil end
             local text = label(item, entry.Title, 10, { Position = UDim2.fromOffset(textX, entry.Desc and 3 or 0), Size = UDim2.new(1, -textX - 20, 0, entry.Desc and 17 or height), ZIndex = 263 })
+            -- Font = family: the option is drawn in that font (the font list shows each font in its own face)
+            if entry.Font then
+                text:SetAttribute("QFixedFont", true)
+                pcall(function() text.FontFace = Font.new(entry.Font, Enum.FontWeight.Medium) end)
+            end
             Theme.bind(text, "TextColor3", chosen(option) and "accent" or "text")
             if entry.Desc then
                 local sub = label(item, tostring(entry.Desc), 9, { Position = UDim2.fromOffset(textX, 18), Size = UDim2.new(1, -textX - 20, 0, 13), ZIndex = 263 })

@@ -1754,7 +1754,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         local function using(id)
             local hit, faces = 0, 0
             for _, o in ipairs(window.gui:GetDescendants()) do
-                if o:IsA("TextLabel") and o.FontFace then
+                if o:IsA("TextLabel") and o.FontFace and not o:GetAttribute("QCode") and not o:GetAttribute("QFixedFont") then
                     faces = faces + 1
                     if tostring(o.FontFace.Family) == id then hit = hit + 1 end
                 end
@@ -1767,7 +1767,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         check("fonts: the pixel font too", using("rbxassetid://12187371840"))
         fontFlag:Set("Gotham") wait(0.2)
         local back = 0
-        for _, o in ipairs(window.gui:GetDescendants()) do if o:IsA("TextLabel") and o.FontFace and tostring(o.FontFace.Family):find("rbxassetid") then back = back + 1 end end
+        for _, o in ipairs(window.gui:GetDescendants()) do if o:IsA("TextLabel") and o.FontFace and not o:GetAttribute("QCode") and not o:GetAttribute("QFixedFont") and tostring(o.FontFace.Family):find("rbxassetid") then back = back + 1 end end
         check("fonts: Gotham puts the library font back", back == 0)
         check("fonts: an unknown name is refused", Lib.Fonts.set("Comic Sans") == false)
         -- Geist / Geist Mono / Geist Pixel: downloaded once, through getcustomasset
@@ -1798,6 +1798,54 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         check("fonts: a failed download goes back to the font on screen", fontFlag.Value == "Geist Pixel")
         E.getcustomasset, E.http_request = oldCustom, oldRequest
         fontFlag:Set("Gotham") wait(0.2)
+    end
+
+    -- font list drawn in each font, code text in the code font, text size
+    do
+        local fontFlag = window.flags.__ui_font
+        -- (an earlier check swapped in plain names: the list as Settings builds it)
+        local opts = {}
+        for _, name in ipairs(Lib.Fonts.available()) do opts[#opts + 1] = { Title = name, Font = Lib.Fonts.family(name) } end
+        fontFlag:SetOptions(opts, true)
+        settingsTab:Select() settingsTab.Pages[1]:Select() wait(0.2)
+        MOCK.click(fontFlag.Row:FindFirstChild("Select")) wait(0.2)
+        local list = find("DropdownList")
+        local function itemFamily(name)
+            local item = list and list:FindFirstChild(name, true)
+            local text = item and (item:IsA("TextLabel") and item or item:FindFirstChildWhichIsA("TextLabel", true))
+            return text and text.FontFace and tostring(text.FontFace.Family)
+        end
+        check("font list: Poppins drawn in Poppins", itemFamily("Poppins") == "rbxassetid://11702779409")
+        check("font list: Silkscreen drawn in Silkscreen", itemFamily("Silkscreen") == "rbxassetid://12187371840")
+        Lib.Fonts.set("Rubik") wait(0.2)
+        check("font list: names keep their own font when the menu font changes", itemFamily("Poppins") == "rbxassetid://11702779409")
+        MOCK.press(Enum.KeyCode.Escape) wait(0.1)
+        Lib.Fonts.set("Gotham") wait(0.1)
+        -- code text: Sono Mono whatever the menu font is
+        local cc = tabNamed("Live").Pages[1]:Card({ Title = "CodeFont" })
+        local con = cc:Console({ Title = "Mono", Height = 60 })
+        con:Append("monospace line") wait(0.2)
+        local line = con.Lines[1] and con.Lines[1].label
+        local codeLine = line or cc.frame:FindFirstChild("Line", true)
+        check("code text uses the code font", codeLine and codeLine.FontFace and tostring(codeLine.FontFace.Family) == "rbxassetid://12187362578")
+        Lib.Fonts.set("Poppins") wait(0.2)
+        check("code text keeps it when the menu font changes", tostring(codeLine.FontFace.Family) == "rbxassetid://12187362578")
+        Lib.Fonts.set("Gotham") wait(0.1)
+        -- text size
+        local sizeFlag = window.flags.__ui_textsize
+        local probe = cc:Label("size probe") wait(0.1)
+        local probeLabel = cc.frame:FindFirstChild("size probe", true) or probe.Row
+        local probeText = probeLabel:IsA("TextLabel") and probeLabel or probeLabel:FindFirstChildWhichIsA("TextLabel", true)
+        local base = probeText.TextSize
+        sizeFlag:Set("Large") wait(0.2)
+        check("text size Large: about 10 % bigger", probeText.TextSize == math.floor(base * 1.1 + 0.5))
+        local later = cc:Label("made while large") wait(0.2)
+        local laterText = cc.frame:FindFirstChild("made while large", true) or later.Row
+        laterText = laterText and (laterText:IsA("TextLabel") and laterText or laterText:FindFirstChildWhichIsA("TextLabel", true))
+        check("text size Large: new text follows", laterText and laterText.TextSize > base)
+        sizeFlag:Set("Normal") wait(0.2)
+        check("text size Normal: back to the own size", probeText.TextSize == base)
+        cc.frame:Destroy()
     end
 
     -- sharp lucide icons from the 16 / 32 px sheets (getcustomasset), plain asset ids otherwise

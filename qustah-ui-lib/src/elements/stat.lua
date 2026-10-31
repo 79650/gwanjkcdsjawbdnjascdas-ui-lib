@@ -74,11 +74,13 @@ return function(card, cfg)
                 local strip = create("Frame", { Name = "Strip", BackgroundTransparency = 1, Position = UDim2.fromOffset(0, -digit * HEIGHT), Size = UDim2.fromOffset(digitWidth, HEIGHT * 10), Parent = frame })
                 for n = 0, 9 do
                     local glyph = label(strip, tostring(n), SIZE, { Name = tostring(n), Position = UDim2.fromOffset(0, n * HEIGHT), Size = UDim2.fromOffset(digitWidth, HEIGHT), Font = FONT, TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.None })
+                    glyph:SetAttribute("QNoScale", true) -- (sized to its digit column)
                     Theme.bind(glyph, "TextColor3", "heading")
                 end
                 columns[index] = { frame = frame, strip = strip, digit = digit }
             else
                 local frame = label(digits, char, SIZE, { Name = "Char", Size = UDim2.fromOffset(char == " " and 4 or 0, HEIGHT), AutomaticSize = char == " " and Enum.AutomaticSize.None or Enum.AutomaticSize.X, Font = FONT, TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.None, LayoutOrder = index })
+                frame:SetAttribute("QNoScale", true)
                 Theme.bind(frame, "TextColor3", "heading")
                 columns[index] = { frame = frame, char = char }
             end

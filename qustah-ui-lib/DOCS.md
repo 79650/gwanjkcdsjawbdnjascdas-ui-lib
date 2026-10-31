@@ -36,6 +36,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
 | `Font` | `"Gotham"` | starting font, e.g. `"Inter"`, or a list such as `{ "Geist", "Inter" }` (see [Themes](#themes)) |
+| `CodeFont` | `"Sono Mono"` | font of Code, Console and Log text, e.g. `"Geist Mono"` (downloaded once) |
 | `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
@@ -241,6 +242,7 @@ Card:Radio({ Title = "Priority", Flag = "priority", Options = {         -- every
 - Thousands of options stay fast: the list is drawn in chunks.
 - In multi lists you can drag over options to select them (`DragSelect = false` turns it off).
 - `:SetOptions(list, keepValue)` (`:Refresh(list)` is the same, keeping the value), `:GetLabel()`.
+- An option table can carry `Font = family` (e.g. `"rbxassetid://12187365364"`): that option is drawn in that font.
 
 ### Keybind
 
@@ -632,7 +634,11 @@ Fonts (Settings › Interface › Font): **Gotham** (Roblox's default), **Inter*
 
 Inter and the ten come from Roblox's own font library by asset id (`Lib.Fonts.Library`): nothing is downloaded and every executor shows them. The three Geist fonts are not in that library: the first time one is used it downloads once into `QustahUI/fonts` (85 - 95 KB per weight; Geist Pixel is one file) and is shown through `getcustomasset`. Where the executor lacks that they are left out of the list, and a failed download goes back to the font that was on screen. Silkscreen and Geist Pixel are display fonts: fine for a playful look, less so for small text.
 
-`Lib.Fonts.set("Inter")` picks one from code. `CreateWindow({ Font = "Inter" })` starts with it; `Font = { "Geist", "Inter" }` starts with the first one the executor can show, with the next one on screen while Geist downloads. `tools/gen_fonts.py` builds the Geist files from [vercel/geist-font](https://github.com/vercel/geist-font) (OFL).
+In the font list every name is drawn in its own font. Code, Console and Log text always use a monospace font: Sono Mono, or `CreateWindow({ CodeFont = "Geist Mono" })`.
+
+**Text size** (Settings › Interface): Small, Normal or Large makes every text about 10 % smaller or larger while the menu keeps its size. Small print (9 px and under) stays as it is; in Large a long value in a narrow box can end in "…".
+
+`Lib.Fonts.set("Inter")`, `Lib.Fonts.setCode("Geist Mono")` and `Lib.Fonts.setTextScale(1.1)` do the same from code. `CreateWindow({ Font = "Inter" })` starts with a font; `Font = { "Geist", "Inter" }` starts with the first one the executor can show, with the next one on screen while Geist downloads. `tools/gen_fonts.py` builds the Geist files from [vercel/geist-font](https://github.com/vercel/geist-font) (OFL).
 
 **Download strip.** While the library fetches files (the sharp icon sheets, a script's own sheet, a Geist font) a thin strip at the top of the screen says so, with the progress. It only shows when something is really downloaded, so later starts (everything already on disk) show nothing. `Lib.Loader.enabled = false` hides it.
 

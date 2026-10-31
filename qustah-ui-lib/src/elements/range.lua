@@ -28,6 +28,7 @@ return function(card, cfg)
         Theme.bind(object, "BackgroundColor3", "base")
         Theme.bind(object, "TextColor3", "text")
         corner(object, 6)
+        object:SetAttribute("QNoScale", true) -- (its width follows the value at this size)
         return object
     end
     local lowBox, highBox = box("Low", 0, Enum.TextXAlignment.Right), box("High", 64, Enum.TextXAlignment.Right)

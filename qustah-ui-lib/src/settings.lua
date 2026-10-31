@@ -65,8 +65,11 @@ return function(window, cfg)
     local usable = {}
     for _, name in ipairs(wanted) do if table.find(fonts, tostring(name)) then usable[#usable + 1] = tostring(name) end end
     local startFont = usable[1] or "Gotham"
+    -- each name drawn in its own font (a downloaded one shows plain until it has been downloaded)
+    local fontOptions = {}
+    for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
     local fontDropdown = look:Dropdown({
-        Title = "Font", Options = fonts, Default = startFont, Flag = "__ui_font",
+        Title = "Font", Options = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
         end,
@@ -75,6 +78,14 @@ return function(window, cfg)
         if UIFont.Downloadable[startFont] and usable[2] then UIFont.set(usable[2]) end
         UIFont.set(startFont)
     end
+    -- CreateWindow({ CodeFont = "Geist Mono" }): the font of Code, Console and Log text (Sono Mono otherwise)
+    if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont) end
+    -- text size: every text a bit smaller / larger, the menu itself stays the same size
+    local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
+    look:Segment({
+        Title = "Text size", Flag = "__ui_textsize", Options = { "Small", "Normal", "Large" }, Default = "Normal",
+        Callback = function(choice) UIFont.setTextScale(TEXT_SIZES[choice] or 1) end,
+    })
     UIFont.onFailed = function(name, _, before)
         if fontDropdown.Value == name then fontDropdown:Set(before or "Gotham", true) end
         window:Notify({ Title = "Font", Content = name .. " could not be downloaded; back to " .. tostring(before or "Gotham"), Color = RED })
@@ -147,7 +158,7 @@ return function(window, cfg)
         end,
     })
     -- the look of the menu back to its defaults (theme, accent, font, window, overlays, scale) - nothing else changes
-    local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
+    local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
         "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats" }
     menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
         window:Confirm("Reset the interface?", "Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.", function()

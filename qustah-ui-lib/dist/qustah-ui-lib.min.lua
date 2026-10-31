@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.25 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.26 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -2285,6 +2285,7 @@ Name="Code",BackgroundTransparency=1,Position=UDim2.fromOffset(10,8),Size=UDim2.
 Font=Enum.Font.Code,TextSize=11,RichText=true,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,
 TextWrapped=false,Text="",Parent=scroller,
 })
+text:SetAttribute("QCode",true)
 Theme.bind(text,"TextColor3","heading")
 create("UIPadding",{PaddingRight=UDim.new(0,12),PaddingBottom=UDim.new(0,10),Parent=text})
 local element=Base.element(card,"Code",{},holder,title,nil)
@@ -2649,6 +2650,7 @@ Name="Line",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapp
 TextTruncate=Enum.TextTruncate.None,RichText=true,Font=Enum.Font.Code,LayoutOrder=order,
 TextYAlignment=Enum.TextYAlignment.Top,
 })
+row:SetAttribute("QCode",true)
 local function paint()
 local prefix=stamp and('<font color="#'..Util.toHex(Theme.get("muted"))..'">'..stamp.."</font>  ")or""
 row.Text=prefix..escape(text)
@@ -2948,6 +2950,10 @@ Size=UDim2.fromOffset(entry.Image and 16 or 12,entry.Image and 16 or 12),ZIndex=
 if entry.Image then corner(icon,4)end
 if applyVisual(icon,entry,chosen(option)and"accent"or"muted")then textX=entry.Image and 30 or 26 else icon:Destroy()icon=nil end
 local text=label(item,entry.Title,10,{Position=UDim2.fromOffset(textX,entry.Desc and 3 or 0),Size=UDim2.new(1,-textX-20,0,entry.Desc and 17 or height),ZIndex=263})
+if entry.Font then
+text:SetAttribute("QFixedFont",true)
+pcall(function()text.FontFace=Font.new(entry.Font,Enum.FontWeight.Medium)end)
+end
 Theme.bind(text,"TextColor3",chosen(option)and"accent"or"text")
 if entry.Desc then
 local sub=label(item,tostring(entry.Desc),9,{Position=UDim2.fromOffset(textX,18),Size=UDim2.new(1,-textX-20,0,13),ZIndex=263})
@@ -4168,6 +4174,7 @@ Text="",TextSize=10,Font=Enum.Font.GothamMedium,ClearTextOnFocus=false,TextXAlig
 Theme.bind(object,"BackgroundColor3","base")
 Theme.bind(object,"TextColor3","text")
 corner(object,6)
+object:SetAttribute("QNoScale",true)
 return object
 end
 local lowBox,highBox=box("Low",0,Enum.TextXAlignment.Right),box("High",64,Enum.TextXAlignment.Right)
@@ -4523,11 +4530,13 @@ local frame=create("Frame",{Name="Digit",BackgroundTransparency=1,Size=UDim2.fro
 local strip=create("Frame",{Name="Strip",BackgroundTransparency=1,Position=UDim2.fromOffset(0,-digit*HEIGHT),Size=UDim2.fromOffset(digitWidth,HEIGHT*10),Parent=frame})
 for n=0,9 do
 local glyph=label(strip,tostring(n),SIZE,{Name=tostring(n),Position=UDim2.fromOffset(0,n*HEIGHT),Size=UDim2.fromOffset(digitWidth,HEIGHT),Font=FONT,TextXAlignment=Enum.TextXAlignment.Center,TextTruncate=Enum.TextTruncate.None})
+glyph:SetAttribute("QNoScale",true)
 Theme.bind(glyph,"TextColor3","heading")
 end
 columns[index]={frame=frame,strip=strip,digit=digit}
 else
 local frame=label(digits,char,SIZE,{Name="Char",Size=UDim2.fromOffset(char==" "and 4 or 0,HEIGHT),AutomaticSize=char==" "and Enum.AutomaticSize.None or Enum.AutomaticSize.X,Font=FONT,TextXAlignment=Enum.TextXAlignment.Center,TextTruncate=Enum.TextTruncate.None,LayoutOrder=index})
+frame:SetAttribute("QNoScale",true)
 Theme.bind(frame,"TextColor3","heading")
 columns[index]={frame=frame,char=char}
 end
@@ -5369,6 +5378,8 @@ UIFont.onFailed=nil
 local WEIGHTS={{"Regular",400},{"Medium",500},{"SemiBold",600},{"Bold",700}}
 local loaded={}
 local shown="Gotham"
+UIFont.code="Sono Mono"
+UIFont.textScale=1
 local function canDownload()return require("util").canCustomAsset()end
 function UIFont.available()
 local list={}
@@ -5382,6 +5393,7 @@ local function isText(object)
 return object:IsA("TextLabel")or object:IsA("TextButton")or object:IsA("TextBox")
 end
 local function familyOf(name)
+name=tostring(name)
 if UIFont.Library[name]then return"rbxassetid://"..UIFont.Library[name]end
 if UIFont.Downloadable[name]then return loaded[name]or nil end
 local ok,face=pcall(function()return Font.fromEnum(Enum.Font[name])end)
@@ -5419,17 +5431,37 @@ loaded[name]=nil
 done(false,reason)
 end,"font ("..name..")")
 end
-local function apply(object,target)
-if not target or not isText(object)then return end
+local function targetFor(object,uiTarget)
+if object:GetAttribute("QFixedFont")then return nil end
+if object:GetAttribute("QCode")then return familyOf(UIFont.code)end
+return uiTarget
+end
+local function scaleText(object)
+if object:GetAttribute("QNoScale")then return end
+local base=object:GetAttribute("QBaseSize")
+if base==nil then
+if UIFont.textScale==1 or object.TextSize<=9 then return end
+base=object.TextSize
+object:SetAttribute("QBaseSize",base)
+end
+local size=math.max(6,math.floor(base*UIFont.textScale+0.5))
+if object.TextSize~=size then object.TextSize=size end
+end
+local function apply(object,uiTarget)
+if not isText(object)then return end
+pcall(scaleText,object)
+local target=targetFor(object,uiTarget)
+if not target then return end
 pcall(function()
 local face=object.FontFace
+if not face then object.FontFace=Font.new(target)return end
 if face.Family~=target then object.FontFace=Font.new(target,face.Weight,face.Style)end
 end)
 end
+function UIFont.family(name)return familyOf(name)end
 function UIFont.refresh()
 local target=familyOf(UIFont.current)
 if target then shown=UIFont.current else target=familyOf(shown)end
-if not target then return end
 for gui in pairs(UIFont.guis)do
 if gui.Parent then
 for _,object in ipairs(gui:GetDescendants())do apply(object,target)end
@@ -5463,17 +5495,39 @@ UIFont.current=name
 UIFont.refresh()
 return true
 end
+function UIFont.setCode(name)
+name=tostring(name or"Sono Mono")
+if not table.find(UIFont.order,name)then return false end
+if UIFont.Downloadable[name]then
+if not canDownload()then return false end
+if loaded[name]then UIFont.code=name UIFont.refresh()return true end
+if loaded[name]~=false then
+loadFamily(name,function(ok)if ok then UIFont.code=name UIFont.refresh()end end)
+end
+return true
+end
+if not familyOf(name)then return false end
+UIFont.code=name
+UIFont.refresh()
+return true
+end
+function UIFont.setTextScale(scale)
+UIFont.textScale=math.clamp(tonumber(scale)or 1,0.7,1.4)
+UIFont.refresh()
+end
 function UIFont.register(gui,maid)
 if UIFont.guis[gui]then return end
 UIFont.guis[gui]=true
 local connection=gui.DescendantAdded:Connect(function(object)
-if shown=="Gotham"or not isText(object)then return end
+if not isText(object)then return end
 task.defer(function()
-if object.Parent then apply(object,familyOf(shown))end
+if not object.Parent then return end
+if shown=="Gotham"and UIFont.textScale==1 and not object:GetAttribute("QCode")then return end
+apply(object,shown~="Gotham"and familyOf(shown)or nil)
 end)
 end)
 if maid then maid:give(connection)end
-if shown~="Gotham"then task.defer(UIFont.refresh)end
+task.defer(UIFont.refresh)
 end
 return UIFont
 end
@@ -6801,7 +6855,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.25",
+Version="1.9.26",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -7865,8 +7919,10 @@ local wanted=type(window.cfg.Font)=="table"and window.cfg.Font or{window.cfg.Fon
 local usable={}
 for _,name in ipairs(wanted)do if table.find(fonts,tostring(name))then usable[#usable+1]=tostring(name)end end
 local startFont=usable[1]or"Gotham"
+local fontOptions={}
+for _,name in ipairs(fonts)do fontOptions[#fontOptions+1]={Title=name,Font=UIFont.family(name)}end
 local fontDropdown=look:Dropdown({
-Title="Font",Options=fonts,Default=startFont,Flag="__ui_font",
+Title="Font",Options=fontOptions,Default=startFont,Flag="__ui_font",
 Callback=function(name)
 if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not available here",Color=RED})end
 end,
@@ -7875,6 +7931,12 @@ if startFont~="Gotham"then
 if UIFont.Downloadable[startFont]and usable[2]then UIFont.set(usable[2])end
 UIFont.set(startFont)
 end
+if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont)end
+local TEXT_SIZES={Small=0.9,Normal=1,Large=1.1}
+look:Segment({
+Title="Text size",Flag="__ui_textsize",Options={"Small","Normal","Large"},Default="Normal",
+Callback=function(choice)UIFont.setTextScale(TEXT_SIZES[choice]or 1)end,
+})
 UIFont.onFailed=function(name,_,before)
 if fontDropdown.Value==name then fontDropdown:Set(before or"Gotham",true)end
 window:Notify({Title="Font",Content=name.." could not be downloaded; back to "..tostring(before or"Gotham"),Color=RED})
@@ -7942,7 +8004,7 @@ Callback=function()
 window:Confirm("Unload "..window.Title.."?","The menu and everything it runs will be removed.",function()window:Destroy()end,"Unload",true)
 end,
 })
-local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
+local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_textsize","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
 "__ui_live","__ui_edge_glow","__ui_blur","__ui_hud_watermark","__ui_hud_keys","__ui_hud_session","__ui_hud_stats"}
 menu:Button({Title="Reset interface",Icon="paintbrush",Style="Ghost",Callback=function()
 window:Confirm("Reset the interface?","Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.",function()

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.25 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.26 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -2602,6 +2602,7 @@ return function(card, cfg)
         Font = Enum.Font.Code, TextSize = 11, RichText = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
         TextWrapped = false, Text = "", Parent = scroller,
     })
+    text:SetAttribute("QCode", true) -- the code font (Sono Mono / CreateWindow CodeFont)
     Theme.bind(text, "TextColor3", "heading")
     create("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingBottom = UDim.new(0, 10), Parent = text })
 
@@ -3006,6 +3007,7 @@ return function(card, cfg)
             TextTruncate = Enum.TextTruncate.None, RichText = true, Font = Enum.Font.Code, LayoutOrder = order,
             TextYAlignment = Enum.TextYAlignment.Top,
         })
+        row:SetAttribute("QCode", true) -- the code font (Sono Mono / CreateWindow CodeFont)
         local function paint()
             local prefix = stamp and ('<font color="#' .. Util.toHex(Theme.get("muted")) .. '">' .. stamp .. "</font>  ") or ""
             row.Text = prefix .. escape(text)
@@ -3090,7 +3092,7 @@ __modules["elements/dropdown"] = function()
 -- Single: Value is the chosen option. Multi: Value is a list of chosen options.
 -- Options can be:
 --   strings                                   { "Head", "Body" }
---   tables                                    { { Title = "Head", Icon = "user", Image = "rbxassetid://..", Desc = "...", Locked = true } }
+--   tables                                    { { Title = "Head", Icon = "user", Image = "rbxassetid://..", Desc = "...", Locked = true, Font = family } }
 --   key / label pairs (Value = the key)       { pvp = "PvP mode", farm = "Auto farm" } or { { Value = "pvp", Title = "PvP mode" } }
 -- Search = true (automatic above 8 options) puts a filter box at the top; long lists are drawn in chunks while
 -- scrolling, so thousands of options stay fast. Multi lists can be ticked by dragging over them (DragSelect = false
@@ -3339,6 +3341,11 @@ return function(card, cfg)
             if entry.Image then corner(icon, 4) end
             if applyVisual(icon, entry, chosen(option) and "accent" or "muted") then textX = entry.Image and 30 or 26 else icon:Destroy() icon = nil end
             local text = label(item, entry.Title, 10, { Position = UDim2.fromOffset(textX, entry.Desc and 3 or 0), Size = UDim2.new(1, -textX - 20, 0, entry.Desc and 17 or height), ZIndex = 263 })
+            -- Font = family: the option is drawn in that font (the font list shows each font in its own face)
+            if entry.Font then
+                text:SetAttribute("QFixedFont", true)
+                pcall(function() text.FontFace = Font.new(entry.Font, Enum.FontWeight.Medium) end)
+            end
             Theme.bind(text, "TextColor3", chosen(option) and "accent" or "text")
             if entry.Desc then
                 local sub = label(item, tostring(entry.Desc), 9, { Position = UDim2.fromOffset(textX, 18), Size = UDim2.new(1, -textX - 20, 0, 13), ZIndex = 263 })
@@ -4706,6 +4713,7 @@ return function(card, cfg)
         Theme.bind(object, "BackgroundColor3", "base")
         Theme.bind(object, "TextColor3", "text")
         corner(object, 6)
+        object:SetAttribute("QNoScale", true) -- (its width follows the value at this size)
         return object
     end
     local lowBox, highBox = box("Low", 0, Enum.TextXAlignment.Right), box("High", 64, Enum.TextXAlignment.Right)
@@ -5111,11 +5119,13 @@ return function(card, cfg)
                 local strip = create("Frame", { Name = "Strip", BackgroundTransparency = 1, Position = UDim2.fromOffset(0, -digit * HEIGHT), Size = UDim2.fromOffset(digitWidth, HEIGHT * 10), Parent = frame })
                 for n = 0, 9 do
                     local glyph = label(strip, tostring(n), SIZE, { Name = tostring(n), Position = UDim2.fromOffset(0, n * HEIGHT), Size = UDim2.fromOffset(digitWidth, HEIGHT), Font = FONT, TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.None })
+                    glyph:SetAttribute("QNoScale", true) -- (sized to its digit column)
                     Theme.bind(glyph, "TextColor3", "heading")
                 end
                 columns[index] = { frame = frame, strip = strip, digit = digit }
             else
                 local frame = label(digits, char, SIZE, { Name = "Char", Size = UDim2.fromOffset(char == " " and 4 or 0, HEIGHT), AutomaticSize = char == " " and Enum.AutomaticSize.None or Enum.AutomaticSize.X, Font = FONT, TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.None, LayoutOrder = index })
+                frame:SetAttribute("QNoScale", true)
                 Theme.bind(frame, "TextColor3", "heading")
                 columns[index] = { frame = frame, char = char }
             end
@@ -6061,6 +6071,13 @@ local WEIGHTS = { { "Regular", 400 }, { "Medium", 500 }, { "SemiBold", 600 }, { 
 local loaded = {} -- downloadable name -> family id, false while loading, nil before
 local shown = "Gotham" -- the font on screen (stays while a downloaded one is still on its way)
 
+-- Code text (Code, Console, Log; marked with the QCode attribute) has its own monospace font, Sono Mono unless
+-- CreateWindow({ CodeFont = "Geist Mono" }) asks for another. Text marked QFixedFont keeps whatever font it has
+-- (the font list draws each name in its own font).
+UIFont.code = "Sono Mono"
+-- Text size (Settings > Interface > Text size): every text's own size times this, rounded.
+UIFont.textScale = 1
+
 local function canDownload() return require("util").canCustomAsset() end
 
 -- the fonts this executor can show
@@ -6080,6 +6097,7 @@ local function isText(object)
 end
 
 local function familyOf(name)
+    name = tostring(name)
     if UIFont.Library[name] then return "rbxassetid://" .. UIFont.Library[name] end
     if UIFont.Downloadable[name] then return loaded[name] or nil end
     local ok, face = pcall(function() return Font.fromEnum(Enum.Font[name]) end)
@@ -6120,19 +6138,46 @@ local function loadFamily(name, done)
     end, "font (" .. name .. ")")
 end
 
-local function apply(object, target)
-    if not target or not isText(object) then return end
+-- the family an icon name's text should use: the font list's own faces stay, code text gets the code font
+local function targetFor(object, uiTarget)
+    if object:GetAttribute("QFixedFont") then return nil end
+    if object:GetAttribute("QCode") then return familyOf(UIFont.code) end
+    return uiTarget
+end
+
+-- Small print (9 px and under: badges, tags, captions) and text sized to a fixed box (QNoScale: rolling digits,
+-- range values) keep their size; everything else grows or shrinks with the setting.
+local function scaleText(object)
+    if object:GetAttribute("QNoScale") then return end
+    local base = object:GetAttribute("QBaseSize")
+    if base == nil then
+        if UIFont.textScale == 1 or object.TextSize <= 9 then return end
+        base = object.TextSize
+        object:SetAttribute("QBaseSize", base)
+    end
+    local size = math.max(6, math.floor(base * UIFont.textScale + 0.5))
+    if object.TextSize ~= size then object.TextSize = size end
+end
+
+local function apply(object, uiTarget)
+    if not isText(object) then return end
+    pcall(scaleText, object)
+    local target = targetFor(object, uiTarget)
+    if not target then return end
     pcall(function()
         local face = object.FontFace
+        if not face then object.FontFace = Font.new(target) return end
         if face.Family ~= target then object.FontFace = Font.new(target, face.Weight, face.Style) end
     end)
 end
+
+-- the family behind a font name (nil for a downloaded one that is not there yet)
+function UIFont.family(name) return familyOf(name) end
 
 -- Re-applies the current font to every registered gui (Gotham puts the library's own font back).
 function UIFont.refresh()
     local target = familyOf(UIFont.current)
     if target then shown = UIFont.current else target = familyOf(shown) end -- (a downloaded family on its way: the shown font stays)
-    if not target then return end
     for gui in pairs(UIFont.guis) do
         if gui.Parent then
             for _, object in ipairs(gui:GetDescendants()) do apply(object, target) end
@@ -6169,18 +6214,44 @@ function UIFont.set(name)
     return true
 end
 
+-- The code font: a library font, or a downloaded one (Geist Mono) once it is there; Sono Mono meanwhile.
+function UIFont.setCode(name)
+    name = tostring(name or "Sono Mono")
+    if not table.find(UIFont.order, name) then return false end
+    if UIFont.Downloadable[name] then
+        if not canDownload() then return false end
+        if loaded[name] then UIFont.code = name UIFont.refresh() return true end
+        if loaded[name] ~= false then
+            loadFamily(name, function(ok) if ok then UIFont.code = name UIFont.refresh() end end)
+        end
+        return true
+    end
+    if not familyOf(name) then return false end
+    UIFont.code = name
+    UIFont.refresh()
+    return true
+end
+
+-- Text size: 0.9 small, 1 normal, 1.1 large (every text's own size times this).
+function UIFont.setTextScale(scale)
+    UIFont.textScale = math.clamp(tonumber(scale) or 1, 0.7, 1.4)
+    UIFont.refresh()
+end
+
 function UIFont.register(gui, maid)
     if UIFont.guis[gui] then return end
     UIFont.guis[gui] = true
     local connection = gui.DescendantAdded:Connect(function(object)
-        if shown == "Gotham" or not isText(object) then return end
-        -- deferred: creators may still set FontFace (e.g. SemiBold) right after parenting
+        if not isText(object) then return end
+        -- deferred: creators may still set FontFace (e.g. SemiBold) or the QCode / QFixedFont marks right after parenting
         task.defer(function()
-            if object.Parent then apply(object, familyOf(shown)) end
+            if not object.Parent then return end
+            if shown == "Gotham" and UIFont.textScale == 1 and not object:GetAttribute("QCode") then return end
+            apply(object, shown ~= "Gotham" and familyOf(shown) or nil)
         end)
     end)
     if maid then maid:give(connection) end
-    if shown ~= "Gotham" then task.defer(UIFont.refresh) end
+    task.defer(UIFont.refresh)
 end
 
 return UIFont
@@ -7672,7 +7743,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.25",
+    Version = "1.9.26",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -8884,8 +8955,11 @@ return function(window, cfg)
     local usable = {}
     for _, name in ipairs(wanted) do if table.find(fonts, tostring(name)) then usable[#usable + 1] = tostring(name) end end
     local startFont = usable[1] or "Gotham"
+    -- each name drawn in its own font (a downloaded one shows plain until it has been downloaded)
+    local fontOptions = {}
+    for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
     local fontDropdown = look:Dropdown({
-        Title = "Font", Options = fonts, Default = startFont, Flag = "__ui_font",
+        Title = "Font", Options = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
         end,
@@ -8894,6 +8968,14 @@ return function(window, cfg)
         if UIFont.Downloadable[startFont] and usable[2] then UIFont.set(usable[2]) end
         UIFont.set(startFont)
     end
+    -- CreateWindow({ CodeFont = "Geist Mono" }): the font of Code, Console and Log text (Sono Mono otherwise)
+    if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont) end
+    -- text size: every text a bit smaller / larger, the menu itself stays the same size
+    local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
+    look:Segment({
+        Title = "Text size", Flag = "__ui_textsize", Options = { "Small", "Normal", "Large" }, Default = "Normal",
+        Callback = function(choice) UIFont.setTextScale(TEXT_SIZES[choice] or 1) end,
+    })
     UIFont.onFailed = function(name, _, before)
         if fontDropdown.Value == name then fontDropdown:Set(before or "Gotham", true) end
         window:Notify({ Title = "Font", Content = name .. " could not be downloaded; back to " .. tostring(before or "Gotham"), Color = RED })
@@ -8966,7 +9048,7 @@ return function(window, cfg)
         end,
     })
     -- the look of the menu back to its defaults (theme, accent, font, window, overlays, scale) - nothing else changes
-    local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
+    local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
         "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats" }
     menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
         window:Confirm("Reset the interface?", "Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.", function()

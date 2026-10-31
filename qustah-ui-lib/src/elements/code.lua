@@ -87,6 +87,7 @@ return function(card, cfg)
         Font = Enum.Font.Code, TextSize = 11, RichText = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
         TextWrapped = false, Text = "", Parent = scroller,
     })
+    text:SetAttribute("QCode", true) -- the code font (Sono Mono / CreateWindow CodeFont)
     Theme.bind(text, "TextColor3", "heading")
     create("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingBottom = UDim.new(0, 10), Parent = text })
 
