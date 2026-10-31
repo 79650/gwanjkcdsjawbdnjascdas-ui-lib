@@ -1743,7 +1743,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         E.getcustomasset, E.http_request = oldCustom, oldRequest
     end
 
-    -- text width with a library / downloaded font: the label reports Enum.Font.Unknown, which GetTextSize refuses
+    -- text width with a library font: the label reports Enum.Font.Unknown, which GetTextSize refuses
     do
         local ok, w = pcall(Lib.Util.textWidth, "Visuals › Overview", 11, Enum.Font.Unknown)
         check("textWidth: Enum.Font.Unknown measures with Gotham instead of erroring", ok and w == Lib.Util.textWidth("Visuals › Overview", 11, Enum.Font.Gotham))
@@ -1754,9 +1754,9 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     -- fonts: Gotham + Inter + 10 more from Roblox's font library, all by asset id (nothing downloaded)
     do
         local fontFlag = window.flags.__ui_font
-        check("fonts: twelve in the list without getcustomasset", #fontFlag.Options == 12 and fontFlag.Options[1] == "Gotham" and table.find(fontFlag.Options, "Silkscreen") ~= nil and table.find(fontFlag.Options, "Fuzzy Bubbles") ~= nil)
-        check("fonts: every one but Gotham has a library id or a download", (function()
-            for _, name in ipairs(Lib.Fonts.order) do if name ~= "Gotham" and not Lib.Fonts.Library[name] and not Lib.Fonts.Downloadable[name] then return false end end
+        check("fonts: twelve in the list", #fontFlag.Options == 12 and fontFlag.Options[1] == "Gotham" and table.find(fontFlag.Options, "Silkscreen") ~= nil and table.find(fontFlag.Options, "Fuzzy Bubbles") ~= nil)
+        check("fonts: every one but Gotham has a library id", (function()
+            for _, name in ipairs(Lib.Fonts.order) do if name ~= "Gotham" and not Lib.Fonts.Library[name] then return false end end
             return true
         end)())
         local function using(id)
@@ -1778,33 +1778,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         for _, o in ipairs(window.gui:GetDescendants()) do if o:IsA("TextLabel") and o.FontFace and not o:GetAttribute("QCode") and not o:GetAttribute("QFixedFont") and tostring(o.FontFace.Family):find("rbxassetid") then back = back + 1 end end
         check("fonts: Gotham puts the library font back", back == 0)
         check("fonts: an unknown name is refused", Lib.Fonts.set("Comic Sans") == false)
-        -- Geist / Geist Mono / Geist Pixel: downloaded once, through getcustomasset
-        local E = getfenv(0)
-        local oldCustom, oldRequest = E.getcustomasset, E.http_request
-        check("fonts: Geist not offered without getcustomasset", table.find(Lib.Fonts.available(), "Geist") == nil)
-        E.getcustomasset = function(path) return "rbxasset://custom/" .. path end
-        check("fonts: Geist family offered with it", table.concat(Lib.Fonts.available(), ","):find("Inter,Geist,Geist Mono,Geist Pixel") ~= nil)
-        fontFlag:SetOptions(Lib.Fonts.available(), true)
-        for _, w in ipairs({ "Regular", "Medium", "SemiBold", "Bold" }) do MOCK.files["QustahUI/fonts/v2-Geist-" .. w .. ".ttf"] = "\0\1\0\0" end
-        fontFlag:Set("Geist") wait(0.2)
-        local geist = MOCK.files["QustahUI/fonts/v2-Geist.json"]
-        check("fonts: Geist family file lists four weights", geist and geist:find("Geist%-Bold%.ttf") ~= nil and geist:find("600") ~= nil)
-        check("fonts: Geist on screen", using("rbxasset://custom/QustahUI/fonts/v2-Geist.json"))
-        -- Geist Pixel: one file, every weight points at it (downloaded through the request function)
-        local asked = {}
-        E.http_request = function(t) asked[#asked + 1] = t.Url return { Body = "\0\1\0\0pixel" } end
-        local realGet = game.HttpGet
-        pcall(function() game.HttpGet = function(_, url) asked[#asked + 1] = url return "\0\1\0\0pixel" end end)
-        fontFlag:Set("Geist Pixel") wait(0.3)
-        local pixel = MOCK.files["QustahUI/fonts/v2-GeistPixel.json"]
-        check("fonts: Geist Pixel downloads one file", #asked == 1 and tostring(asked[1]):find("GeistPixel%-Regular%.ttf") ~= nil)
-        check("fonts: Geist Pixel family points every weight at it", pixel and select(2, pixel:gsub("GeistPixel%-Regular%.ttf", "")) == 4)
-        pcall(function() game.HttpGet = realGet end)
-        -- a failed download goes back to the font on screen
-        E.getcustomasset = function() error("blocked") end
-        fontFlag:Set("Geist Mono") wait(0.5)
-        check("fonts: a failed download goes back to the font on screen", fontFlag.Value == "Geist Pixel")
-        E.getcustomasset, E.http_request = oldCustom, oldRequest
+        check("fonts: nothing to download", Lib.Fonts.Downloadable == nil and #Lib.Fonts.available() == 12)
         fontFlag:Set("Gotham") wait(0.2)
     end
 

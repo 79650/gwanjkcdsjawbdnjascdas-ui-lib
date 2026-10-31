@@ -1,7 +1,7 @@
 -- Download strip: a thin pill at the top of the screen while the library downloads something (icon sheets, a
--- script's icon sheet, a font) - "Qustāh  Downloading font (Geist)  ▬▬▬▭▭  62%". It only appears when a file is
+-- script's icon sheet) - "Qustāh  Downloading icons  ▬▬▬▭▭  62%". It only appears when a file is
 -- really fetched (files already on disk show nothing) and fades out when everything is done.
--- Util.cacheFiles(files, done, fail, "font (Geist)") drives it; Loader.title is set by the first window.
+-- Util.cacheFiles(files, done, fail, "icons") drives it; Loader.title is set by the first window.
 local Util = require("util")
 local Theme = require("theme")
 

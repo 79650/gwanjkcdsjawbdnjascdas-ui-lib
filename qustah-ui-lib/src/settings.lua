@@ -57,28 +57,24 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- Gotham, Roblox's font library and Geist (downloaded once where the executor can show it).
-    -- CreateWindow({ Font = "Inter" }) starts with one; Font = { "Geist", "Inter" }: the first one this executor
-    -- can show, the next one on screen meanwhile while a downloaded one is on its way
+    -- Gotham and Roblox's font library (nothing downloaded). CreateWindow({ Font = "Inter" }) starts with one;
+    -- a list ({ "Poppins", "Inter" }) starts with the first known name
     local fonts = UIFont.available()
     local wanted = type(window.cfg.Font) == "table" and window.cfg.Font or { window.cfg.Font }
     local usable = {}
     for _, name in ipairs(wanted) do if table.find(fonts, tostring(name)) then usable[#usable + 1] = tostring(name) end end
     local startFont = usable[1] or "Gotham"
-    -- each name drawn in its own font (a downloaded one shows plain until it has been downloaded)
+    -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
-    local fontDropdown = look:Dropdown({
+    look:Dropdown({
         Title = "Font", Options = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
         end,
     })
-    if startFont ~= "Gotham" then
-        if UIFont.Downloadable[startFont] and usable[2] then UIFont.set(usable[2]) end
-        UIFont.set(startFont)
-    end
-    -- CreateWindow({ CodeFont = "Geist Mono" }): the font of Code, Console and Log text (Sono Mono otherwise)
+    if startFont ~= "Gotham" then UIFont.set(startFont) end
+    -- CreateWindow({ CodeFont = "Silkscreen" }): the font of Code, Console and Log text (Sono Mono otherwise)
     if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont) end
     -- text size: every text a bit smaller / larger, the menu itself stays the same size
     local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
@@ -86,10 +82,6 @@ return function(window, cfg)
         Title = "Text size", Flag = "__ui_textsize", Options = { "Small", "Normal", "Large" }, Default = "Normal",
         Callback = function(choice) UIFont.setTextScale(TEXT_SIZES[choice] or 1) end,
     })
-    UIFont.onFailed = function(name, _, before)
-        if fontDropdown.Value == name then fontDropdown:Set(before or "Gotham", true) end
-        window:Notify({ Title = "Font", Content = name .. " could not be downloaded; back to " .. tostring(before or "Gotham"), Color = RED })
-    end
     look:Toggle({
         Title = "Text glow", Desc = "Shine on the title and highlights", Flag = "__ui_glow", Default = Glow.enabled,
         Callback = function(on) Glow.setEnabled(on) end,

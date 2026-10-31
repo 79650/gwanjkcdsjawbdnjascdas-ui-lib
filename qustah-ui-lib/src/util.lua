@@ -203,7 +203,7 @@ end
 
 -- Util.cacheFiles({ { path = "QustahUI/x.png", url = "https://...", check = function(body) return ok end }, ... },
 --     done(ids), fail(reason), what)
--- what ("font (Geist)"): shown in the download strip at the top of the screen while files are fetched.
+-- what ("icons"): shown in the download strip at the top of the screen while files are fetched.
 -- Every missing file is downloaded once and kept on disk; done gets { [path] = getcustomasset id }. It runs at once
 -- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
 -- the executor can't show downloaded files or a download / check fails.
