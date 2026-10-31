@@ -18,8 +18,8 @@ UIFont.Library = {
     Rubik = 12187365977, ["Fira Sans"] = 12187374954, Silkscreen = 12187371840, ["Fuzzy Bubbles"] = 11322590111,
     ["M PLUS Rounded"] = 12188570269, Quicksand = 12187371324, ["Sono Mono"] = 12187362578,
 }
--- downloaded (not in Roblox's library): name -> folder in fonts/, or { folder, single = true } for one-weight fonts
-UIFont.Downloadable = { Geist = "Geist", ["Geist Mono"] = "GeistMono", ["Geist Pixel"] = { "GeistPixel", single = true } }
+-- downloaded (not in Roblox's library): name -> folder in fonts/, or { Folder =, Single = true } for one-weight fonts
+UIFont.Downloadable = { Geist = "Geist", ["Geist Mono"] = "GeistMono", ["Geist Pixel"] = { Folder = "GeistPixel", Single = true } }
 UIFont.Source = "https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/fonts/"
 UIFont.Folder = "QustahUI/fonts"
 UIFont.Version = 2
@@ -57,8 +57,8 @@ end
 local function isFont(body) local head = body:sub(1, 4) return head == "\0\1\0\0" or head == "true" or head == "OTTO" end
 local function loadFamily(name, done)
     local spec = UIFont.Downloadable[name]
-    local dir = type(spec) == "table" and spec[1] or spec
-    local single = type(spec) == "table" and spec.single
+    local dir = type(spec) == "table" and spec.Folder or spec
+    local single = type(spec) == "table" and spec.Single
     local base = UIFont.Folder .. "/v" .. UIFont.Version .. "-" .. dir
     local files = {}
     for _, weight in ipairs(single and { WEIGHTS[1] } or WEIGHTS) do
