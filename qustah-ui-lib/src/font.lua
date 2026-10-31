@@ -84,7 +84,7 @@ local function loadFamily(name, done)
     end, function(reason)
         loaded[name] = nil
         done(false, reason)
-    end)
+    end, "font (" .. name .. ")")
 end
 
 local function apply(object, target)

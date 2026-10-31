@@ -19,7 +19,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.24",
+    Version = "1.9.25",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -27,6 +27,7 @@ local Lib = {
     Sounds = Sounds, -- Lib.Sounds.Enabled = true, Lib.Sounds.Set("click", id)
     Haptics = require("haptics"), -- Lib.Haptics.Enabled (on for touch screens)
     Fonts = require("font"), -- Lib.Fonts.set("Inter"), Lib.Fonts.available()
+    Loader = require("loader"), -- the download strip; Lib.Loader.enabled = false hides it
     _glow = require("glow"), -- (tests)
     Util = Util,
 }

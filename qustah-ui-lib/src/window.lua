@@ -33,6 +33,7 @@ function Window.new(Lib, cfg)
         minSize = cfg.MinSize or Vector2.new(400, 300), maxSize = cfg.MaxSize or Vector2.new(920, 660),
         key = cfg.ToggleKey or Enum.KeyCode.RightShift, visible = true, folded = false, alive = true,
     }, Window)
+    require("loader").setTitle(self.Title) -- the download strip says whose files these are
     -- key conflicts the script starts with are only marked; later ones also get a notification
     task.delay(3, function() self._keysSettled = true end)
 

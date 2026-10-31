@@ -162,7 +162,7 @@ local function loadFiles(prefix, source, files, done)
         done(byName)
     end, function(reason)
         if Util.canCustomAsset() then Util.log("[qustah-ui-lib] sharp icons could not be loaded (" .. tostring(reason) .. "); using the plain ones") end
-    end)
+    end, "icons")
 end
 
 local function redrawSharp()

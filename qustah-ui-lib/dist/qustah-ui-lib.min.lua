@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.24 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.25 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -5417,7 +5417,7 @@ end
 end,function(reason)
 loaded[name]=nil
 done(false,reason)
-end)
+end,"font ("..name..")")
 end
 local function apply(object,target)
 if not target or not isText(object)then return end
@@ -6194,7 +6194,7 @@ for _,file in ipairs(list)do byName[file.name]=ids[file.path]end
 done(byName)
 end,function(reason)
 if Util.canCustomAsset()then Util.log("[qustah-ui-lib] sharp icons could not be loaded ("..tostring(reason).."); using the plain ones")end
-end)
+end,"icons")
 end
 local function redrawSharp()
 for image,name in pairs(sharpImages)do if name and image.Parent then pcall(applySharp,image,name)end end
@@ -6801,7 +6801,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.24",
+Version="1.9.25",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -6809,6 +6809,7 @@ Icons=Icons,
 Sounds=Sounds,
 Haptics=require("haptics"),
 Fonts=require("font"),
+Loader=require("loader"),
 _glow=require("glow"),
 Util=Util,
 }
@@ -6913,6 +6914,97 @@ end)
 end)
 end
 end
+end
+__modules["loader"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local Loader={jobs={},title=nil,enabled=true}
+local ui
+local spin
+local function build()
+local gui=Util.screenGui("QustahUI_Loading",65)
+pcall(function()require("font").register(gui)end)
+local pill=create("Frame",{
+Name="Loading",AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,26),Size=UDim2.fromOffset(0,34),
+AutomaticSize=Enum.AutomaticSize.X,BorderSizePixel=0,Parent=gui,
+})
+pill:SetAttribute("QFadedOut",true)
+Theme.bind(pill,"BackgroundColor3","base")
+corner(pill,17)
+Theme.bind(stroke(pill),"Color","line")
+local row=create("Frame",{Name="Row",BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromScale(0,1),Parent=pill})
+Util.list(row,10,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+Util.padding(row,12,16,0,0)
+local spinner=require("icons").themed(row,"loader-circle",14,"muted",{Name="Spinner",LayoutOrder=1})
+local title=label(row,"",11,{Name="Title",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,34),TextTruncate=Enum.TextTruncate.None,Font=Enum.Font.GothamBold,LayoutOrder=2})
+Theme.bind(title,"TextColor3","heading")
+local text=label(row,"",10,{Name="Text",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,34),TextTruncate=Enum.TextTruncate.None,LayoutOrder=3})
+Theme.bind(text,"TextColor3","muted")
+local track=create("Frame",{Name="Track",Size=UDim2.fromOffset(110,3),BorderSizePixel=0,LayoutOrder=4,Parent=row})
+Theme.bind(track,"BackgroundColor3","input")
+corner(track,2)
+local fill=create("Frame",{Name="Fill",Size=UDim2.fromScale(0,1),BorderSizePixel=0,Parent=track})
+Theme.bind(fill,"BackgroundColor3","accent")
+corner(fill,2)
+local percent=label(row,"",10,{Name="Percent",Size=UDim2.fromOffset(30,34),TextXAlignment=Enum.TextXAlignment.Right,LayoutOrder=5})
+Theme.bind(percent,"TextColor3","muted")
+pill.Visible=false
+ui={gui=gui,pill=pill,title=title,text=text,fill=fill,percent=percent,spinner=spinner}
+end
+local function render()
+if not Loader.enabled then return end
+local active=#Loader.jobs>0
+if active and not ui then build()end
+if not ui then return end
+if active then
+local done,total=0,0
+for _,job in ipairs(Loader.jobs)do done,total=done+job.done,total+job.total end
+local share=total>0 and done/total or 0
+local newest=Loader.jobs[#Loader.jobs]
+ui.title.Text=Loader.title or"Loading"
+ui.text.Text="Downloading "..newest.label
+ui.percent.Text=math.floor(share*100+0.5).."%"
+Util.tween(ui.fill,0.2,{Size=UDim2.fromScale(math.max(share,0.04),1)})
+if not ui.pill.Visible or ui.pill:GetAttribute("QFadedOut")then
+ui.pill.Visible=true
+Util.fadeTree(ui.pill,0.18,0)
+end
+if not spin then
+spin=Util.Services.RunService.Heartbeat:Connect(function(dt)
+if ui and ui.spinner then ui.spinner.Rotation=(ui.spinner.Rotation+dt*360)%360 end
+end)
+end
+else
+Loader.visible=false
+if spin then spin:Disconnect()spin=nil end
+if ui.pill.Visible and not ui.pill:GetAttribute("QFadedOut")then
+ui.fill.Size=UDim2.fromScale(1,1)
+ui.percent.Text="100%"
+Util.fadeTree(ui.pill,0.25,1)
+task.delay(0.26,function()if ui and#Loader.jobs==0 then ui.pill.Visible=false end end)
+end
+return
+end
+Loader.visible=true
+end
+function Loader.start(what,total)
+local job={label=tostring(what),total=math.max(1,total or 1),done=0}
+function job.step()job.done=math.min(job.total,job.done+1)render()end
+function job.finish()
+local index=table.find(Loader.jobs,job)
+if index then table.remove(Loader.jobs,index)end
+render()
+end
+Loader.jobs[#Loader.jobs+1]=job
+render()
+return job
+end
+function Loader.setTitle(text)
+Loader.title=text
+if ui and#Loader.jobs>0 then ui.title.Text=text end
+end
+return Loader
 end
 __modules["mobile"]=function()
 local Util=require("util")
@@ -9398,7 +9490,7 @@ built=built==""and part or(built.."/"..part)
 if not isfolder(built)then makefolder(built)end
 end
 end
-function Util.cacheFiles(files,done,fail)
+function Util.cacheFiles(files,done,fail,what)
 fail=fail or function()end
 if not Util.canCustomAsset()then fail("getcustomasset is not available")return end
 local custom=getcustomasset or getsynasset
@@ -9417,6 +9509,7 @@ local ok,exists=pcall(isfile,file.path)
 if not(ok and exists)then missing[#missing+1]=file end
 end
 if#missing==0 then finish()return end
+local job=what and require("loader").start(what,#missing)
 task.spawn(function()
 local ok,reason=pcall(function()
 for _,file in ipairs(missing)do
@@ -9431,8 +9524,10 @@ assert(type(body)=="string"and#body>0,"empty response")
 if file.check then assert(file.check(body),"unexpected file")end
 makeFolders(file.path)
 writefile(file.path,body)
+if job then job.step()end
 end
 end)
+if job then job.finish()end
 if ok then finish()else fail(tostring(reason))end
 end)
 end
@@ -9743,6 +9838,7 @@ width=size.X,height=size.Y,
 minSize=cfg.MinSize or Vector2.new(400,300),maxSize=cfg.MaxSize or Vector2.new(920,660),
 key=cfg.ToggleKey or Enum.KeyCode.RightShift,visible=true,folded=false,alive=true,
 },Window)
+require("loader").setTitle(self.Title)
 task.delay(3,function()self._keysSettled=true end)
 local env=(getgenv and getgenv())or _G
 env.__QustahUIWindows=env.__QustahUIWindows or{}

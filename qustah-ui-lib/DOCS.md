@@ -634,6 +634,10 @@ Inter and the ten come from Roblox's own font library by asset id (`Lib.Fonts.Li
 
 `Lib.Fonts.set("Inter")` picks one from code. `CreateWindow({ Font = "Inter" })` starts with it; `Font = { "Geist", "Inter" }` starts with the first one the executor can show, with the next one on screen while Geist downloads. `tools/gen_fonts.py` builds the Geist files from [vercel/geist-font](https://github.com/vercel/geist-font) (OFL).
 
+**Download strip.** While the library fetches files (the sharp icon sheets, a script's own sheet, a Geist font) a thin strip at the top of the screen says so, with the progress. It only shows when something is really downloaded, so later starts (everything already on disk) show nothing. `Lib.Loader.enabled = false` hides it.
+
+<p align="center"><img src="assets/screens/strip.png" alt="Download strip" width="500"></p>
+
 ## Icons
 
 Anything that takes an icon accepts a name. Asset ids and web images work too:

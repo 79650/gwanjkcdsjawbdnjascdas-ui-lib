@@ -202,11 +202,12 @@ local function makeFolders(path)
 end
 
 -- Util.cacheFiles({ { path = "QustahUI/x.png", url = "https://...", check = function(body) return ok end }, ... },
---     done(ids), fail(reason))
+--     done(ids), fail(reason), what)
+-- what ("font (Geist)"): shown in the download strip at the top of the screen while files are fetched.
 -- Every missing file is downloaded once and kept on disk; done gets { [path] = getcustomasset id }. It runs at once
 -- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
 -- the executor can't show downloaded files or a download / check fails.
-function Util.cacheFiles(files, done, fail)
+function Util.cacheFiles(files, done, fail, what)
     fail = fail or function() end
     if not Util.canCustomAsset() then fail("getcustomasset is not available") return end
     local custom = getcustomasset or getsynasset
@@ -225,6 +226,8 @@ function Util.cacheFiles(files, done, fail)
         if not (ok and exists) then missing[#missing + 1] = file end
     end
     if #missing == 0 then finish() return end
+    -- (required here, not at the top: the strip itself is built from util)
+    local job = what and require("loader").start(what, #missing)
     task.spawn(function()
         local ok, reason = pcall(function()
             for _, file in ipairs(missing) do
@@ -240,8 +243,10 @@ function Util.cacheFiles(files, done, fail)
                 if file.check then assert(file.check(body), "unexpected file") end
                 makeFolders(file.path)
                 writefile(file.path, body)
+                if job then job.step() end
             end
         end)
+        if job then job.finish() end
         if ok then finish() else fail(tostring(reason)) end
     end)
 end
