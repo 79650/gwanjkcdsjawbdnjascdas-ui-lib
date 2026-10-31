@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.23 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.24 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -5352,7 +5352,7 @@ end
 __modules["font"]=function()
 local UIFont={current="Gotham",guis={}}
 UIFont.order={
-"Gotham","Inter",
+"Gotham","Inter","Geist","Geist Mono","Geist Pixel",
 "Work Sans","Nunito Sans","Poppins","Rubik","Fira Sans",
 "Silkscreen","Fuzzy Bubbles","M PLUS Rounded","Quicksand","Sono Mono",
 }
@@ -5361,14 +5361,63 @@ Inter=12187365364,["Work Sans"]=12187373327,["Nunito Sans"]=12187363368,Poppins=
 Rubik=12187365977,["Fira Sans"]=12187374954,Silkscreen=12187371840,["Fuzzy Bubbles"]=11322590111,
 ["M PLUS Rounded"]=12188570269,Quicksand=12187371324,["Sono Mono"]=12187362578,
 }
-function UIFont.available()return table.clone(UIFont.order)end
+UIFont.Downloadable={Geist="Geist",["Geist Mono"]="GeistMono",["Geist Pixel"]={"GeistPixel",single=true}}
+UIFont.Source="https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/fonts/"
+UIFont.Folder="QustahUI/fonts"
+UIFont.Version=2
+UIFont.onFailed=nil
+local WEIGHTS={{"Regular",400},{"Medium",500},{"SemiBold",600},{"Bold",700}}
+local loaded={}
+local shown="Gotham"
+local function canDownload()return require("util").canCustomAsset()end
+function UIFont.available()
+local list={}
+for _,name in ipairs(UIFont.order)do
+if not UIFont.Downloadable[name]or canDownload()then list[#list+1]=name end
+end
+return list
+end
+function UIFont._reset()table.clear(loaded)end
 local function isText(object)
 return object:IsA("TextLabel")or object:IsA("TextButton")or object:IsA("TextBox")
 end
 local function familyOf(name)
 if UIFont.Library[name]then return"rbxassetid://"..UIFont.Library[name]end
+if UIFont.Downloadable[name]then return loaded[name]or nil end
 local ok,face=pcall(function()return Font.fromEnum(Enum.Font[name])end)
 return ok and face and face.Family or nil
+end
+local function isFont(body)local head=body:sub(1,4)return head=="\0\1\0\0"or head=="true"or head=="OTTO"end
+local function loadFamily(name,done)
+local spec=UIFont.Downloadable[name]
+local dir=type(spec)=="table"and spec[1]or spec
+local single=type(spec)=="table"and spec.single
+local base=UIFont.Folder.."/v"..UIFont.Version.."-"..dir
+local files={}
+for _,weight in ipairs(single and{WEIGHTS[1]}or WEIGHTS)do
+files[#files+1]={path=base.."-"..weight[1]..".ttf",url=UIFont.Source..dir.."/"..dir.."-"..weight[1]..".ttf",check=isFont}
+end
+loaded[name]=false
+require("util").cacheFiles(files,function(ids)
+local ok,family=pcall(function()
+local faces={}
+for index,weight in ipairs(WEIGHTS)do
+faces[index]={name=weight[1],weight=weight[2],style="normal",assetId=ids[files[single and 1 or index].path]}
+end
+writefile(base..".json",game:GetService("HttpService"):JSONEncode({name=dir,faces=faces}))
+return(getcustomasset or getsynasset)(base..".json")
+end)
+if ok and type(family)=="string"and family~=""then
+loaded[name]=family
+done(true)
+else
+loaded[name]=nil
+done(false,tostring(family))
+end
+end,function(reason)
+loaded[name]=nil
+done(false,reason)
+end)
 end
 local function apply(object,target)
 if not target or not isText(object)then return end
@@ -5379,6 +5428,7 @@ end)
 end
 function UIFont.refresh()
 local target=familyOf(UIFont.current)
+if target then shown=UIFont.current else target=familyOf(shown)end
 if not target then return end
 for gui in pairs(UIFont.guis)do
 if gui.Parent then
@@ -5390,7 +5440,25 @@ end
 end
 function UIFont.set(name)
 name=tostring(name or"Gotham")
-if not table.find(UIFont.order,name)or not familyOf(name)then return false end
+if not table.find(UIFont.order,name)then return false end
+if UIFont.Downloadable[name]then
+if not canDownload()then return false end
+UIFont.current=name
+if loaded[name]then UIFont.refresh()return true end
+if loaded[name]==false then return true end
+local before=shown
+loadFamily(name,function(ok,reason)
+if ok then
+if UIFont.current==name then UIFont.refresh()end
+elseif UIFont.current==name then
+UIFont.current=before
+UIFont.refresh()
+if UIFont.onFailed then pcall(UIFont.onFailed,name,reason,before)end
+end
+end)
+return true
+end
+if not familyOf(name)then return false end
 UIFont.current=name
 UIFont.refresh()
 return true
@@ -5399,13 +5467,13 @@ function UIFont.register(gui,maid)
 if UIFont.guis[gui]then return end
 UIFont.guis[gui]=true
 local connection=gui.DescendantAdded:Connect(function(object)
-if UIFont.current=="Gotham"or not isText(object)then return end
+if shown=="Gotham"or not isText(object)then return end
 task.defer(function()
-if object.Parent then apply(object,familyOf(UIFont.current))end
+if object.Parent then apply(object,familyOf(shown))end
 end)
 end)
 if maid then maid:give(connection)end
-if UIFont.current~="Gotham"then task.defer(UIFont.refresh)end
+if shown~="Gotham"then task.defer(UIFont.refresh)end
 end
 return UIFont
 end
@@ -6733,7 +6801,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.23",
+Version="1.9.24",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -7701,14 +7769,24 @@ Callback=function(color)Theme.set("accent",color)syncSwatches()end,
 picker.Row.Visible=false
 syncSwatches()
 local fonts=UIFont.available()
-local startFont=table.find(fonts,tostring(window.cfg.Font))and tostring(window.cfg.Font)or"Gotham"
-look:Dropdown({
+local wanted=type(window.cfg.Font)=="table"and window.cfg.Font or{window.cfg.Font}
+local usable={}
+for _,name in ipairs(wanted)do if table.find(fonts,tostring(name))then usable[#usable+1]=tostring(name)end end
+local startFont=usable[1]or"Gotham"
+local fontDropdown=look:Dropdown({
 Title="Font",Options=fonts,Default=startFont,Flag="__ui_font",
 Callback=function(name)
 if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not available here",Color=RED})end
 end,
 })
-if startFont~="Gotham"then UIFont.set(startFont)end
+if startFont~="Gotham"then
+if UIFont.Downloadable[startFont]and usable[2]then UIFont.set(usable[2])end
+UIFont.set(startFont)
+end
+UIFont.onFailed=function(name,_,before)
+if fontDropdown.Value==name then fontDropdown:Set(before or"Gotham",true)end
+window:Notify({Title="Font",Content=name.." could not be downloaded; back to "..tostring(before or"Gotham"),Color=RED})
+end
 look:Toggle({
 Title="Text glow",Desc="Shine on the title and highlights",Flag="__ui_glow",Default=Glow.enabled,
 Callback=function(on)Glow.setEnabled(on)end,

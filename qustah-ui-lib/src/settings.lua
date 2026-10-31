@@ -57,16 +57,28 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- Gotham (Roblox's default) and fonts from Roblox's font library; CreateWindow({ Font = "Inter" }) starts with one
+    -- Gotham, Roblox's font library and Geist (downloaded once where the executor can show it).
+    -- CreateWindow({ Font = "Inter" }) starts with one; Font = { "Geist", "Inter" }: the first one this executor
+    -- can show, the next one on screen meanwhile while a downloaded one is on its way
     local fonts = UIFont.available()
-    local startFont = table.find(fonts, tostring(window.cfg.Font)) and tostring(window.cfg.Font) or "Gotham"
-    look:Dropdown({
+    local wanted = type(window.cfg.Font) == "table" and window.cfg.Font or { window.cfg.Font }
+    local usable = {}
+    for _, name in ipairs(wanted) do if table.find(fonts, tostring(name)) then usable[#usable + 1] = tostring(name) end end
+    local startFont = usable[1] or "Gotham"
+    local fontDropdown = look:Dropdown({
         Title = "Font", Options = fonts, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
         end,
     })
-    if startFont ~= "Gotham" then UIFont.set(startFont) end
+    if startFont ~= "Gotham" then
+        if UIFont.Downloadable[startFont] and usable[2] then UIFont.set(usable[2]) end
+        UIFont.set(startFont)
+    end
+    UIFont.onFailed = function(name, _, before)
+        if fontDropdown.Value == name then fontDropdown:Set(before or "Gotham", true) end
+        window:Notify({ Title = "Font", Content = name .. " could not be downloaded; back to " .. tostring(before or "Gotham"), Color = RED })
+    end
     look:Toggle({
         Title = "Text glow", Desc = "Shine on the title and highlights", Flag = "__ui_glow", Default = Glow.enabled,
         Callback = function(on) Glow.setEnabled(on) end,

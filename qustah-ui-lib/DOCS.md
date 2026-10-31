@@ -35,7 +35,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
-| `Font` | `"Gotham"` | starting font, e.g. `"Inter"`, `"Poppins"`, `"Silkscreen"` (list in [Themes](#themes)) |
+| `Font` | `"Gotham"` | starting font, e.g. `"Inter"`, or a list such as `{ "Geist", "Inter" }` (see [Themes](#themes)) |
 | `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |
 | `KickLog`, `Rejoin`, `RejoinDelay` | `true`, `false`, `2` | log kicks; rejoin after a kick |
@@ -626,13 +626,13 @@ The theme editor in Settings lets you:
 - save the result under a name;
 - share or import it with a `QTHEME1:` code.
 
-Fonts (Settings › Interface › Font): **Gotham** (Roblox's default) and **Inter**, plus ten more:
+Fonts (Settings › Interface › Font): **Gotham** (Roblox's default), **Inter**, Vercel's **Geist**, **Geist Mono** and **Geist Pixel**, plus ten more:
 - clean: **Work Sans**, **Nunito Sans**, **Poppins**, **Rubik**, **Fira Sans**;
 - with some character: **Silkscreen** (pixel), **Fuzzy Bubbles** (bubbly), **M PLUS Rounded** (rounded), **Quicksand** (soft), **Sono Mono** (terminal).
 
-Everything but Gotham comes from Roblox's own font library by asset id (`Lib.Fonts.Library`), so nothing is downloaded and every executor shows them. Silkscreen is capitals only and has no Ş / ğ / ı; Roblox draws those in a fallback font.
+Inter and the ten come from Roblox's own font library by asset id (`Lib.Fonts.Library`): nothing is downloaded and every executor shows them. The three Geist fonts are not in that library: the first time one is used it downloads once into `QustahUI/fonts` (85 - 95 KB per weight; Geist Pixel is one file) and is shown through `getcustomasset`. Where the executor lacks that they are left out of the list, and a failed download goes back to the font that was on screen. Silkscreen and Geist Pixel are display fonts: fine for a playful look, less so for small text.
 
-`Lib.Fonts.set("Inter")` picks one from code, `CreateWindow({ Font = "Inter" })` starts with it.
+`Lib.Fonts.set("Inter")` picks one from code. `CreateWindow({ Font = "Inter" })` starts with it; `Font = { "Geist", "Inter" }` starts with the first one the executor can show, with the next one on screen while Geist downloads. `tools/gen_fonts.py` builds the Geist files from [vercel/geist-font](https://github.com/vercel/geist-font) (OFL).
 
 ## Icons
 
