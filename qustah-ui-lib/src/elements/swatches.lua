@@ -119,12 +119,12 @@ return function(card, cfg)
         end)
     end
     if dots then
-        -- one row, the dots spread evenly over the width (by scale: right at any width or UI scale), gaps at most 14 px
+        -- one row, the dots spread evenly over the width (by scale: right at any width or UI scale), gaps at most 30 px
         local all = {}
         for _, entry in ipairs(entries) do all[#all + 1] = entry.button end
         if customEntry then all[#all + 1] = customEntry.button end
         local count = #all
-        create("UISizeConstraint", { MaxSize = Vector2.new(count * 22 + (count - 1) * 14, math.huge), Parent = grid })
+        create("UISizeConstraint", { MaxSize = Vector2.new(count * 22 + (count - 1) * 30, math.huge), Parent = grid })
         for index, button in ipairs(all) do
             local t = count > 1 and (index - 1) / (count - 1) or 0
             button.AnchorPoint = Vector2.new(0, 0.5)

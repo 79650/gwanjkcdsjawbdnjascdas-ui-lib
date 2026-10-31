@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.31 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.32 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -4821,7 +4821,7 @@ local all={}
 for _,entry in ipairs(entries)do all[#all+1]=entry.button end
 if customEntry then all[#all+1]=customEntry.button end
 local count=#all
-create("UISizeConstraint",{MaxSize=Vector2.new(count*22+(count-1)*14,math.huge),Parent=grid})
+create("UISizeConstraint",{MaxSize=Vector2.new(count*22+(count-1)*30,math.huge),Parent=grid})
 for index,button in ipairs(all)do
 local t=count>1 and(index-1)/(count-1)or 0
 button.AnchorPoint=Vector2.new(0,0.5)
@@ -6780,7 +6780,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.31",
+Version="1.9.32",
 Flags={},
 Windows={},
 Theme=Theme,
