@@ -28,7 +28,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `PerGame` | `false` | `"Game"` / `"Place"`: separate profiles for each game |
 | `UnlockMouse` | `true` | frees the mouse while the menu is open (shift lock, first person) |
 | `Profile`, `Anonymous` | `true`, `false` | the avatar button in the dock; start in anonymous mode |
-| `FullscreenButton` | `true` | fullscreen button in the header |
+| `FullscreenButton` | `false` | a fullscreen button in the header (double click on the header still goes fullscreen) |
 | `NotificationHistory` | `true` | the bell in the header (notification history) |
 | `Background`, `BackgroundTransparency` | — | background image, window transparency |
 | `LiveBackground`, `AccentGlow` | `false` | slow accent light drifting behind the content; window edge that pulses in the accent colour |
@@ -240,7 +240,7 @@ Card:Radio({ Title = "Priority", Flag = "priority", Options = {         -- every
 - Lists with more than 8 options get a search box (`Search = true/false`).
 - Thousands of options stay fast: the list is drawn in chunks.
 - In multi lists you can drag over options to select them (`DragSelect = false` turns it off).
-- `:SetOptions(list, keepValue)`, `:GetLabel()`.
+- `:SetOptions(list, keepValue)` (`:Refresh(list)` is the same, keeping the value), `:GetLabel()`.
 
 ### Keybind
 
@@ -302,6 +302,8 @@ Card:ActionInput({ Icon = "plus", Placeholder = "Profile name", Button = "Create
     end,
     Callback = function(text) end })          -- on the button or Enter
 ```
+
+`input:SetPlaceholder(text)` changes the grey hint of an Input. `actionInput:Run()` presses an ActionInput's button from code.
 
 ### Button
 
@@ -423,6 +425,7 @@ tiles:Graph({ Title = "PING", Style = "Line", Source = "Ping", Compact = true, H
 local log = Card:Console({ Title = "Log", Height = 140, MaxLines = 200 })
 log:Append("Loaded", "success")        -- "info" | "success" | "warning" | "error"
 log:Print("Sold", 3, "items")
+log:Log("Same as Append", "info")      -- (another name for Append)
 
 local board = Card:Table({ Title = "Top players", Height = 160, Search = true,
     Columns = { "Name", { Title = "Kills", Align = "Right", Width = 0.25 }, "Team" },
@@ -713,7 +716,7 @@ Window:SetBlur(true)                            -- blurs the game behind the ope
 Window:SetAnonymous(true)                       -- hides your name and avatar everywhere (the avatar button in the dock)
 Window:SetMouseUnlock(false)
 
-Window:SetUIScale(1.25)                         -- bigger menu (Settings › Menu › UI scale)
+Window:SetUIScale(1.25)                         -- bigger menu (Settings › Behaviour › UI scale)
 Window:SetMobileButton(true)                    -- the reopen button (tap: open, drag: move) while the menu is hidden
 
 Lib.Sounds.Enabled = true                       -- soft clicks on buttons, switches and tabs
@@ -756,6 +759,7 @@ Window:Tour({
 }, { Id = "v2", Once = true, OnFinish = function(completed) end })
 
 Window:HasSeenTour("v2")    Window:ResetTour("v2")
+local tour = Window:Tour(steps)   tour:Next()   tour:Back()   tour:Go(3)   tour:Close()
 ```
 
 The tab and page of a target open by themselves, and a long page scrolls to it. With `Tour` set, Settings › Info gets a "Show the tour" button.

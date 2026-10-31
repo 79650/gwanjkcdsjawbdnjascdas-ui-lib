@@ -744,7 +744,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
 
     -- window extras
     check("header button", find("Rejoin", window.main) ~= nil or find("Rejoin") ~= nil)
-    check("bell moved left of fullscreen", window.inboxButton.Position.X.Offset < find("Fullscreen", window.main).Position.X.Offset)
+    check("no fullscreen button unless asked for", find("Fullscreen", window.main) == nil)
     local w0, h0 = window.width, window.height
     window:ToggleFullscreen() wait(0.1)
     check("fullscreen grows", window.fullscreen and window.width > w0)
@@ -1668,6 +1668,62 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     ghostTab:SetHidden(true)
     check("hidden tab: selectable from code", (function() ghostTab:Select() wait() return window.current == ghostTab end)())
     tabNamed("Live"):Select() wait()
+
+    -- toasts and pills are plain frames (no CanvasGroup texture); their parts fade in and out
+    do
+        local toast = window:Notify({ Title = "Sharp toast", Content = "no canvas group", Icon = "bell" })
+        local frame = toast
+        check("toast is a plain Frame", frame:IsA("Frame") and not frame:IsA("CanvasGroup"))
+        local titleLabel
+        for _, d in ipairs(frame:GetDescendants()) do if d:IsA("TextLabel") and d.Text == "Sharp toast" then titleLabel = d end end
+        wait(0.3)
+        check("toast faded in: text at rest", titleLabel and titleLabel.TextTransparency == 0 and frame.BackgroundTransparency == (frame:GetAttribute("QRestBackgroundTransparency") or 0))
+        local pill = window:Toast({ Text = "Sharp pill" }) wait(0.3)
+        check("pill is a plain Frame", pill.Frame:IsA("Frame") and not pill.Frame:IsA("CanvasGroup"))
+        pill:Close() wait(0.3)
+        check("pill faded out and gone", pill.Frame.Parent == nil)
+        for _, t in ipairs(Lib._openToasts or {}) do pcall(t.dismiss) end wait(0.4)
+    end
+
+    -- the text glow loop only runs while a glowing label is on screen
+    do
+        local G = Lib._glow
+        window:Watermark(false)
+        tabNamed("Dashboard"):Select() wait(1.2)
+        check("glow loop runs while a glowing title shows", G.running == true)
+        window:SetVisible(false) wait(1.2)
+        check("glow loop stops with the menu closed", G.running == false)
+        window:SetVisible(true) wait(1.2)
+        check("glow loop back when the menu opens", G.running == true)
+        tabNamed("Live"):Select() wait(0.2)
+    end
+
+    -- one download helper (icon sheets, fonts, web images): files once on disk, a check, distinct names per link
+    do
+        local E = getfenv(0)
+        local U = Lib.Util
+        check("hash: same text, same name; different text, different name", U.hash("https://a.com/x.png") == U.hash("https://a.com/x.png") and U.hash("https://a.com/x.png") ~= U.hash("https://b.com/x.png") and #U.hash("x") == 8)
+        local oldCustom, oldRequest = E.getcustomasset, E.http_request
+        local requests = 0
+        E.getcustomasset = function(path) return "rbxasset://custom/" .. path end
+        E.http_request = function(t) requests = requests + 1 return { Body = t.Url:find("bad") and "<html>" or "\137PNG data" } end
+        local got
+        U.cacheFiles({ { path = "QustahUI/test/a.png", url = "https://example.com/a.png", check = function(b) return b:sub(2, 4) == "PNG" end } },
+            function(ids) got = ids end) wait(0.2)
+        check("cacheFiles: downloads, saves, hands back the id", got and got["QustahUI/test/a.png"] == "rbxasset://custom/QustahUI/test/a.png" and MOCK.files["QustahUI/test/a.png"] ~= nil and requests == 1)
+        got = nil
+        U.cacheFiles({ { path = "QustahUI/test/a.png", url = "https://example.com/a.png" } }, function(ids) got = ids end)
+        check("cacheFiles: on disk already, no download, at once", got ~= nil and requests == 1)
+        local failed
+        U.cacheFiles({ { path = "QustahUI/test/b.png", url = "https://example.com/bad.png", check = function(b) return b:sub(2, 4) == "PNG" end } },
+            function() end, function(reason) failed = reason end) wait(0.2)
+        check("cacheFiles: a failed check is reported, nothing saved", failed ~= nil and MOCK.files["QustahUI/test/b.png"] == nil)
+        -- two web images with links of the same length get two files
+        local i1 = Lib.Icons.Image("https://example.com/logo1.png", { Size = UDim2.fromOffset(20, 20) })
+        local i2 = Lib.Icons.Image("https://example.com/logo2.png", { Size = UDim2.fromOffset(20, 20) }) wait(0.2)
+        check("web images: links of the same length, different files", i1.Image ~= "" and i2.Image ~= "" and i1.Image ~= i2.Image)
+        E.getcustomasset, E.http_request = oldCustom, oldRequest
+    end
 
     -- downloadable fonts (Inter, Geist, Manrope, JetBrains Mono): files once on disk, a family file, every text
     do

@@ -49,24 +49,48 @@ end
 
 local visible = Util.shown
 
--- One RenderStepped loop for all glows; hidden labels are skipped, destroyed ones dropped.
+-- One RenderStepped loop for all glows, connected only while a glowing label is on screen and glow is on: a slow
+-- check (twice a second) connects / disconnects it, so a closed menu (and no overlay title showing) costs nothing.
 function Glow.start(maid)
     if Glow.started then return end
     Glow.started = true
-    maid:connect(Util.Services.RunService.RenderStepped, function()
-        if not Glow.enabled then return end
+    local connection
+    local function step()
         local now = os.clock()
-        for index = #Glow.items, 1, -1 do
-            local fx = Glow.items[index]
-            if not fx.label.Parent then
-                table.remove(Glow.items, index)
-            elseif visible(fx.label) then
+        for _, fx in ipairs(Glow.items) do
+            if fx.label.Parent and visible(fx.label) then
                 local p = ((now / fx.period) + fx.phase) % 1
                 fx.gradient.Offset = Vector2.new(p < 0.6 and (-1.2 + (p / 0.6) * 2.4) or 1.2, 0)
             end
         end
+    end
+    local function anyShown()
+        local shown = false
+        for index = #Glow.items, 1, -1 do
+            local fx = Glow.items[index]
+            if not fx.label.Parent then table.remove(Glow.items, index)
+            elseif not shown and visible(fx.label) then shown = true end
+        end
+        return shown
+    end
+    task.spawn(function()
+        while Glow.started do
+            local want = Glow.enabled and anyShown()
+            if want and not connection then
+                connection = Util.Services.RunService.RenderStepped:Connect(step)
+            elseif not want and connection then
+                connection:Disconnect()
+                connection = nil
+            end
+            Glow.running = connection ~= nil
+            task.wait(0.5)
+        end
     end)
-    maid:give(function() Glow.started = false end)
+    maid:give(function()
+        Glow.started = false
+        if connection then connection:Disconnect() connection = nil end
+        Glow.running = false
+    end)
     Theme.onChange(function() for _, fx in ipairs(Glow.items) do if fx.label.Parent then apply(fx) end end end)
 end
 

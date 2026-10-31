@@ -3,7 +3,7 @@
 --   Window:SetFullscreen(bool) / :ToggleFullscreen()   also the maximize button and a double click on the header
 --   Window:SetBackgroundImage(image, transparency)      rbxassetid / url / nil; :SetBackgroundTransparency(0-0.9)
 --   Window:SetAnonymous(bool)                           hides your name / avatar everywhere (dock profile button)
--- CreateWindow({ FullscreenButton = false, Profile = false, Anonymous = true, Background = "...", BackgroundTransparency })
+-- CreateWindow({ FullscreenButton = true, Profile = false, Anonymous = true, Background = "...", BackgroundTransparency })
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
@@ -136,7 +136,7 @@ return function(Window)
         self.unlockMouse = cfg.UnlockMouse ~= false
         self.maid:give(function() self.visible = false self:_applyMouse() end)
         self:_applyMouse()
-        if cfg.FullscreenButton ~= false then
+        if cfg.FullscreenButton == true then
             self._fullscreenButton = self:HeaderButton({ Name = "Fullscreen", Icon = "maximize-2", Tooltip = "Fullscreen", Callback = function() self:ToggleFullscreen() end })
         end
         -- double click on the header toggles fullscreen too

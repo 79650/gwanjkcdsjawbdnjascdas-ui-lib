@@ -19,7 +19,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.20",
+    Version = "1.9.21",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -27,6 +27,7 @@ local Lib = {
     Sounds = Sounds, -- Lib.Sounds.Enabled = true, Lib.Sounds.Set("click", id)
     Haptics = require("haptics"), -- Lib.Haptics.Enabled (on for touch screens)
     Fonts = require("font"), -- Lib.Fonts.set("Inter"), Lib.Fonts.available()
+    _glow = require("glow"), -- (tests)
     Util = Util,
 }
 Lib.maid = Util.maid()

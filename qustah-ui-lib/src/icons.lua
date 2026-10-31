@@ -16,9 +16,18 @@ local Icons = {
 }
 
 local Theme = require("theme")
+local Util = require("util")
 
--- lucide is embedded as name -> asset number
-Icons.Sets.lucide = require("icons_lucide")
+-- lucide is embedded as name, asset number pairs (in the order the sharp sheets use)
+local lucideOrder = {}
+do
+    local list, set = require("icons_lucide"), {}
+    for i = 1, #list, 2 do
+        set[list[i]] = list[i + 1]
+        lucideOrder[#lucideOrder + 1] = list[i]
+    end
+    Icons.Sets.lucide = set
+end
 
 local ZERO = Vector2.new(0, 0)
 
@@ -92,30 +101,13 @@ Icons._urls = {}
 Icons.Folder = "QustahUI/assets"
 local function fetch(url, done)
     if Icons._urls[url] then return done(Icons._urls[url]) end
-    task.spawn(function()
-        local ok, asset = pcall(function()
-            local name = url:match("([^/?#]+)[?#]?[^/]*$") or "image"
-            name = name:gsub("%.[^%.]+$", ""):gsub("[^%w%-_]", "_"):sub(1, 40)
-            local file = Icons.Folder .. "/" .. name .. "-" .. #url .. ".png"
-            if not (isfile and isfile(file)) then
-                local request = (syn and syn.request) or http_request or request
-                local body
-                if request then body = request({ Url = url, Method = "GET" }).Body else body = game:HttpGet(url) end
-                assert(type(body) == "string" and #body > 0, "empty response")
-                if makefolder and isfolder then
-                    if not isfolder("QustahUI") then makefolder("QustahUI") end
-                    if not isfolder(Icons.Folder) then makefolder(Icons.Folder) end
-                end
-                writefile(file, body)
-            end
-            return (getcustomasset or getsynasset)(file)
-        end)
-        if ok and asset then
-            Icons._urls[url] = asset
-            done(asset)
-        else
-            require("util").log("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(asset))
-        end
+    local name = (url:match("([^/?#]+)[?#]?[^/]*$") or "image"):gsub("%.[^%.]+$", ""):gsub("[^%w%-_]", "_"):sub(1, 32)
+    local path = Icons.Folder .. "/" .. name .. "-" .. Util.hash(url) .. ".png"
+    Util.cacheFiles({ { path = path, url = url } }, function(ids)
+        Icons._urls[url] = ids[path]
+        done(ids[path])
+    end, function(reason)
+        Util.log("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(reason))
     end)
 end
 
@@ -131,11 +123,16 @@ local atlas = { started = false, ready = false, index = nil, pages = {} }
 local sharpImages = setmetatable({}, { __mode = "k" }) -- image -> lucide name, so they switch sheets / get re-drawn
 local applySharp
 
+-- name -> place in the sheets: lucide's order without the names lucide no longer has
 local function atlasIndex()
     if not atlas.index then
+        local missing = {}
+        for name in string.gmatch(Atlas.Missing or "", "[^,]+") do missing[name] = true end
         atlas.index = {}
         local i = 0
-        for name in string.gmatch(Atlas.Names, "[^,]+") do i = i + 1 atlas.index[name] = i end
+        for _, name in ipairs(lucideOrder) do
+            if not missing[name] then i = i + 1 atlas.index[name] = i end
+        end
     end
     return atlas.index
 end
@@ -152,43 +149,19 @@ local function atlasRect(index, pixels)
     return image, Vector2.new((k % sheet.Columns) * pitch + 1, math.floor(k / sheet.Columns) * pitch + 1), Vector2.new(size, size)
 end
 
--- Downloads files once into AtlasFolder (as <prefix><file>) and turns them into getcustomasset ids.
--- done(ids) runs at once when everything is already on disk, later after a download, never when it fails.
+-- The sheets' files in AtlasFolder (as <prefix><file>), downloaded once; done(ids by file name).
+local function isPng(body) return body:sub(2, 4) == "PNG" end
 local function loadFiles(prefix, source, files, done)
-    local custom = getcustomasset or getsynasset
-    if type(custom) ~= "function" or type(writefile) ~= "function" or type(isfile) ~= "function" then return end
-    local function path(file) return Icons.AtlasFolder .. "/" .. prefix .. file end
-    local function finish()
-        local ids = {}
-        for _, file in ipairs(files) do
-            local ok, id = pcall(custom, path(file))
-            if not ok or type(id) ~= "string" or id == "" then return end
-            ids[file] = id
-        end
-        done(ids)
-    end
-    local cached = true
+    local list = {}
     for _, file in ipairs(files) do
-        local ok, exists = pcall(isfile, path(file))
-        if not (ok and exists) then cached = false end
+        list[#list + 1] = { path = Icons.AtlasFolder .. "/" .. prefix .. file, url = source .. file, check = isPng, name = file }
     end
-    -- already on disk: sharp from the first frame
-    if cached then finish() return end
-    task.spawn(function()
-        local ok = pcall(function()
-            if type(makefolder) == "function" and type(isfolder) == "function" then
-                if not isfolder("QustahUI") then makefolder("QustahUI") end
-                if not isfolder(Icons.AtlasFolder) then makefolder(Icons.AtlasFolder) end
-            end
-            for _, file in ipairs(files) do
-                if not isfile(path(file)) then
-                    local body = game:HttpGet(source .. file)
-                    assert(type(body) == "string" and body:sub(2, 4) == "PNG", "not a png")
-                    writefile(path(file), body)
-                end
-            end
-        end)
-        if ok then finish() else require("util").log("[qustah-ui-lib] sharp icons could not be downloaded; using the plain ones") end
+    Util.cacheFiles(list, function(ids)
+        local byName = {}
+        for _, file in ipairs(list) do byName[file.name] = ids[file.path] end
+        done(byName)
+    end, function(reason)
+        if Util.canCustomAsset() then Util.log("[qustah-ui-lib] sharp icons could not be loaded (" .. tostring(reason) .. "); using the plain ones") end
     end)
 end
 

@@ -15,9 +15,7 @@ local WEIGHTS = { { "Regular", 400 }, { "Medium", 500 }, { "SemiBold", 600 }, { 
 local loaded = {} -- name -> family id, false while loading, nil before
 UIFont.onFailed = nil -- function(name, reason): set by the Settings tab to tell the user
 
-local function canDownload()
-    return type(getcustomasset or getsynasset) == "function" and type(writefile) == "function" and type(isfile) == "function"
-end
+local function canDownload() return require("util").canCustomAsset() end
 
 function UIFont.available()
     local list = {}
@@ -41,22 +39,25 @@ local function familyOf(name)
 end
 
 -- Loads a downloadable family; done(true) when it can be used, done(false, reason) when not.
+local function isFont(body) local head = body:sub(1, 4) return head == "\0\1\0\0" or head == "true" or head == "OTTO" end
 local function loadFamily(name, done)
     local dir = UIFont.Downloadable[name]
-    local custom = getcustomasset or getsynasset
     local base = UIFont.Folder .. "/v" .. UIFont.Version .. "-" .. dir
-    local function ttf(label) return base .. "-" .. label .. ".ttf" end
-    local function build()
-        local faces = {}
-        for _, weight in ipairs(WEIGHTS) do
-            faces[#faces + 1] = { name = weight[1], weight = weight[2], style = "normal", assetId = custom(ttf(weight[1])) }
-        end
-        local json = game:GetService("HttpService"):JSONEncode({ name = dir, faces = faces })
-        writefile(base .. ".json", json)
-        return custom(base .. ".json")
+    local files = {}
+    for _, weight in ipairs(WEIGHTS) do
+        files[#files + 1] = { path = base .. "-" .. weight[1] .. ".ttf", url = UIFont.Source .. dir .. "/" .. dir .. "-" .. weight[1] .. ".ttf", check = isFont }
     end
-    local function finish()
-        local ok, family = pcall(build)
+    loaded[name] = false
+    require("util").cacheFiles(files, function(ids)
+        -- a font-family file pointing at the four weights, itself shown through getcustomasset
+        local ok, family = pcall(function()
+            local faces = {}
+            for index, weight in ipairs(WEIGHTS) do
+                faces[index] = { name = weight[1], weight = weight[2], style = "normal", assetId = ids[files[index].path] }
+            end
+            writefile(base .. ".json", game:GetService("HttpService"):JSONEncode({ name = dir, faces = faces }))
+            return (getcustomasset or getsynasset)(base .. ".json")
+        end)
         if ok and type(family) == "string" and family ~= "" then
             loaded[name] = family
             done(true)
@@ -64,30 +65,9 @@ local function loadFamily(name, done)
             loaded[name] = nil
             done(false, tostring(family))
         end
-    end
-    local cached = true
-    for _, weight in ipairs(WEIGHTS) do
-        local ok, exists = pcall(isfile, ttf(weight[1]))
-        if not (ok and exists) then cached = false end
-    end
-    if cached then finish() return end
-    loaded[name] = false
-    task.spawn(function()
-        local ok, reason = pcall(function()
-            if type(makefolder) == "function" and type(isfolder) == "function" then
-                if not isfolder("QustahUI") then makefolder("QustahUI") end
-                if not isfolder(UIFont.Folder) then makefolder(UIFont.Folder) end
-            end
-            for _, weight in ipairs(WEIGHTS) do
-                if not isfile(ttf(weight[1])) then
-                    local body = game:HttpGet(UIFont.Source .. dir .. "/" .. dir .. "-" .. weight[1] .. ".ttf")
-                    local head = type(body) == "string" and body:sub(1, 4) or ""
-                    assert(head == "\0\1\0\0" or head == "true" or head == "OTTO", "not a font file")
-                    writefile(ttf(weight[1]), body)
-                end
-            end
-        end)
-        if ok then finish() else loaded[name] = nil done(false, tostring(reason)) end
+    end, function(reason)
+        loaded[name] = nil
+        done(false, reason)
     end)
 end
 

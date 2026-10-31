@@ -108,21 +108,6 @@ function Util.tween(object, duration, props, style, direction)
     return tween
 end
 
--- Fades a CanvasGroup in / out (target 0 = shown, 1 = hidden) together with its own outline.
--- (A UIStroke on the CanvasGroup itself is drawn outside the group, so GroupTransparency alone leaves the
--- border hanging on screen while the inside fades.) Each outline's resting transparency is remembered.
-function Util.fade(group, duration, target)
-    for _, child in ipairs(group:GetChildren()) do
-        if child:IsA("UIStroke") then
-            local rest = child:GetAttribute("QRest")
-            if rest == nil then rest = child.Transparency child:SetAttribute("QRest", rest) end
-            -- coming in from hidden: the outline starts hidden too instead of showing before the inside
-            if target < 1 and group.GroupTransparency >= 0.99 then child.Transparency = 1 end
-            Util.tween(child, duration, { Transparency = 1 - (1 - rest) * (1 - target) })
-        end
-    end
-    return Util.tween(group, duration, { GroupTransparency = target })
-end
 -- Fades a window-sized frame in / out through a CanvasGroup that only exists while the fade runs. A CanvasGroup
 -- draws everything inside it into a texture first, and in game that texture can come out softer than the screen
 -- (thin icons and small text look blurry), so the frame sits outside one whenever it is simply shown.
@@ -156,11 +141,109 @@ function Util.fadeFrame(frame, duration, target)
     return tween
 end
 
+-- Fades a small piece of UI (toast, pill, key screen) by tweening each part's own transparency, so nothing is
+-- drawn through a CanvasGroup texture (sharp text and icons) and it can stay inside a list layout. Each part's
+-- resting transparency is remembered the first time. fromHidden: start everything invisible (a new toast).
+local FADE_PROPS = {
+    { "GuiObject", "BackgroundTransparency" }, { "TextLabel", "TextTransparency" }, { "TextButton", "TextTransparency" },
+    { "TextBox", "TextTransparency" }, { "ImageLabel", "ImageTransparency" }, { "ImageButton", "ImageTransparency" },
+    { "UIStroke", "Transparency" },
+}
+function Util.fadeTree(root, duration, target, fromHidden)
+    fromHidden = fromHidden or root:GetAttribute("QFadedOut") == true
+    root:SetAttribute("QFadedOut", target >= 1)
+    local objects = root:GetDescendants()
+    table.insert(objects, root)
+    for _, object in ipairs(objects) do
+        for _, spec in ipairs(FADE_PROPS) do
+            if object:IsA(spec[1]) then
+                local prop = spec[2]
+                local key = "QRest" .. prop
+                local rest = object:GetAttribute(key)
+                if rest == nil then
+                    rest = object[prop]
+                    object:SetAttribute(key, rest)
+                end
+                if rest < 1 then
+                    if fromHidden then object[prop] = 1 end
+                    Util.tween(object, duration, { [prop] = 1 - (1 - rest) * (1 - target) })
+                end
+            end
+        end
+    end
+end
+
 -- Sets an outline's normal transparency (respected by Util.fade); applied now unless its group is faded out.
 function Util.setRest(strokeObject, value)
     strokeObject:SetAttribute("QRest", value)
     local group = strokeObject.Parent
     if not (group and group:IsA("CanvasGroup") and group.GroupTransparency > 0.01) then strokeObject.Transparency = value end
+end
+
+-- Downloaded files shown through getcustomasset (icon sheets, fonts, web images) --------------------------------
+function Util.canCustomAsset()
+    return type(getcustomasset or getsynasset) == "function" and type(writefile) == "function" and type(isfile) == "function"
+end
+
+-- A short stable name for a link (djb2), so two different links never share a file.
+function Util.hash(text)
+    local h = 5381
+    for i = 1, #text do h = (h * 33 + string.byte(text, i)) % 4294967296 end
+    return string.format("%08x", h)
+end
+
+local function makeFolders(path)
+    if type(makefolder) ~= "function" or type(isfolder) ~= "function" then return end
+    local built = ""
+    for part in string.gmatch(path:match("^(.*)/[^/]*$") or "", "[^/]+") do
+        built = built == "" and part or (built .. "/" .. part)
+        if not isfolder(built) then makefolder(built) end
+    end
+end
+
+-- Util.cacheFiles({ { path = "QustahUI/x.png", url = "https://...", check = function(body) return ok end }, ... },
+--     done(ids), fail(reason))
+-- Every missing file is downloaded once and kept on disk; done gets { [path] = getcustomasset id }. It runs at once
+-- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
+-- the executor can't show downloaded files or a download / check fails.
+function Util.cacheFiles(files, done, fail)
+    fail = fail or function() end
+    if not Util.canCustomAsset() then fail("getcustomasset is not available") return end
+    local custom = getcustomasset or getsynasset
+    local function finish()
+        local ids = {}
+        for _, file in ipairs(files) do
+            local ok, id = pcall(custom, file.path)
+            if not ok or type(id) ~= "string" or id == "" then fail(tostring(id)) return end
+            ids[file.path] = id
+        end
+        done(ids)
+    end
+    local missing = {}
+    for _, file in ipairs(files) do
+        local ok, exists = pcall(isfile, file.path)
+        if not (ok and exists) then missing[#missing + 1] = file end
+    end
+    if #missing == 0 then finish() return end
+    task.spawn(function()
+        local ok, reason = pcall(function()
+            for _, file in ipairs(missing) do
+                -- an http request reaches any host (raw.githubusercontent.com works with HttpGet too)
+                local request = (syn and syn.request) or http_request or request
+                local body
+                if request and not file.url:find("githubusercontent", 1, true) then
+                    body = request({ Url = file.url, Method = "GET" }).Body
+                else
+                    body = game:HttpGet(file.url)
+                end
+                assert(type(body) == "string" and #body > 0, "empty response")
+                if file.check then assert(file.check(body), "unexpected file") end
+                makeFolders(file.path)
+                writefile(file.path, body)
+            end
+        end)
+        if ok then finish() else fail(tostring(reason)) end
+    end)
 end
 
 -- Runs a user callback; an error is reported but never breaks the UI.

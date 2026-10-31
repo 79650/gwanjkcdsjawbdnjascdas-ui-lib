@@ -56,9 +56,9 @@ function Gate.run(Lib, cfg)
     local gui = Util.screenGui("QustahUI_Key", 70)
     UIFont.register(gui, Lib.maid)
     local shade = create("Frame", { Name = "Shade", Size = UDim2.fromScale(1, 1), BorderSizePixel = 0, BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, Parent = gui })
-    local panel = create("CanvasGroup", {
+    local panel = create("Frame", {
         Name = "KeySystem", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(340, 232),
-        BorderSizePixel = 0, GroupTransparency = 1, Parent = gui,
+        BorderSizePixel = 0, Parent = gui,
     })
     Theme.bind(panel, "BackgroundColor3", "base")
     corner(panel, 12)
@@ -128,7 +128,7 @@ function Gate.run(Lib, cfg)
     if not spec.Url then panel.Size = UDim2.fromOffset(340, 178) line.Visible = false end
 
     tween(shade, 0.2, { BackgroundTransparency = 0.45 })
-    Util.fade(panel, 0.2, 0)
+    Util.fadeTree(panel, 0.2, 0, true)
     tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
 
     local result, busy = nil, false
@@ -183,7 +183,7 @@ function Gate.run(Lib, cfg)
     if result == nil then result = false end
     if genv.__QustahKeyGate == replaced then genv.__QustahKeyGate = nil end
     tween(shade, 0.18, { BackgroundTransparency = 1 })
-    Util.fade(panel, 0.18, 1)
+    Util.fadeTree(panel, 0.18, 1)
     task.delay(0.2, function() gui:Destroy() end)
     if result == false then Util.safe(spec.OnCancel) end
     return result

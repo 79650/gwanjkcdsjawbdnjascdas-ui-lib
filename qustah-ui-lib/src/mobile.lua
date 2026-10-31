@@ -22,9 +22,9 @@ return function(Window)
         local show = self.mobileButton and self.alive and not self.visible
         if show then
             pill.Visible = true
-            Util.fade(pill, 0.18, 0)
+            Util.fadeTree(pill, 0.18, 0)
         else
-            Util.fade(pill, 0.12, 1)
+            Util.fadeTree(pill, 0.12, 1)
             task.delay(0.13, function()
                 if pill.Parent and not (self.mobileButton and self.alive and not self.visible) then pill.Visible = false end
             end)
@@ -32,10 +32,11 @@ return function(Window)
     end
 
     function Window:_makePill()
-        local pill = create("CanvasGroup", {
+        local pill = create("Frame", {
             Name = "MobileButton", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 40), BorderSizePixel = 0,
-            GroupTransparency = 1, Visible = false, ZIndex = 80, Parent = self.gui,
+            Visible = false, ZIndex = 80, Parent = self.gui,
         })
+        pill:SetAttribute("QFadedOut", true)
         Theme.bind(pill, "BackgroundColor3", "base")
         corner(pill, 20)
         local edge = stroke(pill, nil, 0.3)

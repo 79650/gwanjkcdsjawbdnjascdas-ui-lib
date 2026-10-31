@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.20 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.21 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -6048,9 +6048,7 @@ local WEIGHTS = { { "Regular", 400 }, { "Medium", 500 }, { "SemiBold", 600 }, { 
 local loaded = {} -- name -> family id, false while loading, nil before
 UIFont.onFailed = nil -- function(name, reason): set by the Settings tab to tell the user
 
-local function canDownload()
-    return type(getcustomasset or getsynasset) == "function" and type(writefile) == "function" and type(isfile) == "function"
-end
+local function canDownload() return require("util").canCustomAsset() end
 
 function UIFont.available()
     local list = {}
@@ -6074,22 +6072,25 @@ local function familyOf(name)
 end
 
 -- Loads a downloadable family; done(true) when it can be used, done(false, reason) when not.
+local function isFont(body) local head = body:sub(1, 4) return head == "\0\1\0\0" or head == "true" or head == "OTTO" end
 local function loadFamily(name, done)
     local dir = UIFont.Downloadable[name]
-    local custom = getcustomasset or getsynasset
     local base = UIFont.Folder .. "/v" .. UIFont.Version .. "-" .. dir
-    local function ttf(label) return base .. "-" .. label .. ".ttf" end
-    local function build()
-        local faces = {}
-        for _, weight in ipairs(WEIGHTS) do
-            faces[#faces + 1] = { name = weight[1], weight = weight[2], style = "normal", assetId = custom(ttf(weight[1])) }
-        end
-        local json = game:GetService("HttpService"):JSONEncode({ name = dir, faces = faces })
-        writefile(base .. ".json", json)
-        return custom(base .. ".json")
+    local files = {}
+    for _, weight in ipairs(WEIGHTS) do
+        files[#files + 1] = { path = base .. "-" .. weight[1] .. ".ttf", url = UIFont.Source .. dir .. "/" .. dir .. "-" .. weight[1] .. ".ttf", check = isFont }
     end
-    local function finish()
-        local ok, family = pcall(build)
+    loaded[name] = false
+    require("util").cacheFiles(files, function(ids)
+        -- a font-family file pointing at the four weights, itself shown through getcustomasset
+        local ok, family = pcall(function()
+            local faces = {}
+            for index, weight in ipairs(WEIGHTS) do
+                faces[index] = { name = weight[1], weight = weight[2], style = "normal", assetId = ids[files[index].path] }
+            end
+            writefile(base .. ".json", game:GetService("HttpService"):JSONEncode({ name = dir, faces = faces }))
+            return (getcustomasset or getsynasset)(base .. ".json")
+        end)
         if ok and type(family) == "string" and family ~= "" then
             loaded[name] = family
             done(true)
@@ -6097,30 +6098,9 @@ local function loadFamily(name, done)
             loaded[name] = nil
             done(false, tostring(family))
         end
-    end
-    local cached = true
-    for _, weight in ipairs(WEIGHTS) do
-        local ok, exists = pcall(isfile, ttf(weight[1]))
-        if not (ok and exists) then cached = false end
-    end
-    if cached then finish() return end
-    loaded[name] = false
-    task.spawn(function()
-        local ok, reason = pcall(function()
-            if type(makefolder) == "function" and type(isfolder) == "function" then
-                if not isfolder("QustahUI") then makefolder("QustahUI") end
-                if not isfolder(UIFont.Folder) then makefolder(UIFont.Folder) end
-            end
-            for _, weight in ipairs(WEIGHTS) do
-                if not isfile(ttf(weight[1])) then
-                    local body = game:HttpGet(UIFont.Source .. dir .. "/" .. dir .. "-" .. weight[1] .. ".ttf")
-                    local head = type(body) == "string" and body:sub(1, 4) or ""
-                    assert(head == "\0\1\0\0" or head == "true" or head == "OTTO", "not a font file")
-                    writefile(ttf(weight[1]), body)
-                end
-            end
-        end)
-        if ok then finish() else loaded[name] = nil done(false, tostring(reason)) end
+    end, function(reason)
+        loaded[name] = nil
+        done(false, reason)
     end)
 end
 
@@ -6246,9 +6226,9 @@ function Gate.run(Lib, cfg)
     local gui = Util.screenGui("QustahUI_Key", 70)
     UIFont.register(gui, Lib.maid)
     local shade = create("Frame", { Name = "Shade", Size = UDim2.fromScale(1, 1), BorderSizePixel = 0, BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, Parent = gui })
-    local panel = create("CanvasGroup", {
+    local panel = create("Frame", {
         Name = "KeySystem", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(340, 232),
-        BorderSizePixel = 0, GroupTransparency = 1, Parent = gui,
+        BorderSizePixel = 0, Parent = gui,
     })
     Theme.bind(panel, "BackgroundColor3", "base")
     corner(panel, 12)
@@ -6318,7 +6298,7 @@ function Gate.run(Lib, cfg)
     if not spec.Url then panel.Size = UDim2.fromOffset(340, 178) line.Visible = false end
 
     tween(shade, 0.2, { BackgroundTransparency = 0.45 })
-    Util.fade(panel, 0.2, 0)
+    Util.fadeTree(panel, 0.2, 0, true)
     tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
 
     local result, busy = nil, false
@@ -6373,7 +6353,7 @@ function Gate.run(Lib, cfg)
     if result == nil then result = false end
     if genv.__QustahKeyGate == replaced then genv.__QustahKeyGate = nil end
     tween(shade, 0.18, { BackgroundTransparency = 1 })
-    Util.fade(panel, 0.18, 1)
+    Util.fadeTree(panel, 0.18, 1)
     task.delay(0.2, function() gui:Destroy() end)
     if result == false then Util.safe(spec.OnCancel) end
     return result
@@ -6439,24 +6419,48 @@ end
 
 local visible = Util.shown
 
--- One RenderStepped loop for all glows; hidden labels are skipped, destroyed ones dropped.
+-- One RenderStepped loop for all glows, connected only while a glowing label is on screen and glow is on: a slow
+-- check (twice a second) connects / disconnects it, so a closed menu (and no overlay title showing) costs nothing.
 function Glow.start(maid)
     if Glow.started then return end
     Glow.started = true
-    maid:connect(Util.Services.RunService.RenderStepped, function()
-        if not Glow.enabled then return end
+    local connection
+    local function step()
         local now = os.clock()
-        for index = #Glow.items, 1, -1 do
-            local fx = Glow.items[index]
-            if not fx.label.Parent then
-                table.remove(Glow.items, index)
-            elseif visible(fx.label) then
+        for _, fx in ipairs(Glow.items) do
+            if fx.label.Parent and visible(fx.label) then
                 local p = ((now / fx.period) + fx.phase) % 1
                 fx.gradient.Offset = Vector2.new(p < 0.6 and (-1.2 + (p / 0.6) * 2.4) or 1.2, 0)
             end
         end
+    end
+    local function anyShown()
+        local shown = false
+        for index = #Glow.items, 1, -1 do
+            local fx = Glow.items[index]
+            if not fx.label.Parent then table.remove(Glow.items, index)
+            elseif not shown and visible(fx.label) then shown = true end
+        end
+        return shown
+    end
+    task.spawn(function()
+        while Glow.started do
+            local want = Glow.enabled and anyShown()
+            if want and not connection then
+                connection = Util.Services.RunService.RenderStepped:Connect(step)
+            elseif not want and connection then
+                connection:Disconnect()
+                connection = nil
+            end
+            Glow.running = connection ~= nil
+            task.wait(0.5)
+        end
     end)
-    maid:give(function() Glow.started = false end)
+    maid:give(function()
+        Glow.started = false
+        if connection then connection:Disconnect() connection = nil end
+        Glow.running = false
+    end)
     Theme.onChange(function() for _, fx in ipairs(Glow.items) do if fx.label.Parent then apply(fx) end end end)
 end
 
@@ -6853,9 +6857,18 @@ local Icons = {
 }
 
 local Theme = require("theme")
+local Util = require("util")
 
--- lucide is embedded as name -> asset number
-Icons.Sets.lucide = require("icons_lucide")
+-- lucide is embedded as name, asset number pairs (in the order the sharp sheets use)
+local lucideOrder = {}
+do
+    local list, set = require("icons_lucide"), {}
+    for i = 1, #list, 2 do
+        set[list[i]] = list[i + 1]
+        lucideOrder[#lucideOrder + 1] = list[i]
+    end
+    Icons.Sets.lucide = set
+end
 
 local ZERO = Vector2.new(0, 0)
 
@@ -6929,30 +6942,13 @@ Icons._urls = {}
 Icons.Folder = "QustahUI/assets"
 local function fetch(url, done)
     if Icons._urls[url] then return done(Icons._urls[url]) end
-    task.spawn(function()
-        local ok, asset = pcall(function()
-            local name = url:match("([^/?#]+)[?#]?[^/]*$") or "image"
-            name = name:gsub("%.[^%.]+$", ""):gsub("[^%w%-_]", "_"):sub(1, 40)
-            local file = Icons.Folder .. "/" .. name .. "-" .. #url .. ".png"
-            if not (isfile and isfile(file)) then
-                local request = (syn and syn.request) or http_request or request
-                local body
-                if request then body = request({ Url = url, Method = "GET" }).Body else body = game:HttpGet(url) end
-                assert(type(body) == "string" and #body > 0, "empty response")
-                if makefolder and isfolder then
-                    if not isfolder("QustahUI") then makefolder("QustahUI") end
-                    if not isfolder(Icons.Folder) then makefolder(Icons.Folder) end
-                end
-                writefile(file, body)
-            end
-            return (getcustomasset or getsynasset)(file)
-        end)
-        if ok and asset then
-            Icons._urls[url] = asset
-            done(asset)
-        else
-            require("util").log("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(asset))
-        end
+    local name = (url:match("([^/?#]+)[?#]?[^/]*$") or "image"):gsub("%.[^%.]+$", ""):gsub("[^%w%-_]", "_"):sub(1, 32)
+    local path = Icons.Folder .. "/" .. name .. "-" .. Util.hash(url) .. ".png"
+    Util.cacheFiles({ { path = path, url = url } }, function(ids)
+        Icons._urls[url] = ids[path]
+        done(ids[path])
+    end, function(reason)
+        Util.log("[qustah-ui-lib] image " .. url .. " could not be loaded: " .. tostring(reason))
     end)
 end
 
@@ -6968,11 +6964,16 @@ local atlas = { started = false, ready = false, index = nil, pages = {} }
 local sharpImages = setmetatable({}, { __mode = "k" }) -- image -> lucide name, so they switch sheets / get re-drawn
 local applySharp
 
+-- name -> place in the sheets: lucide's order without the names lucide no longer has
 local function atlasIndex()
     if not atlas.index then
+        local missing = {}
+        for name in string.gmatch(Atlas.Missing or "", "[^,]+") do missing[name] = true end
         atlas.index = {}
         local i = 0
-        for name in string.gmatch(Atlas.Names, "[^,]+") do i = i + 1 atlas.index[name] = i end
+        for _, name in ipairs(lucideOrder) do
+            if not missing[name] then i = i + 1 atlas.index[name] = i end
+        end
     end
     return atlas.index
 end
@@ -6989,43 +6990,19 @@ local function atlasRect(index, pixels)
     return image, Vector2.new((k % sheet.Columns) * pitch + 1, math.floor(k / sheet.Columns) * pitch + 1), Vector2.new(size, size)
 end
 
--- Downloads files once into AtlasFolder (as <prefix><file>) and turns them into getcustomasset ids.
--- done(ids) runs at once when everything is already on disk, later after a download, never when it fails.
+-- The sheets' files in AtlasFolder (as <prefix><file>), downloaded once; done(ids by file name).
+local function isPng(body) return body:sub(2, 4) == "PNG" end
 local function loadFiles(prefix, source, files, done)
-    local custom = getcustomasset or getsynasset
-    if type(custom) ~= "function" or type(writefile) ~= "function" or type(isfile) ~= "function" then return end
-    local function path(file) return Icons.AtlasFolder .. "/" .. prefix .. file end
-    local function finish()
-        local ids = {}
-        for _, file in ipairs(files) do
-            local ok, id = pcall(custom, path(file))
-            if not ok or type(id) ~= "string" or id == "" then return end
-            ids[file] = id
-        end
-        done(ids)
-    end
-    local cached = true
+    local list = {}
     for _, file in ipairs(files) do
-        local ok, exists = pcall(isfile, path(file))
-        if not (ok and exists) then cached = false end
+        list[#list + 1] = { path = Icons.AtlasFolder .. "/" .. prefix .. file, url = source .. file, check = isPng, name = file }
     end
-    -- already on disk: sharp from the first frame
-    if cached then finish() return end
-    task.spawn(function()
-        local ok = pcall(function()
-            if type(makefolder) == "function" and type(isfolder) == "function" then
-                if not isfolder("QustahUI") then makefolder("QustahUI") end
-                if not isfolder(Icons.AtlasFolder) then makefolder(Icons.AtlasFolder) end
-            end
-            for _, file in ipairs(files) do
-                if not isfile(path(file)) then
-                    local body = game:HttpGet(source .. file)
-                    assert(type(body) == "string" and body:sub(2, 4) == "PNG", "not a png")
-                    writefile(path(file), body)
-                end
-            end
-        end)
-        if ok then finish() else require("util").log("[qustah-ui-lib] sharp icons could not be downloaded; using the plain ones") end
+    Util.cacheFiles(list, function(ids)
+        local byName = {}
+        for _, file in ipairs(list) do byName[file.name] = ids[file.path] end
+        done(byName)
+    end, function(reason)
+        if Util.canCustomAsset() then Util.log("[qustah-ui-lib] sharp icons could not be loaded (" .. tostring(reason) .. "); using the plain ones") end
     end)
 end
 
@@ -7210,305 +7187,306 @@ return Icons
 end
 
 __modules["icons_atlas"] = function()
--- Order of the icons in icons/atlas/*.png, generated by tools/gen_atlas.py. Do not edit by hand.
+-- Layout of icons/atlas/*.png, generated by tools/gen_atlas.py. Do not edit by hand.
 return {
     Version = 1,
     Sheets = { [16] = { Columns = 56, PerPage = 10000 }, [32] = { Columns = 30, PerPage = 900 } },
     Pages = { [16] = { "lucide-16.png" }, [32] = { "lucide-32-1.png", "lucide-32-2.png" } },
-    Names = "a-arrow-down,a-arrow-up,a-large-small,accessibility,activity,air-vent,airplay,alarm-clock-check,alarm-clock-minus,alarm-clock-off,alarm-clock-plus,alarm-clock,alarm-smoke,album,align-center-horizontal,align-center-vertical,align-end-horizontal,align-end-vertical,align-horizontal-distribute-center,align-horizontal-distribute-end,align-horizontal-distribute-start,align-horizontal-justify-center,align-horizontal-justify-end,align-horizontal-justify-start,align-horizontal-space-around,align-horizontal-space-between,align-start-horizontal,align-start-vertical,align-vertical-distribute-center,align-vertical-distribute-end,align-vertical-distribute-start,align-vertical-justify-center,align-vertical-justify-end,align-vertical-justify-start,align-vertical-space-around,align-vertical-space-between,ambulance,ampersand,ampersands,amphora,anchor,angry,annoyed,antenna,anvil,aperture,app-window-mac,app-window,apple,archive-restore,archive-x,archive,armchair,arrow-big-down-dash,arrow-big-down,arrow-big-left-dash,arrow-big-left,arrow-big-right-dash,arrow-big-right,arrow-big-up-dash,arrow-big-up,arrow-down-0-1,arrow-down-1-0,arrow-down-a-z,arrow-down-from-line,arrow-down-left,arrow-down-narrow-wide,arrow-down-right,arrow-down-to-dot,arrow-down-to-line,arrow-down-up,arrow-down-wide-narrow,arrow-down-z-a,arrow-down,arrow-left-from-line,arrow-left-right,arrow-left-to-line,arrow-left,arrow-right-from-line,arrow-right-left,arrow-right-to-line,arrow-right,arrow-up-0-1,arrow-up-1-0,arrow-up-a-z,arrow-up-down,arrow-up-from-dot,arrow-up-from-line,arrow-up-left,arrow-up-narrow-wide,arrow-up-right,arrow-up-to-line,arrow-up-wide-narrow,arrow-up-z-a,arrow-up,arrows-up-from-line,asterisk,at-sign,atom,audio-lines,audio-waveform,award,axe,axis-3d,baby,backpack,badge-alert,badge-cent,badge-check,badge-dollar-sign,badge-euro,badge-indian-rupee,badge-info,badge-japanese-yen,badge-minus,badge-percent,badge-plus,badge-pound-sterling,badge-question-mark,badge-russian-ruble,badge-swiss-franc,badge-turkish-lira,badge-x,badge,baggage-claim,ban,banana,bandage,banknote-arrow-down,banknote-arrow-up,banknote-x,banknote,barcode,barrel,baseline,bath,battery-charging,battery-full,battery-low,battery-medium,battery-plus,battery-warning,battery,beaker,bean-off,bean,bed-double,bed-single,bed,beef,beer-off,beer,bell-dot,bell-electric,bell-minus,bell-off,bell-plus,bell-ring,bell,between-horizontal-end,between-horizontal-start,between-vertical-end,between-vertical-start,biceps-flexed,bike,binary,binoculars,biohazard,bird,birdhouse,bitcoin,blend,blinds,blocks,bluetooth-connected,bluetooth-off,bluetooth-searching,bluetooth,bold,bolt,bomb,bone,book-a,book-alert,book-audio,book-check,book-copy,book-dashed,book-down,book-headphones,book-heart,book-image,book-key,book-lock,book-marked,book-minus,book-open-check,book-open-text,book-open,book-plus,book-text,book-type,book-up-2,book-up,book-user,book-x,book,bookmark-check,bookmark-minus,bookmark-plus,bookmark-x,bookmark,boom-box,bot-message-square,bot-off,bot,bottle-wine,bow-arrow,box,boxes,braces,brackets,brain-circuit,brain-cog,brain,brick-wall-fire,brick-wall-shield,brick-wall,briefcase-business,briefcase-conveyor-belt,briefcase-medical,briefcase,bring-to-front,brush-cleaning,brush,bubbles,bug-off,bug-play,bug,building-2,building,bus-front,bus,cable-car,cable,cake-slice,cake,calculator,calendar-1,calendar-arrow-down,calendar-arrow-up,calendar-check-2,calendar-check,calendar-clock,calendar-cog,calendar-days,calendar-fold,calendar-heart,calendar-minus-2,calendar-minus,calendar-off,calendar-plus-2,calendar-plus,calendar-range,calendar-search,calendar-sync,calendar-x-2,calendar-x,calendar,camera-off,camera,candy-cane,candy-off,candy,cannabis,captions-off,captions,car-front,car-taxi-front,car,caravan,card-sim,carrot,case-lower,case-sensitive,case-upper,cassette-tape,cast,castle,cat,cctv,chart-area,chart-bar-big,chart-bar-decreasing,chart-bar-increasing,chart-bar-stacked,chart-bar,chart-candlestick,chart-column-big,chart-column-decreasing,chart-column-increasing,chart-column-stacked,chart-column,chart-gantt,chart-line,chart-network,chart-no-axes-column-decreasing,chart-no-axes-column-increasing,chart-no-axes-column,chart-no-axes-combined,chart-no-axes-gantt,chart-pie,chart-scatter,chart-spline,check-check,check-line,check,chef-hat,cherry,chess-bishop,chess-king,chess-knight,chess-pawn,chess-queen,chess-rook,chevron-down,chevron-first,chevron-last,chevron-left,chevron-right,chevron-up,chevrons-down-up,chevrons-down,chevrons-left-right-ellipsis,chevrons-left-right,chevrons-left,chevrons-right-left,chevrons-right,chevrons-up-down,chevrons-up,church,cigarette-off,circle-alert,circle-arrow-down,circle-arrow-left,circle-arrow-out-down-left,circle-arrow-out-down-right,circle-arrow-out-up-left,circle-arrow-out-up-right,circle-arrow-right,circle-arrow-up,circle-check-big,circle-check,circle-chevron-down,circle-chevron-left,circle-chevron-right,circle-chevron-up,circle-dashed,circle-divide,circle-dollar-sign,circle-dot-dashed,circle-dot,circle-ellipsis,circle-equal,circle-fading-arrow-up,circle-fading-plus,circle-gauge,circle-minus,circle-off,circle-parking-off,circle-parking,circle-pause,circle-percent,circle-play,circle-plus,circle-pound-sterling,circle-power,circle-question-mark,circle-slash-2,circle-slash,circle-small,circle-star,circle-stop,circle-user-round,circle-user,circle-x,circle,circuit-board,citrus,clapperboard,clipboard-check,clipboard-clock,clipboard-copy,clipboard-list,clipboard-minus,clipboard-paste,clipboard-pen-line,clipboard-pen,clipboard-plus,clipboard-type,clipboard-x,clipboard,clock-1,clock-10,clock-11,clock-12,clock-2,clock-3,clock-4,clock-5,clock-6,clock-7,clock-8,clock-9,clock-alert,clock-arrow-down,clock-arrow-up,clock-check,clock-fading,clock-plus,clock,closed-caption,cloud-alert,cloud-check,cloud-cog,cloud-download,cloud-drizzle,cloud-fog,cloud-hail,cloud-lightning,cloud-moon-rain,cloud-moon,cloud-off,cloud-rain-wind,cloud-rain,cloud-snow,cloud-sun-rain,cloud-sun,cloud-upload,cloud,cloudy,clover,club,code-xml,code,coffee,cog,coins,columns-2,columns-3-cog,columns-3,columns-4,combine,command,compass,component,computer,concierge-bell,cone,construction,contact-round,contact,container,contrast,cookie,cooking-pot,copy-check,copy-minus,copy-plus,copy-slash,copy-x,copy,copyleft,copyright,corner-down-left,corner-down-right,corner-left-down,corner-left-up,corner-right-down,corner-right-up,corner-up-left,corner-up-right,cpu,creative-commons,credit-card,croissant,crop,cross,crosshair,crown,cuboid,cup-soda,currency,cylinder,dam,database-backup,database-zap,database,decimals-arrow-left,decimals-arrow-right,delete,dessert,diameter,diamond-minus,diamond-percent,diamond-plus,diamond,dice-1,dice-2,dice-3,dice-4,dice-5,dice-6,dices,diff,disc-2,disc-3,disc-album,disc,divide,dna-off,dna,dock,dog,dollar-sign,donut,door-closed-locked,door-closed,door-open,dot,download,drafting-compass,drama,drill,drone,droplet-off,droplet,droplets,drum,drumstick,dumbbell,ear-off,ear,earth-lock,earth,eclipse,egg-fried,egg-off,egg,ellipsis-vertical,ellipsis,equal-approximately,equal-not,equal,eraser,ethernet-port,euro,ev-charger,expand,external-link,eye-closed,eye-off,eye,factory,fan,fast-forward,feather,fence,ferris-wheel,file-archive,file-axis-3d,file-badge,file-box,file-braces-corner,file-braces,file-chart-column-increasing,file-chart-column,file-chart-line,file-chart-pie,file-check-corner,file-check,file-clock,file-code-corner,file-code,file-cog,file-diff,file-digit,file-down,file-exclamation-point,file-headphone,file-heart,file-image,file-input,file-key,file-lock,file-minus-corner,file-minus,file-music,file-output,file-pen-line,file-pen,file-play,file-plus-corner,file-plus,file-question-mark,file-scan,file-search-corner,file-search,file-signal,file-sliders,file-spreadsheet,file-stack,file-symlink,file-terminal,file-text,file-type-corner,file-type,file-up,file-user,file-video-camera,file-volume,file-x-corner,file-x,file,files,film,fingerprint,fire-extinguisher,fish-off,fish-symbol,fish,flag-off,flag-triangle-left,flag-triangle-right,flag,flame-kindling,flame,flashlight-off,flashlight,flask-conical-off,flask-conical,flask-round,flip-horizontal-2,flip-horizontal,flip-vertical-2,flip-vertical,flower-2,flower,focus,fold-horizontal,fold-vertical,folder-archive,folder-check,folder-clock,folder-closed,folder-code,folder-cog,folder-dot,folder-down,folder-git-2,folder-git,folder-heart,folder-input,folder-kanban,folder-key,folder-lock,folder-minus,folder-open-dot,folder-open,folder-output,folder-pen,folder-plus,folder-root,folder-search-2,folder-search,folder-symlink,folder-sync,folder-tree,folder-up,folder-x,folder,folders,footprints,forklift,forward,frame,frown,fuel,fullscreen,funnel-plus,funnel-x,funnel,gallery-horizontal-end,gallery-horizontal,gallery-thumbnails,gallery-vertical-end,gallery-vertical,gamepad-2,gamepad-directional,gamepad,gauge,gavel,gem,georgian-lari,ghost,gift,git-branch-minus,git-branch-plus,git-branch,git-commit-horizontal,git-commit-vertical,git-compare-arrows,git-compare,git-fork,git-graph,git-merge,git-pull-request-arrow,git-pull-request-closed,git-pull-request-create-arrow,git-pull-request-create,git-pull-request-draft,git-pull-request,glass-water,glasses,globe-lock,globe,goal,gpu,graduation-cap,grape,grid-2x2-check,grid-2x2-plus,grid-2x2-x,grid-2x2,grid-3x2,grid-3x3,grip-horizontal,grip-vertical,grip,group,guitar,ham,hamburger,hammer,hand-coins,hand-fist,hand-grab,hand-heart,hand-helping,hand-metal,hand-platter,hand,handbag,handshake,hard-drive-download,hard-drive-upload,hard-drive,hard-hat,hash,hat-glasses,haze,hdmi-port,heading-1,heading-2,heading-3,heading-4,heading-5,heading-6,heading,headphone-off,headphones,headset,heart-crack,heart-handshake,heart-minus,heart-off,heart-plus,heart-pulse,heart,heater,helicopter,hexagon,highlighter,history,hop-off,hop,hospital,hotel,hourglass,house-heart,house-plug,house-plus,house-wifi,house,ice-cream-bowl,ice-cream-cone,id-card-lanyard,id-card,image-down,image-minus,image-off,image-play,image-plus,image-up,image-upscale,images,import,inbox,indian-rupee,infinity,info,inspection-panel,italic,iteration-ccw,iteration-cw,japanese-yen,joystick,kanban,kayak,key-round,key-square,key,keyboard-music,keyboard-off,keyboard,lamp-ceiling,lamp-desk,lamp-floor,lamp-wall-down,lamp-wall-up,lamp,land-plot,landmark,languages,laptop-minimal-check,laptop-minimal,laptop,lasso-select,lasso,laugh,layers-2,layers,layout-dashboard,layout-grid,layout-list,layout-panel-left,layout-panel-top,layout-template,leaf,leafy-green,lectern,library-big,library,life-buoy,ligature,lightbulb-off,lightbulb,line-squiggle,link-2-off,link-2,link,list-check,list-checks,list-chevrons-down-up,list-chevrons-up-down,list-collapse,list-end,list-filter-plus,list-filter,list-indent-decrease,list-indent-increase,list-minus,list-music,list-ordered,list-plus,list-restart,list-start,list-todo,list-tree,list-video,list-x,list,loader-circle,loader-pinwheel,loader,locate-fixed,locate-off,locate,lock-keyhole-open,lock-keyhole,lock-open,lock,log-in,log-out,logs,lollipop,luggage,magnet,mail-check,mail-minus,mail-open,mail-plus,mail-question-mark,mail-search,mail-warning,mail-x,mail,mailbox,mails,map-minus,map-pin-check-inside,map-pin-check,map-pin-house,map-pin-minus-inside,map-pin-minus,map-pin-off,map-pin-pen,map-pin-plus-inside,map-pin-plus,map-pin-x-inside,map-pin-x,map-pin,map-pinned,map-plus,map,mars-stroke,mars,martini,maximize-2,maximize,medal,megaphone-off,megaphone,meh,memory-stick,menu,merge,message-circle-code,message-circle-dashed,message-circle-heart,message-circle-more,message-circle-off,message-circle-plus,message-circle-question-mark,message-circle-reply,message-circle-warning,message-circle-x,message-circle,message-square-code,message-square-dashed,message-square-diff,message-square-dot,message-square-heart,message-square-lock,message-square-more,message-square-off,message-square-plus,message-square-quote,message-square-reply,message-square-share,message-square-text,message-square-warning,message-square-x,message-square,messages-square,mic-off,mic-vocal,mic,microchip,microscope,microwave,milestone,milk-off,milk,minimize-2,minimize,minus,monitor-check,monitor-cloud,monitor-cog,monitor-dot,monitor-down,monitor-off,monitor-pause,monitor-play,monitor-smartphone,monitor-speaker,monitor-stop,monitor-up,monitor-x,monitor,moon-star,moon,motorbike,mountain-snow,mountain,mouse-off,mouse-pointer-2-off,mouse-pointer-2,mouse-pointer-ban,mouse-pointer-click,mouse-pointer,mouse,move-3d,move-diagonal-2,move-diagonal,move-down-left,move-down-right,move-down,move-horizontal,move-left,move-right,move-up-left,move-up-right,move-up,move-vertical,move,music-2,music-3,music-4,music,navigation-2-off,navigation-2,navigation-off,navigation,network,newspaper,nfc,non-binary,notebook-pen,notebook-tabs,notebook-text,notebook,notepad-text-dashed,notepad-text,nut-off,nut,octagon-alert,octagon-minus,octagon-pause,octagon-x,octagon,omega,option,orbit,origami,package-2,package-check,package-minus,package-open,package-plus,package-search,package-x,package,paint-bucket,paint-roller,paintbrush-vertical,paintbrush,palette,panda,panel-bottom-close,panel-bottom-dashed,panel-bottom-open,panel-bottom,panel-left-close,panel-left-dashed,panel-left-open,panel-left-right-dashed,panel-left,panel-right-close,panel-right-dashed,panel-right-open,panel-right,panel-top-bottom-dashed,panel-top-close,panel-top-dashed,panel-top-open,panel-top,panels-left-bottom,panels-right-bottom,panels-top-left,paperclip,parentheses,parking-meter,party-popper,pause,paw-print,pc-case,pen-line,pen-off,pen-tool,pen,pencil-line,pencil-off,pencil-ruler,pencil,pentagon,percent,person-standing,philippine-peso,phone-call,phone-forwarded,phone-incoming,phone-missed,phone-off,phone-outgoing,phone,pi,piano,pickaxe,picture-in-picture-2,picture-in-picture,piggy-bank,pilcrow-left,pilcrow-right,pilcrow,pill-bottle,pill,pin-off,pin,pipette,pizza,plane-landing,plane-takeoff,plane,play,plug-2,plug-zap,plug,plus,pocket-knife,podcast,pointer-off,pointer,popcorn,popsicle,pound-sterling,power-off,power,presentation,printer-check,printer,projector,proportions,puzzle,pyramid,qr-code,quote,rabbit,radar,radiation,radical,radio-receiver,radio-tower,radio,radius,rainbow,rat,ratio,receipt-cent,receipt-euro,receipt-indian-rupee,receipt-japanese-yen,receipt-pound-sterling,receipt-russian-ruble,receipt-swiss-franc,receipt-text,receipt-turkish-lira,receipt,rectangle-circle,rectangle-ellipsis,rectangle-goggles,rectangle-horizontal,rectangle-vertical,recycle,redo-2,redo-dot,redo,refresh-ccw-dot,refresh-ccw,refresh-cw-off,refresh-cw,refrigerator,regex,remove-formatting,repeat-1,repeat-2,repeat,replace-all,replace,reply-all,reply,rewind,ribbon,rocket,rocking-chair,roller-coaster,rose,rotate-3d,rotate-ccw-key,rotate-ccw-square,rotate-ccw,rotate-cw-square,rotate-cw,route-off,route,router,rows-2,rows-3,rows-4,rss,ruler-dimension-line,ruler,russian-ruble,sailboat,salad,sandwich,satellite-dish,satellite,saudi-riyal,save-all,save-off,save,scale-3d,scale,scaling,scan-barcode,scan-eye,scan-face,scan-heart,scan-line,scan-qr-code,scan-search,scan-text,scan,school,scissors-line-dashed,scissors,screen-share-off,screen-share,scroll-text,scroll,search-check,search-code,search-slash,search-x,search,section,send-horizontal,send-to-back,send,separator-horizontal,separator-vertical,server-cog,server-crash,server-off,server,settings-2,settings,shapes,share-2,share,sheet,shell,shield-alert,shield-ban,shield-check,shield-ellipsis,shield-half,shield-minus,shield-off,shield-plus,shield-question-mark,shield-user,shield-x,shield,ship-wheel,ship,shirt,shopping-bag,shopping-basket,shopping-cart,shovel,shower-head,shredder,shrimp,shrink,shrub,shuffle,sigma,signal-high,signal-low,signal-medium,signal-zero,signal,signature,signpost-big,signpost,siren,skip-back,skip-forward,skull,slash,slice,sliders-horizontal,sliders-vertical,smartphone-charging,smartphone-nfc,smartphone,smile-plus,smile,snail,snowflake,soap-dispenser-droplet,sofa,solar-panel,soup,space,spade,sparkle,sparkles,speaker,speech,spell-check-2,spell-check,spline-pointer,spline,split,spool,spotlight,spray-can,sprout,square-activity,square-arrow-down-left,square-arrow-down-right,square-arrow-down,square-arrow-left,square-arrow-out-down-left,square-arrow-out-down-right,square-arrow-out-up-left,square-arrow-out-up-right,square-arrow-right,square-arrow-up-left,square-arrow-up-right,square-arrow-up,square-asterisk,square-bottom-dashed-scissors,square-chart-gantt,square-check-big,square-check,square-chevron-down,square-chevron-left,square-chevron-right,square-chevron-up,square-code,square-dashed-bottom-code,square-dashed-bottom,square-dashed-kanban,square-dashed-mouse-pointer,square-dashed-top-solid,square-dashed,square-divide,square-dot,square-equal,square-function,square-kanban,square-library,square-m,square-menu,square-minus,square-mouse-pointer,square-parking-off,square-parking,square-pause,square-pen,square-percent,square-pi,square-pilcrow,square-play,square-plus,square-power,square-radical,square-round-corner,square-scissors,square-sigma,square-slash,square-split-horizontal,square-split-vertical,square-square,square-stack,square-star,square-stop,square-terminal,square-user-round,square-user,square-x,square,squares-exclude,squares-intersect,squares-subtract,squares-unite,squircle-dashed,squircle,squirrel,stamp,star-half,star-off,star,step-back,step-forward,stethoscope,sticker,sticky-note,store,stretch-horizontal,stretch-vertical,strikethrough,subscript,sun-dim,sun-medium,sun-moon,sun-snow,sun,sunrise,sunset,superscript,swatch-book,swiss-franc,switch-camera,sword,swords,syringe,table-2,table-cells-merge,table-cells-split,table-columns-split,table-of-contents,table-properties,table-rows-split,table,tablet-smartphone,tablet,tablets,tag,tags,tally-1,tally-2,tally-3,tally-4,tally-5,tangent,target,telescope,tent-tree,tent,terminal,test-tube-diagonal,test-tube,test-tubes,text-align-center,text-align-end,text-align-justify,text-align-start,text-cursor-input,text-cursor,text-initial,text-quote,text-search,text-select,text-wrap,theater,thermometer-snowflake,thermometer-sun,thermometer,thumbs-down,thumbs-up,ticket-check,ticket-minus,ticket-percent,ticket-plus,ticket-slash,ticket-x,ticket,tickets-plane,tickets,timer-off,timer-reset,timer,toggle-left,toggle-right,toilet,tool-case,tornado,torus,touchpad-off,touchpad,tower-control,toy-brick,tractor,traffic-cone,train-front-tunnel,train-front,train-track,tram-front,transgender,trash-2,trash,tree-deciduous,tree-palm,tree-pine,trees,trending-down,trending-up-down,trending-up,triangle-alert,triangle-dashed,triangle-right,triangle,trophy,truck-electric,truck,turkish-lira,turntable,turtle,tv-minimal-play,tv-minimal,tv,type-outline,type,umbrella-off,umbrella,underline,undo-2,undo-dot,undo,unfold-horizontal,unfold-vertical,ungroup,university,unlink-2,unlink,unplug,upload,usb,user-check,user-cog,user-lock,user-minus,user-pen,user-plus,user-round-check,user-round-cog,user-round-minus,user-round-pen,user-round-plus,user-round-search,user-round-x,user-round,user-search,user-star,user-x,user,users-round,users,utensils-crossed,utensils,utility-pole,variable,vault,vector-square,vegan,venetian-mask,venus-and-mars,venus,vibrate-off,vibrate,video-off,video,videotape,view,voicemail,volleyball,volume-1,volume-2,volume-off,volume-x,volume,vote,wallet-cards,wallet-minimal,wallet,wallpaper,wand-sparkles,wand,warehouse,washing-machine,watch,waves-ladder,waves,waypoints,webcam,webhook-off,webhook,weight,wheat-off,wheat,whole-word,wifi-cog,wifi-high,wifi-low,wifi-off,wifi-pen,wifi-sync,wifi-zero,wifi,wind-arrow-down,wind,wine-off,wine,workflow,worm,wrench,x,zap-off,zap,zoom-in,zoom-out,balloon,beef-off,book-search,calendars,cannabis-off,cctv-off,cigarette,circle-pile,cloud-backup,cloud-sync,database-search,ellipse,fingerprint-pattern,fishing-hook,fishing-rod,form,git-merge-conflict,globe-off,globe-x,hd,image,layers-plus,lens-concave,lens-convex,line-dot-right-horizontal,line-style,map-pin-search,message-circle-check,message-square-check,metronome,mirror-rectangular,mirror-round,mouse-left,mouse-right,printer-x,radio-off,road,scooter,search-alert,shelving-unit,shield-cog-corner,shield-cog,sport-shoe,square-arrow-right-enter,square-arrow-right-exit,square-centerline-dashed-horizontal,square-centerline-dashed-vertical,stone,toolbox,towel-rack,user-key,user-round-key,van,waves-arrow-down,waves-arrow-up,weight-tilde,x-line-top,zodiac-aquarius,zodiac-aries,zodiac-cancer,zodiac-capricorn,zodiac-gemini,zodiac-leo,zodiac-libra,zodiac-ophiuchus,zodiac-pisces,zodiac-sagittarius,zodiac-scorpio,zodiac-taurus,zodiac-virgo",
+    -- every lucide icon in icons_lucide.lua order, except these (no longer in lucide)
+    Missing = "chromium,codepen,codesandbox,dribbble,facebook,figma,framer,github,gitlab,instagram,linkedin,pocket,rail-symbol,slack,trello,twitch,twitter,youtube",
 }
 end
 
 __modules["icons_lucide"] = function()
--- Lucide icons (name -> asset id), generated by tools/gen_lucide.py from Footagesus/Icons (MIT, see icons/LICENSE).
--- Do not edit by hand.
+-- Lucide icons as name, asset id pairs in a fixed order (the sharp sheets in icons/atlas follow the same order),
+-- generated by tools/gen_lucide.py from Footagesus/Icons (MIT, see icons/LICENSE). Do not edit by hand.
 return {
-	["a-arrow-down"]=92867583610071,["a-arrow-up"]=132318504999733,["a-large-small"]=111491496660216,["accessibility"]=114029945302017,["activity"]=94212016861936,["air-vent"]=81517226012329,
-	["airplay"]=115020759309179,["alarm-clock-check"]=76437352099157,["alarm-clock-minus"]=77364179863205,["alarm-clock-off"]=97904885874823,["alarm-clock-plus"]=80468822979214,["alarm-clock"]=126259032907535,
-	["alarm-smoke"]=96965448419685,["album"]=127358331163602,["align-center-horizontal"]=81570549209434,["align-center-vertical"]=118470463752466,["align-end-horizontal"]=139502909745427,["align-end-vertical"]=96528869059554,
-	["align-horizontal-distribute-center"]=97220086126656,["align-horizontal-distribute-end"]=106128590702022,["align-horizontal-distribute-start"]=76074660002997,["align-horizontal-justify-center"]=75732302772427,["align-horizontal-justify-end"]=129167626402283,["align-horizontal-justify-start"]=130161830325281,
-	["align-horizontal-space-around"]=91646106782950,["align-horizontal-space-between"]=103886093046990,["align-start-horizontal"]=125674804697729,["align-start-vertical"]=105020230154823,["align-vertical-distribute-center"]=93791183635525,["align-vertical-distribute-end"]=139354223511433,
-	["align-vertical-distribute-start"]=74961997822126,["align-vertical-justify-center"]=134754696166569,["align-vertical-justify-end"]=92569381441969,["align-vertical-justify-start"]=99692844572718,["align-vertical-space-around"]=96206012459190,["align-vertical-space-between"]=124998077349706,
-	["ambulance"]=78599995190651,["ampersand"]=75272915739209,["ampersands"]=126947193455996,["amphora"]=137370389604364,["anchor"]=92181172123618,["angry"]=74237056000103,
-	["annoyed"]=80064369052011,["antenna"]=99628923540956,["anvil"]=100203029845919,["aperture"]=83396154449972,["app-window-mac"]=79587216113811,["app-window"]=93142176757189,
-	["apple"]=104349242902442,["archive-restore"]=78956681942188,["archive-x"]=75830115088395,["archive"]=122180020814574,["armchair"]=105384358373973,["arrow-big-down-dash"]=137987229582002,
-	["arrow-big-down"]=81081164158885,["arrow-big-left-dash"]=97827621354677,["arrow-big-left"]=85973092492641,["arrow-big-right-dash"]=117825834972403,["arrow-big-right"]=82960676755590,["arrow-big-up-dash"]=99260194327483,
-	["arrow-big-up"]=93136954756149,["arrow-down-0-1"]=120961896217875,["arrow-down-1-0"]=93474255891850,["arrow-down-a-z"]=99554596207900,["arrow-down-from-line"]=132045845807798,["arrow-down-left"]=102899325237364,
-	["arrow-down-narrow-wide"]=129105261655061,["arrow-down-right"]=123109928624974,["arrow-down-to-dot"]=101675355931221,["arrow-down-to-line"]=87050478931254,["arrow-down-up"]=85780258549577,["arrow-down-wide-narrow"]=88461733425991,
-	["arrow-down-z-a"]=76115279362232,["arrow-down"]=98764963621439,["arrow-left-from-line"]=87857914437603,["arrow-left-right"]=131324733048447,["arrow-left-to-line"]=118645136026970,["arrow-left"]=102531941843733,
-	["arrow-right-from-line"]=74073639809355,["arrow-right-left"]=77015754304300,["arrow-right-to-line"]=78632510329852,["arrow-right"]=113692007244654,["arrow-up-0-1"]=105257823943016,["arrow-up-1-0"]=134175521693798,
-	["arrow-up-a-z"]=77763416595160,["arrow-up-down"]=81019887641527,["arrow-up-from-dot"]=124408496673275,["arrow-up-from-line"]=95777664626453,["arrow-up-left"]=123490598231261,["arrow-up-narrow-wide"]=73006024672636,
-	["arrow-up-right"]=129280608535523,["arrow-up-to-line"]=108818207813537,["arrow-up-wide-narrow"]=87437426951568,["arrow-up-z-a"]=107546173611884,["arrow-up"]=89282378235317,["arrows-up-from-line"]=133710016938621,
-	["asterisk"]=88552752106723,["at-sign"]=79059152889146,["atom"]=73167696981648,["audio-lines"]=70930641819242,["audio-waveform"]=86462036665209,["award"]=132740088158419,
-	["axe"]=132405197863294,["axis-3d"]=122438676546804,["baby"]=93472926933440,["backpack"]=140420225386018,["badge-alert"]=101829200081951,["badge-cent"]=133345018873154,
-	["badge-check"]=76078495178149,["badge-dollar-sign"]=127139803581141,["badge-euro"]=120016477674659,["badge-indian-rupee"]=75659682309981,["badge-info"]=131995373201472,["badge-japanese-yen"]=99081574588615,
-	["badge-minus"]=140321561183881,["badge-percent"]=121359224294885,["badge-plus"]=100325578561866,["badge-pound-sterling"]=119688217279444,["badge-question-mark"]=121464963737502,["badge-russian-ruble"]=108839463659864,
-	["badge-swiss-franc"]=91447608372740,["badge-turkish-lira"]=137839965873529,["badge-x"]=122931434733842,["badge"]=116620312917084,["baggage-claim"]=86922213051957,["ban"]=90767043015246,
-	["banana"]=140713420056179,["bandage"]=129660129590770,["banknote-arrow-down"]=139366449345199,["banknote-arrow-up"]=133758343082529,["banknote-x"]=95348701438065,["banknote"]=104840231536668,
-	["barcode"]=118473018143689,["barrel"]=130647115622774,["baseline"]=124677132511270,["bath"]=76031400297942,["battery-charging"]=80139357470047,["battery-full"]=70906718268972,
-	["battery-low"]=139659256984314,["battery-medium"]=105934079398915,["battery-plus"]=91931341486966,["battery-warning"]=115230083817257,["battery"]=70765800346189,["beaker"]=80902539995520,
-	["bean-off"]=98164436608714,["bean"]=89491967076869,["bed-double"]=73820193212911,["bed-single"]=113423940880634,["bed"]=97726529032925,["beef"]=105850162318915,
-	["beer-off"]=120333134736361,["beer"]=116404978807744,["bell-dot"]=93161277118810,["bell-electric"]=100277767266983,["bell-minus"]=126334890449727,["bell-off"]=78560046118930,
-	["bell-plus"]=77014333795836,["bell-ring"]=94612128913941,["bell"]=97392696311902,["between-horizontal-end"]=81602774794322,["between-horizontal-start"]=76112384929846,["between-vertical-end"]=72817612571631,
-	["between-vertical-start"]=85278312190301,["biceps-flexed"]=82004462003936,["bike"]=102930322246035,["binary"]=91751953950088,["binoculars"]=101460003267896,["biohazard"]=95956532900432,
-	["bird"]=132284145117371,["birdhouse"]=83999157401433,["bitcoin"]=95459240442938,["blend"]=111679612185257,["blinds"]=71164165283925,["blocks"]=72212693357737,
-	["bluetooth-connected"]=96315134002985,["bluetooth-off"]=80600044218117,["bluetooth-searching"]=100673019606426,["bluetooth"]=90506573139443,["bold"]=116141470019166,["bolt"]=102881251417484,
-	["bomb"]=139223800924636,["bone"]=111242153474115,["book-a"]=104067275658465,["book-alert"]=124159928044853,["book-audio"]=109208148317037,["book-check"]=115999656081696,
-	["book-copy"]=108543407492005,["book-dashed"]=127430784795958,["book-down"]=101011730128222,["book-headphones"]=108670200799574,["book-heart"]=112788845135284,["book-image"]=80808285757226,
-	["book-key"]=116024426170705,["book-lock"]=118765061220571,["book-marked"]=73211024251780,["book-minus"]=112724962046282,["book-open-check"]=130848362492667,["book-open-text"]=100629528672195,
-	["book-open"]=129845326810392,["book-plus"]=140267785051233,["book-text"]=94011772484232,["book-type"]=97817304725443,["book-up-2"]=130161620853665,["book-up"]=98640174079190,
-	["book-user"]=128489189240523,["book-x"]=118754548186537,["book"]=125383279695672,["bookmark-check"]=93940443347986,["bookmark-minus"]=96807096039910,["bookmark-plus"]=121469724491615,
-	["bookmark-x"]=112272342584706,["bookmark"]=121093149326239,["boom-box"]=99901322535868,["bot-message-square"]=96145330292478,["bot-off"]=140417690560013,["bot"]=80451686744860,
-	["bottle-wine"]=131675403196921,["bow-arrow"]=124089655150375,["box"]=101768155599700,["boxes"]=136372617578355,["braces"]=117761094704041,["brackets"]=74368995728099,
-	["brain-circuit"]=70547962410202,["brain-cog"]=132039205501538,["brain"]=92424107303177,["brick-wall-fire"]=92980588705520,["brick-wall-shield"]=75954432775071,["brick-wall"]=112878522258821,
-	["briefcase-business"]=129135125207283,["briefcase-conveyor-belt"]=108665725653714,["briefcase-medical"]=119917756334087,["briefcase"]=96754188164225,["bring-to-front"]=132975903553748,["brush-cleaning"]=71728977448805,
-	["brush"]=127035535799640,["bubbles"]=106183424168227,["bug-off"]=88020025049245,["bug-play"]=80107955888092,["bug"]=83626408925438,["building-2"]=77873775611951,
-	["building"]=110616258983082,["bus-front"]=89863432456045,["bus"]=133798469717463,["cable-car"]=128643682205596,["cable"]=128449944504901,["cake-slice"]=136769828413242,
-	["cake"]=103131590503275,["calculator"]=74915716529646,["calendar-1"]=98458364171044,["calendar-arrow-down"]=108415736543437,["calendar-arrow-up"]=70574654109118,["calendar-check-2"]=120231170248276,
-	["calendar-check"]=71551019465748,["calendar-clock"]=119132152594595,["calendar-cog"]=122402172360287,["calendar-days"]=99072017568595,["calendar-fold"]=117368871270394,["calendar-heart"]=88839008103676,
-	["calendar-minus-2"]=98846170279891,["calendar-minus"]=137354318924383,["calendar-off"]=109726151749217,["calendar-plus-2"]=112264562093883,["calendar-plus"]=125266115249843,["calendar-range"]=103641849247576,
-	["calendar-search"]=92010083223634,["calendar-sync"]=78082218499697,["calendar-x-2"]=107518051061147,["calendar-x"]=106703374806500,["calendar"]=114792700814035,["camera-off"]=81057636835256,
-	["camera"]=79950339943067,["candy-cane"]=71689468772492,["candy-off"]=110232752314832,["candy"]=107812129154678,["cannabis"]=98792006538601,["captions-off"]=105223545364193,
-	["captions"]=104960225031445,["car-front"]=87380942739063,["car-taxi-front"]=122455403384057,["car"]=121065933462582,["caravan"]=120070979471783,["card-sim"]=134490550095771,
-	["carrot"]=119118221444304,["case-lower"]=129303130603241,["case-sensitive"]=125410273293056,["case-upper"]=111633433531325,["cassette-tape"]=137065788934157,["cast"]=98202245922071,
-	["castle"]=119275077187784,["cat"]=124252153404931,["cctv"]=99979894766624,["chart-area"]=123446436762366,["chart-bar-big"]=72336824986044,["chart-bar-decreasing"]=107217459044963,
-	["chart-bar-increasing"]=88268905998571,["chart-bar-stacked"]=98478751113024,["chart-bar"]=105389816384108,["chart-candlestick"]=125676898615697,["chart-column-big"]=98598733210787,["chart-column-decreasing"]=73586137373563,
-	["chart-column-increasing"]=120421615068601,["chart-column-stacked"]=86031449675105,["chart-column"]=97915995538580,["chart-gantt"]=88811660555940,["chart-line"]=101833156055618,["chart-network"]=104027882693561,
-	["chart-no-axes-column-decreasing"]=123371717192542,["chart-no-axes-column-increasing"]=140383830943049,["chart-no-axes-column"]=94078751170351,["chart-no-axes-combined"]=121424233161912,["chart-no-axes-gantt"]=131936541106368,["chart-pie"]=113412261630136,
-	["chart-scatter"]=108217585014571,["chart-spline"]=90307460742494,["check-check"]=95183312173858,["check-line"]=115122343485290,["check"]=93898873302694,["chef-hat"]=121744015002573,
-	["cherry"]=139519182403183,["chess-bishop"]=121701705580238,["chess-king"]=90885687223462,["chess-knight"]=96467707042169,["chess-pawn"]=111318574652751,["chess-queen"]=98304702099749,
-	["chess-rook"]=76223925830262,["chevron-down"]=134243273101015,["chevron-first"]=105243363790238,["chevron-last"]=89268452603731,["chevron-left"]=73780377692148,["chevron-right"]=92473583511724,
-	["chevron-up"]=122444883127455,["chevrons-down-up"]=139404716013205,["chevrons-down"]=100524612205956,["chevrons-left-right-ellipsis"]=125035817741526,["chevrons-left-right"]=87910685945204,["chevrons-left"]=82617201744347,
-	["chevrons-right-left"]=87149546686569,["chevrons-right"]=139121276490483,["chevrons-up-down"]=131833120209646,["chevrons-up"]=100467452364672,["chromium"]=128165143739006,["church"]=113714744350666,
-	["cigarette-off"]=77797883078452,["circle-alert"]=83898160590116,["circle-arrow-down"]=95901860261344,["circle-arrow-left"]=102148876968988,["circle-arrow-out-down-left"]=140598097856694,["circle-arrow-out-down-right"]=119952801379305,
-	["circle-arrow-out-up-left"]=132858212688303,["circle-arrow-out-up-right"]=81783743753173,["circle-arrow-right"]=70786767999559,["circle-arrow-up"]=84395128546494,["circle-check-big"]=93202927221730,["circle-check"]=85262178816537,
-	["circle-chevron-down"]=137069490345718,["circle-chevron-left"]=130250009740827,["circle-chevron-right"]=125943696958495,["circle-chevron-up"]=111223574026321,["circle-dashed"]=126799443883746,["circle-divide"]=106398997754208,
-	["circle-dollar-sign"]=91106238890387,["circle-dot-dashed"]=111451232827180,["circle-dot"]=82947033619201,["circle-ellipsis"]=91687150884779,["circle-equal"]=95133963751438,["circle-fading-arrow-up"]=104648212910336,
-	["circle-fading-plus"]=91847890443490,["circle-gauge"]=108157549473765,["circle-minus"]=133556159576809,["circle-off"]=97923456918886,["circle-parking-off"]=128369410981252,["circle-parking"]=124034962915196,
-	["circle-pause"]=139337739700879,["circle-percent"]=133311912860256,["circle-play"]=120408917249739,["circle-plus"]=113157136350384,["circle-pound-sterling"]=105476153083828,["circle-power"]=140676030155098,
-	["circle-question-mark"]=97516698664325,["circle-slash-2"]=136766902186549,["circle-slash"]=125206439913049,["circle-small"]=73685402843600,["circle-star"]=120318414957104,["circle-stop"]=87400503942659,
-	["circle-user-round"]=95489465399880,["circle-user"]=136220511671311,["circle-x"]=76821953846248,["circle"]=130359823580534,["circuit-board"]=107695264369312,["citrus"]=139018222976433,
-	["clapperboard"]=132660667070200,["clipboard-check"]=92649798577170,["clipboard-clock"]=123957515687745,["clipboard-copy"]=125851897718493,["clipboard-list"]=96460215958908,["clipboard-minus"]=107968008485671,
-	["clipboard-paste"]=74382068849983,["clipboard-pen-line"]=77711589791615,["clipboard-pen"]=75290966822953,["clipboard-plus"]=134285318675662,["clipboard-type"]=89949374318028,["clipboard-x"]=102222456890103,
-	["clipboard"]=89601995828423,["clock-1"]=129363225422045,["clock-10"]=104332695855541,["clock-11"]=119023205186105,["clock-12"]=117789618723068,["clock-2"]=134710777209413,
-	["clock-3"]=136385631189327,["clock-4"]=121808839832144,["clock-5"]=85082019959457,["clock-6"]=71009733505593,["clock-7"]=103111188546225,["clock-8"]=110059272125337,
-	["clock-9"]=77610027126437,["clock-alert"]=97157344465162,["clock-arrow-down"]=92349314416042,["clock-arrow-up"]=111484286332629,["clock-check"]=85231630218857,["clock-fading"]=93205297285245,
-	["clock-plus"]=93367709263150,["clock"]=121808839832144,["closed-caption"]=99832644030788,["cloud-alert"]=91967273658626,["cloud-check"]=97318598202432,["cloud-cog"]=96497764065749,
-	["cloud-download"]=121435581993566,["cloud-drizzle"]=139525315752605,["cloud-fog"]=76650233148776,["cloud-hail"]=72320462748242,["cloud-lightning"]=133517088924849,["cloud-moon-rain"]=127667837827018,
-	["cloud-moon"]=71938114737914,["cloud-off"]=131907154501444,["cloud-rain-wind"]=107414583736721,["cloud-rain"]=105547081967408,["cloud-snow"]=72307126270226,["cloud-sun-rain"]=99041604425705,
-	["cloud-sun"]=86114208148727,["cloud-upload"]=93307473217005,["cloud"]=121226497050352,["cloudy"]=105360479023346,["clover"]=74925550436750,["club"]=108490365816628,
-	["code-xml"]=130150477351734,["code"]=107380207681249,["codepen"]=135643965971885,["codesandbox"]=106911852964823,["coffee"]=106864403231093,["cog"]=116544501716299,
-	["coins"]=116510979641930,["columns-2"]=113004100221850,["columns-3-cog"]=121589691981064,["columns-3"]=115223357399375,["columns-4"]=130807991968419,["combine"]=79908476334048,
-	["command"]=93648221906330,["compass"]=115123411028382,["component"]=110027788875080,["computer"]=77480056459407,["concierge-bell"]=140384259310436,["cone"]=97759550688437,
-	["construction"]=106539489968173,["contact-round"]=71907624112229,["contact"]=75868297719012,["container"]=91507237573499,["contrast"]=112796643981497,["cookie"]=73159504540002,
-	["cooking-pot"]=94959783129799,["copy-check"]=91177247988892,["copy-minus"]=109524509933035,["copy-plus"]=113618379616952,["copy-slash"]=93805787810390,["copy-x"]=106557557978061,
-	["copy"]=78979572434545,["copyleft"]=78559055698593,["copyright"]=129433635747111,["corner-down-left"]=90473561177832,["corner-down-right"]=86512767702085,["corner-left-down"]=139876989150630,
-	["corner-left-up"]=126228268096099,["corner-right-down"]=89237035551302,["corner-right-up"]=112851237026705,["corner-up-left"]=84669279763024,["corner-up-right"]=115099889693145,["cpu"]=77549309870247,
-	["creative-commons"]=90408210735312,["credit-card"]=99163352872346,["croissant"]=130710485559420,["crop"]=116344601101413,["cross"]=101833377863588,["crosshair"]=134242818164054,
-	["crown"]=127843403295538,["cuboid"]=75618807946111,["cup-soda"]=121098640829562,["currency"]=90551250119972,["cylinder"]=90569677179169,["dam"]=76874486231393,
-	["database-backup"]=103403210984699,["database-zap"]=131199921258418,["database"]=126791525623846,["decimals-arrow-left"]=120198500638749,["decimals-arrow-right"]=118263047146797,["delete"]=126279426372342,
-	["dessert"]=71508133278830,["diameter"]=97429051503783,["diamond-minus"]=128989071438290,["diamond-percent"]=107717860105959,["diamond-plus"]=134701163723675,["diamond"]=105846996304890,
-	["dice-1"]=112650149591038,["dice-2"]=112278274566793,["dice-3"]=118526270626312,["dice-4"]=113365650364004,["dice-5"]=72768312430593,["dice-6"]=85376239182543,
-	["dices"]=81268120302865,["diff"]=135052708609715,["disc-2"]=91419420404185,["disc-3"]=135470554736048,["disc-album"]=74693460404344,["disc"]=101908120120777,
-	["divide"]=136678191878278,["dna-off"]=89612426361540,["dna"]=74007982981741,["dock"]=121997427160252,["dog"]=71920105558570,["dollar-sign"]=127320961224019,
-	["donut"]=72204922742657,["door-closed-locked"]=74027613267551,["door-closed"]=136249099949073,["door-open"]=91306356501736,["dot"]=137321056643916,["download"]=134814648082393,
-	["drafting-compass"]=99701976182841,["drama"]=110297795801577,["dribbble"]=80231809663849,["drill"]=108644821412796,["drone"]=117299095794783,["droplet-off"]=119365002225172,
-	["droplet"]=100597455015098,["droplets"]=140111846025180,["drum"]=136979060344890,["drumstick"]=104662462521709,["dumbbell"]=80277236776212,["ear-off"]=87421916192807,
-	["ear"]=121894949934209,["earth-lock"]=88814147073745,["earth"]=76231597751076,["eclipse"]=114829622118222,["egg-fried"]=90622538210545,["egg-off"]=92288321309285,
-	["egg"]=117851493400222,["ellipsis-vertical"]=117978708573781,["ellipsis"]=140019550645825,["equal-approximately"]=105382689698323,["equal-not"]=76864449458032,["equal"]=123467780715624,
-	["eraser"]=133957773112410,["ethernet-port"]=75391715149314,["euro"]=72229646524456,["ev-charger"]=97906158859623,["expand"]=137492887754537,["external-link"]=129331830773832,
-	["eye-closed"]=111063268625789,["eye-off"]=135928786788378,["eye"]=100033680381365,["facebook"]=72098528632192,["factory"]=102170024318039,["fan"]=78391400440696,
-	["fast-forward"]=121615540167909,["feather"]=91872927606406,["fence"]=123451565578029,["ferris-wheel"]=79729205796176,["figma"]=134182122852301,["file-archive"]=77018106869967,
-	["file-axis-3d"]=133912328009885,["file-badge"]=74564895394477,["file-box"]=119264004071690,["file-braces-corner"]=77253337986109,["file-braces"]=95314128621234,["file-chart-column-increasing"]=134449481172067,
-	["file-chart-column"]=82048481252560,["file-chart-line"]=71954360551345,["file-chart-pie"]=81072193564497,["file-check-corner"]=76295552859171,["file-check"]=82604001452455,["file-clock"]=102325208830990,
-	["file-code-corner"]=78293841184371,["file-code"]=130978036895504,["file-cog"]=101385347151368,["file-diff"]=96147216772241,["file-digit"]=89220220354580,["file-down"]=120650154178290,
-	["file-exclamation-point"]=102821865889635,["file-headphone"]=100533735901986,["file-heart"]=132214916401696,["file-image"]=123334057511782,["file-input"]=124728604166044,["file-key"]=118790255921100,
-	["file-lock"]=72170228691242,["file-minus-corner"]=119263271735124,["file-minus"]=111014798459222,["file-music"]=134948051536671,["file-output"]=92146832572911,["file-pen-line"]=104622936345006,
-	["file-pen"]=79556179730240,["file-play"]=89006821567838,["file-plus-corner"]=76544604043974,["file-plus"]=78881710800060,["file-question-mark"]=127617422859576,["file-scan"]=129480105228213,
-	["file-search-corner"]=90974165234008,["file-search"]=97780235974933,["file-signal"]=122070252538165,["file-sliders"]=85787771732439,["file-spreadsheet"]=134501869359270,["file-stack"]=138929929862605,
-	["file-symlink"]=91865722036510,["file-terminal"]=116757454755476,["file-text"]=90496405707281,["file-type-corner"]=124902230275209,["file-type"]=115272552799361,["file-up"]=131173039312748,
-	["file-user"]=99552018455009,["file-video-camera"]=81719056173960,["file-volume"]=111264764438958,["file-x-corner"]=87554136773609,["file-x"]=107333775515154,["file"]=74748492079329,
-	["files"]=102806336233202,["film"]=120978945609706,["fingerprint"]=112173305232811,["fire-extinguisher"]=111643493006960,["fish-off"]=89756724887508,["fish-symbol"]=118475177681618,
-	["fish"]=124360663785796,["flag-off"]=112944528856799,["flag-triangle-left"]=88045221285272,["flag-triangle-right"]=108292480304566,["flag"]=78183383236196,["flame-kindling"]=139728976917928,
-	["flame"]=98218034436456,["flashlight-off"]=79780362871740,["flashlight"]=100286985600444,["flask-conical-off"]=112597970025298,["flask-conical"]=128406680901165,["flask-round"]=127508287324940,
-	["flip-horizontal-2"]=103726993598186,["flip-horizontal"]=122937530107837,["flip-vertical-2"]=103836358956328,["flip-vertical"]=108003917346888,["flower-2"]=72934574245145,["flower"]=86129438272762,
-	["focus"]=87493973153317,["fold-horizontal"]=92835712442240,["fold-vertical"]=108873727253656,["folder-archive"]=97312009460206,["folder-check"]=128492920904557,["folder-clock"]=111964836738545,
-	["folder-closed"]=118286209350843,["folder-code"]=70624096349370,["folder-cog"]=85299519462846,["folder-dot"]=138687772725278,["folder-down"]=118044108459225,["folder-git-2"]=101394054141166,
-	["folder-git"]=121885778095158,["folder-heart"]=79104747211105,["folder-input"]=90699920697871,["folder-kanban"]=78313285104072,["folder-key"]=85270407596791,["folder-lock"]=119201572260567,
-	["folder-minus"]=85648718999010,["folder-open-dot"]=74741494767354,["folder-open"]=76018996254888,["folder-output"]=101532447937612,["folder-pen"]=112770491173911,["folder-plus"]=91865663406119,
-	["folder-root"]=103333751154693,["folder-search-2"]=71276453442655,["folder-search"]=110568075123861,["folder-symlink"]=127485747227189,["folder-sync"]=91544602659796,["folder-tree"]=85577554337861,
-	["folder-up"]=72008269765857,["folder-x"]=91699618247635,["folder"]=80846616596607,["folders"]=110351216219061,["footprints"]=139192589041315,["forklift"]=72030930983101,
-	["forward"]=97545944739523,["frame"]=109080612832751,["framer"]=108384807262391,["frown"]=124407301067982,["fuel"]=106447647274511,["fullscreen"]=77793665526178,
-	["funnel-plus"]=100780233821928,["funnel-x"]=70984385812555,["funnel"]=108829540827529,["gallery-horizontal-end"]=74672430161161,["gallery-horizontal"]=80004001442122,["gallery-thumbnails"]=136219289862706,
-	["gallery-vertical-end"]=106461402088317,["gallery-vertical"]=119299431466725,["gamepad-2"]=92483947987410,["gamepad-directional"]=84342305212226,["gamepad"]=121607283959010,["gauge"]=110273524101447,
-	["gavel"]=78952298198456,["gem"]=112904952151156,["georgian-lari"]=98084432591687,["ghost"]=113822048130017,["gift"]=109855212076373,["git-branch-minus"]=97385010649411,
-	["git-branch-plus"]=125944221134316,["git-branch"]=90490195516649,["git-commit-horizontal"]=133646041800147,["git-commit-vertical"]=122098032990350,["git-compare-arrows"]=84874426520216,["git-compare"]=91945124438792,
-	["git-fork"]=89954992404765,["git-graph"]=86166832019304,["git-merge"]=131833355158059,["git-pull-request-arrow"]=94507974577439,["git-pull-request-closed"]=78070600389091,["git-pull-request-create-arrow"]=127422677061091,
-	["git-pull-request-create"]=105929577383926,["git-pull-request-draft"]=76173459869943,["git-pull-request"]=138463010991471,["github"]=120349554354380,["gitlab"]=114054627192933,["glass-water"]=115526102400988,
-	["glasses"]=87936407455373,["globe-lock"]=134065526704402,["globe"]=114238209622913,["goal"]=120517954878160,["gpu"]=95577823614219,["graduation-cap"]=93771896340220,
-	["grape"]=134760640415561,["grid-2x2-check"]=138468840220821,["grid-2x2-plus"]=91811610580247,["grid-2x2-x"]=72407303981388,["grid-2x2"]=99050491897640,["grid-3x2"]=95528684210010,
-	["grid-3x3"]=70419024781206,["grip-horizontal"]=136255899715930,["grip-vertical"]=137183678565296,["grip"]=109058783556768,["group"]=107643418926671,["guitar"]=75915531867926,
-	["ham"]=74465607934635,["hamburger"]=93086916815495,["hammer"]=83545120140895,["hand-coins"]=126990543175462,["hand-fist"]=83341608917591,["hand-grab"]=88867162163985,
-	["hand-heart"]=117507367668412,["hand-helping"]=89897738419446,["hand-metal"]=113619498548713,["hand-platter"]=88594727743168,["hand"]=130703864968637,["handbag"]=135675846264061,
-	["handshake"]=78442115255814,["hard-drive-download"]=73913801230614,["hard-drive-upload"]=85762133615118,["hard-drive"]=88183305858463,["hard-hat"]=128050846767382,["hash"]=82890331678520,
-	["hat-glasses"]=101165538224815,["haze"]=108857561768901,["hdmi-port"]=103693661037020,["heading-1"]=118129315662110,["heading-2"]=110209069670094,["heading-3"]=90267885237062,
-	["heading-4"]=129625620307602,["heading-5"]=120386663181267,["heading-6"]=90959079775093,["heading"]=129254312067735,["headphone-off"]=85038251615641,["headphones"]=118833729589183,
-	["headset"]=129269236787694,["heart-crack"]=110987638564119,["heart-handshake"]=111483078692002,["heart-minus"]=96827380163326,["heart-off"]=89748414415617,["heart-plus"]=94877796283249,
-	["heart-pulse"]=129352925579546,["heart"]=116559368303288,["heater"]=140478466880916,["helicopter"]=111557171735930,["hexagon"]=127592089339199,["highlighter"]=77411555641113,
-	["history"]=123980022019922,["hop-off"]=103386036934034,["hop"]=82778923997672,["hospital"]=105868763850707,["hotel"]=132283390859718,["hourglass"]=86160434939203,
-	["house-heart"]=136054771868597,["house-plug"]=71438263712075,["house-plus"]=118495165208309,["house-wifi"]=126495519725698,["house"]=98755624629571,["ice-cream-bowl"]=124867218454386,
-	["ice-cream-cone"]=90751397288639,["id-card-lanyard"]=90761480469224,["id-card"]=75354294622640,["image-down"]=78972295741235,["image-minus"]=101066016918565,["image-off"]=81934811700938,
-	["image-play"]=129501806784210,["image-plus"]=70391970623917,["image-up"]=126610009605241,["image-upscale"]=106963545024679,["images"]=79350649395557,["import"]=116545008906029,
-	["inbox"]=112591360302868,["indian-rupee"]=113038778381805,["infinity"]=98083086936965,["info"]=124560466474914,["inspection-panel"]=70905313146088,["instagram"]=119864798614855,
-	["italic"]=96220378864282,["iteration-ccw"]=140221832794083,["iteration-cw"]=95534489554662,["japanese-yen"]=106362863465813,["joystick"]=99416790224739,["kanban"]=125934100055431,
-	["kayak"]=136107544609389,["key-round"]=83619031955390,["key-square"]=94621420033649,["key"]=96510194465420,["keyboard-music"]=121058541758636,["keyboard-off"]=92466375369772,
-	["keyboard"]=121474456068237,["lamp-ceiling"]=80032758469141,["lamp-desk"]=85290686983238,["lamp-floor"]=104585881375892,["lamp-wall-down"]=91271394132073,["lamp-wall-up"]=132141464337445,
-	["lamp"]=110730830653382,["land-plot"]=96449039620294,["landmark"]=76885079756393,["languages"]=90816903776498,["laptop-minimal-check"]=114352019833865,["laptop-minimal"]=136705765566068,
-	["laptop"]=111387063244975,["lasso-select"]=105609719912753,["lasso"]=121072936884007,["laugh"]=104491311361166,["layers-2"]=70536710516357,["layers"]=81973586053257,
-	["layout-dashboard"]=139929981863901,["layout-grid"]=81344910161871,["layout-list"]=87462136296578,["layout-panel-left"]=125092469751491,["layout-panel-top"]=91943941515944,["layout-template"]=115564446417985,
-	["leaf"]=119951075637174,["leafy-green"]=105146290493154,["lectern"]=106166425183862,["library-big"]=106794530191412,["library"]=114334671982047,["life-buoy"]=81168450671956,
-	["ligature"]=111397873269411,["lightbulb-off"]=83795722296178,["lightbulb"]=103871245626488,["line-squiggle"]=109555164424447,["link-2-off"]=76885956296867,["link-2"]=86072351557466,
-	["link"]=131607023382430,["linkedin"]=132842789255788,["list-check"]=72374358471156,["list-checks"]=99809353635593,["list-chevrons-down-up"]=137409641500711,["list-chevrons-up-down"]=81825351389084,
-	["list-collapse"]=124505247702401,["list-end"]=77650610048119,["list-filter-plus"]=96385120752336,["list-filter"]=103321376129527,["list-indent-decrease"]=137879979228193,["list-indent-increase"]=79051053161201,
-	["list-minus"]=138507965142671,["list-music"]=126380635781840,["list-ordered"]=83212528113913,["list-plus"]=112384738137814,["list-restart"]=91703153577421,["list-start"]=84828348299727,
-	["list-todo"]=132980603752108,["list-tree"]=97685396239010,["list-video"]=93648525452489,["list-x"]=113025303988861,["list"]=113179976918783,["loader-circle"]=116535712789945,
-	["loader-pinwheel"]=108513357940900,["loader"]=78408734580845,["locate-fixed"]=137367361548433,["locate-off"]=73729216338137,["locate"]=84467676590391,["lock-keyhole-open"]=110863509313073,
-	["lock-keyhole"]=78672912777756,["lock-open"]=93597915325122,["lock"]=134724289526879,["log-in"]=103768533135201,["log-out"]=84895399304975,["logs"]=89772091251787,
-	["lollipop"]=84681611583044,["luggage"]=76619236486400,["magnet"]=135162361226972,["mail-check"]=86921536259917,["mail-minus"]=81989813236553,["mail-open"]=122785416858638,
-	["mail-plus"]=104886401588341,["mail-question-mark"]=126540170949819,["mail-search"]=135616173775287,["mail-warning"]=81495303676089,["mail-x"]=74607841705644,["mail"]=103945161245599,
-	["mailbox"]=82765503320335,["mails"]=90673453450080,["map-minus"]=129525760577747,["map-pin-check-inside"]=107130529843809,["map-pin-check"]=118110914690154,["map-pin-house"]=80546885029816,
-	["map-pin-minus-inside"]=79005529692964,["map-pin-minus"]=74518762643623,["map-pin-off"]=82474689391020,["map-pin-pen"]=113515395277504,["map-pin-plus-inside"]=134639656514430,["map-pin-plus"]=91875228967029,
-	["map-pin-x-inside"]=126235934252379,["map-pin-x"]=101085273547316,["map-pin"]=84279202219901,["map-pinned"]=103963788475034,["map-plus"]=129388826743495,["map"]=95107167260947,
-	["mars-stroke"]=131973193186828,["mars"]=111287112372511,["martini"]=82977695401058,["maximize-2"]=73085922906397,["maximize"]=76045941763188,["medal"]=79016002264450,
-	["megaphone-off"]=124280774193935,["megaphone"]=118759541854879,["meh"]=132197867028557,["memory-stick"]=93212591343119,["menu"]=77021539815611,["merge"]=126201866476775,
-	["message-circle-code"]=112865244991651,["message-circle-dashed"]=81525157881897,["message-circle-heart"]=101990756073677,["message-circle-more"]=92856823884663,["message-circle-off"]=134955643890328,["message-circle-plus"]=106562979649273,
-	["message-circle-question-mark"]=107700302759934,["message-circle-reply"]=137071749508334,["message-circle-warning"]=119020096067894,["message-circle-x"]=126843387725536,["message-circle"]=127255077587058,["message-square-code"]=110968863152123,
-	["message-square-dashed"]=107653455516238,["message-square-diff"]=75472190472625,["message-square-dot"]=127806382463916,["message-square-heart"]=75612811742074,["message-square-lock"]=81268215619563,["message-square-more"]=120139782405970,
-	["message-square-off"]=99961019005789,["message-square-plus"]=76934450256199,["message-square-quote"]=116670768629340,["message-square-reply"]=130985622754637,["message-square-share"]=131017005324026,["message-square-text"]=94899503194205,
-	["message-square-warning"]=138432903962261,["message-square-x"]=137285463279462,["message-square"]=83881670383280,["messages-square"]=97532166733358,["mic-off"]=82123034444822,["mic-vocal"]=99082286164362,
-	["mic"]=89640799126523,["microchip"]=73937907669903,["microscope"]=116875530102782,["microwave"]=108411735353008,["milestone"]=101618292325920,["milk-off"]=72388480962742,
-	["milk"]=96221903896918,["minimize-2"]=116269596042539,["minimize"]=121304296213645,["minus"]=118026365011536,["monitor-check"]=86651948439229,["monitor-cloud"]=85931096038318,
-	["monitor-cog"]=94345128715799,["monitor-dot"]=130394010063680,["monitor-down"]=97466933743423,["monitor-off"]=74395526657953,["monitor-pause"]=76002184067562,["monitor-play"]=133018824306217,
-	["monitor-smartphone"]=84335680433378,["monitor-speaker"]=81744810060380,["monitor-stop"]=98708958984757,["monitor-up"]=96035360858377,["monitor-x"]=126265210441423,["monitor"]=72664649203050,
-	["moon-star"]=82782200506348,["moon"]=83380517901735,["motorbike"]=94580787368233,["mountain-snow"]=105315495740588,["mountain"]=73269957566415,["mouse-off"]=75267871697595,
-	["mouse-pointer-2-off"]=104701076865632,["mouse-pointer-2"]=117093892862228,["mouse-pointer-ban"]=106849413057133,["mouse-pointer-click"]=107150227368485,["mouse-pointer"]=72322454962935,["mouse"]=73096068864710,
-	["move-3d"]=103365982054003,["move-diagonal-2"]=117298577948096,["move-diagonal"]=101433481954184,["move-down-left"]=102819433534567,["move-down-right"]=101479760041877,["move-down"]=70510115135583,
-	["move-horizontal"]=88513523439149,["move-left"]=137614740247980,["move-right"]=132455779472989,["move-up-left"]=139079815540148,["move-up-right"]=105885140592646,["move-up"]=84505444262658,
-	["move-vertical"]=86234730730899,["move"]=116138709011735,["music-2"]=134397426600888,["music-3"]=94466120066498,["music-4"]=132459323665838,["music"]=113343203848535,
-	["navigation-2-off"]=116569611780763,["navigation-2"]=81889066747907,["navigation-off"]=87003270290777,["navigation"]=79308213542922,["network"]=127410729922644,["newspaper"]=123479530460544,
-	["nfc"]=76822396542242,["non-binary"]=78442360386235,["notebook-pen"]=140380614761023,["notebook-tabs"]=127371085570083,["notebook-text"]=93061585217270,["notebook"]=136132108664987,
-	["notepad-text-dashed"]=135793446376219,["notepad-text"]=93404682958966,["nut-off"]=78795397311573,["nut"]=127146410705656,["octagon-alert"]=140438367956051,["octagon-minus"]=74720436795421,
-	["octagon-pause"]=103161463909039,["octagon-x"]=90498161006311,["octagon"]=120803515514852,["omega"]=70414080018786,["option"]=100776883894054,["orbit"]=108926136860562,
-	["origami"]=136020626667101,["package-2"]=70394974762575,["package-check"]=102374216055130,["package-minus"]=114492858789692,["package-open"]=132890233237818,["package-plus"]=129261988138366,
-	["package-search"]=95465120894145,["package-x"]=70818501607442,["package"]=97261141732706,["paint-bucket"]=124275586663284,["paint-roller"]=115248074358348,["paintbrush-vertical"]=105151296591292,
-	["paintbrush"]=125572663700289,["palette"]=86350350950064,["panda"]=132509022802512,["panel-bottom-close"]=74287004071159,["panel-bottom-dashed"]=131084651621603,["panel-bottom-open"]=107768659586540,
-	["panel-bottom"]=132127145048511,["panel-left-close"]=126579818823552,["panel-left-dashed"]=75536606374585,["panel-left-open"]=111075816195767,["panel-left-right-dashed"]=110100707973959,["panel-left"]=97419752870313,
-	["panel-right-close"]=139528655524132,["panel-right-dashed"]=94959793877311,["panel-right-open"]=118114419142794,["panel-right"]=116365035443156,["panel-top-bottom-dashed"]=134737235653344,["panel-top-close"]=83578325777808,
-	["panel-top-dashed"]=70522913169237,["panel-top-open"]=137959875507454,["panel-top"]=75838479462875,["panels-left-bottom"]=72996856149149,["panels-right-bottom"]=90659068960726,["panels-top-left"]=79858853850600,
-	["paperclip"]=92088291163453,["parentheses"]=78950955173096,["parking-meter"]=84652733960568,["party-popper"]=111626795712193,["pause"]=74873705394436,["paw-print"]=112218825427601,
-	["pc-case"]=122978648019101,["pen-line"]=109108135755303,["pen-off"]=84807123119438,["pen-tool"]=106145404953445,["pen"]=72037878096321,["pencil-line"]=88392917053533,
-	["pencil-off"]=103330927652832,["pencil-ruler"]=110120288284597,["pencil"]=137986121120732,["pentagon"]=79184802179890,["percent"]=130155041032013,["person-standing"]=125020872044147,
-	["philippine-peso"]=91173798254675,["phone-call"]=70555587592860,["phone-forwarded"]=113269614319737,["phone-incoming"]=82863576359288,["phone-missed"]=130156165198376,["phone-off"]=133318623553383,
-	["phone-outgoing"]=104576478735825,["phone"]=128804946640049,["pi"]=74936036243146,["piano"]=85008880789520,["pickaxe"]=105888023317688,["picture-in-picture-2"]=112803319544468,
-	["picture-in-picture"]=80579597835123,["piggy-bank"]=79498575790721,["pilcrow-left"]=103803000849583,["pilcrow-right"]=104881733911870,["pilcrow"]=139512780392871,["pill-bottle"]=118394692404597,
-	["pill"]=73280534813448,["pin-off"]=127696372451750,["pin"]=120978111007514,["pipette"]=133167932934404,["pizza"]=126964453193501,["plane-landing"]=122555692211889,
-	["plane-takeoff"]=117179478829575,["plane"]=126985561580989,["play"]=135609604299893,["plug-2"]=97912386476366,["plug-zap"]=74506269884055,["plug"]=99782373064495,
-	["plus"]=111774323017047,["pocket-knife"]=134075428063965,["pocket"]=136686762542964,["podcast"]=109577075549215,["pointer-off"]=95488389312794,["pointer"]=92615117311099,
-	["popcorn"]=139446511232750,["popsicle"]=112696318077073,["pound-sterling"]=127482649469130,["power-off"]=118768311012214,["power"]=96479131758775,["presentation"]=106134583757890,
-	["printer-check"]=130273549443689,["printer"]=76080649734247,["projector"]=103281856385283,["proportions"]=130046855997237,["puzzle"]=136837798892463,["pyramid"]=107811442374127,
-	["qr-code"]=105329945723350,["quote"]=103271711590001,["rabbit"]=98580518804206,["radar"]=138528222906635,["radiation"]=104499586848433,["radical"]=132758286926047,
-	["radio-receiver"]=129598303378835,["radio-tower"]=93958663130054,["radio"]=85611589536956,["radius"]=89814505307129,["rail-symbol"]=134295386306962,["rainbow"]=132488862841895,
-	["rat"]=127400975953159,["ratio"]=126369423897295,["receipt-cent"]=91557573925201,["receipt-euro"]=94015722210295,["receipt-indian-rupee"]=89718170439990,["receipt-japanese-yen"]=132472560758851,
-	["receipt-pound-sterling"]=73934967569625,["receipt-russian-ruble"]=105164576936853,["receipt-swiss-franc"]=72503668620116,["receipt-text"]=138483536013737,["receipt-turkish-lira"]=91950765836342,["receipt"]=77877895901792,
-	["rectangle-circle"]=100642423153903,["rectangle-ellipsis"]=112919953980965,["rectangle-goggles"]=98605436666727,["rectangle-horizontal"]=90224199814966,["rectangle-vertical"]=117277050590967,["recycle"]=140417023381961,
-	["redo-2"]=70451039017914,["redo-dot"]=94252981719732,["redo"]=116150342119054,["refresh-ccw-dot"]=106702246753270,["refresh-ccw"]=117913330389477,["refresh-cw-off"]=140179498843054,
-	["refresh-cw"]=138133190015277,["refrigerator"]=102614042652753,["regex"]=100727200791841,["remove-formatting"]=112833162022628,["repeat-1"]=130144534857095,["repeat-2"]=85927537182704,
-	["repeat"]=121886242955173,["replace-all"]=127862728198635,["replace"]=128404082279430,["reply-all"]=71723137343562,["reply"]=109788633497028,["rewind"]=95205297521988,
-	["ribbon"]=94265331526851,["rocket"]=87412317685854,["rocking-chair"]=110420269495360,["roller-coaster"]=112426178972099,["rose"]=126336840238769,["rotate-3d"]=76300551576392,
-	["rotate-ccw-key"]=74976035240976,["rotate-ccw-square"]=90515853170424,["rotate-ccw"]=110116685948665,["rotate-cw-square"]=77095448159303,["rotate-cw"]=84183336178654,["route-off"]=106350402024079,
-	["route"]=89968303228953,["router"]=102130331994471,["rows-2"]=112556185960101,["rows-3"]=117215586961375,["rows-4"]=125646021959055,["rss"]=131789058984793,
-	["ruler-dimension-line"]=70673861371412,["ruler"]=81432445547423,["russian-ruble"]=126357936542156,["sailboat"]=87110567187540,["salad"]=128864507821603,["sandwich"]=104573187458917,
-	["satellite-dish"]=136742443888305,["satellite"]=134967053164645,["saudi-riyal"]=102282769104635,["save-all"]=116946975799440,["save-off"]=87085435778560,["save"]=126116963775616,
-	["scale-3d"]=72414199620352,["scale"]=108203682317477,["scaling"]=122360365318466,["scan-barcode"]=96889457154761,["scan-eye"]=99244790601968,["scan-face"]=109959345069668,
-	["scan-heart"]=106280819776142,["scan-line"]=126544908146540,["scan-qr-code"]=105409149549927,["scan-search"]=80009010551347,["scan-text"]=73702396787766,["scan"]=123104789658180,
-	["school"]=76351530290068,["scissors-line-dashed"]=122237447974173,["scissors"]=118665510911274,["screen-share-off"]=107677572669805,["screen-share"]=85137895705653,["scroll-text"]=97321022666868,
-	["scroll"]=74072101474951,["search-check"]=75442076191356,["search-code"]=117114794592802,["search-slash"]=96483932261041,["search-x"]=137319957522951,["search"]=121018724060431,
-	["section"]=91732188298948,["send-horizontal"]=111734392411664,["send-to-back"]=75340312862253,["send"]=127751956873796,["separator-horizontal"]=84864453699927,["separator-vertical"]=84031801478581,
-	["server-cog"]=138470287250966,["server-crash"]=132810618000212,["server-off"]=114048751507723,["server"]=92188766517878,["settings-2"]=135684703553372,["settings"]=80758916183665,
-	["shapes"]=129989433311409,["share-2"]=71210767962065,["share"]=87340985053299,["sheet"]=134902122480171,["shell"]=140212943563599,["shield-alert"]=114995877719925,
-	["shield-ban"]=108765041044649,["shield-check"]=87354736164608,["shield-ellipsis"]=114794739892123,["shield-half"]=117842634172647,["shield-minus"]=89965059528921,["shield-off"]=133426959132690,
-	["shield-plus"]=100664857995498,["shield-question-mark"]=135722075265150,["shield-user"]=124832775645347,["shield-x"]=73370117343811,["shield"]=110987169760162,["ship-wheel"]=130797795829448,
-	["ship"]=83995100553930,["shirt"]=106579555405966,["shopping-bag"]=71885477293226,["shopping-basket"]=138646411956433,["shopping-cart"]=128420521375441,["shovel"]=102465000512056,
-	["shower-head"]=75884944024117,["shredder"]=122125164414463,["shrimp"]=102625900815307,["shrink"]=90953687918880,["shrub"]=127326280714343,["shuffle"]=132382786975101,
-	["sigma"]=126884244870899,["signal-high"]=130436670012270,["signal-low"]=73674683500458,["signal-medium"]=125003021367019,["signal-zero"]=130045332414754,["signal"]=78424889355261,
-	["signature"]=114402748013000,["signpost-big"]=115780185675001,["signpost"]=106584743791433,["siren"]=134210267818039,["skip-back"]=70466132711334,["skip-forward"]=124844823753990,
-	["skull"]=137726256442333,["slack"]=96089719516736,["slash"]=117792185664263,["slice"]=95810504278179,["sliders-horizontal"]=85538382643347,["sliders-vertical"]=101190569086853,
-	["smartphone-charging"]=102837532613995,["smartphone-nfc"]=82326425754446,["smartphone"]=96623008834511,["smile-plus"]=131981881472144,["smile"]=105880397565283,["snail"]=70904536548363,
-	["snowflake"]=101235206534566,["soap-dispenser-droplet"]=77258480479465,["sofa"]=114427687218324,["solar-panel"]=132448188047921,["soup"]=115092551871618,["space"]=87072088914178,
-	["spade"]=131444449466462,["sparkle"]=111044800239623,["sparkles"]=138635884129147,["speaker"]=96227183003618,["speech"]=87013139446349,["spell-check-2"]=81556731785534,
-	["spell-check"]=91913483031334,["spline-pointer"]=84842840956804,["spline"]=129406685807412,["split"]=105112438805988,["spool"]=124541981347743,["spotlight"]=77571742539344,
-	["spray-can"]=128372039366326,["sprout"]=100091687832508,["square-activity"]=89496630185293,["square-arrow-down-left"]=108194680296901,["square-arrow-down-right"]=99403846801050,["square-arrow-down"]=135962519626588,
-	["square-arrow-left"]=111671474549238,["square-arrow-out-down-left"]=125714881756353,["square-arrow-out-down-right"]=89971003001390,["square-arrow-out-up-left"]=103759986579087,["square-arrow-out-up-right"]=91221896066807,["square-arrow-right"]=113920471701361,
-	["square-arrow-up-left"]=112424670290693,["square-arrow-up-right"]=76602291406940,["square-arrow-up"]=106998604646718,["square-asterisk"]=89186832353625,["square-bottom-dashed-scissors"]=79076980104803,["square-chart-gantt"]=104034017316411,
-	["square-check-big"]=115320390907184,["square-check"]=134682053539509,["square-chevron-down"]=91032307924592,["square-chevron-left"]=73143404829510,["square-chevron-right"]=90612077729930,["square-chevron-up"]=85565910197337,
-	["square-code"]=81604576616881,["square-dashed-bottom-code"]=100354801563230,["square-dashed-bottom"]=101102319625624,["square-dashed-kanban"]=90388067649847,["square-dashed-mouse-pointer"]=121016142178467,["square-dashed-top-solid"]=117157577548540,
-	["square-dashed"]=136905537847606,["square-divide"]=99894657101970,["square-dot"]=116613421354866,["square-equal"]=110283363706707,["square-function"]=86075219551088,["square-kanban"]=114537101260131,
-	["square-library"]=73810931222081,["square-m"]=117662700410577,["square-menu"]=104067089444415,["square-minus"]=116764432015770,["square-mouse-pointer"]=76141850603920,["square-parking-off"]=100857293535141,
-	["square-parking"]=133116656122387,["square-pause"]=86608552787615,["square-pen"]=120239476110475,["square-percent"]=87111930314567,["square-pi"]=75383328781618,["square-pilcrow"]=131854284699367,
-	["square-play"]=108186325238481,["square-plus"]=114713264461873,["square-power"]=129240437805187,["square-radical"]=132645931868292,["square-round-corner"]=104592745113567,["square-scissors"]=110601255612411,
-	["square-sigma"]=113231244246816,["square-slash"]=105477013908757,["square-split-horizontal"]=76095370148660,["square-split-vertical"]=88589192032058,["square-square"]=136555087357875,["square-stack"]=100463396619394,
-	["square-star"]=94506958703720,["square-stop"]=80018708472943,["square-terminal"]=83969264476798,["square-user-round"]=86484997229302,["square-user"]=70771214183445,["square-x"]=125136183850190,
-	["square"]=86304921356806,["squares-exclude"]=102345385822324,["squares-intersect"]=120869602570119,["squares-subtract"]=131484650948795,["squares-unite"]=96673080107843,["squircle-dashed"]=129936702532522,
-	["squircle"]=82426632573807,["squirrel"]=112864252085343,["stamp"]=92370779813368,["star-half"]=117449275562979,["star-off"]=75742832732503,["star"]=136141469398409,
-	["step-back"]=108672750005121,["step-forward"]=126131872136145,["stethoscope"]=122331031702148,["sticker"]=79938203791608,["sticky-note"]=111894074643919,["store"]=90338129673705,
-	["stretch-horizontal"]=87665042192343,["stretch-vertical"]=95265463417122,["strikethrough"]=103417324549613,["subscript"]=74553514785183,["sun-dim"]=129141645592715,["sun-medium"]=130278807964710,
-	["sun-moon"]=75752898854559,["sun-snow"]=112791898014579,["sun"]=110150589884127,["sunrise"]=134705665494098,["sunset"]=75904872203588,["superscript"]=96887696590118,
-	["swatch-book"]=126786244872453,["swiss-franc"]=113497920041625,["switch-camera"]=76841154349737,["sword"]=124448418211665,["swords"]=81872698913435,["syringe"]=123891270479254,
-	["table-2"]=95751552281545,["table-cells-merge"]=95363715175258,["table-cells-split"]=114799086088649,["table-columns-split"]=111011625447949,["table-of-contents"]=135044763275414,["table-properties"]=125062886015372,
-	["table-rows-split"]=96443733673997,["table"]=109109148250737,["tablet-smartphone"]=133680859813404,["tablet"]=128403991264386,["tablets"]=80835787970735,["tag"]=129104970103940,
-	["tags"]=107179263080798,["tally-1"]=115301298241643,["tally-2"]=110363186864027,["tally-3"]=97655344572540,["tally-4"]=102633494371890,["tally-5"]=88031817475886,
-	["tangent"]=123263132981724,["target"]=87563802520297,["telescope"]=91755049143647,["tent-tree"]=76698322463977,["tent"]=109779587826330,["terminal"]=106783148545356,
-	["test-tube-diagonal"]=75662704378840,["test-tube"]=98801015650164,["test-tubes"]=92555361447433,["text-align-center"]=84051028246390,["text-align-end"]=130041738343555,["text-align-justify"]=80279880143030,
-	["text-align-start"]=134489585487649,["text-cursor-input"]=107551944047171,["text-cursor"]=115984654447300,["text-initial"]=129458097472087,["text-quote"]=139278366448736,["text-search"]=92345384671606,
-	["text-select"]=117087320884956,["text-wrap"]=114804318314018,["theater"]=108558145549163,["thermometer-snowflake"]=121876188028425,["thermometer-sun"]=106693240074310,["thermometer"]=106546011492311,
-	["thumbs-down"]=87794009914015,["thumbs-up"]=111137070767020,["ticket-check"]=105428777212507,["ticket-minus"]=78966299769328,["ticket-percent"]=80834774406405,["ticket-plus"]=110086734392189,
-	["ticket-slash"]=89045681172265,["ticket-x"]=88674114109926,["ticket"]=126527071492145,["tickets-plane"]=100367018248695,["tickets"]=135268612687833,["timer-off"]=110916370767271,
-	["timer-reset"]=110052125369932,["timer"]=85473888890506,["toggle-left"]=85887872573050,["toggle-right"]=90411952142550,["toilet"]=80930782432931,["tool-case"]=87533537832522,
-	["tornado"]=88358291515768,["torus"]=70855707283051,["touchpad-off"]=78784008075456,["touchpad"]=74882354908014,["tower-control"]=95937619060532,["toy-brick"]=86293483924633,
-	["tractor"]=103376704722051,["traffic-cone"]=74110220470369,["train-front-tunnel"]=105194827005114,["train-front"]=125237934215370,["train-track"]=77451032453723,["tram-front"]=93315182364998,
-	["transgender"]=135530817673639,["trash-2"]=109843431391323,["trash"]=106723740584310,["tree-deciduous"]=123124389219004,["tree-palm"]=103846705893963,["tree-pine"]=124662547202594,
-	["trees"]=121203841375919,["trello"]=130987241149527,["trending-down"]=139309232226438,["trending-up-down"]=85083293981691,["trending-up"]=81819858538839,["triangle-alert"]=125920361880643,
-	["triangle-dashed"]=124324079103935,["triangle-right"]=116930791412791,["triangle"]=126330486745540,["trophy"]=131545003268773,["truck-electric"]=111873446387359,["truck"]=86662707764771,
-	["turkish-lira"]=114589876174070,["turntable"]=129870346487856,["turtle"]=118295081560334,["tv-minimal-play"]=99201833426972,["tv-minimal"]=100382201729427,["tv"]=135687724791776,
-	["twitch"]=71383308134888,["twitter"]=88791703276842,["type-outline"]=80108627791690,["type"]=133543553793564,["umbrella-off"]=72395143739955,["umbrella"]=127502210274589,
-	["underline"]=123709229216544,["undo-2"]=113885292059932,["undo-dot"]=132055277744844,["undo"]=111258459077271,["unfold-horizontal"]=117128358526398,["unfold-vertical"]=116593025265499,
-	["ungroup"]=106674800451003,["university"]=84652528263642,["unlink-2"]=128131898892572,["unlink"]=139835795227752,["unplug"]=90171381619874,["upload"]=138212042425501,
-	["usb"]=117230058949613,["user-check"]=81775205032725,["user-cog"]=92795491530865,["user-lock"]=78892639693821,["user-minus"]=126976941957511,["user-pen"]=87445472574836,
-	["user-plus"]=118514469915884,["user-round-check"]=118794737621941,["user-round-cog"]=78239503290053,["user-round-minus"]=98944176636447,["user-round-pen"]=108155244324878,["user-round-plus"]=113301899567470,
-	["user-round-search"]=71565774381870,["user-round-x"]=122367980560930,["user-round"]=136485052187963,["user-search"]=101335649828115,["user-star"]=98777846316000,["user-x"]=139748155894754,
-	["user"]=81589895647169,["users-round"]=103005444008339,["users"]=115398113982385,["utensils-crossed"]=109520762270383,["utensils"]=139952569804235,["utility-pole"]=101965541238242,
-	["variable"]=104743088438151,["vault"]=108049164599845,["vector-square"]=86713728565344,["vegan"]=119489190688082,["venetian-mask"]=102636443033920,["venus-and-mars"]=120227752103771,
-	["venus"]=82891342220859,["vibrate-off"]=113446447326246,["vibrate"]=108330910738733,["video-off"]=132239189859305,["video"]=107587444636945,["videotape"]=114816894323398,
-	["view"]=118717253976805,["voicemail"]=134313454010227,["volleyball"]=83889351124153,["volume-1"]=98514588731639,["volume-2"]=89344380902620,["volume-off"]=103047478058767,
-	["volume-x"]=139252359189540,["volume"]=103236289817396,["vote"]=89409762851246,["wallet-cards"]=129728715308337,["wallet-minimal"]=137800448816116,["wallet"]=132331555762628,
-	["wallpaper"]=74682121235494,["wand-sparkles"]=82546429942392,["wand"]=114580617777835,["warehouse"]=78388887451080,["washing-machine"]=104194127573858,["watch"]=130544621618405,
-	["waves-ladder"]=101808619355514,["waves"]=96340135183647,["waypoints"]=102450133666017,["webcam"]=104148487911129,["webhook-off"]=96370548093471,["webhook"]=112812457747322,
-	["weight"]=103860559844854,["wheat-off"]=133294844612307,["wheat"]=85261952080359,["whole-word"]=90111083954485,["wifi-cog"]=110500263326209,["wifi-high"]=81954601342139,
-	["wifi-low"]=138217335635913,["wifi-off"]=74113634330106,["wifi-pen"]=91290205064712,["wifi-sync"]=84043971055177,["wifi-zero"]=124286465246123,["wifi"]=104669375183960,
-	["wind-arrow-down"]=127753987414870,["wind"]=114551690399915,["wine-off"]=108294164302317,["wine"]=115743721332829,["workflow"]=99186544029189,["worm"]=115752311548091,
-	["wrench"]=112148279212860,["x"]=110786993356448,["youtube"]=123663668456341,["zap-off"]=81385483183652,["zap"]=130551565616516,["zoom-in"]=127956924984803,
-	["zoom-out"]=108334162607319,["balloon"]=97489111621526,["beef-off"]=99869959725200,["book-search"]=132585409504950,["calendars"]=130944763042289,["cannabis-off"]=101938500363812,
-	["cctv-off"]=75925370187295,["cigarette"]=137149549886852,["circle-pile"]=116353155251541,["cloud-backup"]=111649579696132,["cloud-sync"]=79393911188593,["database-search"]=92017137080138,
-	["ellipse"]=71559658267482,["fingerprint-pattern"]=80934710831288,["fishing-hook"]=121038780855899,["fishing-rod"]=71754848048049,["form"]=72999643971000,["git-merge-conflict"]=85677801675703,
-	["globe-off"]=77775243585824,["globe-x"]=109268097029296,["hd"]=71682790698278,["image"]=112751259236831,["layers-plus"]=77587765623057,["lens-concave"]=94819631937027,
-	["lens-convex"]=74736504195474,["line-dot-right-horizontal"]=104718593155221,["line-style"]=90176717785772,["map-pin-search"]=89065012915078,["message-circle-check"]=132772297689418,["message-square-check"]=125789987055668,
-	["metronome"]=101991829345965,["mirror-rectangular"]=109046769760336,["mirror-round"]=121534049429097,["mouse-left"]=99144293708743,["mouse-right"]=88331710212594,["printer-x"]=103002721801548,
-	["radio-off"]=80359258046586,["road"]=120251329173530,["scooter"]=100035452787934,["search-alert"]=127597984617505,["shelving-unit"]=80116568514793,["shield-cog-corner"]=111694066132698,
-	["shield-cog"]=129235695057857,["sport-shoe"]=120495992692630,["square-arrow-right-enter"]=138867831495334,["square-arrow-right-exit"]=133688575845430,["square-centerline-dashed-horizontal"]=77780104374341,["square-centerline-dashed-vertical"]=107878435803525,
-	["stone"]=135161057497830,["toolbox"]=85341033903792,["towel-rack"]=125223915620991,["user-key"]=105403041782190,["user-round-key"]=124547549008939,["van"]=122066377022942,
-	["waves-arrow-down"]=129215220911792,["waves-arrow-up"]=102314705716217,["weight-tilde"]=112081212176951,["x-line-top"]=140592656289509,["zodiac-aquarius"]=74560047770362,["zodiac-aries"]=73255859670234,
-	["zodiac-cancer"]=131985162532947,["zodiac-capricorn"]=97859568140652,["zodiac-gemini"]=80997588122992,["zodiac-leo"]=75509406718106,["zodiac-libra"]=113222735060218,["zodiac-ophiuchus"]=129180108892480,
-	["zodiac-pisces"]=95845819440327,["zodiac-sagittarius"]=82651026742181,["zodiac-scorpio"]=113640924054631,["zodiac-taurus"]=123053219704400,["zodiac-virgo"]=99462994613661,
+	"a-arrow-down",92867583610071,"a-arrow-up",132318504999733,"a-large-small",111491496660216,"accessibility",114029945302017,"activity",94212016861936,"air-vent",81517226012329,
+	"airplay",115020759309179,"alarm-clock-check",76437352099157,"alarm-clock-minus",77364179863205,"alarm-clock-off",97904885874823,"alarm-clock-plus",80468822979214,"alarm-clock",126259032907535,
+	"alarm-smoke",96965448419685,"album",127358331163602,"align-center-horizontal",81570549209434,"align-center-vertical",118470463752466,"align-end-horizontal",139502909745427,"align-end-vertical",96528869059554,
+	"align-horizontal-distribute-center",97220086126656,"align-horizontal-distribute-end",106128590702022,"align-horizontal-distribute-start",76074660002997,"align-horizontal-justify-center",75732302772427,"align-horizontal-justify-end",129167626402283,"align-horizontal-justify-start",130161830325281,
+	"align-horizontal-space-around",91646106782950,"align-horizontal-space-between",103886093046990,"align-start-horizontal",125674804697729,"align-start-vertical",105020230154823,"align-vertical-distribute-center",93791183635525,"align-vertical-distribute-end",139354223511433,
+	"align-vertical-distribute-start",74961997822126,"align-vertical-justify-center",134754696166569,"align-vertical-justify-end",92569381441969,"align-vertical-justify-start",99692844572718,"align-vertical-space-around",96206012459190,"align-vertical-space-between",124998077349706,
+	"ambulance",78599995190651,"ampersand",75272915739209,"ampersands",126947193455996,"amphora",137370389604364,"anchor",92181172123618,"angry",74237056000103,
+	"annoyed",80064369052011,"antenna",99628923540956,"anvil",100203029845919,"aperture",83396154449972,"app-window-mac",79587216113811,"app-window",93142176757189,
+	"apple",104349242902442,"archive-restore",78956681942188,"archive-x",75830115088395,"archive",122180020814574,"armchair",105384358373973,"arrow-big-down-dash",137987229582002,
+	"arrow-big-down",81081164158885,"arrow-big-left-dash",97827621354677,"arrow-big-left",85973092492641,"arrow-big-right-dash",117825834972403,"arrow-big-right",82960676755590,"arrow-big-up-dash",99260194327483,
+	"arrow-big-up",93136954756149,"arrow-down-0-1",120961896217875,"arrow-down-1-0",93474255891850,"arrow-down-a-z",99554596207900,"arrow-down-from-line",132045845807798,"arrow-down-left",102899325237364,
+	"arrow-down-narrow-wide",129105261655061,"arrow-down-right",123109928624974,"arrow-down-to-dot",101675355931221,"arrow-down-to-line",87050478931254,"arrow-down-up",85780258549577,"arrow-down-wide-narrow",88461733425991,
+	"arrow-down-z-a",76115279362232,"arrow-down",98764963621439,"arrow-left-from-line",87857914437603,"arrow-left-right",131324733048447,"arrow-left-to-line",118645136026970,"arrow-left",102531941843733,
+	"arrow-right-from-line",74073639809355,"arrow-right-left",77015754304300,"arrow-right-to-line",78632510329852,"arrow-right",113692007244654,"arrow-up-0-1",105257823943016,"arrow-up-1-0",134175521693798,
+	"arrow-up-a-z",77763416595160,"arrow-up-down",81019887641527,"arrow-up-from-dot",124408496673275,"arrow-up-from-line",95777664626453,"arrow-up-left",123490598231261,"arrow-up-narrow-wide",73006024672636,
+	"arrow-up-right",129280608535523,"arrow-up-to-line",108818207813537,"arrow-up-wide-narrow",87437426951568,"arrow-up-z-a",107546173611884,"arrow-up",89282378235317,"arrows-up-from-line",133710016938621,
+	"asterisk",88552752106723,"at-sign",79059152889146,"atom",73167696981648,"audio-lines",70930641819242,"audio-waveform",86462036665209,"award",132740088158419,
+	"axe",132405197863294,"axis-3d",122438676546804,"baby",93472926933440,"backpack",140420225386018,"badge-alert",101829200081951,"badge-cent",133345018873154,
+	"badge-check",76078495178149,"badge-dollar-sign",127139803581141,"badge-euro",120016477674659,"badge-indian-rupee",75659682309981,"badge-info",131995373201472,"badge-japanese-yen",99081574588615,
+	"badge-minus",140321561183881,"badge-percent",121359224294885,"badge-plus",100325578561866,"badge-pound-sterling",119688217279444,"badge-question-mark",121464963737502,"badge-russian-ruble",108839463659864,
+	"badge-swiss-franc",91447608372740,"badge-turkish-lira",137839965873529,"badge-x",122931434733842,"badge",116620312917084,"baggage-claim",86922213051957,"ban",90767043015246,
+	"banana",140713420056179,"bandage",129660129590770,"banknote-arrow-down",139366449345199,"banknote-arrow-up",133758343082529,"banknote-x",95348701438065,"banknote",104840231536668,
+	"barcode",118473018143689,"barrel",130647115622774,"baseline",124677132511270,"bath",76031400297942,"battery-charging",80139357470047,"battery-full",70906718268972,
+	"battery-low",139659256984314,"battery-medium",105934079398915,"battery-plus",91931341486966,"battery-warning",115230083817257,"battery",70765800346189,"beaker",80902539995520,
+	"bean-off",98164436608714,"bean",89491967076869,"bed-double",73820193212911,"bed-single",113423940880634,"bed",97726529032925,"beef",105850162318915,
+	"beer-off",120333134736361,"beer",116404978807744,"bell-dot",93161277118810,"bell-electric",100277767266983,"bell-minus",126334890449727,"bell-off",78560046118930,
+	"bell-plus",77014333795836,"bell-ring",94612128913941,"bell",97392696311902,"between-horizontal-end",81602774794322,"between-horizontal-start",76112384929846,"between-vertical-end",72817612571631,
+	"between-vertical-start",85278312190301,"biceps-flexed",82004462003936,"bike",102930322246035,"binary",91751953950088,"binoculars",101460003267896,"biohazard",95956532900432,
+	"bird",132284145117371,"birdhouse",83999157401433,"bitcoin",95459240442938,"blend",111679612185257,"blinds",71164165283925,"blocks",72212693357737,
+	"bluetooth-connected",96315134002985,"bluetooth-off",80600044218117,"bluetooth-searching",100673019606426,"bluetooth",90506573139443,"bold",116141470019166,"bolt",102881251417484,
+	"bomb",139223800924636,"bone",111242153474115,"book-a",104067275658465,"book-alert",124159928044853,"book-audio",109208148317037,"book-check",115999656081696,
+	"book-copy",108543407492005,"book-dashed",127430784795958,"book-down",101011730128222,"book-headphones",108670200799574,"book-heart",112788845135284,"book-image",80808285757226,
+	"book-key",116024426170705,"book-lock",118765061220571,"book-marked",73211024251780,"book-minus",112724962046282,"book-open-check",130848362492667,"book-open-text",100629528672195,
+	"book-open",129845326810392,"book-plus",140267785051233,"book-text",94011772484232,"book-type",97817304725443,"book-up-2",130161620853665,"book-up",98640174079190,
+	"book-user",128489189240523,"book-x",118754548186537,"book",125383279695672,"bookmark-check",93940443347986,"bookmark-minus",96807096039910,"bookmark-plus",121469724491615,
+	"bookmark-x",112272342584706,"bookmark",121093149326239,"boom-box",99901322535868,"bot-message-square",96145330292478,"bot-off",140417690560013,"bot",80451686744860,
+	"bottle-wine",131675403196921,"bow-arrow",124089655150375,"box",101768155599700,"boxes",136372617578355,"braces",117761094704041,"brackets",74368995728099,
+	"brain-circuit",70547962410202,"brain-cog",132039205501538,"brain",92424107303177,"brick-wall-fire",92980588705520,"brick-wall-shield",75954432775071,"brick-wall",112878522258821,
+	"briefcase-business",129135125207283,"briefcase-conveyor-belt",108665725653714,"briefcase-medical",119917756334087,"briefcase",96754188164225,"bring-to-front",132975903553748,"brush-cleaning",71728977448805,
+	"brush",127035535799640,"bubbles",106183424168227,"bug-off",88020025049245,"bug-play",80107955888092,"bug",83626408925438,"building-2",77873775611951,
+	"building",110616258983082,"bus-front",89863432456045,"bus",133798469717463,"cable-car",128643682205596,"cable",128449944504901,"cake-slice",136769828413242,
+	"cake",103131590503275,"calculator",74915716529646,"calendar-1",98458364171044,"calendar-arrow-down",108415736543437,"calendar-arrow-up",70574654109118,"calendar-check-2",120231170248276,
+	"calendar-check",71551019465748,"calendar-clock",119132152594595,"calendar-cog",122402172360287,"calendar-days",99072017568595,"calendar-fold",117368871270394,"calendar-heart",88839008103676,
+	"calendar-minus-2",98846170279891,"calendar-minus",137354318924383,"calendar-off",109726151749217,"calendar-plus-2",112264562093883,"calendar-plus",125266115249843,"calendar-range",103641849247576,
+	"calendar-search",92010083223634,"calendar-sync",78082218499697,"calendar-x-2",107518051061147,"calendar-x",106703374806500,"calendar",114792700814035,"camera-off",81057636835256,
+	"camera",79950339943067,"candy-cane",71689468772492,"candy-off",110232752314832,"candy",107812129154678,"cannabis",98792006538601,"captions-off",105223545364193,
+	"captions",104960225031445,"car-front",87380942739063,"car-taxi-front",122455403384057,"car",121065933462582,"caravan",120070979471783,"card-sim",134490550095771,
+	"carrot",119118221444304,"case-lower",129303130603241,"case-sensitive",125410273293056,"case-upper",111633433531325,"cassette-tape",137065788934157,"cast",98202245922071,
+	"castle",119275077187784,"cat",124252153404931,"cctv",99979894766624,"chart-area",123446436762366,"chart-bar-big",72336824986044,"chart-bar-decreasing",107217459044963,
+	"chart-bar-increasing",88268905998571,"chart-bar-stacked",98478751113024,"chart-bar",105389816384108,"chart-candlestick",125676898615697,"chart-column-big",98598733210787,"chart-column-decreasing",73586137373563,
+	"chart-column-increasing",120421615068601,"chart-column-stacked",86031449675105,"chart-column",97915995538580,"chart-gantt",88811660555940,"chart-line",101833156055618,"chart-network",104027882693561,
+	"chart-no-axes-column-decreasing",123371717192542,"chart-no-axes-column-increasing",140383830943049,"chart-no-axes-column",94078751170351,"chart-no-axes-combined",121424233161912,"chart-no-axes-gantt",131936541106368,"chart-pie",113412261630136,
+	"chart-scatter",108217585014571,"chart-spline",90307460742494,"check-check",95183312173858,"check-line",115122343485290,"check",93898873302694,"chef-hat",121744015002573,
+	"cherry",139519182403183,"chess-bishop",121701705580238,"chess-king",90885687223462,"chess-knight",96467707042169,"chess-pawn",111318574652751,"chess-queen",98304702099749,
+	"chess-rook",76223925830262,"chevron-down",134243273101015,"chevron-first",105243363790238,"chevron-last",89268452603731,"chevron-left",73780377692148,"chevron-right",92473583511724,
+	"chevron-up",122444883127455,"chevrons-down-up",139404716013205,"chevrons-down",100524612205956,"chevrons-left-right-ellipsis",125035817741526,"chevrons-left-right",87910685945204,"chevrons-left",82617201744347,
+	"chevrons-right-left",87149546686569,"chevrons-right",139121276490483,"chevrons-up-down",131833120209646,"chevrons-up",100467452364672,"chromium",128165143739006,"church",113714744350666,
+	"cigarette-off",77797883078452,"circle-alert",83898160590116,"circle-arrow-down",95901860261344,"circle-arrow-left",102148876968988,"circle-arrow-out-down-left",140598097856694,"circle-arrow-out-down-right",119952801379305,
+	"circle-arrow-out-up-left",132858212688303,"circle-arrow-out-up-right",81783743753173,"circle-arrow-right",70786767999559,"circle-arrow-up",84395128546494,"circle-check-big",93202927221730,"circle-check",85262178816537,
+	"circle-chevron-down",137069490345718,"circle-chevron-left",130250009740827,"circle-chevron-right",125943696958495,"circle-chevron-up",111223574026321,"circle-dashed",126799443883746,"circle-divide",106398997754208,
+	"circle-dollar-sign",91106238890387,"circle-dot-dashed",111451232827180,"circle-dot",82947033619201,"circle-ellipsis",91687150884779,"circle-equal",95133963751438,"circle-fading-arrow-up",104648212910336,
+	"circle-fading-plus",91847890443490,"circle-gauge",108157549473765,"circle-minus",133556159576809,"circle-off",97923456918886,"circle-parking-off",128369410981252,"circle-parking",124034962915196,
+	"circle-pause",139337739700879,"circle-percent",133311912860256,"circle-play",120408917249739,"circle-plus",113157136350384,"circle-pound-sterling",105476153083828,"circle-power",140676030155098,
+	"circle-question-mark",97516698664325,"circle-slash-2",136766902186549,"circle-slash",125206439913049,"circle-small",73685402843600,"circle-star",120318414957104,"circle-stop",87400503942659,
+	"circle-user-round",95489465399880,"circle-user",136220511671311,"circle-x",76821953846248,"circle",130359823580534,"circuit-board",107695264369312,"citrus",139018222976433,
+	"clapperboard",132660667070200,"clipboard-check",92649798577170,"clipboard-clock",123957515687745,"clipboard-copy",125851897718493,"clipboard-list",96460215958908,"clipboard-minus",107968008485671,
+	"clipboard-paste",74382068849983,"clipboard-pen-line",77711589791615,"clipboard-pen",75290966822953,"clipboard-plus",134285318675662,"clipboard-type",89949374318028,"clipboard-x",102222456890103,
+	"clipboard",89601995828423,"clock-1",129363225422045,"clock-10",104332695855541,"clock-11",119023205186105,"clock-12",117789618723068,"clock-2",134710777209413,
+	"clock-3",136385631189327,"clock-4",121808839832144,"clock-5",85082019959457,"clock-6",71009733505593,"clock-7",103111188546225,"clock-8",110059272125337,
+	"clock-9",77610027126437,"clock-alert",97157344465162,"clock-arrow-down",92349314416042,"clock-arrow-up",111484286332629,"clock-check",85231630218857,"clock-fading",93205297285245,
+	"clock-plus",93367709263150,"clock",121808839832144,"closed-caption",99832644030788,"cloud-alert",91967273658626,"cloud-check",97318598202432,"cloud-cog",96497764065749,
+	"cloud-download",121435581993566,"cloud-drizzle",139525315752605,"cloud-fog",76650233148776,"cloud-hail",72320462748242,"cloud-lightning",133517088924849,"cloud-moon-rain",127667837827018,
+	"cloud-moon",71938114737914,"cloud-off",131907154501444,"cloud-rain-wind",107414583736721,"cloud-rain",105547081967408,"cloud-snow",72307126270226,"cloud-sun-rain",99041604425705,
+	"cloud-sun",86114208148727,"cloud-upload",93307473217005,"cloud",121226497050352,"cloudy",105360479023346,"clover",74925550436750,"club",108490365816628,
+	"code-xml",130150477351734,"code",107380207681249,"codepen",135643965971885,"codesandbox",106911852964823,"coffee",106864403231093,"cog",116544501716299,
+	"coins",116510979641930,"columns-2",113004100221850,"columns-3-cog",121589691981064,"columns-3",115223357399375,"columns-4",130807991968419,"combine",79908476334048,
+	"command",93648221906330,"compass",115123411028382,"component",110027788875080,"computer",77480056459407,"concierge-bell",140384259310436,"cone",97759550688437,
+	"construction",106539489968173,"contact-round",71907624112229,"contact",75868297719012,"container",91507237573499,"contrast",112796643981497,"cookie",73159504540002,
+	"cooking-pot",94959783129799,"copy-check",91177247988892,"copy-minus",109524509933035,"copy-plus",113618379616952,"copy-slash",93805787810390,"copy-x",106557557978061,
+	"copy",78979572434545,"copyleft",78559055698593,"copyright",129433635747111,"corner-down-left",90473561177832,"corner-down-right",86512767702085,"corner-left-down",139876989150630,
+	"corner-left-up",126228268096099,"corner-right-down",89237035551302,"corner-right-up",112851237026705,"corner-up-left",84669279763024,"corner-up-right",115099889693145,"cpu",77549309870247,
+	"creative-commons",90408210735312,"credit-card",99163352872346,"croissant",130710485559420,"crop",116344601101413,"cross",101833377863588,"crosshair",134242818164054,
+	"crown",127843403295538,"cuboid",75618807946111,"cup-soda",121098640829562,"currency",90551250119972,"cylinder",90569677179169,"dam",76874486231393,
+	"database-backup",103403210984699,"database-zap",131199921258418,"database",126791525623846,"decimals-arrow-left",120198500638749,"decimals-arrow-right",118263047146797,"delete",126279426372342,
+	"dessert",71508133278830,"diameter",97429051503783,"diamond-minus",128989071438290,"diamond-percent",107717860105959,"diamond-plus",134701163723675,"diamond",105846996304890,
+	"dice-1",112650149591038,"dice-2",112278274566793,"dice-3",118526270626312,"dice-4",113365650364004,"dice-5",72768312430593,"dice-6",85376239182543,
+	"dices",81268120302865,"diff",135052708609715,"disc-2",91419420404185,"disc-3",135470554736048,"disc-album",74693460404344,"disc",101908120120777,
+	"divide",136678191878278,"dna-off",89612426361540,"dna",74007982981741,"dock",121997427160252,"dog",71920105558570,"dollar-sign",127320961224019,
+	"donut",72204922742657,"door-closed-locked",74027613267551,"door-closed",136249099949073,"door-open",91306356501736,"dot",137321056643916,"download",134814648082393,
+	"drafting-compass",99701976182841,"drama",110297795801577,"dribbble",80231809663849,"drill",108644821412796,"drone",117299095794783,"droplet-off",119365002225172,
+	"droplet",100597455015098,"droplets",140111846025180,"drum",136979060344890,"drumstick",104662462521709,"dumbbell",80277236776212,"ear-off",87421916192807,
+	"ear",121894949934209,"earth-lock",88814147073745,"earth",76231597751076,"eclipse",114829622118222,"egg-fried",90622538210545,"egg-off",92288321309285,
+	"egg",117851493400222,"ellipsis-vertical",117978708573781,"ellipsis",140019550645825,"equal-approximately",105382689698323,"equal-not",76864449458032,"equal",123467780715624,
+	"eraser",133957773112410,"ethernet-port",75391715149314,"euro",72229646524456,"ev-charger",97906158859623,"expand",137492887754537,"external-link",129331830773832,
+	"eye-closed",111063268625789,"eye-off",135928786788378,"eye",100033680381365,"facebook",72098528632192,"factory",102170024318039,"fan",78391400440696,
+	"fast-forward",121615540167909,"feather",91872927606406,"fence",123451565578029,"ferris-wheel",79729205796176,"figma",134182122852301,"file-archive",77018106869967,
+	"file-axis-3d",133912328009885,"file-badge",74564895394477,"file-box",119264004071690,"file-braces-corner",77253337986109,"file-braces",95314128621234,"file-chart-column-increasing",134449481172067,
+	"file-chart-column",82048481252560,"file-chart-line",71954360551345,"file-chart-pie",81072193564497,"file-check-corner",76295552859171,"file-check",82604001452455,"file-clock",102325208830990,
+	"file-code-corner",78293841184371,"file-code",130978036895504,"file-cog",101385347151368,"file-diff",96147216772241,"file-digit",89220220354580,"file-down",120650154178290,
+	"file-exclamation-point",102821865889635,"file-headphone",100533735901986,"file-heart",132214916401696,"file-image",123334057511782,"file-input",124728604166044,"file-key",118790255921100,
+	"file-lock",72170228691242,"file-minus-corner",119263271735124,"file-minus",111014798459222,"file-music",134948051536671,"file-output",92146832572911,"file-pen-line",104622936345006,
+	"file-pen",79556179730240,"file-play",89006821567838,"file-plus-corner",76544604043974,"file-plus",78881710800060,"file-question-mark",127617422859576,"file-scan",129480105228213,
+	"file-search-corner",90974165234008,"file-search",97780235974933,"file-signal",122070252538165,"file-sliders",85787771732439,"file-spreadsheet",134501869359270,"file-stack",138929929862605,
+	"file-symlink",91865722036510,"file-terminal",116757454755476,"file-text",90496405707281,"file-type-corner",124902230275209,"file-type",115272552799361,"file-up",131173039312748,
+	"file-user",99552018455009,"file-video-camera",81719056173960,"file-volume",111264764438958,"file-x-corner",87554136773609,"file-x",107333775515154,"file",74748492079329,
+	"files",102806336233202,"film",120978945609706,"fingerprint",112173305232811,"fire-extinguisher",111643493006960,"fish-off",89756724887508,"fish-symbol",118475177681618,
+	"fish",124360663785796,"flag-off",112944528856799,"flag-triangle-left",88045221285272,"flag-triangle-right",108292480304566,"flag",78183383236196,"flame-kindling",139728976917928,
+	"flame",98218034436456,"flashlight-off",79780362871740,"flashlight",100286985600444,"flask-conical-off",112597970025298,"flask-conical",128406680901165,"flask-round",127508287324940,
+	"flip-horizontal-2",103726993598186,"flip-horizontal",122937530107837,"flip-vertical-2",103836358956328,"flip-vertical",108003917346888,"flower-2",72934574245145,"flower",86129438272762,
+	"focus",87493973153317,"fold-horizontal",92835712442240,"fold-vertical",108873727253656,"folder-archive",97312009460206,"folder-check",128492920904557,"folder-clock",111964836738545,
+	"folder-closed",118286209350843,"folder-code",70624096349370,"folder-cog",85299519462846,"folder-dot",138687772725278,"folder-down",118044108459225,"folder-git-2",101394054141166,
+	"folder-git",121885778095158,"folder-heart",79104747211105,"folder-input",90699920697871,"folder-kanban",78313285104072,"folder-key",85270407596791,"folder-lock",119201572260567,
+	"folder-minus",85648718999010,"folder-open-dot",74741494767354,"folder-open",76018996254888,"folder-output",101532447937612,"folder-pen",112770491173911,"folder-plus",91865663406119,
+	"folder-root",103333751154693,"folder-search-2",71276453442655,"folder-search",110568075123861,"folder-symlink",127485747227189,"folder-sync",91544602659796,"folder-tree",85577554337861,
+	"folder-up",72008269765857,"folder-x",91699618247635,"folder",80846616596607,"folders",110351216219061,"footprints",139192589041315,"forklift",72030930983101,
+	"forward",97545944739523,"frame",109080612832751,"framer",108384807262391,"frown",124407301067982,"fuel",106447647274511,"fullscreen",77793665526178,
+	"funnel-plus",100780233821928,"funnel-x",70984385812555,"funnel",108829540827529,"gallery-horizontal-end",74672430161161,"gallery-horizontal",80004001442122,"gallery-thumbnails",136219289862706,
+	"gallery-vertical-end",106461402088317,"gallery-vertical",119299431466725,"gamepad-2",92483947987410,"gamepad-directional",84342305212226,"gamepad",121607283959010,"gauge",110273524101447,
+	"gavel",78952298198456,"gem",112904952151156,"georgian-lari",98084432591687,"ghost",113822048130017,"gift",109855212076373,"git-branch-minus",97385010649411,
+	"git-branch-plus",125944221134316,"git-branch",90490195516649,"git-commit-horizontal",133646041800147,"git-commit-vertical",122098032990350,"git-compare-arrows",84874426520216,"git-compare",91945124438792,
+	"git-fork",89954992404765,"git-graph",86166832019304,"git-merge",131833355158059,"git-pull-request-arrow",94507974577439,"git-pull-request-closed",78070600389091,"git-pull-request-create-arrow",127422677061091,
+	"git-pull-request-create",105929577383926,"git-pull-request-draft",76173459869943,"git-pull-request",138463010991471,"github",120349554354380,"gitlab",114054627192933,"glass-water",115526102400988,
+	"glasses",87936407455373,"globe-lock",134065526704402,"globe",114238209622913,"goal",120517954878160,"gpu",95577823614219,"graduation-cap",93771896340220,
+	"grape",134760640415561,"grid-2x2-check",138468840220821,"grid-2x2-plus",91811610580247,"grid-2x2-x",72407303981388,"grid-2x2",99050491897640,"grid-3x2",95528684210010,
+	"grid-3x3",70419024781206,"grip-horizontal",136255899715930,"grip-vertical",137183678565296,"grip",109058783556768,"group",107643418926671,"guitar",75915531867926,
+	"ham",74465607934635,"hamburger",93086916815495,"hammer",83545120140895,"hand-coins",126990543175462,"hand-fist",83341608917591,"hand-grab",88867162163985,
+	"hand-heart",117507367668412,"hand-helping",89897738419446,"hand-metal",113619498548713,"hand-platter",88594727743168,"hand",130703864968637,"handbag",135675846264061,
+	"handshake",78442115255814,"hard-drive-download",73913801230614,"hard-drive-upload",85762133615118,"hard-drive",88183305858463,"hard-hat",128050846767382,"hash",82890331678520,
+	"hat-glasses",101165538224815,"haze",108857561768901,"hdmi-port",103693661037020,"heading-1",118129315662110,"heading-2",110209069670094,"heading-3",90267885237062,
+	"heading-4",129625620307602,"heading-5",120386663181267,"heading-6",90959079775093,"heading",129254312067735,"headphone-off",85038251615641,"headphones",118833729589183,
+	"headset",129269236787694,"heart-crack",110987638564119,"heart-handshake",111483078692002,"heart-minus",96827380163326,"heart-off",89748414415617,"heart-plus",94877796283249,
+	"heart-pulse",129352925579546,"heart",116559368303288,"heater",140478466880916,"helicopter",111557171735930,"hexagon",127592089339199,"highlighter",77411555641113,
+	"history",123980022019922,"hop-off",103386036934034,"hop",82778923997672,"hospital",105868763850707,"hotel",132283390859718,"hourglass",86160434939203,
+	"house-heart",136054771868597,"house-plug",71438263712075,"house-plus",118495165208309,"house-wifi",126495519725698,"house",98755624629571,"ice-cream-bowl",124867218454386,
+	"ice-cream-cone",90751397288639,"id-card-lanyard",90761480469224,"id-card",75354294622640,"image-down",78972295741235,"image-minus",101066016918565,"image-off",81934811700938,
+	"image-play",129501806784210,"image-plus",70391970623917,"image-up",126610009605241,"image-upscale",106963545024679,"images",79350649395557,"import",116545008906029,
+	"inbox",112591360302868,"indian-rupee",113038778381805,"infinity",98083086936965,"info",124560466474914,"inspection-panel",70905313146088,"instagram",119864798614855,
+	"italic",96220378864282,"iteration-ccw",140221832794083,"iteration-cw",95534489554662,"japanese-yen",106362863465813,"joystick",99416790224739,"kanban",125934100055431,
+	"kayak",136107544609389,"key-round",83619031955390,"key-square",94621420033649,"key",96510194465420,"keyboard-music",121058541758636,"keyboard-off",92466375369772,
+	"keyboard",121474456068237,"lamp-ceiling",80032758469141,"lamp-desk",85290686983238,"lamp-floor",104585881375892,"lamp-wall-down",91271394132073,"lamp-wall-up",132141464337445,
+	"lamp",110730830653382,"land-plot",96449039620294,"landmark",76885079756393,"languages",90816903776498,"laptop-minimal-check",114352019833865,"laptop-minimal",136705765566068,
+	"laptop",111387063244975,"lasso-select",105609719912753,"lasso",121072936884007,"laugh",104491311361166,"layers-2",70536710516357,"layers",81973586053257,
+	"layout-dashboard",139929981863901,"layout-grid",81344910161871,"layout-list",87462136296578,"layout-panel-left",125092469751491,"layout-panel-top",91943941515944,"layout-template",115564446417985,
+	"leaf",119951075637174,"leafy-green",105146290493154,"lectern",106166425183862,"library-big",106794530191412,"library",114334671982047,"life-buoy",81168450671956,
+	"ligature",111397873269411,"lightbulb-off",83795722296178,"lightbulb",103871245626488,"line-squiggle",109555164424447,"link-2-off",76885956296867,"link-2",86072351557466,
+	"link",131607023382430,"linkedin",132842789255788,"list-check",72374358471156,"list-checks",99809353635593,"list-chevrons-down-up",137409641500711,"list-chevrons-up-down",81825351389084,
+	"list-collapse",124505247702401,"list-end",77650610048119,"list-filter-plus",96385120752336,"list-filter",103321376129527,"list-indent-decrease",137879979228193,"list-indent-increase",79051053161201,
+	"list-minus",138507965142671,"list-music",126380635781840,"list-ordered",83212528113913,"list-plus",112384738137814,"list-restart",91703153577421,"list-start",84828348299727,
+	"list-todo",132980603752108,"list-tree",97685396239010,"list-video",93648525452489,"list-x",113025303988861,"list",113179976918783,"loader-circle",116535712789945,
+	"loader-pinwheel",108513357940900,"loader",78408734580845,"locate-fixed",137367361548433,"locate-off",73729216338137,"locate",84467676590391,"lock-keyhole-open",110863509313073,
+	"lock-keyhole",78672912777756,"lock-open",93597915325122,"lock",134724289526879,"log-in",103768533135201,"log-out",84895399304975,"logs",89772091251787,
+	"lollipop",84681611583044,"luggage",76619236486400,"magnet",135162361226972,"mail-check",86921536259917,"mail-minus",81989813236553,"mail-open",122785416858638,
+	"mail-plus",104886401588341,"mail-question-mark",126540170949819,"mail-search",135616173775287,"mail-warning",81495303676089,"mail-x",74607841705644,"mail",103945161245599,
+	"mailbox",82765503320335,"mails",90673453450080,"map-minus",129525760577747,"map-pin-check-inside",107130529843809,"map-pin-check",118110914690154,"map-pin-house",80546885029816,
+	"map-pin-minus-inside",79005529692964,"map-pin-minus",74518762643623,"map-pin-off",82474689391020,"map-pin-pen",113515395277504,"map-pin-plus-inside",134639656514430,"map-pin-plus",91875228967029,
+	"map-pin-x-inside",126235934252379,"map-pin-x",101085273547316,"map-pin",84279202219901,"map-pinned",103963788475034,"map-plus",129388826743495,"map",95107167260947,
+	"mars-stroke",131973193186828,"mars",111287112372511,"martini",82977695401058,"maximize-2",73085922906397,"maximize",76045941763188,"medal",79016002264450,
+	"megaphone-off",124280774193935,"megaphone",118759541854879,"meh",132197867028557,"memory-stick",93212591343119,"menu",77021539815611,"merge",126201866476775,
+	"message-circle-code",112865244991651,"message-circle-dashed",81525157881897,"message-circle-heart",101990756073677,"message-circle-more",92856823884663,"message-circle-off",134955643890328,"message-circle-plus",106562979649273,
+	"message-circle-question-mark",107700302759934,"message-circle-reply",137071749508334,"message-circle-warning",119020096067894,"message-circle-x",126843387725536,"message-circle",127255077587058,"message-square-code",110968863152123,
+	"message-square-dashed",107653455516238,"message-square-diff",75472190472625,"message-square-dot",127806382463916,"message-square-heart",75612811742074,"message-square-lock",81268215619563,"message-square-more",120139782405970,
+	"message-square-off",99961019005789,"message-square-plus",76934450256199,"message-square-quote",116670768629340,"message-square-reply",130985622754637,"message-square-share",131017005324026,"message-square-text",94899503194205,
+	"message-square-warning",138432903962261,"message-square-x",137285463279462,"message-square",83881670383280,"messages-square",97532166733358,"mic-off",82123034444822,"mic-vocal",99082286164362,
+	"mic",89640799126523,"microchip",73937907669903,"microscope",116875530102782,"microwave",108411735353008,"milestone",101618292325920,"milk-off",72388480962742,
+	"milk",96221903896918,"minimize-2",116269596042539,"minimize",121304296213645,"minus",118026365011536,"monitor-check",86651948439229,"monitor-cloud",85931096038318,
+	"monitor-cog",94345128715799,"monitor-dot",130394010063680,"monitor-down",97466933743423,"monitor-off",74395526657953,"monitor-pause",76002184067562,"monitor-play",133018824306217,
+	"monitor-smartphone",84335680433378,"monitor-speaker",81744810060380,"monitor-stop",98708958984757,"monitor-up",96035360858377,"monitor-x",126265210441423,"monitor",72664649203050,
+	"moon-star",82782200506348,"moon",83380517901735,"motorbike",94580787368233,"mountain-snow",105315495740588,"mountain",73269957566415,"mouse-off",75267871697595,
+	"mouse-pointer-2-off",104701076865632,"mouse-pointer-2",117093892862228,"mouse-pointer-ban",106849413057133,"mouse-pointer-click",107150227368485,"mouse-pointer",72322454962935,"mouse",73096068864710,
+	"move-3d",103365982054003,"move-diagonal-2",117298577948096,"move-diagonal",101433481954184,"move-down-left",102819433534567,"move-down-right",101479760041877,"move-down",70510115135583,
+	"move-horizontal",88513523439149,"move-left",137614740247980,"move-right",132455779472989,"move-up-left",139079815540148,"move-up-right",105885140592646,"move-up",84505444262658,
+	"move-vertical",86234730730899,"move",116138709011735,"music-2",134397426600888,"music-3",94466120066498,"music-4",132459323665838,"music",113343203848535,
+	"navigation-2-off",116569611780763,"navigation-2",81889066747907,"navigation-off",87003270290777,"navigation",79308213542922,"network",127410729922644,"newspaper",123479530460544,
+	"nfc",76822396542242,"non-binary",78442360386235,"notebook-pen",140380614761023,"notebook-tabs",127371085570083,"notebook-text",93061585217270,"notebook",136132108664987,
+	"notepad-text-dashed",135793446376219,"notepad-text",93404682958966,"nut-off",78795397311573,"nut",127146410705656,"octagon-alert",140438367956051,"octagon-minus",74720436795421,
+	"octagon-pause",103161463909039,"octagon-x",90498161006311,"octagon",120803515514852,"omega",70414080018786,"option",100776883894054,"orbit",108926136860562,
+	"origami",136020626667101,"package-2",70394974762575,"package-check",102374216055130,"package-minus",114492858789692,"package-open",132890233237818,"package-plus",129261988138366,
+	"package-search",95465120894145,"package-x",70818501607442,"package",97261141732706,"paint-bucket",124275586663284,"paint-roller",115248074358348,"paintbrush-vertical",105151296591292,
+	"paintbrush",125572663700289,"palette",86350350950064,"panda",132509022802512,"panel-bottom-close",74287004071159,"panel-bottom-dashed",131084651621603,"panel-bottom-open",107768659586540,
+	"panel-bottom",132127145048511,"panel-left-close",126579818823552,"panel-left-dashed",75536606374585,"panel-left-open",111075816195767,"panel-left-right-dashed",110100707973959,"panel-left",97419752870313,
+	"panel-right-close",139528655524132,"panel-right-dashed",94959793877311,"panel-right-open",118114419142794,"panel-right",116365035443156,"panel-top-bottom-dashed",134737235653344,"panel-top-close",83578325777808,
+	"panel-top-dashed",70522913169237,"panel-top-open",137959875507454,"panel-top",75838479462875,"panels-left-bottom",72996856149149,"panels-right-bottom",90659068960726,"panels-top-left",79858853850600,
+	"paperclip",92088291163453,"parentheses",78950955173096,"parking-meter",84652733960568,"party-popper",111626795712193,"pause",74873705394436,"paw-print",112218825427601,
+	"pc-case",122978648019101,"pen-line",109108135755303,"pen-off",84807123119438,"pen-tool",106145404953445,"pen",72037878096321,"pencil-line",88392917053533,
+	"pencil-off",103330927652832,"pencil-ruler",110120288284597,"pencil",137986121120732,"pentagon",79184802179890,"percent",130155041032013,"person-standing",125020872044147,
+	"philippine-peso",91173798254675,"phone-call",70555587592860,"phone-forwarded",113269614319737,"phone-incoming",82863576359288,"phone-missed",130156165198376,"phone-off",133318623553383,
+	"phone-outgoing",104576478735825,"phone",128804946640049,"pi",74936036243146,"piano",85008880789520,"pickaxe",105888023317688,"picture-in-picture-2",112803319544468,
+	"picture-in-picture",80579597835123,"piggy-bank",79498575790721,"pilcrow-left",103803000849583,"pilcrow-right",104881733911870,"pilcrow",139512780392871,"pill-bottle",118394692404597,
+	"pill",73280534813448,"pin-off",127696372451750,"pin",120978111007514,"pipette",133167932934404,"pizza",126964453193501,"plane-landing",122555692211889,
+	"plane-takeoff",117179478829575,"plane",126985561580989,"play",135609604299893,"plug-2",97912386476366,"plug-zap",74506269884055,"plug",99782373064495,
+	"plus",111774323017047,"pocket-knife",134075428063965,"pocket",136686762542964,"podcast",109577075549215,"pointer-off",95488389312794,"pointer",92615117311099,
+	"popcorn",139446511232750,"popsicle",112696318077073,"pound-sterling",127482649469130,"power-off",118768311012214,"power",96479131758775,"presentation",106134583757890,
+	"printer-check",130273549443689,"printer",76080649734247,"projector",103281856385283,"proportions",130046855997237,"puzzle",136837798892463,"pyramid",107811442374127,
+	"qr-code",105329945723350,"quote",103271711590001,"rabbit",98580518804206,"radar",138528222906635,"radiation",104499586848433,"radical",132758286926047,
+	"radio-receiver",129598303378835,"radio-tower",93958663130054,"radio",85611589536956,"radius",89814505307129,"rail-symbol",134295386306962,"rainbow",132488862841895,
+	"rat",127400975953159,"ratio",126369423897295,"receipt-cent",91557573925201,"receipt-euro",94015722210295,"receipt-indian-rupee",89718170439990,"receipt-japanese-yen",132472560758851,
+	"receipt-pound-sterling",73934967569625,"receipt-russian-ruble",105164576936853,"receipt-swiss-franc",72503668620116,"receipt-text",138483536013737,"receipt-turkish-lira",91950765836342,"receipt",77877895901792,
+	"rectangle-circle",100642423153903,"rectangle-ellipsis",112919953980965,"rectangle-goggles",98605436666727,"rectangle-horizontal",90224199814966,"rectangle-vertical",117277050590967,"recycle",140417023381961,
+	"redo-2",70451039017914,"redo-dot",94252981719732,"redo",116150342119054,"refresh-ccw-dot",106702246753270,"refresh-ccw",117913330389477,"refresh-cw-off",140179498843054,
+	"refresh-cw",138133190015277,"refrigerator",102614042652753,"regex",100727200791841,"remove-formatting",112833162022628,"repeat-1",130144534857095,"repeat-2",85927537182704,
+	"repeat",121886242955173,"replace-all",127862728198635,"replace",128404082279430,"reply-all",71723137343562,"reply",109788633497028,"rewind",95205297521988,
+	"ribbon",94265331526851,"rocket",87412317685854,"rocking-chair",110420269495360,"roller-coaster",112426178972099,"rose",126336840238769,"rotate-3d",76300551576392,
+	"rotate-ccw-key",74976035240976,"rotate-ccw-square",90515853170424,"rotate-ccw",110116685948665,"rotate-cw-square",77095448159303,"rotate-cw",84183336178654,"route-off",106350402024079,
+	"route",89968303228953,"router",102130331994471,"rows-2",112556185960101,"rows-3",117215586961375,"rows-4",125646021959055,"rss",131789058984793,
+	"ruler-dimension-line",70673861371412,"ruler",81432445547423,"russian-ruble",126357936542156,"sailboat",87110567187540,"salad",128864507821603,"sandwich",104573187458917,
+	"satellite-dish",136742443888305,"satellite",134967053164645,"saudi-riyal",102282769104635,"save-all",116946975799440,"save-off",87085435778560,"save",126116963775616,
+	"scale-3d",72414199620352,"scale",108203682317477,"scaling",122360365318466,"scan-barcode",96889457154761,"scan-eye",99244790601968,"scan-face",109959345069668,
+	"scan-heart",106280819776142,"scan-line",126544908146540,"scan-qr-code",105409149549927,"scan-search",80009010551347,"scan-text",73702396787766,"scan",123104789658180,
+	"school",76351530290068,"scissors-line-dashed",122237447974173,"scissors",118665510911274,"screen-share-off",107677572669805,"screen-share",85137895705653,"scroll-text",97321022666868,
+	"scroll",74072101474951,"search-check",75442076191356,"search-code",117114794592802,"search-slash",96483932261041,"search-x",137319957522951,"search",121018724060431,
+	"section",91732188298948,"send-horizontal",111734392411664,"send-to-back",75340312862253,"send",127751956873796,"separator-horizontal",84864453699927,"separator-vertical",84031801478581,
+	"server-cog",138470287250966,"server-crash",132810618000212,"server-off",114048751507723,"server",92188766517878,"settings-2",135684703553372,"settings",80758916183665,
+	"shapes",129989433311409,"share-2",71210767962065,"share",87340985053299,"sheet",134902122480171,"shell",140212943563599,"shield-alert",114995877719925,
+	"shield-ban",108765041044649,"shield-check",87354736164608,"shield-ellipsis",114794739892123,"shield-half",117842634172647,"shield-minus",89965059528921,"shield-off",133426959132690,
+	"shield-plus",100664857995498,"shield-question-mark",135722075265150,"shield-user",124832775645347,"shield-x",73370117343811,"shield",110987169760162,"ship-wheel",130797795829448,
+	"ship",83995100553930,"shirt",106579555405966,"shopping-bag",71885477293226,"shopping-basket",138646411956433,"shopping-cart",128420521375441,"shovel",102465000512056,
+	"shower-head",75884944024117,"shredder",122125164414463,"shrimp",102625900815307,"shrink",90953687918880,"shrub",127326280714343,"shuffle",132382786975101,
+	"sigma",126884244870899,"signal-high",130436670012270,"signal-low",73674683500458,"signal-medium",125003021367019,"signal-zero",130045332414754,"signal",78424889355261,
+	"signature",114402748013000,"signpost-big",115780185675001,"signpost",106584743791433,"siren",134210267818039,"skip-back",70466132711334,"skip-forward",124844823753990,
+	"skull",137726256442333,"slack",96089719516736,"slash",117792185664263,"slice",95810504278179,"sliders-horizontal",85538382643347,"sliders-vertical",101190569086853,
+	"smartphone-charging",102837532613995,"smartphone-nfc",82326425754446,"smartphone",96623008834511,"smile-plus",131981881472144,"smile",105880397565283,"snail",70904536548363,
+	"snowflake",101235206534566,"soap-dispenser-droplet",77258480479465,"sofa",114427687218324,"solar-panel",132448188047921,"soup",115092551871618,"space",87072088914178,
+	"spade",131444449466462,"sparkle",111044800239623,"sparkles",138635884129147,"speaker",96227183003618,"speech",87013139446349,"spell-check-2",81556731785534,
+	"spell-check",91913483031334,"spline-pointer",84842840956804,"spline",129406685807412,"split",105112438805988,"spool",124541981347743,"spotlight",77571742539344,
+	"spray-can",128372039366326,"sprout",100091687832508,"square-activity",89496630185293,"square-arrow-down-left",108194680296901,"square-arrow-down-right",99403846801050,"square-arrow-down",135962519626588,
+	"square-arrow-left",111671474549238,"square-arrow-out-down-left",125714881756353,"square-arrow-out-down-right",89971003001390,"square-arrow-out-up-left",103759986579087,"square-arrow-out-up-right",91221896066807,"square-arrow-right",113920471701361,
+	"square-arrow-up-left",112424670290693,"square-arrow-up-right",76602291406940,"square-arrow-up",106998604646718,"square-asterisk",89186832353625,"square-bottom-dashed-scissors",79076980104803,"square-chart-gantt",104034017316411,
+	"square-check-big",115320390907184,"square-check",134682053539509,"square-chevron-down",91032307924592,"square-chevron-left",73143404829510,"square-chevron-right",90612077729930,"square-chevron-up",85565910197337,
+	"square-code",81604576616881,"square-dashed-bottom-code",100354801563230,"square-dashed-bottom",101102319625624,"square-dashed-kanban",90388067649847,"square-dashed-mouse-pointer",121016142178467,"square-dashed-top-solid",117157577548540,
+	"square-dashed",136905537847606,"square-divide",99894657101970,"square-dot",116613421354866,"square-equal",110283363706707,"square-function",86075219551088,"square-kanban",114537101260131,
+	"square-library",73810931222081,"square-m",117662700410577,"square-menu",104067089444415,"square-minus",116764432015770,"square-mouse-pointer",76141850603920,"square-parking-off",100857293535141,
+	"square-parking",133116656122387,"square-pause",86608552787615,"square-pen",120239476110475,"square-percent",87111930314567,"square-pi",75383328781618,"square-pilcrow",131854284699367,
+	"square-play",108186325238481,"square-plus",114713264461873,"square-power",129240437805187,"square-radical",132645931868292,"square-round-corner",104592745113567,"square-scissors",110601255612411,
+	"square-sigma",113231244246816,"square-slash",105477013908757,"square-split-horizontal",76095370148660,"square-split-vertical",88589192032058,"square-square",136555087357875,"square-stack",100463396619394,
+	"square-star",94506958703720,"square-stop",80018708472943,"square-terminal",83969264476798,"square-user-round",86484997229302,"square-user",70771214183445,"square-x",125136183850190,
+	"square",86304921356806,"squares-exclude",102345385822324,"squares-intersect",120869602570119,"squares-subtract",131484650948795,"squares-unite",96673080107843,"squircle-dashed",129936702532522,
+	"squircle",82426632573807,"squirrel",112864252085343,"stamp",92370779813368,"star-half",117449275562979,"star-off",75742832732503,"star",136141469398409,
+	"step-back",108672750005121,"step-forward",126131872136145,"stethoscope",122331031702148,"sticker",79938203791608,"sticky-note",111894074643919,"store",90338129673705,
+	"stretch-horizontal",87665042192343,"stretch-vertical",95265463417122,"strikethrough",103417324549613,"subscript",74553514785183,"sun-dim",129141645592715,"sun-medium",130278807964710,
+	"sun-moon",75752898854559,"sun-snow",112791898014579,"sun",110150589884127,"sunrise",134705665494098,"sunset",75904872203588,"superscript",96887696590118,
+	"swatch-book",126786244872453,"swiss-franc",113497920041625,"switch-camera",76841154349737,"sword",124448418211665,"swords",81872698913435,"syringe",123891270479254,
+	"table-2",95751552281545,"table-cells-merge",95363715175258,"table-cells-split",114799086088649,"table-columns-split",111011625447949,"table-of-contents",135044763275414,"table-properties",125062886015372,
+	"table-rows-split",96443733673997,"table",109109148250737,"tablet-smartphone",133680859813404,"tablet",128403991264386,"tablets",80835787970735,"tag",129104970103940,
+	"tags",107179263080798,"tally-1",115301298241643,"tally-2",110363186864027,"tally-3",97655344572540,"tally-4",102633494371890,"tally-5",88031817475886,
+	"tangent",123263132981724,"target",87563802520297,"telescope",91755049143647,"tent-tree",76698322463977,"tent",109779587826330,"terminal",106783148545356,
+	"test-tube-diagonal",75662704378840,"test-tube",98801015650164,"test-tubes",92555361447433,"text-align-center",84051028246390,"text-align-end",130041738343555,"text-align-justify",80279880143030,
+	"text-align-start",134489585487649,"text-cursor-input",107551944047171,"text-cursor",115984654447300,"text-initial",129458097472087,"text-quote",139278366448736,"text-search",92345384671606,
+	"text-select",117087320884956,"text-wrap",114804318314018,"theater",108558145549163,"thermometer-snowflake",121876188028425,"thermometer-sun",106693240074310,"thermometer",106546011492311,
+	"thumbs-down",87794009914015,"thumbs-up",111137070767020,"ticket-check",105428777212507,"ticket-minus",78966299769328,"ticket-percent",80834774406405,"ticket-plus",110086734392189,
+	"ticket-slash",89045681172265,"ticket-x",88674114109926,"ticket",126527071492145,"tickets-plane",100367018248695,"tickets",135268612687833,"timer-off",110916370767271,
+	"timer-reset",110052125369932,"timer",85473888890506,"toggle-left",85887872573050,"toggle-right",90411952142550,"toilet",80930782432931,"tool-case",87533537832522,
+	"tornado",88358291515768,"torus",70855707283051,"touchpad-off",78784008075456,"touchpad",74882354908014,"tower-control",95937619060532,"toy-brick",86293483924633,
+	"tractor",103376704722051,"traffic-cone",74110220470369,"train-front-tunnel",105194827005114,"train-front",125237934215370,"train-track",77451032453723,"tram-front",93315182364998,
+	"transgender",135530817673639,"trash-2",109843431391323,"trash",106723740584310,"tree-deciduous",123124389219004,"tree-palm",103846705893963,"tree-pine",124662547202594,
+	"trees",121203841375919,"trello",130987241149527,"trending-down",139309232226438,"trending-up-down",85083293981691,"trending-up",81819858538839,"triangle-alert",125920361880643,
+	"triangle-dashed",124324079103935,"triangle-right",116930791412791,"triangle",126330486745540,"trophy",131545003268773,"truck-electric",111873446387359,"truck",86662707764771,
+	"turkish-lira",114589876174070,"turntable",129870346487856,"turtle",118295081560334,"tv-minimal-play",99201833426972,"tv-minimal",100382201729427,"tv",135687724791776,
+	"twitch",71383308134888,"twitter",88791703276842,"type-outline",80108627791690,"type",133543553793564,"umbrella-off",72395143739955,"umbrella",127502210274589,
+	"underline",123709229216544,"undo-2",113885292059932,"undo-dot",132055277744844,"undo",111258459077271,"unfold-horizontal",117128358526398,"unfold-vertical",116593025265499,
+	"ungroup",106674800451003,"university",84652528263642,"unlink-2",128131898892572,"unlink",139835795227752,"unplug",90171381619874,"upload",138212042425501,
+	"usb",117230058949613,"user-check",81775205032725,"user-cog",92795491530865,"user-lock",78892639693821,"user-minus",126976941957511,"user-pen",87445472574836,
+	"user-plus",118514469915884,"user-round-check",118794737621941,"user-round-cog",78239503290053,"user-round-minus",98944176636447,"user-round-pen",108155244324878,"user-round-plus",113301899567470,
+	"user-round-search",71565774381870,"user-round-x",122367980560930,"user-round",136485052187963,"user-search",101335649828115,"user-star",98777846316000,"user-x",139748155894754,
+	"user",81589895647169,"users-round",103005444008339,"users",115398113982385,"utensils-crossed",109520762270383,"utensils",139952569804235,"utility-pole",101965541238242,
+	"variable",104743088438151,"vault",108049164599845,"vector-square",86713728565344,"vegan",119489190688082,"venetian-mask",102636443033920,"venus-and-mars",120227752103771,
+	"venus",82891342220859,"vibrate-off",113446447326246,"vibrate",108330910738733,"video-off",132239189859305,"video",107587444636945,"videotape",114816894323398,
+	"view",118717253976805,"voicemail",134313454010227,"volleyball",83889351124153,"volume-1",98514588731639,"volume-2",89344380902620,"volume-off",103047478058767,
+	"volume-x",139252359189540,"volume",103236289817396,"vote",89409762851246,"wallet-cards",129728715308337,"wallet-minimal",137800448816116,"wallet",132331555762628,
+	"wallpaper",74682121235494,"wand-sparkles",82546429942392,"wand",114580617777835,"warehouse",78388887451080,"washing-machine",104194127573858,"watch",130544621618405,
+	"waves-ladder",101808619355514,"waves",96340135183647,"waypoints",102450133666017,"webcam",104148487911129,"webhook-off",96370548093471,"webhook",112812457747322,
+	"weight",103860559844854,"wheat-off",133294844612307,"wheat",85261952080359,"whole-word",90111083954485,"wifi-cog",110500263326209,"wifi-high",81954601342139,
+	"wifi-low",138217335635913,"wifi-off",74113634330106,"wifi-pen",91290205064712,"wifi-sync",84043971055177,"wifi-zero",124286465246123,"wifi",104669375183960,
+	"wind-arrow-down",127753987414870,"wind",114551690399915,"wine-off",108294164302317,"wine",115743721332829,"workflow",99186544029189,"worm",115752311548091,
+	"wrench",112148279212860,"x",110786993356448,"youtube",123663668456341,"zap-off",81385483183652,"zap",130551565616516,"zoom-in",127956924984803,
+	"zoom-out",108334162607319,"balloon",97489111621526,"beef-off",99869959725200,"book-search",132585409504950,"calendars",130944763042289,"cannabis-off",101938500363812,
+	"cctv-off",75925370187295,"cigarette",137149549886852,"circle-pile",116353155251541,"cloud-backup",111649579696132,"cloud-sync",79393911188593,"database-search",92017137080138,
+	"ellipse",71559658267482,"fingerprint-pattern",80934710831288,"fishing-hook",121038780855899,"fishing-rod",71754848048049,"form",72999643971000,"git-merge-conflict",85677801675703,
+	"globe-off",77775243585824,"globe-x",109268097029296,"hd",71682790698278,"image",112751259236831,"layers-plus",77587765623057,"lens-concave",94819631937027,
+	"lens-convex",74736504195474,"line-dot-right-horizontal",104718593155221,"line-style",90176717785772,"map-pin-search",89065012915078,"message-circle-check",132772297689418,"message-square-check",125789987055668,
+	"metronome",101991829345965,"mirror-rectangular",109046769760336,"mirror-round",121534049429097,"mouse-left",99144293708743,"mouse-right",88331710212594,"printer-x",103002721801548,
+	"radio-off",80359258046586,"road",120251329173530,"scooter",100035452787934,"search-alert",127597984617505,"shelving-unit",80116568514793,"shield-cog-corner",111694066132698,
+	"shield-cog",129235695057857,"sport-shoe",120495992692630,"square-arrow-right-enter",138867831495334,"square-arrow-right-exit",133688575845430,"square-centerline-dashed-horizontal",77780104374341,"square-centerline-dashed-vertical",107878435803525,
+	"stone",135161057497830,"toolbox",85341033903792,"towel-rack",125223915620991,"user-key",105403041782190,"user-round-key",124547549008939,"van",122066377022942,
+	"waves-arrow-down",129215220911792,"waves-arrow-up",102314705716217,"weight-tilde",112081212176951,"x-line-top",140592656289509,"zodiac-aquarius",74560047770362,"zodiac-aries",73255859670234,
+	"zodiac-cancer",131985162532947,"zodiac-capricorn",97859568140652,"zodiac-gemini",80997588122992,"zodiac-leo",75509406718106,"zodiac-libra",113222735060218,"zodiac-ophiuchus",129180108892480,
+	"zodiac-pisces",95845819440327,"zodiac-sagittarius",82651026742181,"zodiac-scorpio",113640924054631,"zodiac-taurus",123053219704400,"zodiac-virgo",99462994613661,
 }
 end
 
@@ -7675,7 +7653,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.20",
+    Version = "1.9.21",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -7683,6 +7661,7 @@ local Lib = {
     Sounds = Sounds, -- Lib.Sounds.Enabled = true, Lib.Sounds.Set("click", id)
     Haptics = require("haptics"), -- Lib.Haptics.Enabled (on for touch screens)
     Fonts = require("font"), -- Lib.Fonts.set("Inter"), Lib.Fonts.available()
+    _glow = require("glow"), -- (tests)
     Util = Util,
 }
 Lib.maid = Util.maid()
@@ -7841,9 +7820,9 @@ return function(Window)
         local show = self.mobileButton and self.alive and not self.visible
         if show then
             pill.Visible = true
-            Util.fade(pill, 0.18, 0)
+            Util.fadeTree(pill, 0.18, 0)
         else
-            Util.fade(pill, 0.12, 1)
+            Util.fadeTree(pill, 0.12, 1)
             task.delay(0.13, function()
                 if pill.Parent and not (self.mobileButton and self.alive and not self.visible) then pill.Visible = false end
             end)
@@ -7851,10 +7830,11 @@ return function(Window)
     end
 
     function Window:_makePill()
-        local pill = create("CanvasGroup", {
+        local pill = create("Frame", {
             Name = "MobileButton", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 40), BorderSizePixel = 0,
-            GroupTransparency = 1, Visible = false, ZIndex = 80, Parent = self.gui,
+            Visible = false, ZIndex = 80, Parent = self.gui,
         })
+        pill:SetAttribute("QFadedOut", true)
         Theme.bind(pill, "BackgroundColor3", "base")
         corner(pill, 20)
         local edge = stroke(pill, nil, 0.3)
@@ -7997,8 +7977,9 @@ function Notify.show(Lib, cfg)
     if buttons and not cfg.Duration then duration = math.max(duration, 6) end
     local textHeight = hasContent and 50 or 34
     local height = textHeight + (buttons and 32 or 0)
-    local toast = create("CanvasGroup", {
-        Name = "Toast", Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, GroupTransparency = 1,
+    -- a plain Frame (a CanvasGroup would draw it through a softer texture); Util.fadeTree fades its parts
+    local toast = create("Frame", {
+        Name = "Toast", Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, ClipsDescendants = true,
         LayoutOrder = Lib._toastOrder, Parent = holder,
     })
     Theme.bind(toast, "BackgroundColor3", "card")
@@ -8006,7 +7987,9 @@ function Notify.show(Lib, cfg)
     Theme.bind(stroke(toast), "Color", "line")
     local marker = create("Frame", { Position = UDim2.fromOffset(12, 10), Size = UDim2.new(0, 3, 0, textHeight - 20), BorderSizePixel = 0, Parent = toast })
     corner(marker, 2)
-    local progress = create("Frame", { Position = UDim2.new(0, 0, 1, -2), Size = UDim2.new(1, 0, 0, 2), BorderSizePixel = 0, Parent = toast })
+    -- (inset from the rounded corners: a plain Frame clips square)
+    local progress = create("Frame", { Position = UDim2.new(0, 8, 1, -2), Size = UDim2.new(1, -16, 0, 2), BorderSizePixel = 0, Parent = toast })
+    corner(progress, 1)
     -- Color: a Color3 or a theme role ("danger", "success", "warning"); default the accent
     local tint = (typeof(cfg.Color) == "Color3" or type(cfg.Color) == "string") and cfg.Color or "accent"
     Theme.bind(marker, "BackgroundColor3", tint)
@@ -8038,7 +8021,7 @@ function Notify.show(Lib, cfg)
         closed = true
         if timer then timer:Disconnect() timer = nil end
         for index, item in ipairs(Lib._openToasts or {}) do if item == entry then table.remove(Lib._openToasts, index) break end end
-        Util.fade(toast, 0.25, 1)
+        Util.fadeTree(toast, 0.25, 1)
         task.delay(0.27, function() if toast.Parent then toast:Destroy() end end)
     end
     entry.dismiss = dismiss
@@ -8102,7 +8085,7 @@ function Notify.show(Lib, cfg)
             end)
         end
     end
-    Util.fade(toast, 0.2, 0)
+    Util.fadeTree(toast, 0.2, 0, true)
 
     -- Sound = true (a short built-in ping) or an asset id; Volume 0-1
     if cfg.Sound then
@@ -8124,7 +8107,7 @@ function Notify.show(Lib, cfg)
     function handle:SetProgress(value)
         value = math.clamp(tonumber(value) or 0, 0, 1)
         self.Progress = value
-        tween(progress, 0.2, { Size = UDim2.new(value, 0, 0, 2) })
+        tween(progress, 0.2, { Size = UDim2.new(value, -16 * value, 0, 2) })
         if value >= 1 then task.delay(1.2, dismiss) end
     end
     function handle:SetStep(step, text)
@@ -8159,7 +8142,7 @@ function Notify.show(Lib, cfg)
             if closed then return end
             if hovered and cfg.PauseOnHover ~= false then return end
             remaining = remaining - (tonumber(dt) or 0)
-            if not tracked then progress.Size = UDim2.new(math.clamp(remaining / duration, 0, 1), 0, 0, 2) end
+            if not tracked then local f = math.clamp(remaining / duration, 0, 1) progress.Size = UDim2.new(f, -16 * f, 0, 2) end
             if remaining <= 0 then dismiss() end
         end)
     end
@@ -8209,13 +8192,13 @@ function Notify.pill(Lib, cfg)
     while #open >= 3 do
         local old = table.remove(open, 1)
         old:SetAttribute("Closing", true)
-        Util.fade(old, 0.15, 1)
+        Util.fadeTree(old, 0.15, 1)
         task.delay(0.16, function() if old.Parent then old:Destroy() end end)
     end
     local text = tostring(cfg.Text or cfg.Title or "")
-    local pill = create("CanvasGroup", {
+    local pill = create("Frame", {
         Name = "Pill", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 30), BorderSizePixel = 0,
-        GroupTransparency = 1, LayoutOrder = bottom and Lib._pillOrder or -Lib._pillOrder, Parent = holder, -- newest next to the edge
+        LayoutOrder = bottom and Lib._pillOrder or -Lib._pillOrder, Parent = holder, -- newest next to the edge
     })
     Theme.bind(pill, "BackgroundColor3", "card")
     corner(pill, 15)
@@ -8238,14 +8221,14 @@ function Notify.pill(Lib, cfg)
     create("UISizeConstraint", { MaxSize = Vector2.new(320, 30), Parent = caption })
 
     local scale = create("UIScale", { Scale = 0.92, Parent = pill })
-    Util.fade(pill, 0.18, 0)
+    Util.fadeTree(pill, 0.18, 0, true)
     tween(scale, 0.22, { Scale = 1 }, Enum.EasingStyle.Back)
     local closed = false
     local function close()
         if closed or not pill.Parent then return end
         closed = true
         pill:SetAttribute("Closing", true)
-        Util.fade(pill, 0.2, 1)
+        Util.fadeTree(pill, 0.2, 1)
         tween(scale, 0.2, { Scale = 0.94 })
         task.delay(0.22, function() if pill.Parent then pill:Destroy() end end)
     end
@@ -9402,6 +9385,412 @@ return function(Window)
 end
 end
 
+__modules["tabs"] = function()
+-- Pages and tabs of the window: a tab is a dock icon with one or more pages (a strip switches them when there are
+-- two or more); a page scrolls and lays its cards out in two columns (one below NARROW px). Used by window.lua.
+local Util = require("util")
+local Theme = require("theme")
+local Card = require("card")
+local Icons = require("icons")
+
+local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
+
+local DOCK_BUTTON, DOCK_TOP = 30, 42
+local NARROW = 470 -- below this width the two card columns stack
+
+local Tab = {}
+Tab.__index = Tab
+local Page = {}
+Page.__index = Page
+
+-------------------------------------------------------------------------------- Page
+function Page.new(tab, name, cfg)
+    local window = tab.window
+    local self = setmetatable({ tab = tab, window = window, Name = name, cfg = cfg or {}, cards = 0, order = 0 }, Page)
+    local frame = create("ScrollingFrame", {
+        Name = name, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1),
+        CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollingDirection = Enum.ScrollingDirection.Y,
+        ScrollBarThickness = 2, ScrollBarImageTransparency = 0.4, ElasticBehavior = Enum.ElasticBehavior.Never,
+        VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar, Visible = false, Parent = window.pages,
+    })
+    Theme.bind(frame, "ScrollBarImageColor3", "muted")
+    Util.fadeScrollbar(frame, 0.4)
+    -- Margins come from the content frame's position / size, not from a UIPadding on the ScrollingFrame:
+    -- Roblox sizes scale children of a padded ScrollingFrame from the unpadded width, which pushed the right
+    -- column past the window edge.
+    local content = create("Frame", {
+        Name = "Content", BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 2), Size = UDim2.new(1, -30, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y, Parent = frame,
+    })
+    Util.list(content, 10)
+    Util.padding(content, 0, 0, 0, 14)
+    Util.fitCanvas(frame, content)
+    -- full-width cards (Card({ Wide = true })) above the two columns
+    local wide = create("Frame", { Name = "Wide", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 1, Parent = content })
+    Util.list(wide, 10)
+    local holder = create("Frame", {
+        Name = "Columns", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        LayoutOrder = 2, Parent = content,
+    })
+    self.layout = Util.list(holder, 10, Enum.FillDirection.Horizontal)
+    local function column(name, order)
+        local object = create("Frame", {
+            Name = name, BackgroundTransparency = 1, Size = UDim2.new(0.5, -5, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+            LayoutOrder = order, Parent = holder,
+        })
+        Util.list(object, 10)
+        return object
+    end
+    -- Wide = "Bottom": full-width cards under the two columns
+    local wideBottom = create("Frame", { Name = "WideBottom", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = content })
+    Util.list(wideBottom, 10)
+    self.frame, self.wide, self.left, self.right = frame, wide, column("Left", 1), column("Right", 2)
+    self.wideBottom = wideBottom
+    self.content = content
+    if self.cfg.Warning then task.defer(function() self:Warning(self.cfg.Warning) end) end
+
+    -- soft fades at the top / bottom edge while there is more to scroll that way
+    local function fade(top)
+        local object = create("Frame", {
+            Name = top and "FadeTop" or "FadeBottom", AnchorPoint = Vector2.new(0, top and 0 or 1),
+            Position = UDim2.new(0, 0, top and 0 or 1, 0), Size = UDim2.new(1, -4, 0, 18), BorderSizePixel = 0,
+            Visible = false, ZIndex = 20, Active = false, Parent = window.pages,
+        })
+        Theme.bind(object, "BackgroundColor3", "base")
+        create("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(top and 0 or 1, top and 1 or 0), Parent = object })
+        return object
+    end
+    local fadeTop, fadeBottom = fade(true), fade(false)
+    local function refreshFades()
+        local shown = frame.Visible
+        local scrolled = frame.CanvasPosition.Y
+        local hidden = frame.AbsoluteCanvasSize.Y - frame.AbsoluteWindowSize.Y - scrolled
+        fadeTop.Visible = shown and scrolled > 2
+        fadeBottom.Visible = shown and hidden > 2
+    end
+    for _, property in ipairs({ "CanvasPosition", "AbsoluteCanvasSize", "AbsoluteWindowSize", "Visible" }) do
+        frame:GetPropertyChangedSignal(property):Connect(refreshFades)
+    end
+
+    -- strip button (shown when the tab has more than one page)
+    local button = create("TextButton", {
+        Name = name, BackgroundTransparency = 1, Text = name, TextSize = 10, Font = Enum.Font.GothamMedium,
+        AutoButtonColor = false, Parent = tab.strip,
+    })
+    Theme.bind(button, "TextColor3", "text")
+    local underline = create("Frame", {
+        Name = "Underline", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 0),
+        Size = UDim2.fromOffset(math.max(12, Util.textWidth(name, 10, Enum.Font.GothamMedium)), 1),
+        BorderSizePixel = 0, Visible = false, Parent = button,
+    })
+    Theme.bind(underline, "BackgroundColor3", "accent")
+    self.button, self.underline = button, underline
+    button.MouseEnter:Connect(function() if tab.current ~= self then Theme.tweenTo(button, "TextColor3", "heading", 0.12) end end)
+    button.MouseLeave:Connect(function() if tab.current ~= self then Theme.tweenTo(button, "TextColor3", "text", 0.12) end end)
+    button.Activated:Connect(function() self:Select() end)
+    self:_columns(window.width)
+    return self
+end
+
+-- Two columns side by side, or stacked when the window is narrow / the page asked for one column.
+function Page:_columns(width)
+    local single = self.cfg.Columns == 1 or width < NARROW
+    self.layout.FillDirection = single and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal
+    local size = single and UDim2.new(1, 0, 0, 0) or UDim2.new(0.5, -5, 0, 0)
+    self.left.Size, self.right.Size = size, size
+end
+
+-- Page:Card({ Title = "General", Side = "Left" | "Right", Wide = true }) - without Side the cards alternate
+-- left / right; Wide cards span both columns and sit above them (Wide = "Bottom": under them).
+-- page:Warning("These features can get you banned", { Title = "Risky", Icon = "triangle-alert", Level = "warning" | "danger" | "info" })
+-- A banner at the top of the page. Returns { SetText, SetVisible, Frame }. Tab:Page(name, { Warning = "..." }) too.
+function Page:Warning(text, opts)
+    opts = opts or {}
+    local level = opts.Level or "warning"
+    local role = level == "info" and "accent" or level
+    local banner = create("Frame", { Name = "Warning", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, LayoutOrder = 0, Parent = self.content })
+    Theme.bind(banner, "BackgroundColor3", role)
+    banner.BackgroundTransparency = 0.88
+    corner(banner, 8)
+    local edge = stroke(banner)
+    Theme.bind(edge, "Color", role)
+    edge.Transparency = 0.55
+    Util.padding(banner, 12, 12, 9, 9)
+    local Icons = require("icons")
+    local icon = Icons.themed(banner, opts.Icon or (level == "info" and "info" or "triangle-alert"), 14, role, { Name = "BannerIcon", Position = UDim2.fromOffset(0, 1) })
+    -- text column right of the icon
+    local column = create("Frame", { Name = "Body", BackgroundTransparency = 1, Position = UDim2.fromOffset(icon and 26 or 0, 0), Size = UDim2.new(1, icon and -26 or 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = banner })
+    Util.list(column, 2)
+    local title
+    if opts.Title then
+        title = label(column, tostring(opts.Title), 11, { Name = "Title", Size = UDim2.new(1, 0, 0, 16), Font = Enum.Font.GothamMedium, LayoutOrder = 1 })
+        Theme.bind(title, "TextColor3", role)
+    end
+    local body = label(column, tostring(text or ""), 10, {
+        Name = "Text", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.None, RichText = true, LayoutOrder = 2,
+    })
+    Theme.bind(body, "TextColor3", "heading")
+    local handle = { Frame = banner, Icon = icon }
+    function handle:SetText(value) body.Text = tostring(value) end
+    function handle:SetVisible(visible) banner.Visible = visible ~= false end
+    return handle
+end
+
+function Page:Card(cfg)
+    cfg = cfg or {}
+    self.cards = self.cards + 1
+    local side = cfg.Side
+    if self.cfg.Columns == 1 then side = "Left" end
+    if side ~= "Left" and side ~= "Right" then side = (self.cards % 2 == 1) and "Left" or "Right" end
+    self.order = self.order + 1
+    if cfg.Wide then
+        self.cards = self.cards - 1 -- a wide card does not take a turn in the left / right alternation
+        return Card.new(self, cfg.Wide == "Bottom" and self.wideBottom or self.wide, cfg, self.order)
+    end
+    return Card.new(self, side == "Right" and self.right or self.left, cfg, self.order)
+end
+
+-- page:MatchHeights(cardA, cardB, ...): side-by-side cards grow to the tallest one (an empty spacer goes under the
+-- shorter ones' last element), and follow when any of them changes height.
+function Page:MatchHeights(...)
+    local cards = { ... }
+    local spacers = {}
+    for index, card in ipairs(cards) do
+        spacers[index] = create("Frame", { Name = "MatchSpacer", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 1e6, Visible = false, Parent = card.frame })
+    end
+    local busy = false
+    -- the card's own height without the spacer (its list's content height; summed from the children if the
+    -- engine has not measured it yet)
+    local function natural(card, spacer)
+        local scale = self.window.scale and self.window.scale.Scale or 1
+        local layout = card.frame:FindFirstChildOfClass("UIListLayout")
+        local gap = layout and layout.Padding.Offset or 4
+        local content = layout and layout.AbsoluteContentSize.Y / scale or 0
+        if content > 0 then
+            if spacer.Visible then content = content - spacer.Size.Y.Offset - gap end
+        else
+            local count = 0
+            for _, child in ipairs(card.frame:GetChildren()) do
+                if child:IsA("GuiObject") and child.Visible and child ~= spacer then
+                    content = content + child.AbsoluteSize.Y / scale
+                    count = count + 1
+                end
+            end
+            content = content + math.max(0, count - 1) * gap
+        end
+        return content
+    end
+    local function apply()
+        if busy then return end
+        busy = true
+        local heights, tallest = {}, 0
+        for index, card in ipairs(cards) do
+            heights[index] = (card.frame.Visible and not card.Collapsed) and natural(card, spacers[index]) or 0
+            tallest = math.max(tallest, heights[index])
+        end
+        for index, card in ipairs(cards) do
+            local extra = math.floor(tallest - heights[index] - 4) -- (the spacer brings one list gap with it)
+            local show = card.frame.Visible and not card.Collapsed and extra > 0
+            spacers[index].Visible = show
+            spacers[index].Size = UDim2.new(1, 0, 0, show and extra or 0)
+        end
+        busy = false
+    end
+    for _, card in ipairs(cards) do
+        local layout = card.frame:FindFirstChildOfClass("UIListLayout")
+        if layout then layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() task.defer(apply) end) end
+        card.frame:GetPropertyChangedSignal("Visible"):Connect(function() task.defer(apply) end)
+        card.frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() task.defer(apply) end)
+    end
+    task.defer(apply)
+    return apply
+end
+
+function Page:Select()
+    local tab = self.tab
+    tab.current = self
+    for _, page in ipairs(tab.Pages) do
+        local selected = page == self
+        page.frame.Visible = selected and tab.window.current == tab
+        page.underline.Visible = selected
+        Theme.tweenTo(page.button, "TextColor3", selected and "accent" or "text", 0.12)
+    end
+    tab.window:_updateLocation()
+end
+
+-------------------------------------------------------------------------------- Tab
+function Tab.new(window, cfg)
+    local index = #window.Tabs + 1
+    local self = setmetatable({ window = window, Title = cfg.Title or ("Tab " .. index), Pages = {}, index = index }, Tab)
+    self.strip = create("Frame", { Name = self.Title, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, Parent = window.stripHolder })
+
+    self.Header = cfg.Header == true -- also shown as a text tab in the header (Overview / Settings)
+    -- Build = function(tab) ... end: the tab's content is made the first time it opens (faster start for big scripts)
+    -- (it also builds itself a moment after start, so its key binds work without opening it; BuildDelay = false: only on open)
+    self._build = type(cfg.Build) == "function" and cfg.Build or nil
+    if self._build and cfg.BuildDelay ~= false then
+        task.delay(tonumber(cfg.BuildDelay) or 1.5, function()
+            if self._build and window.alive then self:Build() end
+        end)
+    end
+    self.Hidden = cfg.Hidden == true -- not in the dock (Tab:SetHidden)
+    self.Divider = cfg.Divider == true or window._dividerNext == true -- a short line above this tab in the dock
+    window._dividerNext = nil
+    local button = create("TextButton", {
+        Name = self.Title .. "Tab", BackgroundTransparency = 1, Text = "", AutoButtonColor = false, BorderSizePixel = 0,
+        Position = UDim2.fromOffset(5, DOCK_TOP), Size = UDim2.fromOffset(DOCK_BUTTON, DOCK_BUTTON), ZIndex = 42, Parent = window.dock,
+    })
+    Theme.bind(button, "BackgroundColor3", "accentDeep")
+    corner(button, 15)
+    local icon
+    -- Icon: a name ("eye", "solar:eye-bold"), an asset id or nothing (first letter of the title)
+    if cfg.Icon ~= nil and Icons.Get(cfg.Icon) then
+        icon = create("ImageLabel", {
+            Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(18, 18),
+            BackgroundTransparency = 1, ScaleType = Enum.ScaleType.Fit, ZIndex = 43, Parent = button,
+        })
+        Icons.Apply(icon, cfg.Icon)
+        self.iconProperty = "ImageColor3"
+    else
+        icon = label(button, self.Title:sub(1, 1):upper(), 13, {
+            Name = "Icon", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold, ZIndex = 43,
+        })
+        self.iconProperty = "TextColor3"
+    end
+    self.button, self.icon, self.hovered = button, icon, false
+    self:_render(false)
+    button.MouseEnter:Connect(function()
+        self.hovered = true
+        self:_render(true)
+        window:_dockTip(self.Title, self.y or DOCK_TOP)
+    end)
+    button.MouseLeave:Connect(function()
+        self.hovered = false
+        self:_render(true)
+        window:_hideTip()
+    end)
+    button.Activated:Connect(function()
+        window:_hideTip()
+        if window.current ~= self then require("sounds").Play("tab") end
+        self:Select()
+    end)
+    return self
+end
+
+-- Dock button look: selected = filled + accent icon, hover = half fill + bright icon.
+function Tab:_render(animate)
+    local selected = self.window.current == self
+    local duration = animate and 0.14 or nil
+    local transparency = selected and 0 or (self.hovered and 0.6 or 1)
+    if duration then tween(self.button, duration, { BackgroundTransparency = transparency }) else self.button.BackgroundTransparency = transparency end
+    Theme.tweenTo(self.icon, self.iconProperty, selected and "accent" or (self.hovered and "heading" or "icon"), duration)
+end
+
+-- Tab:Page("Overview") adds a sub-page; with two or more pages the strip of page names appears.
+-- tab:SetBadge(3) / ("NEW") / (true) a dot / (nil, 0, false) hides it; color: a theme role or Color3 (default "accent").
+-- A small tag on the tab's dock button (new messages, an error, an update...).
+-- tab:SetActive(true): a small green dot at the bottom-right of the dock button (something in this tab is
+-- running); SetActive(false) hides it. Color: a theme role or Color3 (default "success"). Kept apart from SetBadge.
+function Tab:SetActive(on, color)
+    self.Active = on == true
+    local dot = self._activeDot
+    if not dot then
+        if not self.Active then return end
+        dot = create("Frame", { Name = "ActiveDot", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -1, 1, -1), Size = UDim2.fromOffset(7, 7), BorderSizePixel = 0, ZIndex = 45, Parent = self.button })
+        corner(dot, 4)
+        Theme.bind(Util.stroke(dot, nil, 0, 1.5), "Color", "dock")
+        self._activeDot = dot
+    end
+    Theme.bind(dot, "BackgroundColor3", color or "success")
+    dot.Visible = self.Active
+end
+
+function Tab:SetBadge(value, color)
+    local shown = value ~= nil and value ~= false and value ~= 0 and tostring(value) ~= "" and tostring(value) ~= "0"
+    self.Badge = shown and value or nil
+    if not shown then
+        if self._badge then self._badge.Visible = false end
+        return
+    end
+    local badge = self._badge
+    if not badge then
+        badge = create("Frame", { Name = "Badge", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 2, 0, -1), BorderSizePixel = 0, ZIndex = 45, Parent = self.button })
+        corner(badge, 7)
+        local text = label(badge, "", 8, { Name = "Text", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold, ZIndex = 46 })
+        local ring = Util.stroke(badge, nil, 0, 1.5)
+        Theme.bind(ring, "Color", "dock")
+        self._badge, self._badgeText = badge, text
+    end
+    local role = color or "accent"
+    Theme.bind(badge, "BackgroundColor3", role)
+    Theme.bind(self._badgeText, "TextColor3", role == "accent" and "onAccent" or "heading")
+    if value == true then
+        -- a dot
+        self._badgeText.Text = ""
+        badge.Size = UDim2.fromOffset(8, 8)
+        badge.Position = UDim2.new(1, 0, 0, 1)
+    else
+        local text = tostring(value)
+        if tonumber(value) and tonumber(value) > 99 then text = "99+" end
+        self._badgeText.Text = text
+        badge.Size = UDim2.fromOffset(math.max(14, Util.textWidth(text, 8, Enum.Font.GothamBold) + 8), 14)
+        badge.Position = UDim2.new(1, 3, 0, -2)
+    end
+    badge.Visible = true
+end
+
+-- Takes the tab's icon out of the dock (and back); the tab still works from code (Select, SelectTab, Tour).
+function Tab:SetHidden(hidden)
+    self.Hidden = hidden == true
+    self.window:_layoutDock()
+    self.window:_layout()
+end
+
+function Tab:Page(name, cfg)
+    local page = Page.new(self, tostring(name or ("Page " .. (#self.Pages + 1))), cfg)
+    self.Pages[#self.Pages + 1] = page
+    local count = #self.Pages
+    for index, item in ipairs(self.Pages) do
+        item.button.Position = UDim2.new((index - 1) / count, 0, 0, 0)
+        item.button.Size = UDim2.new(1 / count, 0, 1, 0)
+    end
+    if not self.current then self.current = page end
+    if self.window.current == self then self:Select() end
+    return page
+end
+
+-- Cards straight on a tab go to its first page.
+function Tab:Card(cfg)
+    if #self.Pages == 0 then self:Page(self.Title) end
+    return self.Pages[1]:Card(cfg)
+end
+
+-- Makes a lazy tab's content now (Tab({ Build = fn })); later calls do nothing.
+function Tab:Build()
+    local build = self._build
+    if not build then return end
+    self._build = nil
+    self.window:_safe("Build " .. self.Title, build, self)
+end
+
+function Tab:Select()
+    local window = self.window
+    if self._build then self:Build() end
+    window.current = self
+    for _, tab in ipairs(window.Tabs) do
+        tab.strip.Visible = tab == self and #tab.Pages > 1
+        for _, page in ipairs(tab.Pages) do page.frame.Visible = false end
+        tab:_render(true)
+    end
+    window:_layoutBody()
+    local page = self.current or self.Pages[1]
+    if page then page:Select() else window:_updateLocation() end
+end
+
+return { Tab = Tab, Page = Page, DOCK_BUTTON = DOCK_BUTTON, DOCK_TOP = DOCK_TOP, NARROW = NARROW }
+end
+
 __modules["theme"] = function()
 -- Colour roles. Objects bind a property to a role; changing a role (e.g. the accent) recolours every bound object.
 local Util = require("util")
@@ -10149,21 +10538,6 @@ function Util.tween(object, duration, props, style, direction)
     return tween
 end
 
--- Fades a CanvasGroup in / out (target 0 = shown, 1 = hidden) together with its own outline.
--- (A UIStroke on the CanvasGroup itself is drawn outside the group, so GroupTransparency alone leaves the
--- border hanging on screen while the inside fades.) Each outline's resting transparency is remembered.
-function Util.fade(group, duration, target)
-    for _, child in ipairs(group:GetChildren()) do
-        if child:IsA("UIStroke") then
-            local rest = child:GetAttribute("QRest")
-            if rest == nil then rest = child.Transparency child:SetAttribute("QRest", rest) end
-            -- coming in from hidden: the outline starts hidden too instead of showing before the inside
-            if target < 1 and group.GroupTransparency >= 0.99 then child.Transparency = 1 end
-            Util.tween(child, duration, { Transparency = 1 - (1 - rest) * (1 - target) })
-        end
-    end
-    return Util.tween(group, duration, { GroupTransparency = target })
-end
 -- Fades a window-sized frame in / out through a CanvasGroup that only exists while the fade runs. A CanvasGroup
 -- draws everything inside it into a texture first, and in game that texture can come out softer than the screen
 -- (thin icons and small text look blurry), so the frame sits outside one whenever it is simply shown.
@@ -10197,11 +10571,109 @@ function Util.fadeFrame(frame, duration, target)
     return tween
 end
 
+-- Fades a small piece of UI (toast, pill, key screen) by tweening each part's own transparency, so nothing is
+-- drawn through a CanvasGroup texture (sharp text and icons) and it can stay inside a list layout. Each part's
+-- resting transparency is remembered the first time. fromHidden: start everything invisible (a new toast).
+local FADE_PROPS = {
+    { "GuiObject", "BackgroundTransparency" }, { "TextLabel", "TextTransparency" }, { "TextButton", "TextTransparency" },
+    { "TextBox", "TextTransparency" }, { "ImageLabel", "ImageTransparency" }, { "ImageButton", "ImageTransparency" },
+    { "UIStroke", "Transparency" },
+}
+function Util.fadeTree(root, duration, target, fromHidden)
+    fromHidden = fromHidden or root:GetAttribute("QFadedOut") == true
+    root:SetAttribute("QFadedOut", target >= 1)
+    local objects = root:GetDescendants()
+    table.insert(objects, root)
+    for _, object in ipairs(objects) do
+        for _, spec in ipairs(FADE_PROPS) do
+            if object:IsA(spec[1]) then
+                local prop = spec[2]
+                local key = "QRest" .. prop
+                local rest = object:GetAttribute(key)
+                if rest == nil then
+                    rest = object[prop]
+                    object:SetAttribute(key, rest)
+                end
+                if rest < 1 then
+                    if fromHidden then object[prop] = 1 end
+                    Util.tween(object, duration, { [prop] = 1 - (1 - rest) * (1 - target) })
+                end
+            end
+        end
+    end
+end
+
 -- Sets an outline's normal transparency (respected by Util.fade); applied now unless its group is faded out.
 function Util.setRest(strokeObject, value)
     strokeObject:SetAttribute("QRest", value)
     local group = strokeObject.Parent
     if not (group and group:IsA("CanvasGroup") and group.GroupTransparency > 0.01) then strokeObject.Transparency = value end
+end
+
+-- Downloaded files shown through getcustomasset (icon sheets, fonts, web images) --------------------------------
+function Util.canCustomAsset()
+    return type(getcustomasset or getsynasset) == "function" and type(writefile) == "function" and type(isfile) == "function"
+end
+
+-- A short stable name for a link (djb2), so two different links never share a file.
+function Util.hash(text)
+    local h = 5381
+    for i = 1, #text do h = (h * 33 + string.byte(text, i)) % 4294967296 end
+    return string.format("%08x", h)
+end
+
+local function makeFolders(path)
+    if type(makefolder) ~= "function" or type(isfolder) ~= "function" then return end
+    local built = ""
+    for part in string.gmatch(path:match("^(.*)/[^/]*$") or "", "[^/]+") do
+        built = built == "" and part or (built .. "/" .. part)
+        if not isfolder(built) then makefolder(built) end
+    end
+end
+
+-- Util.cacheFiles({ { path = "QustahUI/x.png", url = "https://...", check = function(body) return ok end }, ... },
+--     done(ids), fail(reason))
+-- Every missing file is downloaded once and kept on disk; done gets { [path] = getcustomasset id }. It runs at once
+-- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
+-- the executor can't show downloaded files or a download / check fails.
+function Util.cacheFiles(files, done, fail)
+    fail = fail or function() end
+    if not Util.canCustomAsset() then fail("getcustomasset is not available") return end
+    local custom = getcustomasset or getsynasset
+    local function finish()
+        local ids = {}
+        for _, file in ipairs(files) do
+            local ok, id = pcall(custom, file.path)
+            if not ok or type(id) ~= "string" or id == "" then fail(tostring(id)) return end
+            ids[file.path] = id
+        end
+        done(ids)
+    end
+    local missing = {}
+    for _, file in ipairs(files) do
+        local ok, exists = pcall(isfile, file.path)
+        if not (ok and exists) then missing[#missing + 1] = file end
+    end
+    if #missing == 0 then finish() return end
+    task.spawn(function()
+        local ok, reason = pcall(function()
+            for _, file in ipairs(missing) do
+                -- an http request reaches any host (raw.githubusercontent.com works with HttpGet too)
+                local request = (syn and syn.request) or http_request or request
+                local body
+                if request and not file.url:find("githubusercontent", 1, true) then
+                    body = request({ Url = file.url, Method = "GET" }).Body
+                else
+                    body = game:HttpGet(file.url)
+                end
+                assert(type(body) == "string" and #body > 0, "empty response")
+                if file.check then assert(file.check(body), "unexpected file") end
+                makeFolders(file.path)
+                writefile(file.path, body)
+            end
+        end)
+        if ok then finish() else fail(tostring(reason)) end
+    end)
 end
 
 -- Runs a user callback; an error is reported but never breaks the UI.
@@ -10539,7 +11011,6 @@ __modules["window"] = function()
 -- dock to the right (drag handle, tab icons, group dividers).
 local Util = require("util")
 local Theme = require("theme")
-local Card = require("card")
 local Config = require("config")
 local Glow = require("glow")
 local UIFont = require("font")
@@ -10548,402 +11019,16 @@ local Icons = require("icons")
 local Services = Util.Services
 local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
 
+local Tabs = require("tabs") -- Tab and Page
+local Tab = Tabs.Tab
+
 local HEADER, FOOTER = 44, 26
-local DOCK_WIDTH, DOCK_GAP, DOCK_BUTTON, DOCK_STEP, DOCK_TOP = 40, 12, 30, 37, 42
+local DOCK_WIDTH, DOCK_GAP, DOCK_STEP = 40, 12, 37
+local DOCK_TOP = Tabs.DOCK_TOP
 local HINTS = 34 -- height taken by the key hint bar
-local NARROW = 470 -- below this width the two card columns stack
 
 local Window = {}
 Window.__index = Window
-local Tab = {}
-Tab.__index = Tab
-local Page = {}
-Page.__index = Page
-
--------------------------------------------------------------------------------- Page
-function Page.new(tab, name, cfg)
-    local window = tab.window
-    local self = setmetatable({ tab = tab, window = window, Name = name, cfg = cfg or {}, cards = 0, order = 0 }, Page)
-    local frame = create("ScrollingFrame", {
-        Name = name, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1),
-        CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollingDirection = Enum.ScrollingDirection.Y,
-        ScrollBarThickness = 2, ScrollBarImageTransparency = 0.4, ElasticBehavior = Enum.ElasticBehavior.Never,
-        VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar, Visible = false, Parent = window.pages,
-    })
-    Theme.bind(frame, "ScrollBarImageColor3", "muted")
-    Util.fadeScrollbar(frame, 0.4)
-    -- Margins come from the content frame's position / size, not from a UIPadding on the ScrollingFrame:
-    -- Roblox sizes scale children of a padded ScrollingFrame from the unpadded width, which pushed the right
-    -- column past the window edge.
-    local content = create("Frame", {
-        Name = "Content", BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 2), Size = UDim2.new(1, -30, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y, Parent = frame,
-    })
-    Util.list(content, 10)
-    Util.padding(content, 0, 0, 0, 14)
-    Util.fitCanvas(frame, content)
-    -- full-width cards (Card({ Wide = true })) above the two columns
-    local wide = create("Frame", { Name = "Wide", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 1, Parent = content })
-    Util.list(wide, 10)
-    local holder = create("Frame", {
-        Name = "Columns", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-        LayoutOrder = 2, Parent = content,
-    })
-    self.layout = Util.list(holder, 10, Enum.FillDirection.Horizontal)
-    local function column(name, order)
-        local object = create("Frame", {
-            Name = name, BackgroundTransparency = 1, Size = UDim2.new(0.5, -5, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-            LayoutOrder = order, Parent = holder,
-        })
-        Util.list(object, 10)
-        return object
-    end
-    -- Wide = "Bottom": full-width cards under the two columns
-    local wideBottom = create("Frame", { Name = "WideBottom", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = content })
-    Util.list(wideBottom, 10)
-    self.frame, self.wide, self.left, self.right = frame, wide, column("Left", 1), column("Right", 2)
-    self.wideBottom = wideBottom
-    self.content = content
-    if self.cfg.Warning then task.defer(function() self:Warning(self.cfg.Warning) end) end
-
-    -- soft fades at the top / bottom edge while there is more to scroll that way
-    local function fade(top)
-        local object = create("Frame", {
-            Name = top and "FadeTop" or "FadeBottom", AnchorPoint = Vector2.new(0, top and 0 or 1),
-            Position = UDim2.new(0, 0, top and 0 or 1, 0), Size = UDim2.new(1, -4, 0, 18), BorderSizePixel = 0,
-            Visible = false, ZIndex = 20, Active = false, Parent = window.pages,
-        })
-        Theme.bind(object, "BackgroundColor3", "base")
-        create("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(top and 0 or 1, top and 1 or 0), Parent = object })
-        return object
-    end
-    local fadeTop, fadeBottom = fade(true), fade(false)
-    local function refreshFades()
-        local shown = frame.Visible
-        local scrolled = frame.CanvasPosition.Y
-        local hidden = frame.AbsoluteCanvasSize.Y - frame.AbsoluteWindowSize.Y - scrolled
-        fadeTop.Visible = shown and scrolled > 2
-        fadeBottom.Visible = shown and hidden > 2
-    end
-    for _, property in ipairs({ "CanvasPosition", "AbsoluteCanvasSize", "AbsoluteWindowSize", "Visible" }) do
-        frame:GetPropertyChangedSignal(property):Connect(refreshFades)
-    end
-
-    -- strip button (shown when the tab has more than one page)
-    local button = create("TextButton", {
-        Name = name, BackgroundTransparency = 1, Text = name, TextSize = 10, Font = Enum.Font.GothamMedium,
-        AutoButtonColor = false, Parent = tab.strip,
-    })
-    Theme.bind(button, "TextColor3", "text")
-    local underline = create("Frame", {
-        Name = "Underline", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 0),
-        Size = UDim2.fromOffset(math.max(12, Util.textWidth(name, 10, Enum.Font.GothamMedium)), 1),
-        BorderSizePixel = 0, Visible = false, Parent = button,
-    })
-    Theme.bind(underline, "BackgroundColor3", "accent")
-    self.button, self.underline = button, underline
-    button.MouseEnter:Connect(function() if tab.current ~= self then Theme.tweenTo(button, "TextColor3", "heading", 0.12) end end)
-    button.MouseLeave:Connect(function() if tab.current ~= self then Theme.tweenTo(button, "TextColor3", "text", 0.12) end end)
-    button.Activated:Connect(function() self:Select() end)
-    self:_columns(window.width)
-    return self
-end
-
--- Two columns side by side, or stacked when the window is narrow / the page asked for one column.
-function Page:_columns(width)
-    local single = self.cfg.Columns == 1 or width < NARROW
-    self.layout.FillDirection = single and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal
-    local size = single and UDim2.new(1, 0, 0, 0) or UDim2.new(0.5, -5, 0, 0)
-    self.left.Size, self.right.Size = size, size
-end
-
--- Page:Card({ Title = "General", Side = "Left" | "Right", Wide = true }) - without Side the cards alternate
--- left / right; Wide cards span both columns and sit above them (Wide = "Bottom": under them).
--- page:Warning("These features can get you banned", { Title = "Risky", Icon = "triangle-alert", Level = "warning" | "danger" | "info" })
--- A banner at the top of the page. Returns { SetText, SetVisible, Frame }. Tab:Page(name, { Warning = "..." }) too.
-function Page:Warning(text, opts)
-    opts = opts or {}
-    local level = opts.Level or "warning"
-    local role = level == "info" and "accent" or level
-    local banner = create("Frame", { Name = "Warning", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, LayoutOrder = 0, Parent = self.content })
-    Theme.bind(banner, "BackgroundColor3", role)
-    banner.BackgroundTransparency = 0.88
-    corner(banner, 8)
-    local edge = stroke(banner)
-    Theme.bind(edge, "Color", role)
-    edge.Transparency = 0.55
-    Util.padding(banner, 12, 12, 9, 9)
-    local Icons = require("icons")
-    local icon = Icons.themed(banner, opts.Icon or (level == "info" and "info" or "triangle-alert"), 14, role, { Name = "BannerIcon", Position = UDim2.fromOffset(0, 1) })
-    -- text column right of the icon
-    local column = create("Frame", { Name = "Body", BackgroundTransparency = 1, Position = UDim2.fromOffset(icon and 26 or 0, 0), Size = UDim2.new(1, icon and -26 or 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = banner })
-    Util.list(column, 2)
-    local title
-    if opts.Title then
-        title = label(column, tostring(opts.Title), 11, { Name = "Title", Size = UDim2.new(1, 0, 0, 16), Font = Enum.Font.GothamMedium, LayoutOrder = 1 })
-        Theme.bind(title, "TextColor3", role)
-    end
-    local body = label(column, tostring(text or ""), 10, {
-        Name = "Text", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true,
-        TextTruncate = Enum.TextTruncate.None, RichText = true, LayoutOrder = 2,
-    })
-    Theme.bind(body, "TextColor3", "heading")
-    local handle = { Frame = banner, Icon = icon }
-    function handle:SetText(value) body.Text = tostring(value) end
-    function handle:SetVisible(visible) banner.Visible = visible ~= false end
-    return handle
-end
-
-function Page:Card(cfg)
-    cfg = cfg or {}
-    self.cards = self.cards + 1
-    local side = cfg.Side
-    if self.cfg.Columns == 1 then side = "Left" end
-    if side ~= "Left" and side ~= "Right" then side = (self.cards % 2 == 1) and "Left" or "Right" end
-    self.order = self.order + 1
-    if cfg.Wide then
-        self.cards = self.cards - 1 -- a wide card does not take a turn in the left / right alternation
-        return Card.new(self, cfg.Wide == "Bottom" and self.wideBottom or self.wide, cfg, self.order)
-    end
-    return Card.new(self, side == "Right" and self.right or self.left, cfg, self.order)
-end
-
--- page:MatchHeights(cardA, cardB, ...): side-by-side cards grow to the tallest one (an empty spacer goes under the
--- shorter ones' last element), and follow when any of them changes height.
-function Page:MatchHeights(...)
-    local cards = { ... }
-    local spacers = {}
-    for index, card in ipairs(cards) do
-        spacers[index] = create("Frame", { Name = "MatchSpacer", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 1e6, Visible = false, Parent = card.frame })
-    end
-    local busy = false
-    -- the card's own height without the spacer (its list's content height; summed from the children if the
-    -- engine has not measured it yet)
-    local function natural(card, spacer)
-        local scale = self.window.scale and self.window.scale.Scale or 1
-        local layout = card.frame:FindFirstChildOfClass("UIListLayout")
-        local gap = layout and layout.Padding.Offset or 4
-        local content = layout and layout.AbsoluteContentSize.Y / scale or 0
-        if content > 0 then
-            if spacer.Visible then content = content - spacer.Size.Y.Offset - gap end
-        else
-            local count = 0
-            for _, child in ipairs(card.frame:GetChildren()) do
-                if child:IsA("GuiObject") and child.Visible and child ~= spacer then
-                    content = content + child.AbsoluteSize.Y / scale
-                    count = count + 1
-                end
-            end
-            content = content + math.max(0, count - 1) * gap
-        end
-        return content
-    end
-    local function apply()
-        if busy then return end
-        busy = true
-        local heights, tallest = {}, 0
-        for index, card in ipairs(cards) do
-            heights[index] = (card.frame.Visible and not card.Collapsed) and natural(card, spacers[index]) or 0
-            tallest = math.max(tallest, heights[index])
-        end
-        for index, card in ipairs(cards) do
-            local extra = math.floor(tallest - heights[index] - 4) -- (the spacer brings one list gap with it)
-            local show = card.frame.Visible and not card.Collapsed and extra > 0
-            spacers[index].Visible = show
-            spacers[index].Size = UDim2.new(1, 0, 0, show and extra or 0)
-        end
-        busy = false
-    end
-    for _, card in ipairs(cards) do
-        local layout = card.frame:FindFirstChildOfClass("UIListLayout")
-        if layout then layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() task.defer(apply) end) end
-        card.frame:GetPropertyChangedSignal("Visible"):Connect(function() task.defer(apply) end)
-        card.frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() task.defer(apply) end)
-    end
-    task.defer(apply)
-    return apply
-end
-
-function Page:Select()
-    local tab = self.tab
-    tab.current = self
-    for _, page in ipairs(tab.Pages) do
-        local selected = page == self
-        page.frame.Visible = selected and tab.window.current == tab
-        page.underline.Visible = selected
-        Theme.tweenTo(page.button, "TextColor3", selected and "accent" or "text", 0.12)
-    end
-    tab.window:_updateLocation()
-end
-
--------------------------------------------------------------------------------- Tab
-function Tab.new(window, cfg)
-    local index = #window.Tabs + 1
-    local self = setmetatable({ window = window, Title = cfg.Title or ("Tab " .. index), Pages = {}, index = index }, Tab)
-    self.strip = create("Frame", { Name = self.Title, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, Parent = window.stripHolder })
-
-    self.Header = cfg.Header == true -- also shown as a text tab in the header (Overview / Settings)
-    -- Build = function(tab) ... end: the tab's content is made the first time it opens (faster start for big scripts)
-    -- (it also builds itself a moment after start, so its key binds work without opening it; BuildDelay = false: only on open)
-    self._build = type(cfg.Build) == "function" and cfg.Build or nil
-    if self._build and cfg.BuildDelay ~= false then
-        task.delay(tonumber(cfg.BuildDelay) or 1.5, function()
-            if self._build and window.alive then self:Build() end
-        end)
-    end
-    self.Hidden = cfg.Hidden == true -- not in the dock (Tab:SetHidden)
-    self.Divider = cfg.Divider == true or window._dividerNext == true -- a short line above this tab in the dock
-    window._dividerNext = nil
-    local button = create("TextButton", {
-        Name = self.Title .. "Tab", BackgroundTransparency = 1, Text = "", AutoButtonColor = false, BorderSizePixel = 0,
-        Position = UDim2.fromOffset(5, DOCK_TOP), Size = UDim2.fromOffset(DOCK_BUTTON, DOCK_BUTTON), ZIndex = 42, Parent = window.dock,
-    })
-    Theme.bind(button, "BackgroundColor3", "accentDeep")
-    corner(button, 15)
-    local icon
-    -- Icon: a name ("eye", "solar:eye-bold"), an asset id or nothing (first letter of the title)
-    if cfg.Icon ~= nil and Icons.Get(cfg.Icon) then
-        icon = create("ImageLabel", {
-            Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(18, 18),
-            BackgroundTransparency = 1, ScaleType = Enum.ScaleType.Fit, ZIndex = 43, Parent = button,
-        })
-        Icons.Apply(icon, cfg.Icon)
-        self.iconProperty = "ImageColor3"
-    else
-        icon = label(button, self.Title:sub(1, 1):upper(), 13, {
-            Name = "Icon", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold, ZIndex = 43,
-        })
-        self.iconProperty = "TextColor3"
-    end
-    self.button, self.icon, self.hovered = button, icon, false
-    self:_render(false)
-    button.MouseEnter:Connect(function()
-        self.hovered = true
-        self:_render(true)
-        window:_dockTip(self.Title, self.y or DOCK_TOP)
-    end)
-    button.MouseLeave:Connect(function()
-        self.hovered = false
-        self:_render(true)
-        window:_hideTip()
-    end)
-    button.Activated:Connect(function()
-        window:_hideTip()
-        if window.current ~= self then require("sounds").Play("tab") end
-        self:Select()
-    end)
-    return self
-end
-
--- Dock button look: selected = filled + accent icon, hover = half fill + bright icon.
-function Tab:_render(animate)
-    local selected = self.window.current == self
-    local duration = animate and 0.14 or nil
-    local transparency = selected and 0 or (self.hovered and 0.6 or 1)
-    if duration then tween(self.button, duration, { BackgroundTransparency = transparency }) else self.button.BackgroundTransparency = transparency end
-    Theme.tweenTo(self.icon, self.iconProperty, selected and "accent" or (self.hovered and "heading" or "icon"), duration)
-end
-
--- Tab:Page("Overview") adds a sub-page; with two or more pages the strip of page names appears.
--- tab:SetBadge(3) / ("NEW") / (true) a dot / (nil, 0, false) hides it; color: a theme role or Color3 (default "accent").
--- A small tag on the tab's dock button (new messages, an error, an update...).
--- tab:SetActive(true): a small green dot at the bottom-right of the dock button (something in this tab is
--- running); SetActive(false) hides it. Color: a theme role or Color3 (default "success"). Kept apart from SetBadge.
-function Tab:SetActive(on, color)
-    self.Active = on == true
-    local dot = self._activeDot
-    if not dot then
-        if not self.Active then return end
-        dot = create("Frame", { Name = "ActiveDot", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -1, 1, -1), Size = UDim2.fromOffset(7, 7), BorderSizePixel = 0, ZIndex = 45, Parent = self.button })
-        corner(dot, 4)
-        Theme.bind(Util.stroke(dot, nil, 0, 1.5), "Color", "dock")
-        self._activeDot = dot
-    end
-    Theme.bind(dot, "BackgroundColor3", color or "success")
-    dot.Visible = self.Active
-end
-
-function Tab:SetBadge(value, color)
-    local shown = value ~= nil and value ~= false and value ~= 0 and tostring(value) ~= "" and tostring(value) ~= "0"
-    self.Badge = shown and value or nil
-    if not shown then
-        if self._badge then self._badge.Visible = false end
-        return
-    end
-    local badge = self._badge
-    if not badge then
-        badge = create("Frame", { Name = "Badge", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 2, 0, -1), BorderSizePixel = 0, ZIndex = 45, Parent = self.button })
-        corner(badge, 7)
-        local text = label(badge, "", 8, { Name = "Text", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold, ZIndex = 46 })
-        local ring = Util.stroke(badge, nil, 0, 1.5)
-        Theme.bind(ring, "Color", "dock")
-        self._badge, self._badgeText = badge, text
-    end
-    local role = color or "accent"
-    Theme.bind(badge, "BackgroundColor3", role)
-    Theme.bind(self._badgeText, "TextColor3", role == "accent" and "onAccent" or "heading")
-    if value == true then
-        -- a dot
-        self._badgeText.Text = ""
-        badge.Size = UDim2.fromOffset(8, 8)
-        badge.Position = UDim2.new(1, 0, 0, 1)
-    else
-        local text = tostring(value)
-        if tonumber(value) and tonumber(value) > 99 then text = "99+" end
-        self._badgeText.Text = text
-        badge.Size = UDim2.fromOffset(math.max(14, Util.textWidth(text, 8, Enum.Font.GothamBold) + 8), 14)
-        badge.Position = UDim2.new(1, 3, 0, -2)
-    end
-    badge.Visible = true
-end
-
--- Takes the tab's icon out of the dock (and back); the tab still works from code (Select, SelectTab, Tour).
-function Tab:SetHidden(hidden)
-    self.Hidden = hidden == true
-    self.window:_layoutDock()
-    self.window:_layout()
-end
-
-function Tab:Page(name, cfg)
-    local page = Page.new(self, tostring(name or ("Page " .. (#self.Pages + 1))), cfg)
-    self.Pages[#self.Pages + 1] = page
-    local count = #self.Pages
-    for index, item in ipairs(self.Pages) do
-        item.button.Position = UDim2.new((index - 1) / count, 0, 0, 0)
-        item.button.Size = UDim2.new(1 / count, 0, 1, 0)
-    end
-    if not self.current then self.current = page end
-    if self.window.current == self then self:Select() end
-    return page
-end
-
--- Cards straight on a tab go to its first page.
-function Tab:Card(cfg)
-    if #self.Pages == 0 then self:Page(self.Title) end
-    return self.Pages[1]:Card(cfg)
-end
-
--- Makes a lazy tab's content now (Tab({ Build = fn })); later calls do nothing.
-function Tab:Build()
-    local build = self._build
-    if not build then return end
-    self._build = nil
-    self.window:_safe("Build " .. self.Title, build, self)
-end
-
-function Tab:Select()
-    local window = self.window
-    if self._build then self:Build() end
-    window.current = self
-    for _, tab in ipairs(window.Tabs) do
-        tab.strip.Visible = tab == self and #tab.Pages > 1
-        for _, page in ipairs(tab.Pages) do page.frame.Visible = false end
-        tab:_render(true)
-    end
-    window:_layoutBody()
-    local page = self.current or self.Pages[1]
-    if page then page:Select() else window:_updateLocation() end
-end
 
 -------------------------------------------------------------------------------- Window
 function Window.new(Lib, cfg)
@@ -11443,11 +11528,17 @@ function Window:_updateLocation()
     end
     if not tab then self.locationLabel.Text = "" return end
     local page = tab.current
-    self.locationLabel.Text = (page and #tab.Pages > 1) and (tab.Title .. " › " .. page.Name) or tab.Title
-    self.locationLabel.Visible = room >= 60 and not self.headerTabs.Visible
     -- never wider than the free room (tags / long titles), and leave the middle to the header stats
     local share = math.floor(self.width * (self.monitorMode == "Header" and 0.25 or 0.45))
-    self.locationLabel.Size = UDim2.fromOffset(math.max(0, math.min(share, room)), 20)
+    local width = math.max(0, math.min(share, room))
+    -- "Tab › Page" when it fits, else just the page (or tab) name, else nothing (no cut-off text)
+    local label = self.locationLabel
+    local full = (page and #tab.Pages > 1) and (tab.Title .. " › " .. page.Name) or tab.Title
+    local short = (page and #tab.Pages > 1) and page.Name or tab.Title
+    local function fits(text) return Util.textWidth(text, label.TextSize, label.Font) <= width end
+    label.Text = fits(full) and full or short
+    label.Visible = room >= 40 and fits(label.Text) and not self.headerTabs.Visible
+    label.Size = UDim2.fromOffset(width, 20)
 end
 
 function Window:_addHeaderTab(tab)
@@ -12066,7 +12157,7 @@ __modules["windowx"] = function()
 --   Window:SetFullscreen(bool) / :ToggleFullscreen()   also the maximize button and a double click on the header
 --   Window:SetBackgroundImage(image, transparency)      rbxassetid / url / nil; :SetBackgroundTransparency(0-0.9)
 --   Window:SetAnonymous(bool)                           hides your name / avatar everywhere (dock profile button)
--- CreateWindow({ FullscreenButton = false, Profile = false, Anonymous = true, Background = "...", BackgroundTransparency })
+-- CreateWindow({ FullscreenButton = true, Profile = false, Anonymous = true, Background = "...", BackgroundTransparency })
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
@@ -12199,7 +12290,7 @@ return function(Window)
         self.unlockMouse = cfg.UnlockMouse ~= false
         self.maid:give(function() self.visible = false self:_applyMouse() end)
         self:_applyMouse()
-        if cfg.FullscreenButton ~= false then
+        if cfg.FullscreenButton == true then
             self._fullscreenButton = self:HeaderButton({ Name = "Fullscreen", Icon = "maximize-2", Tooltip = "Fullscreen", Callback = function() self:ToggleFullscreen() end })
         end
         -- double click on the header toggles fullscreen too

@@ -67,8 +67,9 @@ function Notify.show(Lib, cfg)
     if buttons and not cfg.Duration then duration = math.max(duration, 6) end
     local textHeight = hasContent and 50 or 34
     local height = textHeight + (buttons and 32 or 0)
-    local toast = create("CanvasGroup", {
-        Name = "Toast", Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, GroupTransparency = 1,
+    -- a plain Frame (a CanvasGroup would draw it through a softer texture); Util.fadeTree fades its parts
+    local toast = create("Frame", {
+        Name = "Toast", Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, ClipsDescendants = true,
         LayoutOrder = Lib._toastOrder, Parent = holder,
     })
     Theme.bind(toast, "BackgroundColor3", "card")
@@ -76,7 +77,9 @@ function Notify.show(Lib, cfg)
     Theme.bind(stroke(toast), "Color", "line")
     local marker = create("Frame", { Position = UDim2.fromOffset(12, 10), Size = UDim2.new(0, 3, 0, textHeight - 20), BorderSizePixel = 0, Parent = toast })
     corner(marker, 2)
-    local progress = create("Frame", { Position = UDim2.new(0, 0, 1, -2), Size = UDim2.new(1, 0, 0, 2), BorderSizePixel = 0, Parent = toast })
+    -- (inset from the rounded corners: a plain Frame clips square)
+    local progress = create("Frame", { Position = UDim2.new(0, 8, 1, -2), Size = UDim2.new(1, -16, 0, 2), BorderSizePixel = 0, Parent = toast })
+    corner(progress, 1)
     -- Color: a Color3 or a theme role ("danger", "success", "warning"); default the accent
     local tint = (typeof(cfg.Color) == "Color3" or type(cfg.Color) == "string") and cfg.Color or "accent"
     Theme.bind(marker, "BackgroundColor3", tint)
@@ -108,7 +111,7 @@ function Notify.show(Lib, cfg)
         closed = true
         if timer then timer:Disconnect() timer = nil end
         for index, item in ipairs(Lib._openToasts or {}) do if item == entry then table.remove(Lib._openToasts, index) break end end
-        Util.fade(toast, 0.25, 1)
+        Util.fadeTree(toast, 0.25, 1)
         task.delay(0.27, function() if toast.Parent then toast:Destroy() end end)
     end
     entry.dismiss = dismiss
@@ -172,7 +175,7 @@ function Notify.show(Lib, cfg)
             end)
         end
     end
-    Util.fade(toast, 0.2, 0)
+    Util.fadeTree(toast, 0.2, 0, true)
 
     -- Sound = true (a short built-in ping) or an asset id; Volume 0-1
     if cfg.Sound then
@@ -194,7 +197,7 @@ function Notify.show(Lib, cfg)
     function handle:SetProgress(value)
         value = math.clamp(tonumber(value) or 0, 0, 1)
         self.Progress = value
-        tween(progress, 0.2, { Size = UDim2.new(value, 0, 0, 2) })
+        tween(progress, 0.2, { Size = UDim2.new(value, -16 * value, 0, 2) })
         if value >= 1 then task.delay(1.2, dismiss) end
     end
     function handle:SetStep(step, text)
@@ -229,7 +232,7 @@ function Notify.show(Lib, cfg)
             if closed then return end
             if hovered and cfg.PauseOnHover ~= false then return end
             remaining = remaining - (tonumber(dt) or 0)
-            if not tracked then progress.Size = UDim2.new(math.clamp(remaining / duration, 0, 1), 0, 0, 2) end
+            if not tracked then local f = math.clamp(remaining / duration, 0, 1) progress.Size = UDim2.new(f, -16 * f, 0, 2) end
             if remaining <= 0 then dismiss() end
         end)
     end
@@ -279,13 +282,13 @@ function Notify.pill(Lib, cfg)
     while #open >= 3 do
         local old = table.remove(open, 1)
         old:SetAttribute("Closing", true)
-        Util.fade(old, 0.15, 1)
+        Util.fadeTree(old, 0.15, 1)
         task.delay(0.16, function() if old.Parent then old:Destroy() end end)
     end
     local text = tostring(cfg.Text or cfg.Title or "")
-    local pill = create("CanvasGroup", {
+    local pill = create("Frame", {
         Name = "Pill", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 30), BorderSizePixel = 0,
-        GroupTransparency = 1, LayoutOrder = bottom and Lib._pillOrder or -Lib._pillOrder, Parent = holder, -- newest next to the edge
+        LayoutOrder = bottom and Lib._pillOrder or -Lib._pillOrder, Parent = holder, -- newest next to the edge
     })
     Theme.bind(pill, "BackgroundColor3", "card")
     corner(pill, 15)
@@ -308,14 +311,14 @@ function Notify.pill(Lib, cfg)
     create("UISizeConstraint", { MaxSize = Vector2.new(320, 30), Parent = caption })
 
     local scale = create("UIScale", { Scale = 0.92, Parent = pill })
-    Util.fade(pill, 0.18, 0)
+    Util.fadeTree(pill, 0.18, 0, true)
     tween(scale, 0.22, { Scale = 1 }, Enum.EasingStyle.Back)
     local closed = false
     local function close()
         if closed or not pill.Parent then return end
         closed = true
         pill:SetAttribute("Closing", true)
-        Util.fade(pill, 0.2, 1)
+        Util.fadeTree(pill, 0.2, 1)
         tween(scale, 0.2, { Scale = 0.94 })
         task.delay(0.22, function() if pill.Parent then pill:Destroy() end end)
     end
