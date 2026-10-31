@@ -73,6 +73,7 @@ local Right = Overview:Card({ Title = "Colors", Side = "Right", Icon = "palette"
 local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both columns, sits at the top
 local Under = Overview:Card({ Title = "Notes", Wide = "Bottom" }) -- spans both columns, under them
 Overview:MatchHeights(Left, Right)                              -- side-by-side cards as tall as the tallest
+Overview:FillColumn(Stats)                                      -- Stats grows until both columns end on one line
 ```
 
 **Tabs**

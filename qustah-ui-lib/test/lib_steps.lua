@@ -406,6 +406,32 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local sp = short.frame:FindFirstChild("MatchSpacer")
     check("match heights: spacer under the shorter card", sp and sp.Visible and sp.Size.Y.Offset > 50 and not tall.frame.MatchSpacer.Visible)
     tall.frame:Destroy() short.frame:Destroy()
+    -- FillColumn: the shorter column's card grows until both columns end on the same line
+    do
+        local fpage = tabNamed("Live"):Page("FillTest")
+        local leftCard = fpage:Card({ Title = "LeftShort", Side = "Left" })
+        leftCard:Toggle({ Title = "L1" })
+        local r1 = fpage:Card({ Title = "RightA", Side = "Right" })
+        for i = 1, 3 do r1:Toggle({ Title = "R" .. i }) end
+        local r2 = fpage:Card({ Title = "RightB", Side = "Right" })
+        r2:Toggle({ Title = "RB" })
+        fpage:FillColumn(leftCard) wait(0.3)
+        local spf = leftCard.frame:FindFirstChild("FillSpacer")
+        local function bottom(column) local b = 0 for _, c in ipairs(column:GetChildren()) do if c:IsA("GuiObject") and c.Visible then b = math.max(b, c.AbsolutePosition.Y + c.AbsoluteSize.Y) end end return b end
+        check("fill column: the short column ends with the other one", spf and spf.Visible and math.abs(bottom(fpage.left) - bottom(fpage.right)) <= 2, tostring(bottom(fpage.left)) .. " / " .. tostring(bottom(fpage.right)))
+        r2.frame:Destroy() wait(0.3)
+        check("fill column: follows when the other column gets shorter", math.abs(bottom(fpage.left) - bottom(fpage.right)) <= 2 or not spf.Visible)
+        local ftab = window:Tab({ Title = "FillTab" })
+        local fl = ftab:Card({ Title = "FL", Side = "Left" }) fl:Toggle({ Title = "x" })
+        local fr = ftab:Card({ Title = "FR", Side = "Right" }) for i = 1, 3 do fr:Toggle({ Title = "y" .. i }) end
+        local before = window.current
+        ftab:Select() wait(0.2)
+        local okTab, recheck = pcall(function() return ftab:FillColumn(fl) end) wait(0.3)
+        check("fill column works on a tab (its first page)", okTab and type(recheck) == "function" and fl.frame:FindFirstChild("FillSpacer") ~= nil)
+        if before then before:Select() wait(0.2) end
+        fpage.frame:Destroy() fpage.button:Destroy()
+        for i, p in ipairs(tabNamed("Live").Pages) do if p == fpage then table.remove(tabNamed("Live").Pages, i) end end
+    end
     local wb = tabNamed("Live").Pages[1]:Card({ Title = "UnderColumns", Wide = "Bottom" })
     check("Wide = Bottom goes under the columns", wb.frame.Parent.Name == "WideBottom")
     wb.frame:Destroy()

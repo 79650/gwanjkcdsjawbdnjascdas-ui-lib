@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.30 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.31 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6780,7 +6780,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.30",
+Version="1.9.31",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -8589,6 +8589,46 @@ end
 task.defer(apply)
 return apply
 end
+function Page:FillColumn(card)
+local own=card.frame.Parent
+local other=own==self.left and self.right or self.left
+local spacer=create("Frame",{Name="FillSpacer",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),LayoutOrder=1e6,Visible=false,Parent=card.frame})
+local busy=false
+local function height(column)
+local scale=self.window.scale and self.window.scale.Scale or 1
+local layout=column:FindFirstChildOfClass("UIListLayout")
+local content=layout and layout.AbsoluteContentSize.Y/scale or 0
+if content>0 then return content end
+local count=0
+for _,child in ipairs(column:GetChildren())do
+if child:IsA("GuiObject")and child.Visible then
+content=content+child.AbsoluteSize.Y/scale
+count=count+1
+end
+end
+return content+math.max(0,count-1)*(layout and layout.Padding.Offset or 10)
+end
+local function apply()
+if busy then return end
+busy=true
+local layout=card.frame:FindFirstChildOfClass("UIListLayout")
+local gap=layout and layout.Padding.Offset or 4
+local mine=height(own)-(spacer.Visible and(spacer.Size.Y.Offset+gap)or 0)
+local extra=math.floor(height(other)-mine-gap)
+local show=card.frame.Visible and not card.Collapsed and extra>0
+spacer.Visible=show
+spacer.Size=UDim2.new(1,0,0,show and extra or 0)
+busy=false
+end
+for _,column in ipairs({own,other})do
+local layout=column:FindFirstChildOfClass("UIListLayout")
+if layout then layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()task.defer(apply)end)end
+column.ChildAdded:Connect(function()task.defer(apply)end)
+end
+card.frame:GetPropertyChangedSignal("Visible"):Connect(function()task.defer(apply)end)
+task.defer(apply)
+return apply
+end
 function Page:Select()
 local tab=self.tab
 tab.current=self
@@ -8726,6 +8766,8 @@ function Tab:Card(cfg)
 if#self.Pages==0 then self:Page(self.Title)end
 return self.Pages[1]:Card(cfg)
 end
+function Tab:FillColumn(card)return(card.page or self.Pages[1]):FillColumn(card)end
+function Tab:MatchHeights(...)return self.Pages[1]:MatchHeights(...)end
 function Tab:Build()
 local build=self._build
 if not build then return end

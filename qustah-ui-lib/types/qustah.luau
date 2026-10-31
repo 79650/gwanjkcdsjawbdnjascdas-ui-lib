@@ -182,6 +182,7 @@ export type Page = {
 	Name: string,
 	Card: (self: Page, cfg: CardConfig?) -> Card,
 	MatchHeights: (self: Page, ...Card) -> () -> (),
+	FillColumn: (self: Page, Card) -> () -> (),
 	Warning: (self: Page, text: string, opts: { Title: string?, Icon: string?, Level: ("warning" | "danger" | "info")? }?) -> any,
 	Select: (self: Page) -> (),
 }
