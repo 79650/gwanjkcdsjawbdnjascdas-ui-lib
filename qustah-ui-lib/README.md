@@ -8,7 +8,7 @@ Dock navigation, real profiles, 20 themes and 18k icons, loaded with one line.
 <br>
 
 ![version](https://img.shields.io/badge/version-1.9.27-2b2b2f?style=flat-square&labelColor=18181a)
-![elements](https://img.shields.io/badge/elements-30-2b2b2f?style=flat-square&labelColor=18181a)
+![elements](https://img.shields.io/badge/elements-50-2b2b2f?style=flat-square&labelColor=18181a)
 ![size](https://img.shields.io/badge/min-467_KB-2b2b2f?style=flat-square&labelColor=18181a)
 ![license](https://img.shields.io/badge/license-MIT-2b2b2f?style=flat-square&labelColor=18181a)
 
@@ -77,6 +77,13 @@ Every option, with code, is in **[DOCS.md](DOCS.md)**. **[example.lua](example.l
 <td width="20%" valign="top"><b>Live data</b><br><br>Progress<br>Stat<br>Graph<br>Console<br>Table</td>
 <td width="20%" valign="top"><b>Visual</b><br><br>Image<br>ImagePicker<br>PlayerList<br>Viewport</td>
 <td width="20%" valign="top"><b>Layout</b><br><br>Section<br>Row<br>Group<br>Tabs</td>
+</tr>
+<tr>
+<td width="20%" valign="top"><b>Dashboard</b><br><br>StatTiles<br>Gauges<br>Hero<br>StatusBars</td>
+<td width="20%" valign="top"><b>Switch sets</b><br><br>SwitchGrid<br>Tiles<br>Chips</td>
+<td width="20%" valign="top"><b>Activity</b><br><br>Timeline<br>Changelog<br>Notice<br>Checklist</td>
+<td width="20%" valign="top"><b>Settings</b><br><br>Search<br>ListItem<br>Gallery<br>ThemePreview<br>SideNav</td>
+<td width="20%" valign="top"><b>Collections</b><br><br>ItemCards<br>DiffList</td>
 </tr>
 </table>
 

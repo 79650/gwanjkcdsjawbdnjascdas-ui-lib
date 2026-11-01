@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.42 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -49,6 +49,24 @@ Stepper=require("elements/stepper"),
 TextArea=require("elements/textarea"),
 CrosshairPreview=require("elements/crosshairpreview"),
 FovPreview=require("elements/fovpreview"),
+StatTiles=require("elements/stattiles"),
+Gauges=require("elements/gauges"),
+SwitchGrid=require("elements/switchgrid"),
+Tiles=require("elements/tiles"),
+Chips=require("elements/chips"),
+Timeline=require("elements/timeline"),
+Hero=require("elements/hero"),
+Gallery=require("elements/gallery"),
+ListItem=require("elements/listitem"),
+Search=require("elements/search"),
+SideNav=require("elements/sidenav"),
+ItemCards=require("elements/itemcards"),
+DiffList=require("elements/difflist"),
+StatusBars=require("elements/statusbars"),
+Checklist=require("elements/checklist"),
+Notice=require("elements/notice"),
+Changelog=require("elements/changelog"),
+ThemePreview=require("elements/themepreview"),
 }
 Card.__index=function(_,key)
 local method=rawget(Card,key)
@@ -2263,6 +2281,56 @@ end)
 return Base.finish(element,cfg)
 end
 end
+__modules["elements/changelog"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,label=Util.create,Util.label
+return function(card,cfg)
+local holder=create("Frame",{Name=tostring(cfg.Title or"Changelog"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=card:_order(),Parent=card.body})
+Util.list(holder,0)
+local element=Base.element(card,"Changelog",{Title=cfg.Title},holder,nil,nil)
+local entries={}
+function element:Open(index)
+for i,entry in ipairs(entries)do
+local open=i==index and not entry.body.Visible
+entry.body.Visible=open
+if entry.chevron then Util.tween(entry.chevron,0.15,{Rotation=open and 180 or 0})end
+end
+end
+function element:SetEntries(list)
+for _,entry in ipairs(entries)do entry.frame:Destroy()end
+table.clear(entries)
+for index,data in ipairs(list or{})do
+local frame=create("Frame",{Name=tostring(data.Version or index),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=index,Parent=holder})
+Util.list(frame,0)
+local head=create("TextButton",{Name="Head",Text="",AutoButtonColor=false,BackgroundTransparency=1,Size=UDim2.new(1,0,0,26),LayoutOrder=1,Parent=frame})
+local version=label(head,tostring(data.Version or""),10,{Name="Version",Size=UDim2.new(0,Util.textWidth(tostring(data.Version or""),10,Enum.Font.GothamBold)+4,1,0),Font=Enum.Font.GothamBold})
+Theme.bind(version,"TextColor3","heading")
+local time=label(head,tostring(data.Time or""),9,{Name="Time",Position=UDim2.fromOffset(version.Size.X.Offset+6,0),Size=UDim2.new(1,-version.Size.X.Offset-30,1,0)})
+Theme.bind(time,"TextColor3","muted")
+local chevron=Icons.themed(head,"chevron-down",12,"muted",{Name="Chevron",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0)})
+local body=create("Frame",{Name="Items",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=2,Visible=false,Parent=frame})
+Util.list(body,1)
+Util.padding(body,8,0,0,6)
+for order,text in ipairs(data.Items or{})do
+local item=label(body,"•  "..tostring(text),10,{Name="Item",Size=UDim2.new(1,0,0,15),LayoutOrder=order,TextWrapped=true,AutomaticSize=Enum.AutomaticSize.Y,TextTruncate=Enum.TextTruncate.None})
+Theme.bind(item,"TextColor3","text")
+end
+local line=create("Frame",{Name="Line",Size=UDim2.new(1,0,0,1),BorderSizePixel=0,LayoutOrder=3,Parent=frame})
+Theme.bind(line,"BackgroundColor3","line")
+local entry={frame=frame,body=body,chevron=chevron}
+entries[index]=entry
+head.Activated:Connect(function()element:Open(index)end)
+end
+local open=tonumber(cfg.Open)or 1
+if entries[open]then entries[open].body.Visible=true if entries[open].chevron then entries[open].chevron.Rotation=180 end end
+end
+element:SetEntries(cfg.Entries)
+return Base.finish(element,cfg)
+end
+end
 __modules["elements/checkbox"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -2300,6 +2368,140 @@ row.Activated:Connect(function()if not element.Locked then element:Set(not eleme
 row.MouseEnter:Connect(function()hovered=true render(true)Theme.tweenTo(title,"TextColor3",cfg.Risky and"danger"or"heading",0.12)end)
 row.MouseLeave:Connect(function()hovered=false render(true)Theme.tweenTo(title,"TextColor3",cfg.Risky and"danger"or"text",0.12)end)
 render(false)
+element:_fire(element.Value,true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/checklist"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,label=Util.create,Util.label
+return function(card,cfg)
+local holder=create("Frame",{Name=tostring(cfg.Title or"Checklist"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=card:_order(),Parent=card.body})
+Util.list(holder,0)
+local element=Base.element(card,"Checklist",{Title=cfg.Title},holder,nil,nil)
+local rows,order={},{}
+local function paint(row)
+local icon=row.ok==true and"check"or row.ok==false and"x"or"minus"
+local role=row.ok==true and"success"or row.ok==false and"danger"or"muted"
+if row.icon then row.icon:Destroy()end
+row.icon=Icons.themed(row.frame,icon,12,role,{Name="Mark",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0.5,0)})
+row.note.Text=tostring(row.noteText or"")
+end
+for index,item in ipairs(cfg.Items or{})do
+local frame=create("Frame",{Name=tostring(item.Title or index),BackgroundTransparency=1,Size=UDim2.new(1,0,0,22),LayoutOrder=index,Parent=holder})
+local title=label(frame,tostring(item.Title or""),10,{Name="Title",Position=UDim2.fromOffset(20,0),Size=UDim2.new(0.6,-20,1,0)})
+Theme.bind(title,"TextColor3","text")
+local note=label(frame,"",9,{Name="Note",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.new(0.4,0,1,0),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(note,"TextColor3","muted")
+local row={frame=frame,note=note,ok=item.Ok,noteText=item.Note}
+rows[tostring(item.Title)]=row
+order[#order+1]=row
+paint(row)
+end
+function element:Set(titleText,ok,note)
+local row=rows[tostring(titleText)]
+if not row then return end
+row.ok=ok
+if note~=nil then row.noteText=note end
+paint(row)
+end
+function element:Count()
+local passed=0
+for _,row in ipairs(order)do if row.ok==true then passed=passed+1 end end
+return passed,#order
+end
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/chips"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local multi=cfg.Multi~=false
+local top=cfg.Title and 22 or 0
+local holder=create("Frame",{Name=tostring(cfg.Title or"Chips"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,top+24),LayoutOrder=card:_order(),Parent=card.body})
+local title
+if cfg.Title then
+title=label(holder,tostring(cfg.Title),11,{Name="Title",Size=UDim2.new(1,0,0,20)})
+Theme.bind(title,"TextColor3","text")
+end
+local area=create("Frame",{Name="Chips",BackgroundTransparency=1,Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,1,-top),Parent=holder})
+local element=Base.element(card,"Chips",cfg,holder,title,nil)
+local chips={}
+local function chosen(name)
+if multi then return type(element.Value)=="table"and table.find(element.Value,name)~=nil end
+return element.Value==name
+end
+local function render()
+for _,chip in ipairs(chips)do
+local on=chosen(chip.name)
+Theme.tweenTo(chip.button,"BackgroundColor3",on and"selected"or"input",0.1)
+Theme.tweenTo(chip.edge,"Color",on and"accent"or"buttonEdge",0.1)
+chip.edge.Transparency=on and 0.35 or 0.3
+Theme.tweenTo(chip.text,"TextColor3",on and"heading"or"muted",0.1)
+if chip.icon then Theme.tweenTo(chip.icon,"ImageColor3",on and"heading"or"muted",0.1)end
+end
+end
+local function layout()
+local width=area.AbsoluteSize.X/(card.window.scale and card.window.scale.Scale or 1)
+if width<=0 then width=400 end
+local x,y=0,0
+for _,chip in ipairs(chips)do
+local w=chip.width
+if x>0 and x+w>width then x,y=0,y+28 end
+chip.button.Position=UDim2.fromOffset(x,y)
+x=x+w+6
+end
+holder.Size=UDim2.new(1,0,0,top+y+24)
+end
+function element:SetItems(items)
+for _,chip in ipairs(chips)do chip.button:Destroy()end
+table.clear(chips)
+for index,item in ipairs(items or{})do
+if type(item)~="table"then item={Title=item}end
+local name=tostring(item.Title)
+local iconW=item.Icon and 16 or 0
+local width=Util.textWidth(name,10,Enum.Font.GothamMedium)+22+iconW
+local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,Size=UDim2.fromOffset(width,24),LayoutOrder=index,Parent=area})
+corner(button,12)
+local edge=Util.stroke(button,nil,0.3)
+local icon=item.Icon and Icons.themed(button,item.Icon,11,"muted",{Name="Icon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,10,0.5,0)})
+local text=label(button,name,10,{Name="Text",Position=UDim2.fromOffset(11+(icon and 15 or 0),0),Size=UDim2.new(1,-16,1,0),Font=Enum.Font.GothamMedium,TextTruncate=Enum.TextTruncate.None})
+local chip={name=name,button=button,edge=edge,text=text,icon=icon,width=width}
+chips[#chips+1]=chip
+button.Activated:Connect(function()
+if element.Locked then return end
+if multi then
+local value=table.clone(type(element.Value)=="table"and element.Value or{})
+local at=table.find(value,name)
+if at then table.remove(value,at)else value[#value+1]=name end
+element:Set(value)
+else
+element:Set(name)
+end
+end)
+end
+layout()
+render()
+end
+function element:Set(value,silent)
+if multi and type(value)~="table"then value=value~=nil and{value}or{}end
+self.Value=value
+render()
+self:_fire(value,silent)
+end
+function element:Get()return self.Value end
+area:GetPropertyChangedSignal("AbsoluteSize"):Connect(layout)
+element:SetItems(cfg.Items)
+element.Value=cfg.Default~=nil and cfg.Default or(multi and{}or nil)
+if multi and type(element.Value)~="table"then element.Value={element.Value}end
+render()
 element:_fire(element.Value,true)
 return Base.finish(element,cfg)
 end
@@ -2857,6 +3059,63 @@ element:Update(cfg.Settings)
 return Base.finish(element,cfg)
 end
 end
+__modules["elements/difflist"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local Parts=require("elements/parts")
+local create,label=Util.create,Util.label
+return function(card,cfg)
+local holder=create("Frame",{Name=tostring(cfg.Title or"DiffList"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=card:_order(),Parent=card.body})
+Util.list(holder,0)
+local element=Base.element(card,"DiffList",{Title=cfg.Title},holder,nil,nil)
+local rows,frames={},{}
+function element:SetRows(list)
+for _,frame in ipairs(frames)do frame:Destroy()end
+table.clear(frames)
+rows=list or{}
+if#rows==0 then
+local empty=label(holder,tostring(cfg.Empty or"No changes"),10,{Name="Empty",Size=UDim2.new(1,0,0,24)})
+Theme.bind(empty,"TextColor3","muted")
+frames[1]=empty
+return
+end
+for index,row in ipairs(rows)do
+local frame=create("Frame",{Name=tostring(row.Title or index),BackgroundTransparency=1,Size=UDim2.new(1,0,0,28),LayoutOrder=index,Parent=holder})
+local line=create("Frame",{Name="Line",AnchorPoint=Vector2.new(0,1),Position=UDim2.new(0,0,1,0),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,Parent=frame})
+Theme.bind(line,"BackgroundColor3","line")
+local x=0
+if row.Tag then
+local chip=Parts.chip(frame,tostring(row.Tag),"muted",nil,{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0.5,0)})
+chip.Size=UDim2.fromOffset(math.max(chip.Size.X.Offset,66),18)
+x=chip.Size.X.Offset+8
+end
+local right=cfg.OnRevert and 22 or 0
+local new=label(frame,tostring(row.New or""),9,{Name="New",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-right,0.5,0),Size=UDim2.fromOffset(78,16),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.Code})
+Theme.bind(new,"TextColor3","success")
+Icons.themed(frame,"arrow-right",10,"muted",{Name="Arrow",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-right-82,0.5,0)})
+local old=label(frame,tostring(row.Old or""),9,{Name="Old",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-right-96,0.5,0),Size=UDim2.fromOffset(78,16),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.Code,RichText=true})
+old.Text="<s>"..tostring(row.Old or""):gsub("[<>&]","").."</s>"
+Theme.bind(old,"TextColor3","danger")
+local title=label(frame,tostring(row.Title or""),10,{Name="Title",Position=UDim2.fromOffset(x,0),Size=UDim2.new(1,-x-right-180,1,0)})
+Theme.bind(title,"TextColor3","text")
+if cfg.OnRevert then
+local undo=create("ImageButton",{Name="Revert",BackgroundTransparency=1,Image="",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(18,18),Parent=frame})
+local icon=Icons.themed(undo,"undo-2",12,"muted",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+undo.MouseEnter:Connect(function()if icon then Theme.tweenTo(icon,"ImageColor3","heading",0.1)end card.window:_tip("Undo this change")end)
+undo.MouseLeave:Connect(function()if icon then Theme.tweenTo(icon,"ImageColor3","muted",0.1)end card.window:_hideTip()end)
+undo.Activated:Connect(function()card.window:_safe("DiffList",cfg.OnRevert,row,index)end)
+end
+frames[#frames+1]=frame
+end
+end
+function element:GetRows()return rows end
+function element:Count()return#rows end
+element:SetRows(cfg.Rows)
+return Base.finish(element,cfg)
+end
+end
 __modules["elements/divider"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -3334,6 +3593,151 @@ element:Update(cfg.Settings)
 return Base.finish(element,cfg)
 end
 end
+__modules["elements/gallery"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Parts=require("elements/parts")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local columns=math.max(1,tonumber(cfg.Columns)or 4)
+local cellH,gap=tonumber(cfg.Height)or 58,6
+local top=(cfg.Title and 22 or 0)
+local holder=create("Frame",{Name=tostring(cfg.Title or"Gallery"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,top),LayoutOrder=card:_order(),Parent=card.body})
+local title
+if cfg.Title then
+title=label(holder,tostring(cfg.Title),11,{Name="Title",Size=UDim2.new(1,0,0,20)})
+Theme.bind(title,"TextColor3","text")
+end
+local element=Base.element(card,"Gallery",cfg,holder,title,nil)
+local cells={}
+local function render()
+for _,cell in ipairs(cells)do
+local on=cell.name==element.Value
+Theme.tweenTo(cell.edge,"Color",on and"heading"or"line",0.1)
+cell.edge.Thickness=on and 1.5 or 1
+Theme.tweenTo(cell.caption,"TextColor3",on and"heading"or"muted",0.1)
+end
+end
+function element:SetItems(items)
+for _,cell in ipairs(cells)do cell.button:Destroy()end
+table.clear(cells)
+items=items or{}
+holder.Size=UDim2.new(1,0,0,top+Parts.gridHeight(#items,columns,gap,cellH))
+for index,item in ipairs(items)do
+local name=tostring(item.Name or item.Title or index)
+local position,size=Parts.cell(index,columns,gap,cellH,top)
+local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,Position=position,Size=size,Parent=holder})
+corner(button,8)
+local edge=Util.stroke(button,nil,0)
+local caption=label(button,name,9,{Name="Caption",Position=UDim2.new(0,7,1,-15),Size=UDim2.new(1,-14,0,12)})
+if item.Colors then
+local colors=item.Colors
+button.BackgroundColor3=colors[1]or Color3.new()
+local preview=create("Frame",{Name="Preview",Position=UDim2.fromOffset(5,5),Size=UDim2.new(1,-10,1,-24),BorderSizePixel=0,BackgroundColor3=colors[2]or colors[1],Parent=button})
+corner(preview,5)
+local bar=create("Frame",{Name="Bar",Position=UDim2.fromOffset(5,5),Size=UDim2.new(1,-24,0,6),BorderSizePixel=0,BackgroundColor3=(colors[2]or Color3.new()):Lerp(Color3.new(1,1,1),0.12),Parent=preview})
+corner(bar,3)
+local knob=create("Frame",{Name="Accent",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-5,0,5),Size=UDim2.fromOffset(10,6),BorderSizePixel=0,BackgroundColor3=colors[3]or Color3.new(1,1,1),Parent=preview})
+corner(knob,3)
+local bright=(colors[1].R+colors[1].G+colors[1].B)/3>0.6
+caption.TextColor3=bright and Color3.fromRGB(40,40,45)or Color3.fromRGB(225,225,230)
+else
+Theme.bind(button,"BackgroundColor3","input")
+if item.Image then
+create("ImageLabel",{Name="Image",BackgroundTransparency=1,Position=UDim2.fromOffset(5,5),Size=UDim2.new(1,-10,1,-24),Image=tostring(item.Image),ScaleType=Enum.ScaleType.Fit,Parent=button})
+else
+local sample=label(button,tostring(item.Sample or cfg.Sample or"Aa"),17,{Name="Sample",Position=UDim2.fromOffset(8,5),Size=UDim2.new(1,-16,1,-22)})
+sample:SetAttribute("QFixedFont",true)
+if typeof(item.Font)=="EnumItem"then sample.Font=item.Font
+elseif typeof(item.Font)=="Font"then sample.FontFace=item.Font end
+Theme.bind(sample,"TextColor3","heading")
+end
+end
+local cell={name=name,button=button,edge=edge,caption=caption}
+if not item.Colors then Theme.bind(caption,"TextColor3","muted")end
+cells[#cells+1]=cell
+button.Activated:Connect(function()if not element.Locked then element:Set(name)end end)
+Util.hoverPop(button,1.03)
+end
+render()
+end
+function element:Set(name,silent)
+self.Value=name~=nil and tostring(name)or nil
+render()
+self:_fire(self.Value,silent)
+end
+function element:Get()return self.Value end
+element:SetItems(cfg.Items)
+element.Value=cfg.Default~=nil and tostring(cfg.Default)or nil
+render()
+element:_fire(element.Value,true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/gauges"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Stats=require("stats")
+local Parts=require("elements/parts")
+local create,label=Util.create,Util.label
+return function(card,cfg)
+local window=card.window
+local list=cfg.Gauges or{}
+local size=tonumber(cfg.Size)or 62
+local holder=create("Frame",{Name=tostring(cfg.Title or"Gauges"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,size+20),LayoutOrder=card:_order(),Parent=card.body})
+local element=Base.element(card,"Gauges",cfg,holder,nil,nil)
+local gauges={}
+local count=math.max(#list,1)
+for index,spec in ipairs(list)do
+local slot=create("Frame",{Name=tostring(spec.Title or index),BackgroundTransparency=1,Position=UDim2.new((index-1)/count,0,0,0),Size=UDim2.new(1/count,0,1,0),Parent=holder})
+local ring=create("Frame",{Name="Ring",BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,0),Size=UDim2.fromOffset(size,size),Parent=slot})
+local set=Parts.dotRing(ring,size,math.floor(size*0.7),3)
+local value=label(ring,"",13,{Name="Value",Position=UDim2.new(0,0,0.5,-11),Size=UDim2.new(1,0,0,16),TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamBold})
+Theme.bind(value,"TextColor3","heading")
+local sub=label(ring,tostring(spec.Sub or""),8,{Name="Sub",Position=UDim2.new(0,0,0.5,5),Size=UDim2.new(1,0,0,10),TextXAlignment=Enum.TextXAlignment.Center})
+Theme.bind(sub,"TextColor3","muted")
+local title=label(slot,string.upper(tostring(spec.Title or"")),8,{Name="Title",Position=UDim2.fromOffset(0,size+5),Size=UDim2.new(1,0,0,12),TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamMedium})
+Theme.bind(title,"TextColor3","muted")
+local gauge={spec=spec,set=set,value=value,sub=sub,max=tonumber(spec.Max)or 100}
+gauges[index]=gauge
+gauges[tostring(spec.Title)]=gauge
+end
+local function find(which)return type(which)=="number"and gauges[which]or gauges[tostring(which)]end
+function element:Set(which,number,max,subText)
+local gauge=find(which)
+if not gauge then return end
+if max then gauge.max=tonumber(max)or gauge.max end
+number=tonumber(number)or 0
+gauge.current=number
+local spec=gauge.spec
+gauge.value.Text=spec.Format and spec.Format(number)or tostring(math.floor(number*10+0.5)/10)
+if subText~=nil then gauge.sub.Text=tostring(subText)end
+local fraction=number/math.max(gauge.max,1e-6)
+if spec.Invert then fraction=1-fraction end
+gauge.set(fraction,Parts.color(spec.Color,"heading"))
+end
+function element:Get(which)local gauge=find(which)return gauge and gauge.current end
+for index,gauge in ipairs(gauges)do element:Set(index,gauge.spec.Value or 0)end
+local live={}
+for index,gauge in ipairs(gauges)do if gauge.spec.Source then live[#live+1]=index end end
+if#live>0 then
+Stats.start(window.Lib.maid)
+window.maid:give(Stats.listen(function()
+if not holder.Parent or not Util.shown(holder)then return end
+for _,index in ipairs(live)do
+local source=gauges[index].spec.Source
+local number
+if source=="FPS"then number=Stats.fps elseif source=="Ping"then number=Stats.ping
+elseif type(source)=="function"then local ok,v=pcall(source)number=ok and tonumber(v)or nil end
+if number then element:Set(index,number)end
+end
+end))
+end
+return Base.finish(element,cfg)
+end
+end
 __modules["elements/gradient"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -3620,6 +4024,55 @@ render()
 return element
 end
 end
+__modules["elements/hero"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Parts=require("elements/parts")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local size=tonumber(cfg.AvatarSize)or 46
+local holder=create("Frame",{Name=tostring(cfg.Title or"Hero"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,size+8),LayoutOrder=card:_order(),Parent=card.body})
+local avatar=create("ImageLabel",{Name="Avatar",Size=UDim2.fromOffset(size,size),Position=UDim2.fromOffset(0,4),BorderSizePixel=0,Image="",Parent=holder})
+Theme.bind(avatar,"BackgroundColor3","input")
+corner(avatar,size)
+Theme.bind(Util.stroke(avatar,nil,0.1,2),"Color","buttonEdge")
+local online=create("Frame",{Name="Online",AnchorPoint=Vector2.new(1,1),Position=UDim2.new(1,0,1,0),Size=UDim2.fromOffset(math.floor(size*0.24),math.floor(size*0.24)),BorderSizePixel=0,ZIndex=2,Parent=avatar})
+corner(online,size)
+Theme.bind(online,"BackgroundColor3","success")
+Theme.bind(Util.stroke(online,nil,0,2),"Color","card")
+local x=size+12
+local title=label(holder,tostring(cfg.Title or""),15,{Name="Title",Position=UDim2.fromOffset(x,2),Size=UDim2.new(1,-x-110,0,20),Font=Enum.Font.GothamBold})
+Theme.bind(title,"TextColor3","heading")
+local desc=label(holder,tostring(cfg.Desc or""),9,{Name="Desc",Position=UDim2.fromOffset(x,21),Size=UDim2.new(1,-x-110,0,12)})
+Theme.bind(desc,"TextColor3","muted")
+local chipRow=create("Frame",{Name="Chips",BackgroundTransparency=1,Position=UDim2.fromOffset(x,36),Size=UDim2.new(1,-x-110,0,18),Parent=holder})
+Util.list(chipRow,4,Enum.FillDirection.Horizontal)
+local small=label(holder,tostring(cfg.Label or""),8,{Name="Label",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,8),Size=UDim2.fromOffset(120,12),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium})
+Theme.bind(small,"TextColor3","muted")
+local value=label(holder,tostring(cfg.Value or""),20,{Name="Value",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,20),Size=UDim2.fromOffset(140,24),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.GothamMedium})
+Theme.bind(value,"TextColor3","heading")
+local element=Base.element(card,"Hero",{Title=cfg.Title},holder,title,desc)
+local chipFrames={}
+function element:SetChips(list)
+for _,chip in ipairs(chipFrames)do chip:Destroy()end
+table.clear(chipFrames)
+for index,item in ipairs(list or{})do
+if type(item)~="table"then item={item}end
+local chip=Parts.chip(chipRow,tostring(item[1]or item.Text),item.Role or"text",item[2]or item.Icon,{LayoutOrder=index})
+chipFrames[#chipFrames+1]=chip
+end
+end
+function element:SetValue(text)value.Text=tostring(text)end
+function element:SetLabel(text)small.Text=tostring(text)end
+function element:SetOnline(on)online.Visible=on~=false end
+function element:SetImage(image)avatar.Image=tostring(image or"")end
+if cfg.UserId then element:SetImage(Util.avatar(cfg.UserId,150))elseif cfg.Image then element:SetImage(cfg.Image)end
+element:SetOnline(cfg.Online)
+element:SetChips(cfg.Chips)
+return Base.finish(element,cfg)
+end
+end
 __modules["elements/image"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -3902,6 +4355,89 @@ if cfg.Locked then box.TextEditable=false end
 return Base.finish(element,cfg)
 end
 end
+__modules["elements/itemcards"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local Parts=require("elements/parts")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local columns=math.max(1,tonumber(cfg.Columns)or 2)
+local cellH,gap=tonumber(cfg.Height)or 96,6
+local holder=create("Frame",{Name=tostring(cfg.Title or"ItemCards"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),LayoutOrder=card:_order(),Parent=card.body})
+local element=Base.element(card,"ItemCards",{Title=cfg.Title},holder,nil,nil)
+local items,frames={},{}
+local function button(parent,text,props)
+local width=Util.textWidth(text,10,Enum.Font.GothamMedium)+20
+local b=create("TextButton",{Name=text,Text=text,AutoButtonColor=false,BorderSizePixel=0,Size=UDim2.fromOffset(width,22),TextSize=10,Font=Enum.Font.GothamMedium,Parent=parent})
+for key,value in pairs(props or{})do b[key]=value end
+corner(b,6)
+Theme.bind(b,"BackgroundColor3","card")
+Theme.bind(b,"TextColor3","text")
+Theme.bind(Util.stroke(b,nil,0.2),"Color","buttonEdge")
+b.MouseEnter:Connect(function()Theme.tweenTo(b,"BackgroundColor3","hover",0.1)end)
+b.MouseLeave:Connect(function()Theme.tweenTo(b,"BackgroundColor3","card",0.1)end)
+return b
+end
+function element:SetItems(list)
+for _,frame in ipairs(frames)do frame:Destroy()end
+table.clear(frames)
+items=list or{}
+local total=#items+(cfg.AddNew and 1 or 0)
+holder.Size=UDim2.new(1,0,0,Parts.gridHeight(total,columns,gap,cellH))
+for index,item in ipairs(items)do
+local position,size=Parts.cell(index,columns,gap,cellH)
+local box,edge=Parts.box(holder,{Name=tostring(item.Title or index),Position=position,Size=size})
+if item.Highlight then Theme.bind(edge,"Color","buttonEdge")edge.Transparency=0 end
+frames[#frames+1]=box
+local color=typeof(item.Color)=="Color3"and item.Color or Theme.get("accent")
+local badge=create("Frame",{Name="Letter",Position=UDim2.fromOffset(9,9),Size=UDim2.fromOffset(26,26),BorderSizePixel=0,BackgroundColor3=color,BackgroundTransparency=0.82,Parent=box})
+corner(badge,7)
+Util.stroke(badge,color,0.55)
+local letter=label(badge,string.upper(string.sub(tostring(item.Letter or item.Title or"?"),1,1)),12,{Name="Text",Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamBold,TextColor3=color})
+letter.TextColor3=color
+local title=label(box,tostring(item.Title or""),11,{Name="Title",Position=UDim2.fromOffset(42,8),Size=UDim2.new(1,-70,0,15),Font=Enum.Font.GothamMedium})
+Theme.bind(title,"TextColor3","heading")
+local sub=label(box,tostring(item.Sub or""),8,{Name="Sub",Position=UDim2.fromOffset(42,23),Size=UDim2.new(1,-70,0,11)})
+Theme.bind(sub,"TextColor3","muted")
+if cfg.OnMenu then
+local menu=create("ImageButton",{Name="Menu",BackgroundTransparency=1,Image="",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-6,0,9),Size=UDim2.fromOffset(18,18),Parent=box})
+Icons.themed(menu,"ellipsis",14,"muted",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+menu.Activated:Connect(function()card.window:_safe("ItemCards menu",cfg.OnMenu,item,index)end)
+end
+local desc=label(box,tostring(item.Desc or""),9,{Name="Desc",Position=UDim2.fromOffset(9,40),Size=UDim2.new(1,-18,0,24),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top})
+Theme.bind(desc,"TextColor3","muted")
+local tags=create("Frame",{Name="Badges",BackgroundTransparency=1,Position=UDim2.new(0,9,1,-28),Size=UDim2.new(1,-90,0,20),Parent=box})
+Util.list(tags,4,Enum.FillDirection.Horizontal,nil,Enum.VerticalAlignment.Center)
+for order,tag in ipairs(item.Badges or{})do
+if type(tag)~="table"then tag={Text=tag}end
+local chip=Parts.chip(tags,tostring(tag.Text),tag.Role or"muted",nil,{LayoutOrder=order})
+chip.Size=UDim2.fromOffset(chip.Size.X.Offset,16)
+chip:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,4)
+end
+if item.Action~=false then
+local action=button(box,tostring(item.Action or"Open"),{AnchorPoint=Vector2.new(1,1),Position=UDim2.new(1,-9,1,-8)})
+action.Activated:Connect(function()if cfg.OnAction then card.window:_safe("ItemCards",cfg.OnAction,item,index)end end)
+end
+end
+if cfg.AddNew then
+local position,size=Parts.cell(#items+1,columns,gap,cellH)
+local add=create("TextButton",{Name="AddNew",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=position,Size=size,Parent=holder})
+corner(add,7)
+Theme.bind(Util.stroke(add,nil,0.1),"Color","buttonEdge")
+Icons.themed(add,"plus",16,"muted",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,-8)})
+local text=label(add,tostring(cfg.AddNew),10,{Position=UDim2.new(0,0,0.5,4),Size=UDim2.new(1,0,0,14),TextXAlignment=Enum.TextXAlignment.Center})
+Theme.bind(text,"TextColor3","muted")
+add.Activated:Connect(function()if cfg.OnAdd then card.window:_safe("ItemCards add",cfg.OnAdd)end end)
+frames[#frames+1]=add
+end
+end
+function element:GetItems()return items end
+element:SetItems(cfg.Items)
+return Base.finish(element,cfg)
+end
+end
 __modules["elements/keybind"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -4042,6 +4578,117 @@ function element:SetColor(color)Theme.bind(text,"TextColor3",color or"muted")end
 return element
 end
 end
+__modules["elements/listitem"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local row=create("TextButton",{Name=tostring(cfg.Title or"ListItem"),Text="",AutoButtonColor=false,BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.new(1,0,0,cfg.Desc and 42 or 36),LayoutOrder=card:_order(),Parent=card.body})
+local line=create("Frame",{Name="Line",AnchorPoint=Vector2.new(0,1),Position=UDim2.new(0,cfg.Icon and 32 or 0,1,0),Size=UDim2.new(1,cfg.Icon and-32 or 0,0,1),BorderSizePixel=0,Parent=row})
+Theme.bind(line,"BackgroundColor3","line")
+local x=0
+if cfg.Icon then
+local box=create("Frame",{Name="IconBox",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0.5,0),Size=UDim2.fromOffset(22,22),BorderSizePixel=0,Parent=row})
+Theme.bind(box,"BackgroundColor3","input")
+corner(box,6)
+Icons.themed(box,cfg.Icon,12,cfg.IconColor or"icon",{Name="Icon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+x=32
+end
+local title=label(row,tostring(cfg.Title or""),11,{Name="Title",Position=UDim2.fromOffset(x,cfg.Desc and 5 or 0),Size=UDim2.new(1,-x-130,0,cfg.Desc and 18 or 36)})
+Theme.bind(title,"TextColor3","text")
+local desc
+if cfg.Desc then
+desc=label(row,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(x,22),Size=UDim2.new(1,-x-130,0,13)})
+Theme.bind(desc,"TextColor3","muted")
+end
+local kind=cfg.Toggle and"Toggle"or"ListItem"
+local element=Base.element(card,kind,cfg,row,title,desc)
+if cfg.Toggle then
+local switch=create("Frame",{Name="Switch",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(30,16),BorderSizePixel=0,Parent=row})
+corner(switch,8)
+local knob=create("Frame",{Name="Knob",Position=UDim2.fromOffset(2,2),Size=UDim2.fromOffset(12,12),BorderSizePixel=0,Parent=switch})
+corner(knob,6)
+Theme.bind(knob,"BackgroundColor3","knob")
+element.Value=cfg.Default==true
+local function render(animate)
+Theme.tweenTo(switch,"BackgroundColor3",element.Value and"toggleOn"or"buttonEdge",animate and 0.15 or nil)
+Util.tween(knob,animate and 0.15 or 0,{Position=UDim2.fromOffset(element.Value and 16 or 2,2)})
+end
+function element:Set(on,silent)
+on=on==true
+local changed=on~=self.Value
+self.Value=on
+render(true)
+self:_fire(on,silent or not changed)
+end
+function element:Get()return self.Value end
+row.Activated:Connect(function()if not element.Locked then element:Set(not element.Value)end end)
+render(false)
+element:_fire(element.Value,true)
+else
+local chevron=Icons.themed(row,"chevron-right",12,"muted",{Name="Chevron",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0)})
+local value=label(row,tostring(cfg.Value or""),10,{Name="Value",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,chevron and cfg.Chevron~=false and-18 or 0,0.5,0),Size=UDim2.fromOffset(120,16),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(value,"TextColor3","muted")
+if chevron and cfg.Chevron==false then chevron.Visible=false end
+function element:SetValue(text)value.Text=tostring(text)end
+row.Activated:Connect(function()if not element.Locked and cfg.Callback then element:_call(cfg.Callback)end end)
+end
+row.MouseEnter:Connect(function()Theme.tweenTo(title,"TextColor3","heading",0.1)end)
+row.MouseLeave:Connect(function()Theme.tweenTo(title,"TextColor3","text",0.1)end)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/notice"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,label=Util.create,Util.corner,Util.label
+local ICONS={success="circle-check",warning="circle-alert",danger="circle-x",info="info"}
+return function(card,cfg)
+local holder=create("Frame",{Name=tostring(cfg.Title or"Notice"),BorderSizePixel=0,Size=UDim2.new(1,0,0,cfg.Desc and 44 or 34),LayoutOrder=card:_order(),Parent=card.body})
+corner(holder,8)
+Theme.bind(holder,"BackgroundColor3","card")
+local tint=create("Frame",{Name="Tint",BorderSizePixel=0,BackgroundTransparency=0.88,Size=UDim2.fromScale(1,1),Parent=holder})
+corner(tint,8)
+local edge=Util.stroke(holder,nil,0.55)
+local title=label(holder,"",11,{Name="Title",Position=UDim2.fromOffset(34,cfg.Desc and 7 or 0),Size=UDim2.new(1,-150,0,cfg.Desc and 16 or 34),Font=Enum.Font.GothamMedium})
+local desc=label(holder,"",9,{Name="Desc",Position=UDim2.fromOffset(34,23),Size=UDim2.new(1,-150,0,13)})
+local element=Base.element(card,"Notice",{Title=cfg.Title},holder,title,desc)
+local icon
+local state={Kind=cfg.Kind or"info",Title=cfg.Title,Desc=cfg.Desc,Icon=cfg.Icon}
+if cfg.Button then
+local b=cfg.Button
+local text=tostring(b.Title or"OK")
+local width=Util.textWidth(text,10,Enum.Font.GothamMedium)+(b.Icon and 34 or 20)
+local button=create("TextButton",{Name="Button",Text="",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,0),Size=UDim2.fromOffset(width,24),Parent=holder})
+corner(button,6)
+Theme.bind(button,"BackgroundColor3","card")
+Theme.bind(Util.stroke(button,nil,0.2),"Color","buttonEdge")
+if b.Icon then Icons.themed(button,b.Icon,11,"text",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,9,0.5,0)})end
+local bt=label(button,text,10,{Position=UDim2.fromOffset(b.Icon and 24 or 10,0),Size=UDim2.new(1,-(b.Icon and 30 or 20),1,0),Font=Enum.Font.GothamMedium})
+Theme.bind(bt,"TextColor3","text")
+button.Activated:Connect(function()if b.Callback then element:_call(b.Callback)end end)
+end
+function element:Set(changes)
+for key,value in pairs(changes or{})do state[key]=value end
+local role=state.Kind=="info"and"accent"or state.Kind
+Theme.bind(tint,"BackgroundColor3",role)
+Theme.bind(edge,"Color",role)
+title.Text=tostring(state.Title or"")
+Theme.bind(title,"TextColor3",role=="accent"and"heading"or role)
+desc.Text=tostring(state.Desc or"")
+desc.Visible=state.Desc~=nil
+Theme.bind(desc,"TextColor3","muted")
+if icon then icon:Destroy()end
+icon=Icons.themed(holder,state.Icon or ICONS[state.Kind]or"info",16,role,{Name="Icon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,10,0.5,0)})
+end
+element:Set({})
+return Base.finish(element,cfg)
+end
+end
 __modules["elements/paragraph"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -4066,6 +4713,141 @@ function element:Set(text)content.Text=tostring(text)end
 function element:SetContent(text)content.Text=tostring(text)end
 return element
 end
+end
+__modules["elements/parts"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local Parts={}
+Parts.STATE={
+on="success",ok="success",running="success",success="success",good="success",
+limited="warning",warn="warning",warning="warning",pending="warning",
+error="danger",danger="danger",failed="danger",off="muted",idle="muted",none="muted",
+}
+function Parts.stateRole(state)
+if state==true then return"success"elseif state==false or state==nil then return"muted"end
+return Parts.STATE[string.lower(tostring(state))]or"muted"
+end
+function Parts.color(value,fallback)
+if typeof(value)=="Color3"or type(value)=="string"then return value end
+return fallback or"heading"
+end
+function Parts.cell(index,columns,gap,height,top)
+local col,row=(index-1)%columns,math.floor((index-1)/columns)
+return UDim2.new(col/columns,col*gap/columns,0,(top or 0)+row*(height+gap)),
+UDim2.new(1/columns,-gap*(columns-1)/columns,0,height)
+end
+function Parts.gridHeight(count,columns,gap,height)
+local rows=math.ceil(count/columns)
+return rows>0 and rows*height+(rows-1)*gap or 0
+end
+function Parts.box(parent,props)
+local frame=create("Frame",{BorderSizePixel=0,Parent=parent})
+for key,value in pairs(props or{})do frame[key]=value end
+Theme.bind(frame,"BackgroundColor3","input")
+corner(frame,7)
+local edge=stroke(frame,nil,0.2)
+Theme.bind(edge,"Color","line")
+return frame,edge
+end
+function Parts.chip(parent,text,role,iconName,props)
+local width=Util.textWidth(text,9,Enum.Font.GothamMedium)+(iconName and 34 or 20)
+local frame=create("Frame",{Name="Chip",Size=UDim2.fromOffset(width,18),BorderSizePixel=0,Parent=parent})
+for key,value in pairs(props or{})do frame[key]=value end
+Theme.bind(frame,"BackgroundColor3","input")
+corner(frame,9)
+Theme.bind(stroke(frame,nil,0.3),"Color","buttonEdge")
+local x=8
+if iconName then
+local icon=Icons.themed(frame,iconName,10,role or"muted",{Name="Icon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,7,0.5,0)})
+if icon then x=21 end
+end
+local text_=label(frame,text,9,{Name="Text",Position=UDim2.fromOffset(x,0),Size=UDim2.new(1,-x-6,1,0),Font=Enum.Font.GothamMedium,TextTruncate=Enum.TextTruncate.None})
+Theme.bind(text_,"TextColor3",role or"text")
+local function resize(value)
+text_.Text=tostring(value)
+frame.Size=UDim2.fromOffset(Util.textWidth(text_.Text,9,Enum.Font.GothamMedium)+x+12,18)
+end
+return frame,text_,resize
+end
+function Parts.dot(parent,role,size,props)
+local dot=create("Frame",{Name="Dot",Size=UDim2.fromOffset(size or 6,size or 6),BorderSizePixel=0,Parent=parent})
+for key,value in pairs(props or{})do dot[key]=value end
+corner(dot,(size or 6))
+Theme.bind(dot,"BackgroundColor3",role or"muted")
+return dot
+end
+function Parts.sparkline(parent,role,scaleOf)
+local holder=create("Frame",{Name="Spark",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ClipsDescendants=true,Parent=parent})
+local segments,last={},nil
+local function draw(values)
+last=values or last
+values=last or{}
+local scale=scaleOf and scaleOf()or 1
+local w,h=holder.AbsoluteSize.X/scale,holder.AbsoluteSize.Y/scale
+local count=#values
+if w<=0 or h<=0 or count<2 then for _,s in ipairs(segments)do s.Visible=false end return end
+local low,high=math.huge,-math.huge
+for _,v in ipairs(values)do low,high=math.min(low,v),math.max(high,v)end
+if high-low<1e-6 then low,high=low-1,high+1 end
+local function point(i)return(i-1)/(count-1)*w,h-2-(values[i]-low)/(high-low)*(h-4)end
+for i=1,math.max(#segments,count-1)do
+local seg=segments[i]
+if not seg then
+seg=create("Frame",{Name="Seg",AnchorPoint=Vector2.new(0.5,0.5),BorderSizePixel=0,Parent=holder})
+Theme.bind(seg,"BackgroundColor3",role or"heading")
+segments[i]=seg
+end
+if i<count then
+local x1,y1=point(i)
+local x2,y2=point(i+1)
+local dx,dy=x2-x1,y2-y1
+seg.Position=UDim2.fromOffset((x1+x2)/2,(y1+y2)/2)
+seg.Size=UDim2.fromOffset(math.sqrt(dx*dx+dy*dy)+1,1.5)
+seg.Rotation=math.deg(math.atan2(dy,dx))
+seg.Visible=true
+else
+seg.Visible=false
+end
+end
+end
+holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()draw()end)
+return draw,holder
+end
+function Parts.dotRing(parent,size,count,dotSize)
+count,dotSize=count or 40,dotSize or 3
+local dots={}
+local radius=size/2-dotSize
+for i=1,count do
+local angle=(i-1)/count*math.pi*2-math.pi/2
+local dot=create("Frame",{
+Name="Seg",AnchorPoint=Vector2.new(0.5,0.5),BorderSizePixel=0,Size=UDim2.fromOffset(dotSize,dotSize),
+Position=UDim2.new(0.5,math.cos(angle)*radius,0.5,math.sin(angle)*radius),Parent=parent,
+})
+corner(dot,dotSize)
+Theme.bind(dot,"BackgroundColor3","line")
+dots[i]=dot
+end
+return function(fraction,role)
+local lit=math.floor(math.clamp(tonumber(fraction)or 0,0,1)*count+0.5)
+for i,dot in ipairs(dots)do Theme.bind(dot,"BackgroundColor3",i<=lit and(role or"heading")or"line")end
+end
+end
+function Parts.scaleOf(window)
+return function()return window and window.scale and window.scale.Scale or 1 end
+end
+function Parts.header(holder,cfg,y)
+local title,right
+if cfg.Title then
+title=label(holder,tostring(cfg.Title),11,{Name="Title",Position=UDim2.fromOffset(0,y or 0),Size=UDim2.new(1,-90,0,20)})
+Theme.bind(title,"TextColor3","text")
+right=label(holder,"",9,{Name="Right",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,y or 0),Size=UDim2.fromOffset(90,20),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(right,"TextColor3","muted")
+end
+return title,right
+end
+return Parts
 end
 __modules["elements/playerlist"]=function()
 local Util=require("util")
@@ -4535,6 +5317,77 @@ element:Set(default,true)
 return Base.finish(element,cfg)
 end
 end
+__modules["elements/search"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local holder=create("Frame",{Name="Search",Size=UDim2.new(1,0,0,30),BorderSizePixel=0,LayoutOrder=card:_order(),Parent=card.body})
+Theme.bind(holder,"BackgroundColor3","input")
+corner(holder,7)
+Theme.bind(Util.stroke(holder,nil,0.2),"Color","buttonEdge")
+Icons.themed(holder,"search",13,"muted",{Name="Icon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,10,0.5,0)})
+local box=create("TextBox",{
+Name="Box",BackgroundTransparency=1,Position=UDim2.fromOffset(30,0),Size=UDim2.new(1,-60,1,0),Text="",ClearTextOnFocus=false,
+PlaceholderText=tostring(cfg.Placeholder or"Search…"),TextSize=11,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,Parent=holder,
+})
+Theme.bind(box,"TextColor3","heading")
+local count=label(holder,"",9,{Name="Count",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-10,0.5,0),Size=UDim2.fromOffset(60,14),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(count,"TextColor3","muted")
+local element=Base.element(card,"Search",{Title=cfg.Title},holder,nil,nil)
+local own=card.frame
+local page=card.page
+local function cards()
+local out={}
+for _,area in ipairs({page.wide,page.left,page.right,page.wideBottom})do
+if area then
+for _,child in ipairs(area:GetChildren())do
+if child:IsA("Frame")and child~=own and child:FindFirstChildOfClass("UIListLayout")then out[#out+1]=child end
+end
+end
+end
+return out
+end
+local function words(row)
+local parts={row.Name}
+for _,item in ipairs(row:GetDescendants())do
+if item:IsA("TextLabel")and(item.Name=="Title"or item.Name=="Desc")then parts[#parts+1]=item.Text end
+end
+return string.lower(table.concat(parts," "))
+end
+local hidden={}
+local function apply(query)
+query=string.lower(query or"")
+for object,was in pairs(hidden)do if object.Parent then object.Visible=was end end
+table.clear(hidden)
+if query==""then count.Text=""return end
+local found=0
+for _,frame in ipairs(cards())do
+local any=false
+local heading=frame:FindFirstChild("Heading")
+local cardMatch=heading and string.find(string.lower(heading:FindFirstChildWhichIsA("TextLabel")and heading:FindFirstChildWhichIsA("TextLabel").Text or""),query,1,true)
+for _,row in ipairs(frame:GetChildren())do
+if row:IsA("GuiObject")and row~=heading and row.Name~="CardDesc"and row.Visible then
+if cardMatch or string.find(words(row),query,1,true)then
+any=true found=found+1
+else
+hidden[row]=row.Visible row.Visible=false
+end
+end
+end
+if not any then hidden[frame]=frame.Visible frame.Visible=false end
+end
+count.Text=found==1 and"1 match"or(found.." matches")
+end
+box:GetPropertyChangedSignal("Text"):Connect(function()apply(box.Text)end)
+function element:Set(text)box.Text=tostring(text or"")apply(box.Text)end
+function element:Get()return box.Text end
+function element:Clear()self:Set("")end
+return Base.finish(element,cfg)
+end
+end
 __modules["elements/segment"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -4713,6 +5566,81 @@ element.Value=cfg.Default~=nil and table.find(options,tostring(cfg.Default))and 
 render(false)
 fit()
 element:_fire(element.Value,true)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/sidenav"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local width=tonumber(cfg.Width)or 140
+local holder=create("Frame",{Name=tostring(cfg.Title or"SideNav"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,tonumber(cfg.Height)or 200),LayoutOrder=card:_order(),Parent=card.body})
+local menu=create("Frame",{Name="Menu",BackgroundTransparency=1,Size=UDim2.new(0,width,1,0),Parent=holder})
+local list=create("Frame",{Name="Items",BackgroundTransparency=1,Size=UDim2.new(1,-8,0,0),AutomaticSize=Enum.AutomaticSize.Y,Parent=menu})
+Util.list(list,2)
+local divider=create("Frame",{Name="Divider",Position=UDim2.new(0,width,0,0),Size=UDim2.new(0,1,1,0),BorderSizePixel=0,Parent=holder})
+Theme.bind(divider,"BackgroundColor3","line")
+local content=create("Frame",{Name="Content",BackgroundTransparency=1,Position=UDim2.fromOffset(width+12,0),Size=UDim2.new(1,-width-12,0,0),AutomaticSize=Enum.AutomaticSize.Y,Parent=holder})
+local element=Base.element(card,"SideNav",{Title=cfg.Title},holder,nil,nil)
+local parts,buttons,listeners={},{},{}
+local function paint()
+for name,button in pairs(buttons)do
+local on=name==element.Selected
+Theme.tweenTo(button.frame,"BackgroundColor3",on and"selected"or"card",0.1)
+button.frame.BackgroundTransparency=on and 0 or 1
+Theme.tweenTo(button.text,"TextColor3",on and"heading"or"muted",0.1)
+if button.icon then Theme.tweenTo(button.icon,"ImageColor3",on and"heading"or"muted",0.1)end
+end
+end
+function element:Section(name)
+name=tostring(name)
+if parts[name]then return parts[name]end
+local body=create("Frame",{Name=name,BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,Visible=false,Parent=content})
+Util.list(body,4)
+local part=setmetatable({page=card.page,window=card.window,order=0,body=body,frame=card.frame,title=name},getmetatable(card))
+parts[name]=part
+if not self.Selected then self:Select(name)end
+return part
+end
+function element:Select(name)
+name=tostring(name)
+self.Selected=name
+for other,part in pairs(parts)do part.body.Visible=other==name end
+paint()
+for _,callback in ipairs(listeners)do card.window:_safe("SideNav",callback,name)end
+end
+function element:OnSelect(callback)listeners[#listeners+1]=callback return self end
+for index,item in ipairs(cfg.Items or{})do
+if type(item)~="table"then item={item}end
+local name,iconName=tostring(item[1]or item.Title),item[2]or item.Icon
+local frame=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundTransparency=1,Size=UDim2.new(1,0,0,28),LayoutOrder=index,Parent=list})
+corner(frame,7)
+local icon=iconName and Icons.themed(frame,iconName,13,"muted",{Name="Icon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,9,0.5,0)})
+local text=label(frame,name,10,{Name="Title",Position=UDim2.fromOffset(icon and 29 or 10,0),Size=UDim2.new(1,-36,1,0)})
+buttons[name]={frame=frame,text=text,icon=icon}
+frame.Activated:Connect(function()element:Select(name)end)
+element:Section(name)
+end
+if cfg.Footer then
+local foot=create("Frame",{Name="Footer",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=1e6,Parent=list})
+Util.list(foot,4)
+Util.padding(foot,0,0,10,0)
+local part=setmetatable({page=card.page,window=card.window,order=0,body=foot,frame=card.frame,title="Footer"},getmetatable(card))
+card.window:_safe("SideNav footer",cfg.Footer,part)
+end
+local function fit()
+if cfg.Height then return end
+local scale=card.window.scale and card.window.scale.Scale or 1
+local need=math.max(list.AbsoluteSize.Y,content.AbsoluteSize.Y)/scale
+if need>=40 then holder.Size=UDim2.new(1,0,0,need)end
+end
+content:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+list:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+task.defer(fit)
+paint()
 return Base.finish(element,cfg)
 end
 end
@@ -4975,6 +5903,143 @@ function element:Get()return self.Value end
 function element:SetTitle(text)title.Text=tostring(text)end
 element:Set(tonumber(cfg.Value or cfg.Default)or 0,true)
 return element
+end
+end
+__modules["elements/stattiles"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Stats=require("stats")
+local Parts=require("elements/parts")
+local create,label=Util.create,Util.label
+return function(card,cfg)
+local window=card.window
+local list=cfg.Tiles or{}
+local columns=math.max(1,tonumber(cfg.Columns)or math.min(#list,4))
+local height,gap=tonumber(cfg.Height)or 74,6
+local holder=create("Frame",{Name=tostring(cfg.Title or"StatTiles"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,Parts.gridHeight(#list,columns,gap,height)),LayoutOrder=card:_order(),Parent=card.body})
+local element=Base.element(card,"StatTiles",cfg,holder,nil,nil)
+local tiles={}
+for index,spec in ipairs(list)do
+local position,size=Parts.cell(index,columns,gap,height)
+local box=Parts.box(holder,{Name=tostring(spec.Title or index),Position=position,Size=size})
+local title=label(box,string.upper(tostring(spec.Title or"")),8,{Name="Title",Position=UDim2.fromOffset(9,6),Size=UDim2.new(1,-18,0,12),Font=Enum.Font.GothamMedium})
+Theme.bind(title,"TextColor3","muted")
+local value=label(box,tostring(spec.Value or"-"),15,{Name="Value",Position=UDim2.fromOffset(9,18),Size=UDim2.new(1,-18,0,20),Font=Enum.Font.GothamBold})
+Theme.bind(value,"TextColor3","heading")
+local sub=label(box,tostring(spec.Sub or""),8,{Name="Sub",Position=UDim2.fromOffset(9,37),Size=UDim2.new(1,-18,0,11)})
+Theme.bind(sub,"TextColor3","muted")
+local spark=create("Frame",{Name="Line",BackgroundTransparency=1,Position=UDim2.new(0,8,1,-24),Size=UDim2.new(1,-16,0,18),Parent=box})
+local draw=Parts.sparkline(spark,Parts.color(spec.Color,"heading"),Parts.scaleOf(window))
+local tile={spec=spec,box=box,value=value,sub=sub,draw=draw,history=table.clone(spec.History or{})}
+tiles[index]=tile
+tiles[tostring(spec.Title)]=tile
+task.defer(draw,tile.history)
+end
+local function find(which)return type(which)=="number"and tiles[which]or tiles[tostring(which)]end
+function element:Set(which,data)
+local tile=find(which)
+if not tile then return end
+if type(data)~="table"then data={Value=data}end
+if data.Value~=nil then tile.value.Text=tostring(data.Value)end
+if data.Sub~=nil then tile.sub.Text=tostring(data.Sub)end
+end
+function element:Push(which,number,keep)
+local tile=find(which)
+if not tile or type(number)~="number"then return end
+table.insert(tile.history,number)
+while#tile.history>(keep or 30)do table.remove(tile.history,1)end
+if Util.shown(holder)then tile.draw(tile.history)end
+end
+function element:Get(which)local tile=find(which)return tile and tile.value.Text end
+local live={}
+for index,tile in ipairs(tiles)do if tile.spec.Source then live[#live+1]=index end end
+if#live>0 then
+local function sample(index)
+local spec=tiles[index].spec
+local number
+if spec.Source=="FPS"then number=Stats.fps elseif spec.Source=="Ping"then number=Stats.ping
+elseif type(spec.Source)=="function"then local ok,v=pcall(spec.Source)number=ok and tonumber(v)or nil end
+if not number then return end
+element:Push(index,number)
+local sum=0
+for _,v in ipairs(tiles[index].history)do sum=sum+v end
+local average=sum/math.max(#tiles[index].history,1)
+local fmt=spec.Format or function(v)return tostring(math.floor(v+0.5))..(spec.Suffix or"")end
+element:Set(index,{Value=fmt(number),Sub=spec.Sub or("avg "..fmt(average))})
+end
+Stats.start(window.Lib.maid)
+window.maid:give(Stats.listen(function()
+if not holder.Parent then return end
+for _,index in ipairs(live)do if tiles[index].spec.Source=="FPS"or tiles[index].spec.Source=="Ping"then sample(index)end end
+end))
+task.spawn(function()
+while holder.Parent and window.alive~=false do
+for _,index in ipairs(live)do if type(tiles[index].spec.Source)=="function"and Util.shown(holder)then sample(index)end end
+task.wait(tonumber(cfg.Interval)or 0.5)
+end
+end)
+end
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/statusbars"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Parts=require("elements/parts")
+local create,corner,label=Util.create,Util.corner,Util.label
+local WORDS={success="Running",warning="Limited",danger="Error",muted="Off"}
+return function(card,cfg)
+local slots=math.max(5,tonumber(cfg.Slots)or 30)
+local holder=create("Frame",{Name=tostring(cfg.Title or"StatusBars"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=card:_order(),Parent=card.body})
+Util.list(holder,2)
+local element=Base.element(card,"StatusBars",{Title=cfg.Title},holder,nil,nil)
+local rows={}
+local function paint(row)
+local count=#row.history
+for i,bar in ipairs(row.bars)do
+local state=row.history[count-slots+i]
+local role=state~=nil and Parts.stateRole(state)or"line"
+Theme.bind(bar,"BackgroundColor3",role=="muted"and"buttonEdge"or role)
+bar.BackgroundTransparency=state==nil and 0.4 or(i>slots-6 and 0 or 0.3)
+end
+end
+function element:SetState(titleText,stateName,text)
+local row=rows[tostring(titleText)]
+if not row then return end
+local role=Parts.stateRole(stateName)
+row.state.Text=text and tostring(text)or WORDS[role]or tostring(stateName)
+Theme.bind(row.state,"TextColor3",role)
+row.current=stateName
+end
+function element:Push(titleText,stateName)
+local row=rows[tostring(titleText)]
+if not row then return end
+row.history[#row.history+1]=stateName
+while#row.history>slots do table.remove(row.history,1)end
+self:SetState(titleText,stateName)
+paint(row)
+end
+for index,item in ipairs(cfg.Items or{})do
+local frame=create("Frame",{Name=tostring(item.Title or index),BackgroundTransparency=1,Size=UDim2.new(1,0,0,38),LayoutOrder=index,Parent=holder})
+local title=label(frame,tostring(item.Title or""),10,{Name="Title",Size=UDim2.new(1,-90,0,18)})
+Theme.bind(title,"TextColor3","text")
+local state=label(frame,"",9,{Name="State",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(90,18),TextXAlignment=Enum.TextXAlignment.Right})
+local strip=create("Frame",{Name="Strip",BackgroundTransparency=1,Position=UDim2.fromOffset(0,20),Size=UDim2.new(1,0,0,12),Parent=frame})
+local bars={}
+for i=1,slots do
+local bar=create("Frame",{Name="Bar",BorderSizePixel=0,Position=UDim2.new((i-1)/slots,(i-1)*2/slots,0,0),Size=UDim2.new(1/slots,-2*(slots-1)/slots,1,0),Parent=strip})
+corner(bar,2)
+bars[i]=bar
+end
+local row={title=title,state=state,bars=bars,history=table.clone(item.History or{})}
+rows[tostring(item.Title)]=row
+rows[index]=row
+element:SetState(item.Title,item.State)
+paint(row)
+end
+return Base.finish(element,cfg)
 end
 end
 __modules["elements/stepper"]=function()
@@ -5259,6 +6324,79 @@ element:Set(cfg.Default or(entries[1]and entries[1].name),true)
 return Base.finish(element,cfg)
 end
 end
+__modules["elements/switchgrid"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local Parts=require("elements/parts")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local list=cfg.Items or{}
+local columns=math.max(1,tonumber(cfg.Columns)or 2)
+local height,gap=34,6
+local holder=create("Frame",{Name=tostring(cfg.Title or"SwitchGrid"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,Parts.gridHeight(#list,columns,gap,height)),LayoutOrder=card:_order(),Parent=card.body})
+local grid=Base.element(card,"SwitchGrid",{Title=cfg.Title},holder,nil,nil)
+grid.Items={}
+local chips={}
+for index,spec in ipairs(list)do
+local position,size=Parts.cell(index,columns,gap,height)
+local box=create("TextButton",{Name=tostring(spec.Title or index),Text="",AutoButtonColor=false,BorderSizePixel=0,Position=position,Size=size,Parent=holder})
+Theme.bind(box,"BackgroundColor3","input")
+corner(box,7)
+Theme.bind(Util.stroke(box,nil,0.2),"Color","line")
+local x=10
+if spec.Icon then
+local icon=Icons.themed(box,spec.Icon,13,"icon",{Name="Icon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,10,0.5,0)})
+if icon then x=30 end
+end
+local title=label(box,tostring(spec.Title or""),10,{Name="Title",Position=UDim2.fromOffset(x,0),Size=UDim2.new(1,-x-52,1,0)})
+Theme.bind(title,"TextColor3","text")
+if spec.Status~=nil then
+local chip,_,resize=Parts.chip(box,tostring(spec.Status),spec.StatusRole or"warning",nil,{AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,0)})
+chips[tostring(spec.Title)]={chip=chip,resize=resize}
+title.Size=UDim2.new(1,-x-chip.Size.X.Offset-14,1,0)
+else
+local switch=create("Frame",{Name="Switch",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,0),Size=UDim2.fromOffset(30,16),BorderSizePixel=0,Parent=box})
+corner(switch,8)
+local knob=create("Frame",{Name="Knob",Position=UDim2.fromOffset(2,2),Size=UDim2.fromOffset(12,12),BorderSizePixel=0,Parent=switch})
+corner(knob,6)
+Theme.bind(knob,"BackgroundColor3","knob")
+local item=Base.element(card,"Toggle",{Title=spec.Title,Flag=spec.Flag,Callback=spec.Callback},box,title,nil)
+item.Value=spec.Default==true
+local function render(animate)
+Theme.tweenTo(switch,"BackgroundColor3",item.Value and(spec.OnRole or"success")or"buttonEdge",animate and 0.15 or nil)
+Util.tween(knob,animate and 0.15 or 0,{Position=UDim2.fromOffset(item.Value and 16 or 2,2)})
+end
+function item:Set(on,silent)
+on=on==true
+local changed=on~=self.Value
+self.Value=on
+render(true)
+self:_fire(on,silent or not changed)
+end
+function item:Get()return self.Value end
+box.Activated:Connect(function()if not item.Locked then item:Set(not item.Value)end end)
+render(false)
+item:_fire(item.Value,true)
+grid.Items[index]=item
+grid.Items[tostring(spec.Title)]=item
+end
+box.MouseEnter:Connect(function()Theme.tweenTo(box,"BackgroundColor3","hover",0.1)end)
+box.MouseLeave:Connect(function()Theme.tweenTo(box,"BackgroundColor3","input",0.1)end)
+end
+function grid:SetStatus(titleText,text,role)
+local entry=chips[tostring(titleText)]
+if not entry then return end
+entry.resize(text)
+local textLabel=entry.chip:FindFirstChild("Text")
+if textLabel and role then Theme.bind(textLabel,"TextColor3",role)end
+end
+function grid:Get(titleText)local item=self.Items[titleText]return item and item.Value end
+function grid:Set(titleText,on)local item=self.Items[titleText]if item then item:Set(on)end end
+return Base.finish(grid,cfg)
+end
+end
 __modules["elements/table"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -5524,6 +6662,242 @@ element:Set(box.Text)
 end)
 element:Set(cfg.Default or"",true)
 if cfg.Locked then box.TextEditable=false end
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/themepreview"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local holder=create("Frame",{Name="ThemePreview",BorderSizePixel=0,Size=UDim2.new(1,0,0,tonumber(cfg.Height)or 150),LayoutOrder=card:_order(),ClipsDescendants=true,Parent=card.body})
+Theme.bind(holder,"BackgroundColor3","base")
+corner(holder,9)
+Theme.bind(Util.stroke(holder),"Color","edge")
+local title=label(holder,tostring(cfg.Name or card.window.Title or"Window"),11,{Name="WindowTitle",Position=UDim2.fromOffset(10,6),Size=UDim2.new(1,-60,0,18),Font=Enum.Font.GothamBold})
+Theme.bind(title,"TextColor3","heading")
+local tab=create("Frame",{Name="Tab",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-10,0,22),Size=UDim2.fromOffset(34,2),BorderSizePixel=0,Parent=holder})
+Theme.bind(tab,"BackgroundColor3","accent")
+local function mini(x,name,on,withSlider)
+local box=create("Frame",{Name=name,Position=UDim2.new(x,x==0 and 10 or 4,0,32),Size=UDim2.new(0.5,-14,0,74),BorderSizePixel=0,Parent=holder})
+Theme.bind(box,"BackgroundColor3","card")
+corner(box,6)
+Theme.bind(Util.stroke(box),"Color","line")
+local heading=label(box,name,9,{Position=UDim2.fromOffset(8,5),Size=UDim2.new(1,-16,0,12),Font=Enum.Font.GothamMedium})
+Theme.bind(heading,"TextColor3","heading")
+local row=label(box,on and"Highlight"or"Silent Aim",8,{Position=UDim2.fromOffset(8,24),Size=UDim2.new(1,-40,0,12)})
+Theme.bind(row,"TextColor3","text")
+local switch=create("Frame",{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-8,0,24),Size=UDim2.fromOffset(20,11),BorderSizePixel=0,Parent=box})
+corner(switch,6)
+Theme.bind(switch,"BackgroundColor3",on and"toggleOn"or"buttonEdge")
+local knob=create("Frame",{Position=UDim2.fromOffset(on and 10 or 1,1),Size=UDim2.fromOffset(9,9),BorderSizePixel=0,Parent=switch})
+corner(knob,5)
+Theme.bind(knob,"BackgroundColor3","knob")
+if withSlider then
+local track=create("Frame",{Position=UDim2.fromOffset(8,52),Size=UDim2.new(1,-16,0,3),BorderSizePixel=0,Parent=box})
+corner(track,2)
+Theme.bind(track,"BackgroundColor3","buttonEdge")
+local fill=create("Frame",{Size=UDim2.fromScale(0.6,1),BorderSizePixel=0,Parent=track})
+corner(fill,2)
+Theme.bind(fill,"BackgroundColor3","accent")
+end
+end
+mini(0,"ESP",true,true)
+mini(0.5,"Aim",false,false)
+local caption=label(holder,"",8,{Name="Caption",Position=UDim2.new(0,10,1,-18),Size=UDim2.new(1,-20,0,12)})
+Theme.bind(caption,"TextColor3","muted")
+local element=Base.element(card,"ThemePreview",{Title=cfg.Title},holder,nil,nil)
+function element:Refresh()
+local ok,text=true,cfg.Caption
+if type(cfg.Caption)=="function"then ok,text=pcall(cfg.Caption)end
+caption.Text=ok and tostring(text or"")or""
+end
+element:Refresh()
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/tiles"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local Parts=require("elements/parts")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local list=cfg.Items or{}
+local columns=math.max(1,tonumber(cfg.Columns)or 4)
+local height,gap=tonumber(cfg.Height)or 58,6
+local holder=create("Frame",{Name=tostring(cfg.Title or"Tiles"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,Parts.gridHeight(#list,columns,gap,height)),LayoutOrder=card:_order(),Parent=card.body})
+local element=Base.element(card,"Tiles",{Title=cfg.Title},holder,nil,nil)
+element.Items={}
+local states={}
+local centered=cfg.Align=="Center"
+for index,spec in ipairs(list)do
+local position,size=Parts.cell(index,columns,gap,height)
+local box=create("TextButton",{Name=tostring(spec.Title or index),Text="",AutoButtonColor=false,BorderSizePixel=0,Position=position,Size=size,Parent=holder})
+corner(box,9)
+local edge=Util.stroke(box,nil,0.1)
+local icon=spec.Icon and Icons.themed(box,spec.Icon,15,"muted",{Name="Icon",AnchorPoint=Vector2.new(centered and 0.5 or 0,0),Position=centered and UDim2.new(0.5,0,0,10)or UDim2.fromOffset(9,9)})
+local title=label(box,tostring(spec.Title or""),10,{Name="Title",Position=UDim2.new(0,9,1,-28),Size=UDim2.new(1,-18,0,13),TextXAlignment=centered and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left})
+local sub=label(box,tostring(spec.Sub or""),8,{Name="Sub",Position=UDim2.new(0,9,1,-15),Size=UDim2.new(1,-18,0,11),TextXAlignment=centered and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left})
+Theme.bind(sub,"TextColor3","muted")
+local function paint(lit,role)
+Theme.tweenTo(box,"BackgroundColor3",lit and"selected"or"input",0.12)
+Theme.tweenTo(edge,"Color",role and role~="muted"and role or(lit and"buttonEdge"or"line"),0.12)
+edge.Transparency=role and role~="muted"and 0.45 or 0.1
+if icon then Theme.tweenTo(icon,"ImageColor3",role and role~="muted"and role or(lit and"heading"or"muted"),0.12)end
+Theme.tweenTo(title,"TextColor3",lit and"heading"or"text",0.12)
+end
+if spec.Flag~=nil or spec.Default~=nil and spec.State==nil then
+local item=Base.element(card,"Toggle",{Title=spec.Title,Flag=spec.Flag,Callback=spec.Callback},box,title,nil)
+item.Value=spec.Default==true
+local function render()
+paint(item.Value,nil)
+if spec.Sub==nil then sub.Text=item.Value and"On"or"Off"end
+end
+function item:Set(on,silent)
+on=on==true
+local changed=on~=self.Value
+self.Value=on
+render()
+self:_fire(on,silent or not changed)
+end
+function item:Get()return self.Value end
+box.Activated:Connect(function()if not item.Locked then item:Set(not item.Value)end end)
+render()
+item:_fire(item.Value,true)
+element.Items[index]=item
+element.Items[tostring(spec.Title)]=item
+elseif spec.State~=nil then
+local function set(state,subText)
+local role=Parts.stateRole(state)
+paint(role~="muted",role)
+if subText~=nil then sub.Text=tostring(subText)end
+end
+states[tostring(spec.Title)]=set
+set(spec.State,spec.Sub)
+if spec.Callback then box.Activated:Connect(function()card.window:_safe(tostring(spec.Title),spec.Callback)end)end
+else
+paint(false,nil)
+box.Activated:Connect(function()if spec.Callback then card.window:_safe(tostring(spec.Title),spec.Callback)end end)
+box.MouseEnter:Connect(function()Theme.tweenTo(box,"BackgroundColor3","hover",0.1)end)
+box.MouseLeave:Connect(function()Theme.tweenTo(box,"BackgroundColor3","input",0.1)end)
+end
+Util.hoverPop(box,1.02)
+end
+function element:SetState(titleText,state,subText)
+local set=states[tostring(titleText)]
+if set then set(state,subText)end
+end
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/timeline"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local Parts=require("elements/parts")
+local create,corner,label=Util.create,Util.corner,Util.label
+return function(card,cfg)
+local compact=cfg.Compact==true
+local max=math.max(1,tonumber(cfg.Max)or 50)
+local height=tonumber(cfg.Height)or(compact and 130 or 220)
+local top=cfg.Filters and 28 or 0
+local holder=create("Frame",{Name=tostring(cfg.Title or"Timeline"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,height+top),LayoutOrder=card:_order(),Parent=card.body})
+local scroller=create("ScrollingFrame",{
+Name="Events",BackgroundTransparency=1,BorderSizePixel=0,Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,1,-top),
+CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollBarThickness=2,Parent=holder,
+})
+Theme.bind(scroller,"ScrollBarImageColor3","buttonEdge")
+Util.list(scroller,compact and 0 or 2)
+local element=Base.element(card,"Timeline",{Title=cfg.Title},holder,nil,nil)
+local events,filter,order={},"All",0
+local empty=label(scroller,tostring(cfg.Empty or"Nothing yet"),10,{Name="Empty",Size=UDim2.new(1,0,0,22),LayoutOrder=1e9})
+Theme.bind(empty,"TextColor3","muted")
+local function refresh()
+local shown=0
+for index,event in ipairs(events)do
+local visible=filter=="All"or event.data.Tag==filter
+event.row.Visible=visible
+if visible then shown=shown+1 end
+if event.line then event.line.Visible=index<#events end
+end
+empty.Visible=shown==0
+end
+if cfg.Filters then
+local chips={}
+local x=0
+for _,name in ipairs(cfg.Filters)do
+local width=Util.textWidth(name,9,Enum.Font.GothamMedium)+18
+local button=create("TextButton",{Name=name,Text=name,AutoButtonColor=false,BorderSizePixel=0,Position=UDim2.fromOffset(x,0),Size=UDim2.fromOffset(width,20),TextSize=9,Font=Enum.Font.GothamMedium,Parent=holder})
+corner(button,10)
+chips[name]=button
+x=x+width+4
+button.Activated:Connect(function()
+filter=name
+for other,chip in pairs(chips)do
+Theme.tweenTo(chip,"BackgroundColor3",other==filter and"selected"or"input",0.1)
+Theme.tweenTo(chip,"TextColor3",other==filter and"heading"or"muted",0.1)
+end
+refresh()
+end)
+Theme.bind(button,"BackgroundColor3",name==filter and"selected"or"input")
+Theme.bind(button,"TextColor3",name==filter and"heading"or"muted")
+end
+end
+function element:Add(data)
+if type(data)~="table"then data={Title=tostring(data)}end
+data.Time=data.Time or os.date("%H:%M")
+order=order-1
+local role=data.Kind and Parts.stateRole(data.Kind)or nil
+local row
+if compact then
+row=create("Frame",{Name="Event",BackgroundTransparency=1,Size=UDim2.new(1,-4,0,18),LayoutOrder=order,Parent=scroller})
+local time=label(row,tostring(data.Time),9,{Name="Time",Size=UDim2.fromOffset(40,18),Font=Enum.Font.Code})
+Theme.bind(time,"TextColor3","muted")
+Parts.dot(row,role or"muted",6,{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,44,0.5,0)})
+local text=label(row,tostring(data.Title)..(data.Desc and(" · "..tostring(data.Desc))or""),10,{Name="Text",Position=UDim2.fromOffset(56,0),Size=UDim2.new(1,-56,1,0)})
+Theme.bind(text,"TextColor3","text")
+else
+local h=data.Desc and 38 or 30
+row=create("Frame",{Name="Event",BackgroundTransparency=1,Size=UDim2.new(1,-4,0,h),LayoutOrder=order,Parent=scroller})
+local bubble=create("Frame",{Name="Bubble",Size=UDim2.fromOffset(24,24),Position=UDim2.fromOffset(0,3),BorderSizePixel=0,ZIndex=2,Parent=row})
+corner(bubble,12)
+Theme.bind(bubble,"BackgroundColor3","input")
+Theme.bind(Util.stroke(bubble,nil,0.2),"Color","buttonEdge")
+local icon=Icons.themed(bubble,data.Icon or"circle",11,role or"icon",{Name="Icon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),ZIndex=2})
+if not icon then Parts.dot(bubble,role or"muted",6,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),ZIndex=2})end
+local line=create("Frame",{Name="Line",Position=UDim2.fromOffset(12,27),Size=UDim2.new(0,1,1,-22),BorderSizePixel=0,Parent=row})
+Theme.bind(line,"BackgroundColor3","line")
+local title=label(row,tostring(data.Title),11,{Name="Title",Position=UDim2.fromOffset(34,4),Size=UDim2.new(1,-90,0,14)})
+Theme.bind(title,"TextColor3","heading")
+if data.Desc then
+local desc=label(row,tostring(data.Desc),9,{Name="Desc",Position=UDim2.fromOffset(34,19),Size=UDim2.new(1,-90,0,12)})
+Theme.bind(desc,"TextColor3","muted")
+end
+local time=label(row,tostring(data.Time),9,{Name="Time",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-2,0,4),Size=UDim2.fromOffset(52,14),TextXAlignment=Enum.TextXAlignment.Right,Font=Enum.Font.Code})
+Theme.bind(time,"TextColor3","muted")
+table.insert(events,1,{data=data,row=row,line=line})
+end
+if compact then table.insert(events,1,{data=data,row=row})end
+while#events>max do local old=table.remove(events)old.row:Destroy()end
+refresh()
+return row
+end
+function element:Clear()
+for _,event in ipairs(events)do event.row:Destroy()end
+table.clear(events)
+refresh()
+end
+function element:GetEvents()
+local out={}
+for _,event in ipairs(events)do out[#out+1]=event.data end
+return out
+end
+for _,data in ipairs(cfg.Events or{})do element:Add(data)end
+refresh()
 return Base.finish(element,cfg)
 end
 end
@@ -7151,7 +8525,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.42",
+Version="1.10.0",
 Flags={},
 Windows={},
 Theme=Theme,

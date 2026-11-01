@@ -484,6 +484,76 @@ fov:Update({ Radius = 140, Sides = 6, Thickness = 1, Color = Color3.new(1, 1, 1)
 -- "60 px · real size" (or "· shown at 40 %" when shrunk to fit) in the corner; under 16 sides the circle is drawn as the polygon it is
 ```
 
+### Dashboard and settings blocks
+
+Bigger building blocks for dashboards, info and settings pages. `test/widgets_demo.lua` uses every one of them (`test/widgets.sh` renders it).
+
+**Numbers and health**
+```lua
+local tiles = Card:StatTiles({ Columns = 4, Tiles = {
+    { Title = "FPS", Source = "FPS" },                                  -- live, "avg ..." under it
+    { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
+    { Title = "Memory", Value = "26 MB", Sub = "Lua", History = { 20, 22, 26 }, Color = Color3.fromRGB(180, 140, 232) },
+} })
+tiles:Set("Memory", { Value = "30 MB" }) tiles:Push("Memory", 30)    -- by title or index
+
+local gauges = Card:Gauges({ Gauges = { { Title = "FPS", Source = "FPS", Max = 60 }, { Title = "Ping", Value = 40, Max = 150, Sub = "ms", Color = "warning" } } })
+gauges:Set("Ping", 55)                                                 -- a ring of dots fills to Value / Max
+
+local hero = Card:Hero({ Title = "Tester", Desc = "@Tester", UserId = player.UserId, Label = "SESSION", Value = "00:00:00",
+    Chips = { { "60 FPS", "activity" }, { "40 ms", "wifi" } } })      -- :SetValue, :SetChips, :SetOnline
+Card:StatusBars({ Slots = 30, Items = { { Title = "ESP", State = "on" }, { Title = "Misc", State = "limited" } } })   -- :Push(title, state)
+Card:Checklist({ Items = { { Title = "File access", Ok = true, Note = "profiles" }, { Title = "getconnections", Ok = false } } })
+Card:Notice({ Kind = "success", Title = "Everything is running", Desc = "1 module limited", Button = { Title = "Copy", Icon = "copy", Callback = fn } })
+```
+States everywhere: `"on"` / `"ok"` green, `"limited"` / `"warning"` amber, `"error"` red, `"off"` grey. Colours: a theme role (`"warning"`) or a `Color3`.
+
+**Switches**
+```lua
+local mods = Card:SwitchGrid({ Columns = 2, Items = {                   -- boxed rows, each its own saved toggle
+    { Title = "ESP", Icon = "eye", Flag = "esp", Default = true, Callback = fn },
+    { Title = "Misc", Icon = "box", Status = "Limited" },                -- a chip instead of a switch (:SetStatus)
+} })
+mods.Items.ESP:Set(false)
+Card:Tiles({ Columns = 4, Items = {                                     -- square tiles
+    { Title = "Free mouse", Icon = "mouse-pointer", Flag = "freeMouse" },   -- toggle tile (On / Off)
+    { Title = "ESP", Icon = "eye", State = "on" },                          -- status tile (:SetState)
+    { Title = "Rejoin", Icon = "rotate-ccw", Callback = fn },               -- button tile
+} })
+Card:Chips({ Flag = "quick", Items = { { Title = "ESP", Icon = "eye" }, "Camera" }, Multi = true, Default = { "ESP" } })
+```
+
+**Activity**
+```lua
+local feed = Card:Timeline({ Max = 50, Filters = { "All", "Modules", "Combat" } })   -- Compact = true: one line each
+feed:Add({ Title = "Click TP", Desc = "212 studs", Icon = "navigation", Kind = "success", Tag = "Combat" })
+Card:Changelog({ Entries = { { Version = "1.10", Time = "now", Items = { "New blocks" } } } })   -- click a version to open it
+```
+
+**Settings pages**
+```lua
+Page:Card({ Wide = true }):Search({ Placeholder = "Search settings…" })    -- filters this page as you type
+Card:ListItem({ Title = "Theme", Icon = "palette", Value = "Dark", Callback = fn })          -- link row with a chevron
+Card:ListItem({ Title = "Free mouse", Icon = "mouse-pointer", Toggle = true, Flag = "free" })  -- or a switch
+Card:Gallery({ Flag = "theme", Default = "Dark", Items = {
+    { Name = "Dark", Colors = { background, card, accent } },          -- a theme thumbnail
+    { Name = "Gotham", Font = Enum.Font.Gotham },                       -- an "Aa" font sample
+} })
+Card:ThemePreview({ Caption = "Gotham · Normal" })                     -- a tiny window in the live theme colours
+local nav = Card:SideNav({ Items = { { "Appearance", "palette" }, { "Behaviour", "sliders-horizontal" } },
+    Footer = function(part) part:Button({ Title = "Unload" }) end })
+nav:Section("Appearance"):Toggle({ Title = "Text glow" })              -- each menu item has its own part
+```
+
+**Lists of things**
+```lua
+Card:ItemCards({ Columns = 2, AddNew = "New profile", OnAction = function(item) end, OnMenu = fn, OnAdd = fn, Items = {
+    { Title = "Default", Sub = "now · 46 settings", Desc = "Active", Color = Color3.fromRGB(232, 232, 236),
+      Badges = { { Text = "ACTIVE", Role = "success" }, "AUTO" }, Action = "Save", Highlight = true },
+} })
+Card:DiffList({ OnRevert = function(row) end, Rows = { { Tag = "ESP", Title = "Max distance", Old = "1000", New = "1500" } } })
+```
+
 ---
 
 ## Flags
