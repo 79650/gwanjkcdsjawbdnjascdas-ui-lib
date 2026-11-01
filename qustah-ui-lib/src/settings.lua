@@ -385,7 +385,7 @@ return function(window, cfg)
     errorsCard:HeaderSwitch({ Title = "Debug", Flag = "__ui_debug", Default = window.cfg.Debug == true, Tooltip = "A notification for every new error",
         Callback = function(on) window.debug = on end })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
-    local errorText = errorsCard:Paragraph({ Content = "No errors" })
+    local errorText = errorsCard:Paragraph({ Content = "" })
     local errorButtons = errorsCard:Row()
     errorButtons:Button({ Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report", Callback = copyDebug })
     local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
@@ -410,17 +410,17 @@ return function(window, cfg)
         if #errors > 8 then lines[#lines + 1] = "+" .. (#errors - 8) .. " more (Copy debug info)" end
         errorCount:Set(#errors == 0 and "0" or (#errors .. (total > #errors and (" (" .. total .. "×)") or "")))
         errorCount:SetColor(#errors > 0 and RED or "text")
-        errorText:Set(#lines > 0 and table.concat(lines, "\n") or "No errors")
+        errorText:Set(table.concat(lines, "\n"))
+        errorText:SetVisible(#lines > 0) -- (none: the count above says 0)
         clearErrors:SetVisible(#errors > 0)
     end
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)
     update()
-    -- this session: how long, how many errors, the script's own counters (Window:Count), Lua memory
+    -- this session: how long, the script's own counters (Window:Count), Lua memory
     window._startedAt = window._startedAt or os.clock()
     local sessionCard = infoPage:Card({ Title = "This session", Side = "Right", Icon = "timer" })
     local uptimeRow = sessionCard:Info({ Title = "Running for", Value = "0s" })
-    local errorsRow = sessionCard:Info({ Title = "Errors caught", Value = "0" })
     local countRows = {}
     local memoryRow = sessionCard:Info({ Title = "Lua memory", Value = "--" })
     memoryRow.Row.LayoutOrder = 10000 -- (stays last when counters are added)
@@ -433,10 +433,6 @@ return function(window, cfg)
         local seconds = math.floor(os.clock() - window._startedAt)
         uptimeRow:Set(seconds >= 3600 and string.format("%dh %02dm", seconds // 3600, (seconds // 60) % 60)
             or (seconds >= 60 and string.format("%dm %02ds", seconds // 60, seconds % 60) or (seconds .. "s")))
-        local total = 0
-        for _, entry in ipairs(window:GetErrors()) do total = total + entry.count end
-        errorsRow:Set(tostring(total))
-        errorsRow:SetColor(total > 0 and RED or "text")
         local order, counts = window:GetCounts()
         for _, name in ipairs(order) do
             countRows[name] = countRows[name] or sessionCard:Info({ Title = name })

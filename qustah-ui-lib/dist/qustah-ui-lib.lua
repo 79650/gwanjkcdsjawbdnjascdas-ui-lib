@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.5 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.10.6 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -2601,6 +2601,7 @@ local Base = require("elements/base")
 local Icons = require("icons")
 
 local create, label = Util.create, Util.label
+local BULLET = 12 -- (the text starts this far right of the bullet)
 
 return function(card, cfg)
     local holder = create("Frame", { Name = tostring(cfg.Title or "Changelog"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = card:_order(), Parent = card.body })
@@ -2631,18 +2632,22 @@ return function(card, cfg)
             Util.padding(body, 8, 0, 0, 6)
             local lines = {}
             for order, text in ipairs(data.Items or {}) do
-                local item = label(body, "•  " .. tostring(text), 10, { Name = "Item", Size = UDim2.new(1, 0, 0, 14), LayoutOrder = order, TextWrapped = true, TextTruncate = Enum.TextTruncate.None, TextYAlignment = Enum.TextYAlignment.Top })
-                Theme.bind(item, "TextColor3", "text")
-                lines[#lines + 1] = item
+                -- the bullet on its own, the text beside it (a wrapped line starts under the text, not the bullet)
+                local item = create("Frame", { Name = "Item", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 14), LayoutOrder = order, Parent = body })
+                local dot = label(item, "•", 10, { Name = "Bullet", Size = UDim2.fromOffset(10, 13), TextYAlignment = Enum.TextYAlignment.Top })
+                Theme.bind(dot, "TextColor3", "muted")
+                local words = label(item, tostring(text), 10, { Name = "Text", Position = UDim2.fromOffset(BULLET, 0), Size = UDim2.new(1, -BULLET, 1, 0), TextWrapped = true, TextTruncate = Enum.TextTruncate.None, TextYAlignment = Enum.TextYAlignment.Top })
+                Theme.bind(words, "TextColor3", "text")
+                lines[#lines + 1] = { frame = item, text = words }
             end
             -- each note as tall as its wrapped lines (measured from the text width, not left to AutomaticSize)
             local function wrap()
                 local scale = card.window.scale and card.window.scale.Scale or 1
-                local width = body.AbsoluteSize.X / scale - 8
+                local width = body.AbsoluteSize.X / scale - 8 - BULLET
                 if width < 40 then return end
                 for _, item in ipairs(lines) do
-                    local count = math.max(1, math.ceil((Util.textWidth(item.Text, 10, Enum.Font.Gotham) * 1.08 + 6) / width))
-                    item.Size = UDim2.new(1, 0, 0, count * 13 + 1)
+                    local count = math.max(1, math.ceil((Util.textWidth(item.text.Text, 10, Enum.Font.Gotham) * 1.08 + 6) / width))
+                    item.frame.Size = UDim2.new(1, 0, 0, count * 13 + 1)
                 end
             end
             body:GetPropertyChangedSignal("AbsoluteSize"):Connect(wrap)
@@ -8490,8 +8495,8 @@ function Glow.start(maid)
         if connection then connection:Disconnect() connection = nil end
         Glow.running = false
     end)
-    Theme.onChange(function() for _, fx in ipairs(Glow.items) do if fx.label.Parent then apply(fx) end end end)
 end
+Theme.onChange(function() for _, fx in ipairs(Glow.items) do if fx.label.Parent then apply(fx) end end end)
 
 return Glow
 end
@@ -9686,7 +9691,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.10.5",
+    Version = "1.10.6",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -11235,7 +11240,7 @@ return function(window, cfg)
     errorsCard:HeaderSwitch({ Title = "Debug", Flag = "__ui_debug", Default = window.cfg.Debug == true, Tooltip = "A notification for every new error",
         Callback = function(on) window.debug = on end })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
-    local errorText = errorsCard:Paragraph({ Content = "No errors" })
+    local errorText = errorsCard:Paragraph({ Content = "" })
     local errorButtons = errorsCard:Row()
     errorButtons:Button({ Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report", Callback = copyDebug })
     local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
@@ -11260,17 +11265,17 @@ return function(window, cfg)
         if #errors > 8 then lines[#lines + 1] = "+" .. (#errors - 8) .. " more (Copy debug info)" end
         errorCount:Set(#errors == 0 and "0" or (#errors .. (total > #errors and (" (" .. total .. "×)") or "")))
         errorCount:SetColor(#errors > 0 and RED or "text")
-        errorText:Set(#lines > 0 and table.concat(lines, "\n") or "No errors")
+        errorText:Set(table.concat(lines, "\n"))
+        errorText:SetVisible(#lines > 0) -- (none: the count above says 0)
         clearErrors:SetVisible(#errors > 0)
     end
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)
     update()
-    -- this session: how long, how many errors, the script's own counters (Window:Count), Lua memory
+    -- this session: how long, the script's own counters (Window:Count), Lua memory
     window._startedAt = window._startedAt or os.clock()
     local sessionCard = infoPage:Card({ Title = "This session", Side = "Right", Icon = "timer" })
     local uptimeRow = sessionCard:Info({ Title = "Running for", Value = "0s" })
-    local errorsRow = sessionCard:Info({ Title = "Errors caught", Value = "0" })
     local countRows = {}
     local memoryRow = sessionCard:Info({ Title = "Lua memory", Value = "--" })
     memoryRow.Row.LayoutOrder = 10000 -- (stays last when counters are added)
@@ -11283,10 +11288,6 @@ return function(window, cfg)
         local seconds = math.floor(os.clock() - window._startedAt)
         uptimeRow:Set(seconds >= 3600 and string.format("%dh %02dm", seconds // 3600, (seconds // 60) % 60)
             or (seconds >= 60 and string.format("%dm %02ds", seconds // 60, seconds % 60) or (seconds .. "s")))
-        local total = 0
-        for _, entry in ipairs(window:GetErrors()) do total = total + entry.count end
-        errorsRow:Set(tostring(total))
-        errorsRow:SetColor(total > 0 and RED or "text")
         local order, counts = window:GetCounts()
         for _, name in ipairs(order) do
             countRows[name] = countRows[name] or sessionCard:Info({ Title = name })
@@ -14156,6 +14157,8 @@ function Window:Destroy()
     for index, window in ipairs(self.Lib.Windows) do
         if window == self then table.remove(self.Lib.Windows, index) break end
     end
+    -- the last window gone: the library's shared parts go too (toasts, the FPS sampler, the shine loop)
+    if #self.Lib.Windows == 0 then self.Lib.maid:clean() end
     Util.safe(self.cfg.OnClose)
 end
 

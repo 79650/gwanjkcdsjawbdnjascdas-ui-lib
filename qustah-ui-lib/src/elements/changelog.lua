@@ -10,6 +10,7 @@ local Base = require("elements/base")
 local Icons = require("icons")
 
 local create, label = Util.create, Util.label
+local BULLET = 12 -- (the text starts this far right of the bullet)
 
 return function(card, cfg)
     local holder = create("Frame", { Name = tostring(cfg.Title or "Changelog"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = card:_order(), Parent = card.body })
@@ -40,18 +41,22 @@ return function(card, cfg)
             Util.padding(body, 8, 0, 0, 6)
             local lines = {}
             for order, text in ipairs(data.Items or {}) do
-                local item = label(body, "•  " .. tostring(text), 10, { Name = "Item", Size = UDim2.new(1, 0, 0, 14), LayoutOrder = order, TextWrapped = true, TextTruncate = Enum.TextTruncate.None, TextYAlignment = Enum.TextYAlignment.Top })
-                Theme.bind(item, "TextColor3", "text")
-                lines[#lines + 1] = item
+                -- the bullet on its own, the text beside it (a wrapped line starts under the text, not the bullet)
+                local item = create("Frame", { Name = "Item", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 14), LayoutOrder = order, Parent = body })
+                local dot = label(item, "•", 10, { Name = "Bullet", Size = UDim2.fromOffset(10, 13), TextYAlignment = Enum.TextYAlignment.Top })
+                Theme.bind(dot, "TextColor3", "muted")
+                local words = label(item, tostring(text), 10, { Name = "Text", Position = UDim2.fromOffset(BULLET, 0), Size = UDim2.new(1, -BULLET, 1, 0), TextWrapped = true, TextTruncate = Enum.TextTruncate.None, TextYAlignment = Enum.TextYAlignment.Top })
+                Theme.bind(words, "TextColor3", "text")
+                lines[#lines + 1] = { frame = item, text = words }
             end
             -- each note as tall as its wrapped lines (measured from the text width, not left to AutomaticSize)
             local function wrap()
                 local scale = card.window.scale and card.window.scale.Scale or 1
-                local width = body.AbsoluteSize.X / scale - 8
+                local width = body.AbsoluteSize.X / scale - 8 - BULLET
                 if width < 40 then return end
                 for _, item in ipairs(lines) do
-                    local count = math.max(1, math.ceil((Util.textWidth(item.Text, 10, Enum.Font.Gotham) * 1.08 + 6) / width))
-                    item.Size = UDim2.new(1, 0, 0, count * 13 + 1)
+                    local count = math.max(1, math.ceil((Util.textWidth(item.text.Text, 10, Enum.Font.Gotham) * 1.08 + 6) / width))
+                    item.frame.Size = UDim2.new(1, 0, 0, count * 13 + 1)
                 end
             end
             body:GetPropertyChangedSignal("AbsoluteSize"):Connect(wrap)

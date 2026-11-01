@@ -91,7 +91,7 @@ function Glow.start(maid)
         if connection then connection:Disconnect() connection = nil end
         Glow.running = false
     end)
-    Theme.onChange(function() for _, fx in ipairs(Glow.items) do if fx.label.Parent then apply(fx) end end end)
 end
+Theme.onChange(function() for _, fx in ipairs(Glow.items) do if fx.label.Parent then apply(fx) end end end)
 
 return Glow

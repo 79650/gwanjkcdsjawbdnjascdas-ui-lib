@@ -874,6 +874,8 @@ function Window:Destroy()
     for index, window in ipairs(self.Lib.Windows) do
         if window == self then table.remove(self.Lib.Windows, index) break end
     end
+    -- the last window gone: the library's shared parts go too (toasts, the FPS sampler, the shine loop)
+    if #self.Lib.Windows == 0 then self.Lib.maid:clean() end
     Util.safe(self.cfg.OnClose)
 end
 
