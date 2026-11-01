@@ -49,7 +49,7 @@ end
 
 -- a small rounded chip: [icon] text. Returns the frame and its label; chip:SetText via the label.
 function Parts.chip(parent, text, role, iconName, props)
-    local width = Util.textWidth(text, 9, Enum.Font.GothamMedium) + (iconName and 34 or 20)
+    local width = Util.textWidth(text, 9, Enum.Font.GothamMedium) + (iconName and 38 or 24)
     local frame = create("Frame", { Name = "Chip", Size = UDim2.fromOffset(width, 18), BorderSizePixel = 0, Parent = parent })
     for key, value in pairs(props or {}) do frame[key] = value end
     Theme.bind(frame, "BackgroundColor3", "input")
@@ -64,7 +64,7 @@ function Parts.chip(parent, text, role, iconName, props)
     Theme.bind(text_, "TextColor3", role or "text")
     local function resize(value)
         text_.Text = tostring(value)
-        frame.Size = UDim2.fromOffset(Util.textWidth(text_.Text, 9, Enum.Font.GothamMedium) + x + 12, 18)
+        frame.Size = UDim2.fromOffset(Util.textWidth(text_.Text, 9, Enum.Font.GothamMedium) + x + 16, 18)
     end
     return frame, text_, resize
 end

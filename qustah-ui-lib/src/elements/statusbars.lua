@@ -4,7 +4,7 @@
 -- } })
 -- A status-page row per item: its name, its state on the right ("Running" / "Limited" / "Off" / "Error", coloured),
 -- and a strip of Slots small bars, one per sample (oldest left): green on, amber limited, red error, grey off.
--- :Push(title, state) adds a sample (and sets the state), :SetState(title, state, text). No flag.
+-- :Push(title, state) adds a sample (and sets the state), :SetState(title, state, text), :AddItem(item). No flag.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -45,7 +45,10 @@ return function(card, cfg)
         self:SetState(titleText, stateName)
         paint(row)
     end
-    for index, item in ipairs(cfg.Items or {}) do
+    -- :AddItem({ Title, State, History }) adds a row (a module that reports later); nothing when it exists
+    function element:AddItem(item)
+        if rows[tostring(item.Title)] then return end
+        local index = #rows + 1
         local frame = create("Frame", { Name = tostring(item.Title or index), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 38), LayoutOrder = index, Parent = holder })
         local title = label(frame, tostring(item.Title or ""), 10, { Name = "Title", Size = UDim2.new(1, -90, 0, 18) })
         Theme.bind(title, "TextColor3", "text")
@@ -63,5 +66,6 @@ return function(card, cfg)
         element:SetState(item.Title, item.State)
         paint(row)
     end
+    for _, item in ipairs(cfg.Items or {}) do element:AddItem(item) end
     return Base.finish(element, cfg)
 end

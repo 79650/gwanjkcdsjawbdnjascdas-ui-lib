@@ -9,7 +9,7 @@ local Glow = require("glow")
 local UIFont = require("font")
 local Profiles = require("profiles")
 
-local RED, GREEN = "danger", "success" -- theme roles
+local RED = "danger" -- theme role
 
 return function(window, cfg)
     cfg = cfg or {}
@@ -280,15 +280,8 @@ return function(window, cfg)
     local files = type(writefile) == "function" and type(readfile) == "function"
     about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
     about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
-    -- the buttons after the facts, side by side when there are two
-    local aboutButtons = (type(window.cfg.Changelog) == "table" and window.cfg.Tour) and about:Row() or about
-    if type(window.cfg.Changelog) == "table" then
-        aboutButtons:Button({ Title = "What's new", Icon = "newspaper", Callback = function() window:ShowChangelog() end })
-    end
-    -- every version's notes (Changelog.History), under the other buttons
-    if type(window.cfg.Changelog) == "table" then
-        about:Button({ Title = "Version history", Icon = "history", Style = "Ghost", Callback = function() window:ShowVersionHistory() end })
-    end
+    -- (the release notes are in the "What's new" card)
+    local aboutButtons = about
     if window.cfg.Tour then
         aboutButtons:Button({ Title = "Show the tour", Icon = "map", Callback = function()
             local spec = window.cfg.Tour
@@ -340,9 +333,54 @@ return function(window, cfg)
         showKicks()
     end
 
-    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes" })
-    local moduleRows = {}
+    -- the status band over the page: all fine / limited / errors, with the debug info button
+    local function copyDebug()
+        local clipboard = setclipboard or toclipboard
+        if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
+            window:Notify({ Title = "Copied", Content = "Debug info copied - paste it into your bug report", Icon = "clipboard-copy" })
+        else
+            window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
+        end
+    end
+    local band = infoPage:Card({ Wide = true }):Notice({ Kind = "success", Title = "Everything is running", Desc = " ",
+        Button = { Title = "Debug info", Icon = "clipboard-copy", Callback = copyDebug } })
+
+    -- each module's state over the last 15 minutes (a sample every 30 s)
+    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes", Desc = "Last 15 minutes" })
     local noModules = modulesCard:Label("No modules reported")
+    local moduleBars = modulesCard:StatusBars({ Slots = 30, Items = {} })
+    task.spawn(function()
+        while window.alive do
+            task.wait(30)
+            local order, modules = window:GetModules()
+            for _, name in ipairs(order) do moduleBars:Push(name, modules[name].state) end
+        end
+    end)
+
+    -- what this executor can do (each line: the feature it is needed for)
+    local executorName = "Unknown"
+    pcall(function()
+        if type(identifyexecutor) == "function" then executorName = table.concat({ identifyexecutor() }, " ")
+        elseif type(getexecutorname) == "function" then executorName = tostring(getexecutorname()) end
+    end)
+    local function has(name) return type(getfenv(0)[name]) == "function" or (getgenv and type(getgenv()[name]) == "function") end
+    infoPage:Card({ Title = "Executor", Side = "Right", Icon = "terminal-square", Desc = executorName }):Checklist({ Items = {
+        { Title = "File access", Ok = files, Note = "profiles, themes" },
+        { Title = "getcustomasset", Ok = has("getcustomasset"), Note = "sharp icons" },
+        { Title = "gethui", Ok = has("gethui"), Note = "hidden interface" },
+        { Title = "Drawing", Ok = (function() local d = getfenv(0).Drawing return type(d) == "table" and type(d.new) == "function" end)(), Note = "screen drawings" },
+        { Title = "getconnections", Ok = has("getconnections"), Note = "connection control" },
+        { Title = "hookmetamethod", Ok = has("hookmetamethod"), Note = "game hooks" },
+        { Title = "setclipboard", Ok = has("setclipboard") or has("toclipboard"), Note = "copy buttons" },
+    } })
+
+    -- release notes (CreateWindow({ Changelog = { Version, Items, History } }))
+    if type(window.cfg.Changelog) == "table" then
+        local log = window.cfg.Changelog
+        local entries = { { Version = tostring(log.Version or window.Version), Time = "this version", Items = log.Items or {} } }
+        for _, old in ipairs(log.History or {}) do entries[#entries + 1] = { Version = tostring(old.Version or ""), Time = old.Date or old.Time, Items = old.Items or {} } end
+        infoPage:Card({ Title = "What's new", Side = "Right", Icon = "newspaper" }):Changelog({ Entries = entries })
+    end
 
     local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right", Icon = "bug" })
     -- debug mode: a small switch in the card's title row (a notification for every new error)
@@ -350,30 +388,18 @@ return function(window, cfg)
         Callback = function(on) window.debug = on end })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
     local errorText = errorsCard:Paragraph({ Content = "No errors" })
-    local errorButtons = errorsCard:Row()
-    errorButtons:Button({
-        Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report",
-        Callback = function()
-            local clipboard = setclipboard or toclipboard
-            if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
-                window:Notify({ Title = "Copied", Content = "Debug info copied - paste it into your bug report", Icon = "clipboard-copy" })
-            else
-                window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
-            end
-        end,
-    })
+    local errorButtons = errorsCard -- (Debug info is on the status band)
     local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
 
-    local STATE = { On = GREEN, Off = nil, Limited = "warning", Error = RED }
     local function update()
         local order, modules = window:GetModules()
         noModules:SetVisible(#order == 0)
+        local limited = 0
         for _, name in ipairs(order) do
-            local row = moduleRows[name] or modulesCard:Info({ Title = name })
-            moduleRows[name] = row
             local module = modules[name]
-            row:Set(module.state .. (module.detail and module.state ~= "Error" and (" · " .. tostring(module.detail)) or ""))
-            row:SetColor(STATE[module.state] or "muted")
+            moduleBars:AddItem({ Title = name, State = module.state, History = { module.state } })
+            moduleBars:SetState(name, module.state, module.state .. (module.detail and module.state ~= "Error" and (" · " .. tostring(module.detail)) or ""))
+            if module.state == "Limited" then limited = limited + 1 end
         end
         local errors = window:GetErrors()
         local total = 0
@@ -388,7 +414,14 @@ return function(window, cfg)
         errorCount:Set(#errors == 0 and "0" or (#errors .. (total > #errors and (" (" .. total .. "×)") or "")))
         errorCount:SetColor(#errors > 0 and RED or "text")
         errorText:Set(#lines > 0 and table.concat(lines, "\n") or "No errors")
-        clearErrors:SetVisible(#errors > 0) -- (nothing to clear: Copy debug info takes the whole row)
+        clearErrors:SetVisible(#errors > 0)
+        if #errors > 0 then
+            band:Set({ Kind = "danger", Title = #errors .. (#errors == 1 and " error" or " errors") .. " this session", Desc = "See Errors below · Debug info for a bug report" })
+        elseif limited > 0 then
+            band:Set({ Kind = "warning", Title = "Running with limits", Desc = limited .. (limited == 1 and " module is" or " modules are") .. " limited by the executor" })
+        else
+            band:Set({ Kind = "success", Title = "Everything is running", Desc = #order .. (#order == 1 and " module" or " modules") .. " · no errors" })
+        end
     end
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)

@@ -2,7 +2,8 @@
 --             Chips = { { "60 FPS", "activity" }, { "40 ms", "wifi" } }, Label = "SESSION", Value = "00:12:44" })
 -- A profile header: round avatar (UserId: the player's headshot) with an online dot, a big name, a muted line, a row
 -- of chips, and a small-caps label over a big value on the right (a timer, a score...).
--- :SetTitle, :SetDesc, :SetValue(text), :SetLabel(text), :SetChips(list), :SetOnline(on), :SetImage(image).
+-- :SetTitle, :SetDesc, :SetValue(text), :SetLabel(text), :SetChips(list), :SetChipText(index, text), :SetOnline(on),
+-- :SetImage(image). hero.Value / hero.Avatar are the value label and the avatar image.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -12,7 +13,7 @@ local create, corner, label = Util.create, Util.corner, Util.label
 
 return function(card, cfg)
     local size = tonumber(cfg.AvatarSize) or 46
-    local holder = create("Frame", { Name = tostring(cfg.Title or "Hero"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, size + 8), LayoutOrder = card:_order(), Parent = card.body })
+    local holder = create("Frame", { Name = tostring(cfg.Name or cfg.Title or "Hero"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, size + 8), LayoutOrder = card:_order(), Parent = card.body })
     local avatar = create("ImageLabel", { Name = "Avatar", Size = UDim2.fromOffset(size, size), Position = UDim2.fromOffset(0, 4), BorderSizePixel = 0, Image = "", Parent = holder })
     Theme.bind(avatar, "BackgroundColor3", "input")
     corner(avatar, size)
@@ -34,20 +35,25 @@ return function(card, cfg)
     Theme.bind(value, "TextColor3", "heading")
 
     local element = Base.element(card, "Hero", { Title = cfg.Title }, holder, title, desc)
-    local chipFrames = {}
+    local chipFrames, chipSetters = {}, {}
     function element:SetChips(list)
         for _, chip in ipairs(chipFrames) do chip:Destroy() end
         table.clear(chipFrames)
+        table.clear(chipSetters)
         for index, item in ipairs(list or {}) do
             if type(item) ~= "table" then item = { item } end
-            local chip = Parts.chip(chipRow, tostring(item[1] or item.Text), item.Role or "text", item[2] or item.Icon, { LayoutOrder = index })
+            local chip, _, resize = Parts.chip(chipRow, tostring(item[1] or item.Text), item.Role or "text", item[2] or item.Icon, { LayoutOrder = index })
             chipFrames[#chipFrames + 1] = chip
+            chipSetters[index] = resize
         end
     end
+    -- one chip's text (live numbers), without rebuilding the row
+    function element:SetChipText(index, text) if chipSetters[index] then chipSetters[index](text) end end
     function element:SetValue(text) value.Text = tostring(text) end
     function element:SetLabel(text) small.Text = tostring(text) end
     function element:SetOnline(on) online.Visible = on ~= false end
     function element:SetImage(image) avatar.Image = tostring(image or "") end
+    element.Value, element.Avatar = value, avatar
     if cfg.UserId then element:SetImage(Util.avatar(cfg.UserId, 150)) elseif cfg.Image then element:SetImage(cfg.Image) end
     element:SetOnline(cfg.Online)
     element:SetChips(cfg.Chips)

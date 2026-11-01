@@ -1,8 +1,8 @@
 -- Settings › Profiles page (used by settings.lua).
 --   Current   which profile is active, how many settings changed since it was loaded / saved, Save / Revert / Share
 --   New       create from the current settings, or import a share code (QUSTAH1:...)
---   Saved     search, rows sorted by last use; a row opens: note, rename / duplicate, Load, Overwrite, Autoload,
---             Share, Delete. "Default" is locked and holds the values the script started with.
+--   Saved     search, profile cards sorted by last use (Load on each); a card's "..." opens its tools under the
+--             cards: note, rename / duplicate, Load, Overwrite, Autoload, Share, Delete. "Default" is locked and holds the values the script started with.
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
@@ -251,53 +251,36 @@ return function(window, page, defaults)
     Util.list(holder, 4)
     local empty = listCard:Label("")
 
+    -- the profiles as cards (ItemCards): a "..." on a card opens its tools under the grid
+    local PALETTE = { Color3.fromRGB(232, 232, 236), Color3.fromRGB(74, 157, 224), Color3.fromRGB(94, 196, 110), Color3.fromRGB(232, 110, 176),
+        Color3.fromRGB(226, 177, 90), Color3.fromRGB(160, 125, 232), Color3.fromRGB(79, 200, 216), Color3.fromRGB(224, 106, 106) }
+    local function colorOf(name)
+        if name == "Default" then return PALETTE[1] end
+        local sum = 0
+        for i = 1, #name do sum = sum + string.byte(name, i) end
+        return PALETTE[2 + sum % (#PALETTE - 1)]
+    end
+    local cards = listCard:ItemCards({ Columns = 2, Height = 92,
+        OnAction = function(item) loadProfile(item.Title, item.Locked) end,
+        OnMenu = function(item) open = open ~= item.Title and item.Title or nil refresh() end,
+    })
+    holder.LayoutOrder = listCard:_order() -- (the tools of the open profile come under the cards)
+    if empty.Row then empty.Row.LayoutOrder = listCard:_order() end
+
+    -- the open profile's tools (note, rename / duplicate, Load, Overwrite, Autoload, Share, Delete)
     local function profileRow(name, order, locked, autoload, info)
-        local active = (locked and store.Active == nil) or store.Active == name
-        local expanded = open == name
+        if open ~= name then return end
         local frame = create("Frame", { Name = "Profile_" .. name, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, LayoutOrder = order, Parent = holder })
-        Theme.bind(frame, "BackgroundColor3", expanded and "selected" or "input")
+        Theme.bind(frame, "BackgroundColor3", "selected")
         corner(frame, 6)
-        local outline = stroke(frame)
-        Theme.bind(outline, "Color", active and "accent" or (expanded and "buttonEdge" or "line"))
-        outline.Transparency = active and 0.55 or 0
+        Theme.bind(stroke(frame), "Color", "buttonEdge")
         Util.list(frame, 0)
         local note = info and info.note and tostring(info.note) or nil
-        local head = create("TextButton", { Name = "Head", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, note and 42 or 34), LayoutOrder = 1, Parent = frame })
-        local dot = create("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0, 17), Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, Parent = head })
-        Theme.bind(dot, "BackgroundColor3", active and "accent" or "buttonEdge")
-        corner(dot, 3)
-        local title = label(head, name, 11, { Name = "Name", Position = UDim2.fromOffset(26, note and 6 or 0), Size = UDim2.new(0.55, -26, 0, note and 18 or 34), Font = Enum.Font.GothamMedium })
-        Theme.bind(title, "TextColor3", (active or expanded) and "heading" or "text")
-        if note then
-            local noteLabel = label(head, note, 9, { Name = "Note", Position = UDim2.fromOffset(26, 23), Size = UDim2.new(0.55, -26, 0, 13) })
-            Theme.bind(noteLabel, "TextColor3", "muted")
-        end
-        -- tags on the right: ACTIVE / AUTO pills, then the date
-        local tags = create("Frame", { Name = "Tags", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 0), Size = UDim2.new(0.45, -12, 0, 34), Parent = head })
-        Util.list(tags, 6, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Center)
-        local function pill(text, order_, accent)
-            local object = label(tags, text, 8, {
-                Name = text, Size = UDim2.fromOffset(Util.textWidth(text, 8, Enum.Font.GothamMedium) + 12, 16), TextXAlignment = Enum.TextXAlignment.Center,
-                Font = Enum.Font.GothamMedium, BackgroundTransparency = 0, LayoutOrder = order_,
-            })
-            corner(object, 8)
-            Theme.bind(object, "BackgroundColor3", accent and "accentDeep" or "base")
-            Theme.bind(object, "TextColor3", accent and "accent" or "muted")
-            Theme.bind(stroke(object, nil, 0.5), "Color", accent and "accent" or "buttonEdge")
-        end
-        if active then pill("ACTIVE", 1, true) end
-        if autoload then pill("AUTO", 2, false) end
-        if locked then pill("LOCKED", 3, false) end
-        local when = info and (info.saved or info.used)
-        if when then
-            local date = label(tags, os.date("%d %b", when), 9, { Size = UDim2.fromOffset(42, 16), TextXAlignment = Enum.TextXAlignment.Right, LayoutOrder = 4 })
-            Theme.bind(date, "TextColor3", "muted")
-        end
-        head.Activated:Connect(function()
-            open = open ~= name and name or nil
-            refresh()
-        end)
-        if not expanded then return end
+        local head = create("TextButton", { Name = "Head", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 30), LayoutOrder = 1, Parent = frame })
+        local title = label(head, name, 11, { Name = "Name", Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -40, 1, 0), Font = Enum.Font.GothamMedium })
+        Theme.bind(title, "TextColor3", "heading")
+        Icons.themed(head, "x", 12, "muted", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0) })
+        head.Activated:Connect(function() open = nil refresh() end)
 
         local actions = create("Frame", { Name = "Actions", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, Parent = frame })
         Util.padding(actions, 12, 12, 0, 10)
@@ -418,15 +401,31 @@ return function(window, page, defaults)
         end)
         local q = query:lower()
         local shown = 0
-        if q == "" or ("default"):find(q, 1, true) then profileRow("Default", 1, true, auto == nil, nil) shown = shown + 1 end
-        for index, name in ipairs(names) do
+        local items = {}
+        local function add(name, locked, autoload, info)
+            local active = (locked and store.Active == nil) or store.Active == name
+            local badges = {}
+            if active then badges[#badges + 1] = { Text = "ACTIVE", Role = "success" } end
+            if autoload then badges[#badges + 1] = "AUTO" end
+            if locked then badges[#badges + 1] = "LOCKED" end
+            local when = info and (info.saved or info.used)
+            local count = 0
+            if not locked then local flags = store:Read(name) for _ in pairs(flags or {}) do count = count + 1 end end
+            items[#items + 1] = {
+                Title = name, Locked = locked, Color = colorOf(name), Badges = badges, Action = "Load", Highlight = active or open == name,
+                Sub = (when and os.date("%d %b", when) or (locked and "starting values" or "")) .. (count > 0 and (" · " .. count .. " settings") or ""),
+                Desc = info and info.note and tostring(info.note) or (locked and "The values the script started with" or ""),
+            }
+            profileRow(name, #items, locked, autoload, info)
+            shown = shown + 1
+        end
+        if q == "" or ("default"):find(q, 1, true) then add("Default", true, auto == nil, nil) end
+        for _, name in ipairs(names) do
             local info = data[name]
             local note = info and info.note and tostring(info.note):lower() or ""
-            if q == "" or name:lower():find(q, 1, true) or note:find(q, 1, true) then
-                profileRow(name, index + 1, false, auto == name, info)
-                shown = shown + 1
-            end
+            if q == "" or name:lower():find(q, 1, true) or note:find(q, 1, true) then add(name, false, auto == name, info) end
         end
+        cards:SetItems(items)
         search.Visible = #names > 3 or q ~= ""
         empty:Set(#names == 0 and "No saved profiles yet - create one above." or (shown == 0 and "No profile matches \"" .. query .. "\"" or ""))
         empty:SetVisible(#names == 0 or shown == 0)

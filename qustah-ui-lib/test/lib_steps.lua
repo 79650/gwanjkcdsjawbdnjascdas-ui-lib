@@ -155,7 +155,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
 
     -- pages / tabs
     local visuals = window.Tabs[2]
-    check("dashboard is the first tab", window.Tabs[1].Title == "Dashboard" and find("Uptime") ~= nil and find("DisplayName").Text ~= "")
+    check("dashboard is the first tab", window.Tabs[1].Title == "Dashboard" and find("Profile"):FindFirstChild("Value") ~= nil and find("Profile"):FindFirstChild("Title").Text ~= "")
     check("wide profile card spans the page", find("Profile").Parent.Parent.Name == "Wide")
     visuals:Select() wait()
     check("two pages make a strip", visuals.strip.Visible == true)
@@ -332,7 +332,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.click(findIn("Crosshair style", "Image2")) wait(0.1)
     check("image picker", F.crosshair == "locate-fixed")
     wait(1.2)
-    check("graph shows fps", findIn("FPS", "Value") and findIn("FPS", "Value").Text:find("FPS") ~= nil)
+    check("graph shows fps", findIn("FPS", "Value") and (findIn("FPS", "Value").Text:find("FPS") ~= nil or tonumber(findIn("FPS", "Value").Text) ~= nil))
 
     -- status / errors / safe callbacks
     check("footer limited", window.statusText == "Limited")
@@ -388,7 +388,10 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("module tile opens its tab", window.current == tabNamed("Visuals"))
     tabNamed("Dashboard"):Select() wait(0.1)
     local chips = find("Chips")
-    check("profile chips", chips and chips:FindFirstChild("FPS") ~= nil and chips:FindFirstChild("Players"):FindFirstChild("Text").Text ~= "--")
+    local chipList = chips and chips:GetChildren() or {}
+    local chipTexts = {}
+    for _, c in ipairs(chipList) do local t = c:FindFirstChild("Text") if t then chipTexts[#chipTexts + 1] = t.Text end end
+    check("profile chips", #chipTexts == 3 and chipTexts[1]:find("FPS") ~= nil and chipTexts[3] ~= "--")
     local vt = tabNamed("Visuals")
     vt:SetActive(true) wait()
     check("tab active dot", vt.button:FindFirstChild("ActiveDot") and vt.button.ActiveDot.Visible)
@@ -672,7 +675,12 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.fire(nameBox, "FocusLost", true) wait(0.1) -- Enter runs it
     check("create: box cleared", nameBox.Text == "")
     check("profile created", store:Exists("pvp") and find("Profile_pvp") ~= nil)
-    check("created profile is active + open", store.Active == "pvp" and find("Profile_pvp"):FindFirstChild("Load", true) ~= nil and find("Profile_pvp"):FindFirstChild("ACTIVE", true) ~= nil)
+    -- the profiles are cards (ItemCards); the open one's tools are under them
+    local function profileCard(name) local grid = find("ItemCards") return grid and grid:FindFirstChild(name) end
+    local function openCard(name) MOCK.click(profileCard(name):FindFirstChild("Menu")) wait(0.1) end
+    local function hasText(root, text) for _, d in ipairs(root:GetDescendants()) do if d:IsA("TextLabel") and d.Text == text then return true end end return false end
+    check("created profile is active + open", store.Active == "pvp" and find("Profile_pvp"):FindFirstChild("Load", true) ~= nil and hasText(profileCard("pvp"), "ACTIVE"))
+    check("profile cards: Default locked, Load on each", hasText(profileCard("Default"), "LOCKED") and profileCard("pvp"):FindFirstChild("Load") ~= nil)
     check("current: saved", findIn("Changes", "Value").Text == "Saved")
     W.espRange:Set(99 * 10) wait(1.2)
     check("current: unsaved count", findIn("Changes", "Value").Text == "1 unsaved")
@@ -707,7 +715,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("import creates free name", store:Exists("pvp 2"))
     check("bad code rejected", store:Decode("hello") == nil and store:Decode("QUSTAH1:@@@") == nil)
     store:Delete("pvp 2")
-    MOCK.click(find("Profile_pvp"):FindFirstChild("Head")) wait(0.1) -- (import opened "pvp 2") open pvp again
+    openCard("pvp") -- (import opened "pvp 2") open pvp again
     local rename = find("Profile_pvp"):FindFirstChild("NewName", true)
     rename.Text = "ranked"
     MOCK.click(find("Profile_pvp"):FindFirstChild("Rename", true)) wait(0.1)
@@ -720,7 +728,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.click(find("Profile_ranked2"):FindFirstChild("Delete", true)) wait(0.1)
     MOCK.click(findIn("Dialog", "Delete")) wait(0.1)
     check("profile delete", not store:Exists("ranked2") and store:GetAutoLoad() == nil)
-    MOCK.click(find("Profile_Default"):FindFirstChild("Head")) wait(0.1)
+    openCard("Default")
     check("default locked", find("Profile_Default"):FindFirstChild("Delete", true) == nil and find("Profile_Default"):FindFirstChild("Rename", true) == nil)
     MOCK.click(find("Profile_Default"):FindFirstChild("Load", true)) wait(0.1)
     if find("Dialog") then MOCK.click(findIn("Dialog", "Load")) wait(0.1) end
@@ -730,7 +738,9 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     settingsTab.Pages[3]:Select() wait(0.1)
     window:ReportError("ESP", "render failed") wait(0.1)
     check("info lists errors", findIn("Errors", "Content").Text:find("render failed") ~= nil)
-    MOCK.click(find("Copy debug info"):FindFirstChild("Button")) wait(0.1)
+    local band = find("Everything is running")
+    check("info status band shows the error", band and band:FindFirstChild("Title").Text:find("error") ~= nil)
+    MOCK.click(band:FindFirstChild("Button")) wait(0.1)
     check("copy debug info", type(MOCK.clipboard) == "string" and MOCK.clipboard:find("render failed") ~= nil and MOCK.clipboard:find("executor:", 1, true) ~= nil)
     local dbg = W.__ui_debug
     check("debug switch in the Errors header", dbg and dbg.Row.Name == "HeaderSwitch")
@@ -920,9 +930,9 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("window transparency", math.abs(window.main.BackgroundTransparency - 0.3) < 0.01)
     W.__ui_transparency:Set(0)
     MOCK.click(find("Profile", window.dock)) wait(0.1)
-    check("anonymous via dock", window.anonymous == true and F.__ui_anon == true and find("DisplayName").Text == "Anonymous")
+    check("anonymous via dock", window.anonymous == true and F.__ui_anon == true and find("Profile"):FindFirstChild("Title").Text == "Anonymous")
     window:SetAnonymous(false) wait(0.1)
-    check("anonymous off", find("DisplayName").Text ~= "Anonymous" and F.__ui_anon == false)
+    check("anonymous off", find("Profile"):FindFirstChild("Title").Text ~= "Anonymous" and F.__ui_anon == false)
 
     -- v1.5 dropdown: key / label values, images, chunks, drag select
     local dcard = tabNamed("Live").Pages[1]:Card({ Title = "Dd" })

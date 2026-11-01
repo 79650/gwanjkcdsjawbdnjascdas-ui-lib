@@ -673,7 +673,7 @@ Window:DashboardTab({ Info = { { "Code revision", "571" } }, Server = true })   
 Window:SettingsTab()                                                             -- as the last tab
 ```
 
-**Dashboard:** profile card (avatar, name, session time and live FPS / ping / players chips), Session (account, executor, version and your `Info` rows; the ids folded under "Details"), Modules (a grid of tiles: icon, name and the state under it in its colour), Server (Rejoin, Server hop, Job ID).
+**Dashboard:** profile card (a Hero: avatar, name, session time and live FPS / ping / players chips), live tiles under it (StatTiles: FPS, ping, players and Lua memory with their history; `Stats = false` leaves them out), Session (account, executor, version and your `Info` rows; the ids folded under "Details"), Modules (a grid of tiles: icon, name and the state under it in its colour), Server (Rejoin, Server hop, Job ID).
 
 **Settings › Interface**
 - Appearance: theme, accent (a row of colour dots; the last one opens a picker for any colour), font, text glow
@@ -681,9 +681,9 @@ Window:SettingsTab()                                                            
 - Behaviour: menu key, UI scale, free mouse, anonymous mode, UI sounds, haptics (touch devices), mobile button, welcome toast, Reset layout, Unload, Reset interface (only the look goes back to its defaults)
 - Overlays, Theme editor
 
-**Settings › Profiles:** see [Configs and profiles](#configs-and-profiles).
+**Settings › Profiles:** the saved profiles are cards (ItemCards: Load on each, ACTIVE / AUTO / LOCKED tags); a card's "..." opens its tools under the cards (note, rename, duplicate, overwrite, autoload, share, delete). See [Configs and profiles](#configs-and-profiles).
 
-**Settings › Info:** versions, secure mode state, link buttons (`Links`), "What's new", "Show the tour" and "Version history" when those are set, kick list, modules, errors (a Debug switch in the card's title, Copy debug info, Clear), and This session (uptime, errors caught, your `Window:Count` counters, Lua memory).
+**Settings › Info:** a status band on top ("Everything is running" / "Running with limits" / "N errors", with the Debug info button), About (versions, secure mode, link buttons, "Show the tour"), kick list, Modules (each module's state over the last 15 minutes), Executor (which functions it has and what they are needed for), "What's new" (the `Changelog` and its history as open-on-click notes), Errors (a Debug switch in the card's title, Clear) and This session (uptime, errors caught, your `Window:Count` counters, Lua memory).
 
 ## Overlays
 

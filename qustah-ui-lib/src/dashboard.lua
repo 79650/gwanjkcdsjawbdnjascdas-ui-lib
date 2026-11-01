@@ -1,5 +1,6 @@
 -- Window:DashboardTab({ Title, Icon, Info = { { "Code revision", "571" }, ... }, Server = true, Modules = true })
--- Qustah's overview: profile card (avatar, names, session timer, live FPS / ping / players chips), Session (with the
+-- Qustah's overview: profile card (Hero: avatar, names, session timer, live FPS / ping / players chips), live tiles
+-- (StatTiles: FPS, ping, players, Lua memory with their history; Stats = false hides them), Session (with the
 -- ids folded under "Details"), Server and Modules (a grid of tiles: Window:SetModule(name, state, detail,
 -- { Icon = "eye", Tab = "ESP" }) - a click on a tile opens its tab).
 -- Call it before the other tabs; a divider goes between it and the next tab in the dock.
@@ -21,56 +22,42 @@ return function(window, cfg)
     local page = tab:Page(tab.Title)
     local started = os.clock()
 
-    ------------------------------------------------------------ profile
+    ------------------------------------------------------------ profile (Hero) and live numbers (StatTiles)
     local profile = page:Card({ Wide = true })
-    local body = create("Frame", { Name = "Profile", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 68), LayoutOrder = profile:_order(), Parent = profile.body })
-    local ring = create("Frame", { Name = "Ring", Position = UDim2.fromOffset(0, 2), Size = UDim2.fromOffset(62, 62), BorderSizePixel = 0, BackgroundTransparency = 0.85, Parent = body })
-    Theme.bind(ring, "BackgroundColor3", "accent")
-    corner(ring, 31)
-    local avatar = create("ImageLabel", { Name = "Avatar", Position = UDim2.fromOffset(3, 5), Size = UDim2.fromOffset(56, 56), BorderSizePixel = 0, Parent = body })
-    Theme.bind(avatar, "BackgroundColor3", "input")
-    corner(avatar, 28)
-    local online = create("Frame", { Name = "Online", Position = UDim2.fromOffset(47, 49), Size = UDim2.fromOffset(10, 10), BorderSizePixel = 0, BackgroundColor3 = Color3.fromRGB(70, 205, 105), Parent = body })
-    corner(online, 5)
-    Theme.bind(stroke(online, nil, 0, 2), "Color", "card")
-    local display = label(body, player.DisplayName, 15, { Name = "DisplayName", Position = UDim2.fromOffset(76, 10), Size = UDim2.new(1, -250, 0, 20) })
-    pcall(function() display.FontFace = Font.new(Font.fromEnum(Enum.Font.Gotham).Family, Enum.FontWeight.SemiBold) end)
-    Theme.bind(display, "TextColor3", "heading")
-    local username = label(body, "@" .. player.Name .. " · #" .. player.UserId, 10, { Name = "Username", Position = UDim2.fromOffset(76, 32), Size = UDim2.new(1, -250, 0, 15) })
-    Theme.bind(username, "TextColor3", "muted")
-    -- live chips under the name: FPS · ping · players (updated with the session timer)
-    local chipRow = create("Frame", { Name = "Chips", BackgroundTransparency = 1, Position = UDim2.fromOffset(76, 50), Size = UDim2.new(1, -250, 0, 16), Parent = body })
-    Util.list(chipRow, 5, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
-    local function chip(name, icon, order)
-        local holder = create("Frame", { Name = name, Size = UDim2.fromOffset(0, 16), AutomaticSize = Enum.AutomaticSize.X, BorderSizePixel = 0, LayoutOrder = order, Parent = chipRow })
-        Theme.bind(holder, "BackgroundColor3", "input")
-        corner(holder, 8)
-        Theme.bind(stroke(holder), "Color", "line")
-        Util.padding(holder, 6, 7, 0, 0)
-        Util.list(holder, 4, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
-        Icons.themed(holder, icon, 10, "muted", { Name = "Icon", LayoutOrder = 1 })
-        local text = label(holder, "--", 9, { Name = "Text", Size = UDim2.fromOffset(0, 16), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 2, Font = Enum.Font.GothamMedium })
-        Theme.bind(text, "TextColor3", "text")
-        return text
+    local function names(on)
+        return on and "Anonymous" or player.DisplayName, on and "hidden" or ("@" .. player.Name .. " · #" .. player.UserId)
     end
-    local fpsChip, pingChip, playersChip = chip("FPS", "gauge", 1), chip("Ping", "wifi", 2), chip("Players", "users", 3)
+    local displayName, userLine = names(window.anonymous)
+    local hero = profile:Hero({ Name = "Profile", Title = displayName, Desc = userLine, Label = "SESSION", Value = "00:00:00", AvatarSize = 56,
+        Chips = { { "-- FPS", "gauge" }, { "-- ms", "wifi" }, { "--", "users" } } })
+    Theme.bind(hero.Value, "TextColor3", "accent")
+    Glow.add(hero.Value, { Base = "accent", Phase = 0.45 })
     Stats.start(window.Lib.maid)
-    local caption = label(body, "SESSION", 8, { Name = "SessionCaption", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 12), Size = UDim2.fromOffset(150, 12), TextXAlignment = Enum.TextXAlignment.Right })
-    Theme.bind(caption, "TextColor3", "muted")
-    local uptime = label(body, "00:00:00", 18, { Name = "Uptime", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 28), Size = UDim2.fromOffset(150, 24), TextXAlignment = Enum.TextXAlignment.Right })
-    Theme.bind(uptime, "TextColor3", "accent")
-    Glow.add(display, { Base = "heading", Phase = 0.1 })
-    Glow.add(uptime, { Base = "accent", Phase = 0.45 })
     -- rbxthumb content: shows at once, no web request (fine in secure mode)
     local avatarImage = Util.avatar(player.UserId, 150)
-    if not window.anonymous then avatar.Image = avatarImage end
+    if not window.anonymous then hero:SetImage(avatarImage) end
     -- anonymous mode (dock profile button): no name, no id, no avatar
     if window.OnAnonymousChanged then
         window:OnAnonymousChanged(function(on)
-            display.Text = on and "Anonymous" or player.DisplayName
-            username.Text = on and "hidden" or ("@" .. player.Name .. " · #" .. player.UserId)
-            avatar.Image = on and "" or avatarImage
+            local title, desc = names(on)
+            hero:SetTitle(title) hero:SetDesc(desc)
+            hero:SetImage(on and "" or avatarImage)
         end)
+    end
+    -- FPS, ping, players and Lua memory as tiles with a line of their history (Stats = false: none)
+    if cfg.Stats ~= false then
+        local function memory()
+            local ok, kb = pcall(collectgarbage, "count")
+            if not ok or type(kb) ~= "number" then ok, kb = pcall(function() return gcinfo() end) end
+            return ok and type(kb) == "number" and kb / 1024 or nil
+        end
+        page:Card({ Wide = true }):StatTiles({ Interval = 2, Tiles = {
+            { Title = "FPS", Source = "FPS" },
+            { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
+            { Title = "Players", Source = function() return #Players:GetPlayers() end, Sub = "this server",
+                Format = function(v) return math.floor(v + 0.5) .. " / " .. Players.MaxPlayers end, Color = Color3.fromRGB(127, 180, 232) },
+            { Title = "Memory", Source = memory, Sub = "Lua", Format = function(v) return string.format("%.1f MB", v) end, Color = Color3.fromRGB(180, 139, 232) },
+        } })
     end
 
     ------------------------------------------------------------ session / info / server
@@ -206,11 +193,11 @@ return function(window, cfg)
         while window.alive do
             if window.visible and window.current == tab then
                 local seconds = math.floor(os.clock() - started)
-                uptime.Text = string.format("%02d:%02d:%02d", seconds // 3600, (seconds // 60) % 60, seconds % 60)
-                playersChip.Text = #Players:GetPlayers() .. " / " .. Players.MaxPlayers
-                fpsChip.Text = (Stats.fps or 0) .. " FPS"
+                hero:SetValue(string.format("%02d:%02d:%02d", seconds // 3600, (seconds // 60) % 60, seconds % 60))
+                hero:SetChipText(1, (Stats.fps or 0) .. " FPS")
                 local ok, value = pcall(function() return player:GetNetworkPing() end)
-                pingChip.Text = ok and (math.floor(value * 1000 + 0.5) .. " ms") or "--"
+                hero:SetChipText(2, ok and (math.floor(value * 1000 + 0.5) .. " ms") or "--")
+                hero:SetChipText(3, #Players:GetPlayers() .. " / " .. Players.MaxPlayers)
             end
             task.wait(1)
         end

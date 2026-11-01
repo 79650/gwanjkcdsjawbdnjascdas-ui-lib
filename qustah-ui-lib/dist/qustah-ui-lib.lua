@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.10.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1030,7 +1030,8 @@ end
 
 __modules["dashboard"] = function()
 -- Window:DashboardTab({ Title, Icon, Info = { { "Code revision", "571" }, ... }, Server = true, Modules = true })
--- Qustah's overview: profile card (avatar, names, session timer, live FPS / ping / players chips), Session (with the
+-- Qustah's overview: profile card (Hero: avatar, names, session timer, live FPS / ping / players chips), live tiles
+-- (StatTiles: FPS, ping, players, Lua memory with their history; Stats = false hides them), Session (with the
 -- ids folded under "Details"), Server and Modules (a grid of tiles: Window:SetModule(name, state, detail,
 -- { Icon = "eye", Tab = "ESP" }) - a click on a tile opens its tab).
 -- Call it before the other tabs; a divider goes between it and the next tab in the dock.
@@ -1052,56 +1053,42 @@ return function(window, cfg)
     local page = tab:Page(tab.Title)
     local started = os.clock()
 
-    ------------------------------------------------------------ profile
+    ------------------------------------------------------------ profile (Hero) and live numbers (StatTiles)
     local profile = page:Card({ Wide = true })
-    local body = create("Frame", { Name = "Profile", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 68), LayoutOrder = profile:_order(), Parent = profile.body })
-    local ring = create("Frame", { Name = "Ring", Position = UDim2.fromOffset(0, 2), Size = UDim2.fromOffset(62, 62), BorderSizePixel = 0, BackgroundTransparency = 0.85, Parent = body })
-    Theme.bind(ring, "BackgroundColor3", "accent")
-    corner(ring, 31)
-    local avatar = create("ImageLabel", { Name = "Avatar", Position = UDim2.fromOffset(3, 5), Size = UDim2.fromOffset(56, 56), BorderSizePixel = 0, Parent = body })
-    Theme.bind(avatar, "BackgroundColor3", "input")
-    corner(avatar, 28)
-    local online = create("Frame", { Name = "Online", Position = UDim2.fromOffset(47, 49), Size = UDim2.fromOffset(10, 10), BorderSizePixel = 0, BackgroundColor3 = Color3.fromRGB(70, 205, 105), Parent = body })
-    corner(online, 5)
-    Theme.bind(stroke(online, nil, 0, 2), "Color", "card")
-    local display = label(body, player.DisplayName, 15, { Name = "DisplayName", Position = UDim2.fromOffset(76, 10), Size = UDim2.new(1, -250, 0, 20) })
-    pcall(function() display.FontFace = Font.new(Font.fromEnum(Enum.Font.Gotham).Family, Enum.FontWeight.SemiBold) end)
-    Theme.bind(display, "TextColor3", "heading")
-    local username = label(body, "@" .. player.Name .. " · #" .. player.UserId, 10, { Name = "Username", Position = UDim2.fromOffset(76, 32), Size = UDim2.new(1, -250, 0, 15) })
-    Theme.bind(username, "TextColor3", "muted")
-    -- live chips under the name: FPS · ping · players (updated with the session timer)
-    local chipRow = create("Frame", { Name = "Chips", BackgroundTransparency = 1, Position = UDim2.fromOffset(76, 50), Size = UDim2.new(1, -250, 0, 16), Parent = body })
-    Util.list(chipRow, 5, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
-    local function chip(name, icon, order)
-        local holder = create("Frame", { Name = name, Size = UDim2.fromOffset(0, 16), AutomaticSize = Enum.AutomaticSize.X, BorderSizePixel = 0, LayoutOrder = order, Parent = chipRow })
-        Theme.bind(holder, "BackgroundColor3", "input")
-        corner(holder, 8)
-        Theme.bind(stroke(holder), "Color", "line")
-        Util.padding(holder, 6, 7, 0, 0)
-        Util.list(holder, 4, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
-        Icons.themed(holder, icon, 10, "muted", { Name = "Icon", LayoutOrder = 1 })
-        local text = label(holder, "--", 9, { Name = "Text", Size = UDim2.fromOffset(0, 16), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 2, Font = Enum.Font.GothamMedium })
-        Theme.bind(text, "TextColor3", "text")
-        return text
+    local function names(on)
+        return on and "Anonymous" or player.DisplayName, on and "hidden" or ("@" .. player.Name .. " · #" .. player.UserId)
     end
-    local fpsChip, pingChip, playersChip = chip("FPS", "gauge", 1), chip("Ping", "wifi", 2), chip("Players", "users", 3)
+    local displayName, userLine = names(window.anonymous)
+    local hero = profile:Hero({ Name = "Profile", Title = displayName, Desc = userLine, Label = "SESSION", Value = "00:00:00", AvatarSize = 56,
+        Chips = { { "-- FPS", "gauge" }, { "-- ms", "wifi" }, { "--", "users" } } })
+    Theme.bind(hero.Value, "TextColor3", "accent")
+    Glow.add(hero.Value, { Base = "accent", Phase = 0.45 })
     Stats.start(window.Lib.maid)
-    local caption = label(body, "SESSION", 8, { Name = "SessionCaption", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 12), Size = UDim2.fromOffset(150, 12), TextXAlignment = Enum.TextXAlignment.Right })
-    Theme.bind(caption, "TextColor3", "muted")
-    local uptime = label(body, "00:00:00", 18, { Name = "Uptime", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 28), Size = UDim2.fromOffset(150, 24), TextXAlignment = Enum.TextXAlignment.Right })
-    Theme.bind(uptime, "TextColor3", "accent")
-    Glow.add(display, { Base = "heading", Phase = 0.1 })
-    Glow.add(uptime, { Base = "accent", Phase = 0.45 })
     -- rbxthumb content: shows at once, no web request (fine in secure mode)
     local avatarImage = Util.avatar(player.UserId, 150)
-    if not window.anonymous then avatar.Image = avatarImage end
+    if not window.anonymous then hero:SetImage(avatarImage) end
     -- anonymous mode (dock profile button): no name, no id, no avatar
     if window.OnAnonymousChanged then
         window:OnAnonymousChanged(function(on)
-            display.Text = on and "Anonymous" or player.DisplayName
-            username.Text = on and "hidden" or ("@" .. player.Name .. " · #" .. player.UserId)
-            avatar.Image = on and "" or avatarImage
+            local title, desc = names(on)
+            hero:SetTitle(title) hero:SetDesc(desc)
+            hero:SetImage(on and "" or avatarImage)
         end)
+    end
+    -- FPS, ping, players and Lua memory as tiles with a line of their history (Stats = false: none)
+    if cfg.Stats ~= false then
+        local function memory()
+            local ok, kb = pcall(collectgarbage, "count")
+            if not ok or type(kb) ~= "number" then ok, kb = pcall(function() return gcinfo() end) end
+            return ok and type(kb) == "number" and kb / 1024 or nil
+        end
+        page:Card({ Wide = true }):StatTiles({ Interval = 2, Tiles = {
+            { Title = "FPS", Source = "FPS" },
+            { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
+            { Title = "Players", Source = function() return #Players:GetPlayers() end, Sub = "this server",
+                Format = function(v) return math.floor(v + 0.5) .. " / " .. Players.MaxPlayers end, Color = Color3.fromRGB(127, 180, 232) },
+            { Title = "Memory", Source = memory, Sub = "Lua", Format = function(v) return string.format("%.1f MB", v) end, Color = Color3.fromRGB(180, 139, 232) },
+        } })
     end
 
     ------------------------------------------------------------ session / info / server
@@ -1237,11 +1224,11 @@ return function(window, cfg)
         while window.alive do
             if window.visible and window.current == tab then
                 local seconds = math.floor(os.clock() - started)
-                uptime.Text = string.format("%02d:%02d:%02d", seconds // 3600, (seconds // 60) % 60, seconds % 60)
-                playersChip.Text = #Players:GetPlayers() .. " / " .. Players.MaxPlayers
-                fpsChip.Text = (Stats.fps or 0) .. " FPS"
+                hero:SetValue(string.format("%02d:%02d:%02d", seconds // 3600, (seconds // 60) % 60, seconds % 60))
+                hero:SetChipText(1, (Stats.fps or 0) .. " FPS")
                 local ok, value = pcall(function() return player:GetNetworkPing() end)
-                pingChip.Text = ok and (math.floor(value * 1000 + 0.5) .. " ms") or "--"
+                hero:SetChipText(2, ok and (math.floor(value * 1000 + 0.5) .. " ms") or "--")
+                hero:SetChipText(3, #Players:GetPlayers() .. " / " .. Players.MaxPlayers)
             end
             task.wait(1)
         end
@@ -4563,7 +4550,8 @@ __modules["elements/hero"] = function()
 --             Chips = { { "60 FPS", "activity" }, { "40 ms", "wifi" } }, Label = "SESSION", Value = "00:12:44" })
 -- A profile header: round avatar (UserId: the player's headshot) with an online dot, a big name, a muted line, a row
 -- of chips, and a small-caps label over a big value on the right (a timer, a score...).
--- :SetTitle, :SetDesc, :SetValue(text), :SetLabel(text), :SetChips(list), :SetOnline(on), :SetImage(image).
+-- :SetTitle, :SetDesc, :SetValue(text), :SetLabel(text), :SetChips(list), :SetChipText(index, text), :SetOnline(on),
+-- :SetImage(image). hero.Value / hero.Avatar are the value label and the avatar image.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -4573,7 +4561,7 @@ local create, corner, label = Util.create, Util.corner, Util.label
 
 return function(card, cfg)
     local size = tonumber(cfg.AvatarSize) or 46
-    local holder = create("Frame", { Name = tostring(cfg.Title or "Hero"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, size + 8), LayoutOrder = card:_order(), Parent = card.body })
+    local holder = create("Frame", { Name = tostring(cfg.Name or cfg.Title or "Hero"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, size + 8), LayoutOrder = card:_order(), Parent = card.body })
     local avatar = create("ImageLabel", { Name = "Avatar", Size = UDim2.fromOffset(size, size), Position = UDim2.fromOffset(0, 4), BorderSizePixel = 0, Image = "", Parent = holder })
     Theme.bind(avatar, "BackgroundColor3", "input")
     corner(avatar, size)
@@ -4595,20 +4583,25 @@ return function(card, cfg)
     Theme.bind(value, "TextColor3", "heading")
 
     local element = Base.element(card, "Hero", { Title = cfg.Title }, holder, title, desc)
-    local chipFrames = {}
+    local chipFrames, chipSetters = {}, {}
     function element:SetChips(list)
         for _, chip in ipairs(chipFrames) do chip:Destroy() end
         table.clear(chipFrames)
+        table.clear(chipSetters)
         for index, item in ipairs(list or {}) do
             if type(item) ~= "table" then item = { item } end
-            local chip = Parts.chip(chipRow, tostring(item[1] or item.Text), item.Role or "text", item[2] or item.Icon, { LayoutOrder = index })
+            local chip, _, resize = Parts.chip(chipRow, tostring(item[1] or item.Text), item.Role or "text", item[2] or item.Icon, { LayoutOrder = index })
             chipFrames[#chipFrames + 1] = chip
+            chipSetters[index] = resize
         end
     end
+    -- one chip's text (live numbers), without rebuilding the row
+    function element:SetChipText(index, text) if chipSetters[index] then chipSetters[index](text) end end
     function element:SetValue(text) value.Text = tostring(text) end
     function element:SetLabel(text) small.Text = tostring(text) end
     function element:SetOnline(on) online.Visible = on ~= false end
     function element:SetImage(image) avatar.Image = tostring(image or "") end
+    element.Value, element.Avatar = value, avatar
     if cfg.UserId then element:SetImage(Util.avatar(cfg.UserId, 150)) elseif cfg.Image then element:SetImage(cfg.Image) end
     element:SetOnline(cfg.Online)
     element:SetChips(cfg.Chips)
@@ -5404,7 +5397,7 @@ end
 
 -- a small rounded chip: [icon] text. Returns the frame and its label; chip:SetText via the label.
 function Parts.chip(parent, text, role, iconName, props)
-    local width = Util.textWidth(text, 9, Enum.Font.GothamMedium) + (iconName and 34 or 20)
+    local width = Util.textWidth(text, 9, Enum.Font.GothamMedium) + (iconName and 38 or 24)
     local frame = create("Frame", { Name = "Chip", Size = UDim2.fromOffset(width, 18), BorderSizePixel = 0, Parent = parent })
     for key, value in pairs(props or {}) do frame[key] = value end
     Theme.bind(frame, "BackgroundColor3", "input")
@@ -5419,7 +5412,7 @@ function Parts.chip(parent, text, role, iconName, props)
     Theme.bind(text_, "TextColor3", role or "text")
     local function resize(value)
         text_.Text = tostring(value)
-        frame.Size = UDim2.fromOffset(Util.textWidth(text_.Text, 9, Enum.Font.GothamMedium) + x + 12, 18)
+        frame.Size = UDim2.fromOffset(Util.textWidth(text_.Text, 9, Enum.Font.GothamMedium) + x + 16, 18)
     end
     return frame, text_, resize
 end
@@ -6793,7 +6786,7 @@ __modules["elements/statusbars"] = function()
 -- } })
 -- A status-page row per item: its name, its state on the right ("Running" / "Limited" / "Off" / "Error", coloured),
 -- and a strip of Slots small bars, one per sample (oldest left): green on, amber limited, red error, grey off.
--- :Push(title, state) adds a sample (and sets the state), :SetState(title, state, text). No flag.
+-- :Push(title, state) adds a sample (and sets the state), :SetState(title, state, text), :AddItem(item). No flag.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -6834,7 +6827,10 @@ return function(card, cfg)
         self:SetState(titleText, stateName)
         paint(row)
     end
-    for index, item in ipairs(cfg.Items or {}) do
+    -- :AddItem({ Title, State, History }) adds a row (a module that reports later); nothing when it exists
+    function element:AddItem(item)
+        if rows[tostring(item.Title)] then return end
+        local index = #rows + 1
         local frame = create("Frame", { Name = tostring(item.Title or index), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 38), LayoutOrder = index, Parent = holder })
         local title = label(frame, tostring(item.Title or ""), 10, { Name = "Title", Size = UDim2.new(1, -90, 0, 18) })
         Theme.bind(title, "TextColor3", "text")
@@ -6852,6 +6848,7 @@ return function(card, cfg)
         element:SetState(item.Title, item.State)
         paint(row)
     end
+    for _, item in ipairs(cfg.Items or {}) do element:AddItem(item) end
     return Base.finish(element, cfg)
 end
 end
@@ -9666,7 +9663,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.10.0",
+    Version = "1.10.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -10382,8 +10379,8 @@ __modules["profiles"] = function()
 -- Settings › Profiles page (used by settings.lua).
 --   Current   which profile is active, how many settings changed since it was loaded / saved, Save / Revert / Share
 --   New       create from the current settings, or import a share code (QUSTAH1:...)
---   Saved     search, rows sorted by last use; a row opens: note, rename / duplicate, Load, Overwrite, Autoload,
---             Share, Delete. "Default" is locked and holds the values the script started with.
+--   Saved     search, profile cards sorted by last use (Load on each); a card's "..." opens its tools under the
+--             cards: note, rename / duplicate, Load, Overwrite, Autoload, Share, Delete. "Default" is locked and holds the values the script started with.
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
@@ -10632,53 +10629,36 @@ return function(window, page, defaults)
     Util.list(holder, 4)
     local empty = listCard:Label("")
 
+    -- the profiles as cards (ItemCards): a "..." on a card opens its tools under the grid
+    local PALETTE = { Color3.fromRGB(232, 232, 236), Color3.fromRGB(74, 157, 224), Color3.fromRGB(94, 196, 110), Color3.fromRGB(232, 110, 176),
+        Color3.fromRGB(226, 177, 90), Color3.fromRGB(160, 125, 232), Color3.fromRGB(79, 200, 216), Color3.fromRGB(224, 106, 106) }
+    local function colorOf(name)
+        if name == "Default" then return PALETTE[1] end
+        local sum = 0
+        for i = 1, #name do sum = sum + string.byte(name, i) end
+        return PALETTE[2 + sum % (#PALETTE - 1)]
+    end
+    local cards = listCard:ItemCards({ Columns = 2, Height = 92,
+        OnAction = function(item) loadProfile(item.Title, item.Locked) end,
+        OnMenu = function(item) open = open ~= item.Title and item.Title or nil refresh() end,
+    })
+    holder.LayoutOrder = listCard:_order() -- (the tools of the open profile come under the cards)
+    if empty.Row then empty.Row.LayoutOrder = listCard:_order() end
+
+    -- the open profile's tools (note, rename / duplicate, Load, Overwrite, Autoload, Share, Delete)
     local function profileRow(name, order, locked, autoload, info)
-        local active = (locked and store.Active == nil) or store.Active == name
-        local expanded = open == name
+        if open ~= name then return end
         local frame = create("Frame", { Name = "Profile_" .. name, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, LayoutOrder = order, Parent = holder })
-        Theme.bind(frame, "BackgroundColor3", expanded and "selected" or "input")
+        Theme.bind(frame, "BackgroundColor3", "selected")
         corner(frame, 6)
-        local outline = stroke(frame)
-        Theme.bind(outline, "Color", active and "accent" or (expanded and "buttonEdge" or "line"))
-        outline.Transparency = active and 0.55 or 0
+        Theme.bind(stroke(frame), "Color", "buttonEdge")
         Util.list(frame, 0)
         local note = info and info.note and tostring(info.note) or nil
-        local head = create("TextButton", { Name = "Head", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, note and 42 or 34), LayoutOrder = 1, Parent = frame })
-        local dot = create("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0, 17), Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, Parent = head })
-        Theme.bind(dot, "BackgroundColor3", active and "accent" or "buttonEdge")
-        corner(dot, 3)
-        local title = label(head, name, 11, { Name = "Name", Position = UDim2.fromOffset(26, note and 6 or 0), Size = UDim2.new(0.55, -26, 0, note and 18 or 34), Font = Enum.Font.GothamMedium })
-        Theme.bind(title, "TextColor3", (active or expanded) and "heading" or "text")
-        if note then
-            local noteLabel = label(head, note, 9, { Name = "Note", Position = UDim2.fromOffset(26, 23), Size = UDim2.new(0.55, -26, 0, 13) })
-            Theme.bind(noteLabel, "TextColor3", "muted")
-        end
-        -- tags on the right: ACTIVE / AUTO pills, then the date
-        local tags = create("Frame", { Name = "Tags", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 0), Size = UDim2.new(0.45, -12, 0, 34), Parent = head })
-        Util.list(tags, 6, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Center)
-        local function pill(text, order_, accent)
-            local object = label(tags, text, 8, {
-                Name = text, Size = UDim2.fromOffset(Util.textWidth(text, 8, Enum.Font.GothamMedium) + 12, 16), TextXAlignment = Enum.TextXAlignment.Center,
-                Font = Enum.Font.GothamMedium, BackgroundTransparency = 0, LayoutOrder = order_,
-            })
-            corner(object, 8)
-            Theme.bind(object, "BackgroundColor3", accent and "accentDeep" or "base")
-            Theme.bind(object, "TextColor3", accent and "accent" or "muted")
-            Theme.bind(stroke(object, nil, 0.5), "Color", accent and "accent" or "buttonEdge")
-        end
-        if active then pill("ACTIVE", 1, true) end
-        if autoload then pill("AUTO", 2, false) end
-        if locked then pill("LOCKED", 3, false) end
-        local when = info and (info.saved or info.used)
-        if when then
-            local date = label(tags, os.date("%d %b", when), 9, { Size = UDim2.fromOffset(42, 16), TextXAlignment = Enum.TextXAlignment.Right, LayoutOrder = 4 })
-            Theme.bind(date, "TextColor3", "muted")
-        end
-        head.Activated:Connect(function()
-            open = open ~= name and name or nil
-            refresh()
-        end)
-        if not expanded then return end
+        local head = create("TextButton", { Name = "Head", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 30), LayoutOrder = 1, Parent = frame })
+        local title = label(head, name, 11, { Name = "Name", Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -40, 1, 0), Font = Enum.Font.GothamMedium })
+        Theme.bind(title, "TextColor3", "heading")
+        Icons.themed(head, "x", 12, "muted", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0) })
+        head.Activated:Connect(function() open = nil refresh() end)
 
         local actions = create("Frame", { Name = "Actions", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, Parent = frame })
         Util.padding(actions, 12, 12, 0, 10)
@@ -10799,15 +10779,31 @@ return function(window, page, defaults)
         end)
         local q = query:lower()
         local shown = 0
-        if q == "" or ("default"):find(q, 1, true) then profileRow("Default", 1, true, auto == nil, nil) shown = shown + 1 end
-        for index, name in ipairs(names) do
+        local items = {}
+        local function add(name, locked, autoload, info)
+            local active = (locked and store.Active == nil) or store.Active == name
+            local badges = {}
+            if active then badges[#badges + 1] = { Text = "ACTIVE", Role = "success" } end
+            if autoload then badges[#badges + 1] = "AUTO" end
+            if locked then badges[#badges + 1] = "LOCKED" end
+            local when = info and (info.saved or info.used)
+            local count = 0
+            if not locked then local flags = store:Read(name) for _ in pairs(flags or {}) do count = count + 1 end end
+            items[#items + 1] = {
+                Title = name, Locked = locked, Color = colorOf(name), Badges = badges, Action = "Load", Highlight = active or open == name,
+                Sub = (when and os.date("%d %b", when) or (locked and "starting values" or "")) .. (count > 0 and (" · " .. count .. " settings") or ""),
+                Desc = info and info.note and tostring(info.note) or (locked and "The values the script started with" or ""),
+            }
+            profileRow(name, #items, locked, autoload, info)
+            shown = shown + 1
+        end
+        if q == "" or ("default"):find(q, 1, true) then add("Default", true, auto == nil, nil) end
+        for _, name in ipairs(names) do
             local info = data[name]
             local note = info and info.note and tostring(info.note):lower() or ""
-            if q == "" or name:lower():find(q, 1, true) or note:find(q, 1, true) then
-                profileRow(name, index + 1, false, auto == name, info)
-                shown = shown + 1
-            end
+            if q == "" or name:lower():find(q, 1, true) or note:find(q, 1, true) then add(name, false, auto == name, info) end
         end
+        cards:SetItems(items)
         search.Visible = #names > 3 or q ~= ""
         empty:Set(#names == 0 and "No saved profiles yet - create one above." or (shown == 0 and "No profile matches \"" .. query .. "\"" or ""))
         empty:SetVisible(#names == 0 or shown == 0)
@@ -10840,7 +10836,7 @@ local Glow = require("glow")
 local UIFont = require("font")
 local Profiles = require("profiles")
 
-local RED, GREEN = "danger", "success" -- theme roles
+local RED = "danger" -- theme role
 
 return function(window, cfg)
     cfg = cfg or {}
@@ -11111,15 +11107,8 @@ return function(window, cfg)
     local files = type(writefile) == "function" and type(readfile) == "function"
     about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
     about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
-    -- the buttons after the facts, side by side when there are two
-    local aboutButtons = (type(window.cfg.Changelog) == "table" and window.cfg.Tour) and about:Row() or about
-    if type(window.cfg.Changelog) == "table" then
-        aboutButtons:Button({ Title = "What's new", Icon = "newspaper", Callback = function() window:ShowChangelog() end })
-    end
-    -- every version's notes (Changelog.History), under the other buttons
-    if type(window.cfg.Changelog) == "table" then
-        about:Button({ Title = "Version history", Icon = "history", Style = "Ghost", Callback = function() window:ShowVersionHistory() end })
-    end
+    -- (the release notes are in the "What's new" card)
+    local aboutButtons = about
     if window.cfg.Tour then
         aboutButtons:Button({ Title = "Show the tour", Icon = "map", Callback = function()
             local spec = window.cfg.Tour
@@ -11171,9 +11160,54 @@ return function(window, cfg)
         showKicks()
     end
 
-    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes" })
-    local moduleRows = {}
+    -- the status band over the page: all fine / limited / errors, with the debug info button
+    local function copyDebug()
+        local clipboard = setclipboard or toclipboard
+        if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
+            window:Notify({ Title = "Copied", Content = "Debug info copied - paste it into your bug report", Icon = "clipboard-copy" })
+        else
+            window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
+        end
+    end
+    local band = infoPage:Card({ Wide = true }):Notice({ Kind = "success", Title = "Everything is running", Desc = " ",
+        Button = { Title = "Debug info", Icon = "clipboard-copy", Callback = copyDebug } })
+
+    -- each module's state over the last 15 minutes (a sample every 30 s)
+    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes", Desc = "Last 15 minutes" })
     local noModules = modulesCard:Label("No modules reported")
+    local moduleBars = modulesCard:StatusBars({ Slots = 30, Items = {} })
+    task.spawn(function()
+        while window.alive do
+            task.wait(30)
+            local order, modules = window:GetModules()
+            for _, name in ipairs(order) do moduleBars:Push(name, modules[name].state) end
+        end
+    end)
+
+    -- what this executor can do (each line: the feature it is needed for)
+    local executorName = "Unknown"
+    pcall(function()
+        if type(identifyexecutor) == "function" then executorName = table.concat({ identifyexecutor() }, " ")
+        elseif type(getexecutorname) == "function" then executorName = tostring(getexecutorname()) end
+    end)
+    local function has(name) return type(getfenv(0)[name]) == "function" or (getgenv and type(getgenv()[name]) == "function") end
+    infoPage:Card({ Title = "Executor", Side = "Right", Icon = "terminal-square", Desc = executorName }):Checklist({ Items = {
+        { Title = "File access", Ok = files, Note = "profiles, themes" },
+        { Title = "getcustomasset", Ok = has("getcustomasset"), Note = "sharp icons" },
+        { Title = "gethui", Ok = has("gethui"), Note = "hidden interface" },
+        { Title = "Drawing", Ok = (function() local d = getfenv(0).Drawing return type(d) == "table" and type(d.new) == "function" end)(), Note = "screen drawings" },
+        { Title = "getconnections", Ok = has("getconnections"), Note = "connection control" },
+        { Title = "hookmetamethod", Ok = has("hookmetamethod"), Note = "game hooks" },
+        { Title = "setclipboard", Ok = has("setclipboard") or has("toclipboard"), Note = "copy buttons" },
+    } })
+
+    -- release notes (CreateWindow({ Changelog = { Version, Items, History } }))
+    if type(window.cfg.Changelog) == "table" then
+        local log = window.cfg.Changelog
+        local entries = { { Version = tostring(log.Version or window.Version), Time = "this version", Items = log.Items or {} } }
+        for _, old in ipairs(log.History or {}) do entries[#entries + 1] = { Version = tostring(old.Version or ""), Time = old.Date or old.Time, Items = old.Items or {} } end
+        infoPage:Card({ Title = "What's new", Side = "Right", Icon = "newspaper" }):Changelog({ Entries = entries })
+    end
 
     local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right", Icon = "bug" })
     -- debug mode: a small switch in the card's title row (a notification for every new error)
@@ -11181,30 +11215,18 @@ return function(window, cfg)
         Callback = function(on) window.debug = on end })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
     local errorText = errorsCard:Paragraph({ Content = "No errors" })
-    local errorButtons = errorsCard:Row()
-    errorButtons:Button({
-        Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report",
-        Callback = function()
-            local clipboard = setclipboard or toclipboard
-            if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
-                window:Notify({ Title = "Copied", Content = "Debug info copied - paste it into your bug report", Icon = "clipboard-copy" })
-            else
-                window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
-            end
-        end,
-    })
+    local errorButtons = errorsCard -- (Debug info is on the status band)
     local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
 
-    local STATE = { On = GREEN, Off = nil, Limited = "warning", Error = RED }
     local function update()
         local order, modules = window:GetModules()
         noModules:SetVisible(#order == 0)
+        local limited = 0
         for _, name in ipairs(order) do
-            local row = moduleRows[name] or modulesCard:Info({ Title = name })
-            moduleRows[name] = row
             local module = modules[name]
-            row:Set(module.state .. (module.detail and module.state ~= "Error" and (" · " .. tostring(module.detail)) or ""))
-            row:SetColor(STATE[module.state] or "muted")
+            moduleBars:AddItem({ Title = name, State = module.state, History = { module.state } })
+            moduleBars:SetState(name, module.state, module.state .. (module.detail and module.state ~= "Error" and (" · " .. tostring(module.detail)) or ""))
+            if module.state == "Limited" then limited = limited + 1 end
         end
         local errors = window:GetErrors()
         local total = 0
@@ -11219,7 +11241,14 @@ return function(window, cfg)
         errorCount:Set(#errors == 0 and "0" or (#errors .. (total > #errors and (" (" .. total .. "×)") or "")))
         errorCount:SetColor(#errors > 0 and RED or "text")
         errorText:Set(#lines > 0 and table.concat(lines, "\n") or "No errors")
-        clearErrors:SetVisible(#errors > 0) -- (nothing to clear: Copy debug info takes the whole row)
+        clearErrors:SetVisible(#errors > 0)
+        if #errors > 0 then
+            band:Set({ Kind = "danger", Title = #errors .. (#errors == 1 and " error" or " errors") .. " this session", Desc = "See Errors below · Debug info for a bug report" })
+        elseif limited > 0 then
+            band:Set({ Kind = "warning", Title = "Running with limits", Desc = limited .. (limited == 1 and " module is" or " modules are") .. " limited by the executor" })
+        else
+            band:Set({ Kind = "success", Title = "Everything is running", Desc = #order .. (#order == 1 and " module" or " modules") .. " · no errors" })
+        end
     end
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)
