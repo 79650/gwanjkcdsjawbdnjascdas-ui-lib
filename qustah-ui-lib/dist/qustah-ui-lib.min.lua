@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.1 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.2 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6344,7 +6344,17 @@ local icon=Icons.themed(box,spec.Icon,13,"icon",{Name="Icon",AnchorPoint=Vector2
 if icon then x=30 end
 end
 local title=label(box,tostring(spec.Title or""),10,{Name="Title",Position=UDim2.fromOffset(x,0),Size=UDim2.new(1,-x-52,1,0)})
-Theme.bind(title,"TextColor3","text")
+Theme.bind(title,"TextColor3",spec.Risky and"danger"or"text")
+if spec.Badge then
+local tag=Parts.chip(box,tostring(spec.Badge),spec.Risky and"danger"or"muted",nil,{Name="Badge",AnchorPoint=Vector2.new(0,0.5),
+Position=UDim2.new(0,x+Util.textWidth(tostring(spec.Title or""),10,Enum.Font.Gotham)+6,0.5,0)})
+tag.Size=UDim2.fromOffset(tag.Size.X.Offset,15)
+tag:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,4)
+end
+if spec.Tooltip then
+box.MouseEnter:Connect(function()card.window:_tip(tostring(spec.Tooltip))end)
+box.MouseLeave:Connect(function()card.window:_hideTip()end)
+end
 if spec.Status~=nil then
 local chip,_,resize=Parts.chip(box,tostring(spec.Status),spec.StatusRole or"warning",nil,{AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-8,0.5,0)})
 chips[tostring(spec.Title)]={chip=chip,resize=resize}
@@ -8518,7 +8528,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.1",
+Version="1.10.2",
 Flags={},
 Windows={},
 Theme=Theme,

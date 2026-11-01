@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.10.2 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7169,7 +7169,8 @@ __modules["elements/switchgrid"] = function()
 -- } })
 -- Boxed rows two (Columns) to a line, each with an icon, a name and its own switch. Every item with a Flag is a
 -- normal toggle (saved with the profile, Lib.Flags[flag], window.flags[flag]:Set(on)). Status = "text" shows a chip
--- (coloured by StatusRole = "warning" | "success" | "danger" ...) instead of a switch.
+-- (coloured by StatusRole = "warning" | "success" | "danger" ...) instead of a switch. Badge = "RISKY", Risky = true,
+-- Tooltip = "text" work as on a Toggle.
 -- Returns the grid; grid.Items[i] / grid.Items[title] are the toggles (:Set, :Get, :Lock), grid:SetStatus(title, text, role).
 local Util = require("util")
 local Theme = require("theme")
@@ -7199,7 +7200,18 @@ return function(card, cfg)
             if icon then x = 30 end
         end
         local title = label(box, tostring(spec.Title or ""), 10, { Name = "Title", Position = UDim2.fromOffset(x, 0), Size = UDim2.new(1, -x - 52, 1, 0) })
-        Theme.bind(title, "TextColor3", "text")
+        Theme.bind(title, "TextColor3", spec.Risky and "danger" or "text")
+        -- Badge = "RISKY": a small tag after the name (Risky = true: the name is red too)
+        if spec.Badge then
+            local tag = Parts.chip(box, tostring(spec.Badge), spec.Risky and "danger" or "muted", nil, { Name = "Badge", AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0, x + Util.textWidth(tostring(spec.Title or ""), 10, Enum.Font.Gotham) + 6, 0.5, 0) })
+            tag.Size = UDim2.fromOffset(tag.Size.X.Offset, 15)
+            tag:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 4)
+        end
+        if spec.Tooltip then
+            box.MouseEnter:Connect(function() card.window:_tip(tostring(spec.Tooltip)) end)
+            box.MouseLeave:Connect(function() card.window:_hideTip() end)
+        end
         if spec.Status ~= nil then
             local chip, _, resize = Parts.chip(box, tostring(spec.Status), spec.StatusRole or "warning", nil, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0) })
             chips[tostring(spec.Title)] = { chip = chip, resize = resize }
@@ -9663,7 +9675,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.10.1",
+    Version = "1.10.2",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
