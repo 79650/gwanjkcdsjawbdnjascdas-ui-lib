@@ -1,5 +1,5 @@
--- card:FovPreview({ Height }) - the screen in small (its shape follows the real screen) with an aim FOV circle at
--- its real size against it, and "140 px on 1920×1080" in the corner. element:Update(settings):
+-- card:FovPreview({ Height = 130 }) - the screen in small (a frame of the real screen's shape, as big as fits in a
+-- box at most Height tall) with an aim FOV circle at its real size against it, and "140 px on 1920×1080" in the corner. element:Update(settings):
 --   Radius (px on the real screen), Sides (under 16: drawn as the polygon it is), Thickness, Color,
 --   Transparency (0 - 1, the outline), Filled, FillColor, FillTransparency (0 - 1), Visible (false: shown faint).
 -- Drawn again on its own when the screen size or the UI scale changes.
@@ -17,12 +17,15 @@ local DEFAULTS = {
 return function(card, cfg)
     local window = card.window
     local box = create("Frame", {
-        Name = "FovPreview", Size = UDim2.new(1, 0, 0, cfg.Height or 140), BorderSizePixel = 0, ClipsDescendants = true,
+        Name = "FovPreview", Size = UDim2.new(1, 0, 0, cfg.Height or 130), BorderSizePixel = 0, ClipsDescendants = true,
         LayoutOrder = card:_order(), Parent = card.body,
     })
     Theme.bind(box, "BackgroundColor3", "base")
     corner(box, 6)
     Theme.bind(stroke(box), "Color", "line")
+    local frame = create("Frame", { Name = "Screen", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1, Parent = box })
+    corner(frame, 4)
+    Theme.bind(stroke(frame), "Color", "line")
     local cursor = create("Frame", { Name = "Cursor", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(4, 4), BorderSizePixel = 0, BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 3, Parent = box })
     corner(cursor, 2)
     local circle = create("Frame", { Name = "Circle", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BorderSizePixel = 0, Parent = box })
@@ -40,12 +43,13 @@ return function(card, cfg)
         local s = element.Settings
         local camera = workspace.CurrentCamera
         local screen = camera and camera.ViewportSize or Vector2.new(1920, 1080)
-        -- the box keeps the screen's shape; everything inside is scaled the same way
+        -- the screen's shape as big as fits in the box (a few px inside it); everything is scaled the same way
         local scaleUI = window and window.scale and window.scale.Scale or 1
         local width = box.AbsoluteSize.X / scaleUI
-        local height = math.clamp(width * screen.Y / math.max(screen.X, 1), 90, 200)
+        local height = math.clamp(width * screen.Y / math.max(screen.X, 1), 90, cfg.Height or 130)
         box.Size = UDim2.new(1, 0, 0, height)
-        local k = width / math.max(screen.X, 1)
+        local k = math.min((width - 16) / math.max(screen.X, 1), (height - 16) / math.max(screen.Y, 1))
+        frame.Size = UDim2.fromOffset(screen.X * k, screen.Y * k)
         local radius = (tonumber(s.Radius) or 60) * k
         local sides = math.floor(tonumber(s.Sides) or 100)
         local color = typeof(s.Color) == "Color3" and s.Color or Color3.new(1, 1, 1)
@@ -66,11 +70,11 @@ return function(card, cfg)
             end
             if polygon and index <= sides then
                 local a1, a2 = (index - 1) / sides * math.pi * 2, index / sides * math.pi * 2
-                local cx, cy = width / 2, height / 2
-                local x1, y1 = cx + math.cos(a1) * radius, cy + math.sin(a1) * radius
-                local x2, y2 = cx + math.cos(a2) * radius, cy + math.sin(a2) * radius
+                -- from the centre of the box (like the circle), so the UI scale cannot move it off
+                local x1, y1 = math.cos(a1) * radius, math.sin(a1) * radius
+                local x2, y2 = math.cos(a2) * radius, math.sin(a2) * radius
                 local dx, dy = x2 - x1, y2 - y1
-                line.Position = UDim2.fromOffset((x1 + x2) / 2, (y1 + y2) / 2)
+                line.Position = UDim2.new(0.5, (x1 + x2) / 2, 0.5, (y1 + y2) / 2)
                 line.Size = UDim2.fromOffset(math.sqrt(dx * dx + dy * dy) + 1, thickness)
                 line.Rotation = math.deg(math.atan2(dy, dx))
                 line.BackgroundColor3, line.BackgroundTransparency, line.Visible = color, outline, true
