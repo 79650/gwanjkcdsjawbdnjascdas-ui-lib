@@ -147,6 +147,8 @@ export type Container = {
 	ImagePicker: (self: Container, cfg: ElementConfig & { Images: { string }, Default: string?, Columns: number?, Callback: Callback<string>? }) -> Element<string>,
 	PlayerList: (self: Container, cfg: ElementConfig & { Multi: boolean?, Height: number?, IncludeSelf: boolean?, Callback: Callback<any>? }) -> PlayerList,
 	Viewport: (self: Container, cfg: { Object: Instance?, Height: number?, Interactive: boolean?, Spin: boolean?, Distance: number? }) -> any,
+	CrosshairPreview: (self: Container, cfg: { Height: number?, Scale: number?, Settings: { [string]: any }? }?) -> any,
+	FovPreview: (self: Container, cfg: { Height: number?, Settings: { [string]: any }? }?) -> any,
 
 	Tabs: (self: Container, names: { string }, cfg: { Default: string?, Callback: Callback<string>? }?) -> ({ [string]: Container }, any),
 	Section: (self: Container, cfg: string | { Title: string?, Icon: string?, Desc: string?, Opened: boolean?, DependsOn: Dependency? }) -> Container & { SetOpen: (self: any, open: boolean) -> (), ToggleOpen: (self: any) -> () },

@@ -433,6 +433,42 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         check("segment: an unknown style is Boxed", odd.Style == "Boxed")
         scard.frame:Destroy()
     end
+    -- Crosshair: on screen (follows the mouse while on), a preview card at 2x
+    do
+        local xh = Lib.Crosshair.Overlay({ Enabled = true, Style = "Plus", Length = 10, Gap = 4 })
+        wait(0.1)
+        local arm = xh.root:FindFirstChild("Arm1")
+        check("crosshair overlay on: shown, arms sized", xh.gui.Enabled == true and arm.Visible and arm.Size.X.Offset == 10)
+        xh:Update({ Style = "X" }) wait(0.1)
+        check("crosshair X: the plus turned 45 degrees", math.abs(xh.root.Rotation - 45) < 0.01)
+        xh:Update({ Style = "Circle" }) wait(0.05)
+        check("crosshair circle: a ring, no arms", xh.root:FindFirstChild("Ring").Visible and not xh.root:FindFirstChild("Arm1").Visible)
+        xh:SetEnabled(false) wait(0.05)
+        check("crosshair overlay off: hidden", xh.gui.Enabled == false)
+        xh:Destroy()
+        check("crosshair overlay destroyed", xh.gui.Parent == nil)
+        local xcard = tabNamed("Live").Pages[1]:Card({ Title = "XhPreview" })
+        local prev = xcard:CrosshairPreview({ Settings = { Style = "Plus", Length = 8 } })
+        local parm = prev.Row:FindFirstChild("Arm1", true)
+        check("crosshair preview at 2x", parm and parm.Size.X.Offset == 16 and prev.Row:FindFirstChild("Caption").Text == "Plus")
+        local shownTab = window.current
+        tabNamed("Live"):Select() tabNamed("Live").Pages[1]:Select() wait(0.2)
+        prev:Update({ Spin = true, SpinSpeed = 360 }) wait(0.3)
+        local spun = prev.Row:FindFirstChild("Crosshair").Rotation
+        prev:Update({ Spin = false, Enabled = false }) wait(0.05)
+        check("crosshair preview spins, stops straight, says off", spun ~= 0 and prev.Row:FindFirstChild("Crosshair").Rotation == 0 and prev.Row.Caption.Text:find("^off") ~= nil)
+        if shownTab then shownTab:Select() wait(0.1) end
+        -- FOV preview: the circle at its real size, polygons under 16 sides
+        local fov = xcard:FovPreview({ Settings = { Radius = 120 } }) wait(0.1)
+        check("fov preview note", fov.Row:FindFirstChild("Note").Text:find("^120 px on ") ~= nil)
+        fov:Update({ Sides = 6 }) wait(0.05)
+        local sides = 0
+        for _, c in ipairs(fov.Row:GetChildren()) do if c.Name == "Side" and c.Visible then sides = sides + 1 end end
+        check("fov preview: 6 sides drawn as a hexagon", sides == 6)
+        fov:Update({ Visible = false }) wait(0.05)
+        check("fov preview: hidden circle says so", fov.Row.Note.Text:find("^hidden") ~= nil)
+        xcard.frame:Destroy()
+    end
     -- FillColumn: the shorter column's card grows until both columns end on the same line
     do
         local fpage = tabNamed("Live"):Page("FillTest")

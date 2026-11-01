@@ -38,6 +38,8 @@ Card.Elements = {
     Table       = require("elements/table"),
     Stepper     = require("elements/stepper"),
     TextArea    = require("elements/textarea"),
+    CrosshairPreview = require("elements/crosshairpreview"),
+    FovPreview  = require("elements/fovpreview"),
 }
 Card.__index = function(_, key)
     local method = rawget(Card, key)
