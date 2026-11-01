@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.39 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.40 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -3249,7 +3249,7 @@ corner(cursor,2)
 local circle=create("Frame",{Name="Circle",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),BorderSizePixel=0,Parent=box})
 corner(circle,999)
 local ring=stroke(circle,nil,0,1)
-local lines={}
+local lines,fills={},{}
 local note=Util.label(box,"",8,{Name="Note",AnchorPoint=Vector2.new(1,1),Position=UDim2.new(1,-8,1,-5),Size=UDim2.fromOffset(160,12),TextXAlignment=Enum.TextXAlignment.Right})
 Theme.bind(note,"TextColor3","muted")
 local element=Base.element(card,"FovPreview",{},box,nil,nil)
@@ -3273,8 +3273,37 @@ local shown=s.Visible~=false
 local outline=shown and math.clamp(tonumber(s.Transparency)or 0,0,1)or 0.85
 circle.Size=UDim2.fromOffset(radius*2,radius*2)
 circle.BackgroundColor3=typeof(s.FillColor)=="Color3"and s.FillColor or Color3.new(1,1,1)
-circle.BackgroundTransparency=(s.Filled and shown)and math.clamp(tonumber(s.FillTransparency)or 0.85,0,1)or 1
 local polygon=sides<16
+local fillAlpha=(s.Filled and shown)and math.clamp(tonumber(s.FillTransparency)or 0.85,0,1)or 1
+circle.BackgroundTransparency=polygon and 1 or fillAlpha
+local rows=(polygon and fillAlpha<1)and math.max(1,math.ceil(radius))or 0
+for index=1,math.max(#fills,rows)do
+local row=fills[index]
+if not row then
+row=create("Frame",{Name="Fill",AnchorPoint=Vector2.new(0.5,0.5),BorderSizePixel=0,Parent=box})
+fills[index]=row
+end
+local y=-radius+(index-0.5)*2
+local left,right=math.huge,-math.huge
+if index<=rows then
+for side=1,sides do
+local a1,a2=(side-1)/sides*math.pi*2,side/sides*math.pi*2
+local x1,y1=math.cos(a1)*radius,math.sin(a1)*radius
+local x2,y2=math.cos(a2)*radius,math.sin(a2)*radius
+if(y1-y)*(y2-y)<=0 and y1~=y2 then
+local x=x1+(x2-x1)*(y-y1)/(y2-y1)
+left,right=math.min(left,x),math.max(right,x)
+end
+end
+end
+if right>left then
+row.Position=UDim2.new(0.5,(left+right)/2,0.5,y)
+row.Size=UDim2.fromOffset(right-left,2)
+row.BackgroundColor3,row.BackgroundTransparency,row.Visible=circle.BackgroundColor3,fillAlpha,true
+else
+row.Visible=false
+end
+end
 ring.Color,ring.Thickness,ring.Transparency=color,thickness,polygon and 1 or outline
 for index=1,math.max(#lines,polygon and sides or 0)do
 local line=lines[index]
@@ -7146,7 +7175,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.39",
+Version="1.9.40",
 Flags={},
 Windows={},
 Theme=Theme,
