@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.2 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.10.3 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1032,7 +1032,7 @@ __modules["dashboard"] = function()
 -- Window:DashboardTab({ Title, Icon, Info = { { "Code revision", "571" }, ... }, Server = true, Modules = true })
 -- Qustah's overview: profile card (Hero: avatar, names, session timer, live FPS / ping / players chips), live tiles
 -- (StatTiles: FPS, ping, players, Lua memory with their history; Stats = false hides them), Session (with the
--- ids folded under "Details"), Server and Modules (a grid of tiles: Window:SetModule(name, state, detail,
+-- ids, each with a copy button), Server and Modules (a grid of tiles: Window:SetModule(name, state, detail,
 -- { Icon = "eye", Tab = "ESP" }) - a click on a tile opens its tab).
 -- Call it before the other tabs; a divider goes between it and the next tab in the dock.
 local Util = require("util")
@@ -1102,8 +1102,8 @@ return function(window, cfg)
     session:Info({ Title = "Executor", Value = executor })
     if window.Version ~= "" then session:Info({ Title = "GUI version", Value = window.Version }) end
     for _, entry in ipairs(cfg.Info or {}) do session:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
-    -- the ids are rarely needed: folded away under "Details"
-    local details = session:Section({ Title = "Details", Icon = "hash", Opened = false })
+    -- the ids, each with a copy button
+    local details = session
     local userId = details:Info({ Title = "User ID", Value = "#" .. player.UserId, Copy = function() return tostring(player.UserId) end })
     if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on) userId:Set(on and "hidden" or ("#" .. player.UserId)) end) end
     details:Info({ Title = "Game ID", Value = "#" .. game.GameId, Copy = function() return tostring(game.GameId) end })
@@ -6764,8 +6764,9 @@ return function(card, cfg)
             element:Set(index, { Value = fmt(number), Sub = spec.Sub or ("avg " .. fmt(average)) })
         end
         Stats.start(window.Lib.maid)
+        -- (only while the tiles are on screen: nothing runs for a closed menu or another page)
         window.maid:give(Stats.listen(function()
-            if not holder.Parent then return end
+            if not holder.Parent or not Util.shown(holder) then return end
             for _, index in ipairs(live) do if tiles[index].spec.Source == "FPS" or tiles[index].spec.Source == "Ping" then sample(index) end end
         end))
         task.spawn(function()
@@ -9675,7 +9676,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.10.2",
+    Version = "1.10.3",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

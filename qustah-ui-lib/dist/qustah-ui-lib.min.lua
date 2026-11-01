@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.2 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.3 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -963,7 +963,7 @@ end)
 session:Info({Title="Executor",Value=executor})
 if window.Version~=""then session:Info({Title="GUI version",Value=window.Version})end
 for _,entry in ipairs(cfg.Info or{})do session:Info({Title=entry[1],Value=entry[2],Copy=entry.Copy})end
-local details=session:Section({Title="Details",Icon="hash",Opened=false})
+local details=session
 local userId=details:Info({Title="User ID",Value="#"..player.UserId,Copy=function()return tostring(player.UserId)end})
 if window.OnAnonymousChanged then window:OnAnonymousChanged(function(on)userId:Set(on and"hidden"or("#"..player.UserId))end)end
 details:Info({Title="Game ID",Value="#"..game.GameId,Copy=function()return tostring(game.GameId)end})
@@ -5960,7 +5960,7 @@ element:Set(index,{Value=fmt(number),Sub=spec.Sub or("avg "..fmt(average))})
 end
 Stats.start(window.Lib.maid)
 window.maid:give(Stats.listen(function()
-if not holder.Parent then return end
+if not holder.Parent or not Util.shown(holder)then return end
 for _,index in ipairs(live)do if tiles[index].spec.Source=="FPS"or tiles[index].spec.Source=="Ping"then sample(index)end end
 end))
 task.spawn(function()
@@ -8528,7 +8528,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.2",
+Version="1.10.3",
 Flags={},
 Windows={},
 Theme=Theme,

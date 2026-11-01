@@ -673,7 +673,7 @@ Window:DashboardTab({ Info = { { "Code revision", "571" } }, Server = true })   
 Window:SettingsTab()                                                             -- as the last tab
 ```
 
-**Dashboard:** profile card (a Hero: avatar, name, session time and live FPS / ping / players chips), live tiles under it (StatTiles: FPS, ping, players and Lua memory with their history; `Stats = false` leaves them out), Session (account, executor, version and your `Info` rows; the ids folded under "Details"), Modules (a grid of tiles: icon, name and the state under it in its colour), Server (Rejoin, Server hop, Job ID).
+**Dashboard:** profile card (a Hero: avatar, name, session time and live FPS / ping / players chips), live tiles under it (StatTiles: FPS, ping, players and Lua memory with their history; `Stats = false` leaves them out), Session (account, executor, version and your `Info` rows; User ID / Game ID / Place ID with copy buttons), Modules (a grid of tiles: icon, name and the state under it in its colour), Server (Rejoin, Server hop, Job ID).
 
 **Settings › Interface**
 - Appearance: theme, accent (a row of colour dots; the last one opens a picker for any colour), font, text glow

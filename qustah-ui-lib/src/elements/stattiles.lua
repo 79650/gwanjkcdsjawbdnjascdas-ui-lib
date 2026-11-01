@@ -74,8 +74,9 @@ return function(card, cfg)
             element:Set(index, { Value = fmt(number), Sub = spec.Sub or ("avg " .. fmt(average)) })
         end
         Stats.start(window.Lib.maid)
+        -- (only while the tiles are on screen: nothing runs for a closed menu or another page)
         window.maid:give(Stats.listen(function()
-            if not holder.Parent then return end
+            if not holder.Parent or not Util.shown(holder) then return end
             for _, index in ipairs(live) do if tiles[index].spec.Source == "FPS" or tiles[index].spec.Source == "Ping" then sample(index) end end
         end))
         task.spawn(function()
