@@ -209,6 +209,7 @@ end
 -- Every missing file is downloaded once and kept on disk; done gets { [path] = getcustomasset id }. It runs at once
 -- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
 -- the executor can't show downloaded files or a download / check fails.
+Util.downloadTimeout = 20
 function Util.cacheFiles(files, done, fail, what)
     fail = fail or function() end
     if not Util.canCustomAsset() then fail("getcustomasset is not available") return end
@@ -233,14 +234,25 @@ function Util.cacheFiles(files, done, fail, what)
     task.spawn(function()
         local ok, reason = pcall(function()
             for _, file in ipairs(missing) do
-                -- an http request reaches any host (raw.githubusercontent.com works with HttpGet too)
+                -- an http request reaches any host (raw.githubusercontent.com works with HttpGet too). A request
+                -- that never answers would keep the strip (and whoever waits for it) forever: given up after
+                -- Util.downloadTimeout seconds, the caller falls back (plain icons).
                 local request = (syn and syn.request) or http_request or request
-                local body
-                if request and not file.url:find("githubusercontent", 1, true) then
-                    body = request({ Url = file.url, Method = "GET" }).Body
-                else
-                    body = game:HttpGet(file.url)
-                end
+                local body, finished, failure = nil, false, nil
+                local worker = task.spawn(function()
+                    local got, value = pcall(function()
+                        if request and not file.url:find("githubusercontent", 1, true) then
+                            return request({ Url = file.url, Method = "GET" }).Body
+                        end
+                        return game:HttpGet(file.url)
+                    end)
+                    if got then body = value else failure = value end
+                    finished = true
+                end)
+                local started = os.clock()
+                while not finished and os.clock() - started < Util.downloadTimeout do task.wait(0.1) end
+                if not finished then pcall(task.cancel, worker) error("timed out", 0) end
+                if failure ~= nil then error(failure, 0) end
                 assert(type(body) == "string" and #body > 0, "empty response")
                 if file.check then assert(file.check(body), "unexpected file") end
                 makeFolders(file.path)

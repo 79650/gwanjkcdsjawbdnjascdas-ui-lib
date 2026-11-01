@@ -1,7 +1,7 @@
 -- Download strip: a thin pill at the top of the screen while the library downloads something (icon sheets, a
 -- script's icon sheet) - "Qustāh  Downloading icons  ▬▬▬▭▭  62%". It only appears when a file is
 -- really fetched (files already on disk show nothing) and fades out when everything is done.
--- Util.cacheFiles(files, done, fail, "icons") drives it; Loader.title is set by the first window.
+-- Util.cacheFiles(files, done, fail, "icons") drives it; Loader.title is set by the first window (or setTitle).
 local Util = require("util")
 local Theme = require("theme")
 
@@ -10,8 +10,12 @@ local Loader = { jobs = {}, title = nil, enabled = true }
 local ui -- { gui, pill, title, text, fill, percent, spinner }
 local spin
 
+local genv = (getgenv and getgenv()) or _G
 local function build()
+    -- a strip left by an earlier run of the script (a download that never finished there) goes first
+    if genv.__QustahLoaderGui then pcall(function() genv.__QustahLoaderGui:Destroy() end) end
     local gui = Util.screenGui("QustahUI_Loading", 65)
+    genv.__QustahLoaderGui = gui
     pcall(function() require("font").register(gui) end)
     local pill = create("Frame", {
         Name = "Loading", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 26), Size = UDim2.fromOffset(0, 34),
@@ -90,6 +94,19 @@ function Loader.start(what, total)
     Loader.jobs[#Loader.jobs + 1] = job
     render()
     return job
+end
+
+-- Yields until every download is done (or `seconds` have passed): a script can keep its window back until its
+-- icons are there - Lib.Loader.Wait(30) before CreateWindow. Returns true when nothing is downloading any more.
+function Loader.Wait(seconds)
+    local started = os.clock()
+    while #Loader.jobs > 0 and os.clock() - started < (tonumber(seconds) or 30) do task.wait(0.1) end
+    return #Loader.jobs == 0
+end
+-- drops every job and hides the strip (the script unloads)
+function Loader.clear()
+    table.clear(Loader.jobs)
+    render()
 end
 
 -- the first window's title (shown in the strip)

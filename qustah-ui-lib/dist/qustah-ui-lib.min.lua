@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.35 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.36 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6323,6 +6323,7 @@ sheet.ready=true
 redrawSharp()
 end)
 end
+function Icons.Preload()startAtlas()end
 local function sheetRect(name,pixels)
 local size=math.floor(pixels+0.5)
 for _,sheet in ipairs(customSheets)do
@@ -6899,7 +6900,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.35",
+Version="1.9.36",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -7020,8 +7021,11 @@ local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
 local Loader={jobs={},title=nil,enabled=true}
 local ui
 local spin
+local genv=(getgenv and getgenv())or _G
 local function build()
+if genv.__QustahLoaderGui then pcall(function()genv.__QustahLoaderGui:Destroy()end)end
 local gui=Util.screenGui("QustahUI_Loading",65)
+genv.__QustahLoaderGui=gui
 pcall(function()require("font").register(gui)end)
 local pill=create("Frame",{
 Name="Loading",AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,26),Size=UDim2.fromOffset(0,34),
@@ -7097,6 +7101,15 @@ end
 Loader.jobs[#Loader.jobs+1]=job
 render()
 return job
+end
+function Loader.Wait(seconds)
+local started=os.clock()
+while#Loader.jobs>0 and os.clock()-started<(tonumber(seconds)or 30)do task.wait(0.1)end
+return#Loader.jobs==0
+end
+function Loader.clear()
+table.clear(Loader.jobs)
+render()
 end
 function Loader.setTitle(text)
 Loader.title=text
@@ -9632,6 +9645,7 @@ built=built==""and part or(built.."/"..part)
 if not isfolder(built)then makefolder(built)end
 end
 end
+Util.downloadTimeout=20
 function Util.cacheFiles(files,done,fail,what)
 fail=fail or function()end
 if not Util.canCustomAsset()then fail("getcustomasset is not available")return end
@@ -9656,12 +9670,21 @@ task.spawn(function()
 local ok,reason=pcall(function()
 for _,file in ipairs(missing)do
 local request=(syn and syn.request)or http_request or request
-local body
+local body,finished,failure=nil,false,nil
+local worker=task.spawn(function()
+local got,value=pcall(function()
 if request and not file.url:find("githubusercontent",1,true)then
-body=request({Url=file.url,Method="GET"}).Body
-else
-body=game:HttpGet(file.url)
+return request({Url=file.url,Method="GET"}).Body
 end
+return game:HttpGet(file.url)
+end)
+if got then body=value else failure=value end
+finished=true
+end)
+local started=os.clock()
+while not finished and os.clock()-started<Util.downloadTimeout do task.wait(0.1)end
+if not finished then pcall(task.cancel,worker)error("timed out",0)end
+if failure~=nil then error(failure,0)end
 assert(type(body)=="string"and#body>0,"empty response")
 if file.check then assert(file.check(body),"unexpected file")end
 makeFolders(file.path)
@@ -11101,6 +11124,7 @@ local cfg=self.cfg
 self._modal=create("TextButton",{Name="MouseUnlock",Text="",BackgroundTransparency=1,Size=UDim2.fromOffset(0,0),Modal=false,Parent=self.main})
 self.unlockMouse=cfg.UnlockMouse~=false
 self.maid:give(function()self.visible=false self:_applyMouse()end)
+self.maid:give(function()pcall(function()require("loader").clear()end)end)
 self:_applyMouse()
 if cfg.FullscreenButton==true then
 self._fullscreenButton=self:HeaderButton({Name="Fullscreen",Icon="maximize-2",Tooltip="Fullscreen",Callback=function()self:ToggleFullscreen()end})

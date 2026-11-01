@@ -646,7 +646,7 @@ In the font list every name is drawn in its own font. Code, Console and Log text
 
 `Lib.Fonts.set("Inter")`, `Lib.Fonts.setCode("Sono Mono")` and `Lib.Fonts.setTextScale(1.1)` do the same from code. `CreateWindow({ Font = "Inter" })` starts with a font; `Font = { "Poppins", "Inter" }` starts with the first known one.
 
-**Download strip.** While the library fetches files (the sharp icon sheets, a script's own sheet) a thin strip at the top of the screen says so, with the progress. It only shows when something is really downloaded, so later starts (everything already on disk) show nothing. `Lib.Loader.enabled = false` hides it.
+**Download strip.** While the library fetches files (the sharp icon sheets, a script's own sheet) a thin strip at the top of the screen says so, with the progress. It only shows when something is really downloaded, so later starts (everything already on disk) show nothing. `Lib.Loader.enabled = false` hides it. A download that never answers is given up after `Lib.Util.downloadTimeout` (20 s) and the plain icons are used. `Lib.Icons.Preload()` starts the sharp icon download early and `Lib.Loader.Wait(30)` (before `CreateWindow`) keeps the window back until the downloads are done.
 
 <p align="center"><img src="assets/screens/strip.png" alt="Download strip" width="500"></p>
 

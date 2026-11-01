@@ -199,6 +199,10 @@ function Icons.UseSheet(manifest, source)
     end)
 end
 
+-- Starts the download of the sharp lucide sheets now (they otherwise start with the first icon drawn), so a
+-- script can wait for them with Lib.Loader.Wait before its window opens.
+function Icons.Preload() startAtlas() end
+
 -- the exact cell for an icon `pixels` tall, from a script sheet: image, offset, size
 local function sheetRect(name, pixels)
     local size = math.floor(pixels + 0.5)

@@ -1813,6 +1813,29 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         U.cacheFiles({ { path = "QustahUI/test/s1.png", url = "https://example.com/s1.png" } }, function() end, nil, "icons")
         check("no strip when everything is on disk", Lib.Loader.visible == false)
         slow = false
+        -- a download that never answers: given up after Util.downloadTimeout, the strip goes, the caller falls back
+        local oldTimeout = U.downloadTimeout
+        U.downloadTimeout = 0.5
+        E.http_request = function() while true do task.wait(10) end end
+        local hungFail
+        U.cacheFiles({ { path = "QustahUI/test/hang.png", url = "https://example.com/hang.png" } }, function() end, function(r) hungFail = r end, "icons")
+        wait(0.2)
+        check("a hanging download shows the strip", Lib.Loader.visible == true)
+        wait(1)
+        check("a hanging download is given up (strip gone, fallback)", hungFail == "timed out" and Lib.Loader.visible == false and #Lib.Loader.jobs == 0)
+        U.downloadTimeout = oldTimeout
+        E.http_request = function(t) requests = requests + 1 return { Body = "\137PNG data" } end
+        -- Loader.Wait: yields until the downloads are done
+        slow = true
+        U.cacheFiles({ { path = "QustahUI/test/w1.png", url = "https://example.com/w1.png" } }, function() end, nil, "icons")
+        local waited = Lib.Loader.Wait(5)
+        check("Loader.Wait returns once the download is done", waited == true and #Lib.Loader.jobs == 0)
+        slow = false
+        -- a strip left on screen: cleared
+        U.cacheFiles({ { path = "QustahUI/test/c1.png", url = "https://example.com/c1.png" } }, function() end, nil, "icons")
+        Lib.Loader.clear()
+        check("Loader.clear hides the strip", #Lib.Loader.jobs == 0 and Lib.Loader.visible == false)
+        check("Icons.Preload exists", type(Lib.Icons.Preload) == "function")
         -- two web images with links of the same length get two files
         local i1 = Lib.Icons.Image("https://example.com/logo1.png", { Size = UDim2.fromOffset(20, 20) })
         local i2 = Lib.Icons.Image("https://example.com/logo2.png", { Size = UDim2.fromOffset(20, 20) }) wait(0.2)

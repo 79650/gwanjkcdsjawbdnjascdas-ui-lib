@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.35 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.36 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7173,6 +7173,10 @@ function Icons.UseSheet(manifest, source)
     end)
 end
 
+-- Starts the download of the sharp lucide sheets now (they otherwise start with the first icon drawn), so a
+-- script can wait for them with Lib.Loader.Wait before its window opens.
+function Icons.Preload() startAtlas() end
+
 -- the exact cell for an icon `pixels` tall, from a script sheet: image, offset, size
 local function sheetRect(name, pixels)
     local size = math.floor(pixels + 0.5)
@@ -7786,7 +7790,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.35",
+    Version = "1.9.36",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -7933,7 +7937,7 @@ __modules["loader"] = function()
 -- Download strip: a thin pill at the top of the screen while the library downloads something (icon sheets, a
 -- script's icon sheet) - "Qustāh  Downloading icons  ▬▬▬▭▭  62%". It only appears when a file is
 -- really fetched (files already on disk show nothing) and fades out when everything is done.
--- Util.cacheFiles(files, done, fail, "icons") drives it; Loader.title is set by the first window.
+-- Util.cacheFiles(files, done, fail, "icons") drives it; Loader.title is set by the first window (or setTitle).
 local Util = require("util")
 local Theme = require("theme")
 
@@ -7942,8 +7946,12 @@ local Loader = { jobs = {}, title = nil, enabled = true }
 local ui -- { gui, pill, title, text, fill, percent, spinner }
 local spin
 
+local genv = (getgenv and getgenv()) or _G
 local function build()
+    -- a strip left by an earlier run of the script (a download that never finished there) goes first
+    if genv.__QustahLoaderGui then pcall(function() genv.__QustahLoaderGui:Destroy() end) end
     local gui = Util.screenGui("QustahUI_Loading", 65)
+    genv.__QustahLoaderGui = gui
     pcall(function() require("font").register(gui) end)
     local pill = create("Frame", {
         Name = "Loading", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 26), Size = UDim2.fromOffset(0, 34),
@@ -8022,6 +8030,19 @@ function Loader.start(what, total)
     Loader.jobs[#Loader.jobs + 1] = job
     render()
     return job
+end
+
+-- Yields until every download is done (or `seconds` have passed): a script can keep its window back until its
+-- icons are there - Lib.Loader.Wait(30) before CreateWindow. Returns true when nothing is downloading any more.
+function Loader.Wait(seconds)
+    local started = os.clock()
+    while #Loader.jobs > 0 and os.clock() - started < (tonumber(seconds) or 30) do task.wait(0.1) end
+    return #Loader.jobs == 0
+end
+-- drops every job and hides the strip (the script unloads)
+function Loader.clear()
+    table.clear(Loader.jobs)
+    render()
 end
 
 -- the first window's title (shown in the strip)
@@ -10932,6 +10953,7 @@ end
 -- Every missing file is downloaded once and kept on disk; done gets { [path] = getcustomasset id }. It runs at once
 -- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
 -- the executor can't show downloaded files or a download / check fails.
+Util.downloadTimeout = 20
 function Util.cacheFiles(files, done, fail, what)
     fail = fail or function() end
     if not Util.canCustomAsset() then fail("getcustomasset is not available") return end
@@ -10956,14 +10978,25 @@ function Util.cacheFiles(files, done, fail, what)
     task.spawn(function()
         local ok, reason = pcall(function()
             for _, file in ipairs(missing) do
-                -- an http request reaches any host (raw.githubusercontent.com works with HttpGet too)
+                -- an http request reaches any host (raw.githubusercontent.com works with HttpGet too). A request
+                -- that never answers would keep the strip (and whoever waits for it) forever: given up after
+                -- Util.downloadTimeout seconds, the caller falls back (plain icons).
                 local request = (syn and syn.request) or http_request or request
-                local body
-                if request and not file.url:find("githubusercontent", 1, true) then
-                    body = request({ Url = file.url, Method = "GET" }).Body
-                else
-                    body = game:HttpGet(file.url)
-                end
+                local body, finished, failure = nil, false, nil
+                local worker = task.spawn(function()
+                    local got, value = pcall(function()
+                        if request and not file.url:find("githubusercontent", 1, true) then
+                            return request({ Url = file.url, Method = "GET" }).Body
+                        end
+                        return game:HttpGet(file.url)
+                    end)
+                    if got then body = value else failure = value end
+                    finished = true
+                end)
+                local started = os.clock()
+                while not finished and os.clock() - started < Util.downloadTimeout do task.wait(0.1) end
+                if not finished then pcall(task.cancel, worker) error("timed out", 0) end
+                if failure ~= nil then error(failure, 0) end
                 assert(type(body) == "string" and #body > 0, "empty response")
                 if file.check then assert(file.check(body), "unexpected file") end
                 makeFolders(file.path)
@@ -12631,6 +12664,8 @@ return function(Window)
         self._modal = create("TextButton", { Name = "MouseUnlock", Text = "", BackgroundTransparency = 1, Size = UDim2.fromOffset(0, 0), Modal = false, Parent = self.main })
         self.unlockMouse = cfg.UnlockMouse ~= false
         self.maid:give(function() self.visible = false self:_applyMouse() end)
+        -- (unload) a download strip still on screen goes with the window
+        self.maid:give(function() pcall(function() require("loader").clear() end) end)
         self:_applyMouse()
         if cfg.FullscreenButton == true then
             self._fullscreenButton = self:HeaderButton({ Name = "Fullscreen", Icon = "maximize-2", Tooltip = "Fullscreen", Callback = function() self:ToggleFullscreen() end })

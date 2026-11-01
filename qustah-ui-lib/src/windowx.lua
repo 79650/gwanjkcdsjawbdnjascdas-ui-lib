@@ -156,6 +156,8 @@ return function(Window)
         self._modal = create("TextButton", { Name = "MouseUnlock", Text = "", BackgroundTransparency = 1, Size = UDim2.fromOffset(0, 0), Modal = false, Parent = self.main })
         self.unlockMouse = cfg.UnlockMouse ~= false
         self.maid:give(function() self.visible = false self:_applyMouse() end)
+        -- (unload) a download strip still on screen goes with the window
+        self.maid:give(function() pcall(function() require("loader").clear() end) end)
         self:_applyMouse()
         if cfg.FullscreenButton == true then
             self._fullscreenButton = self:HeaderButton({ Name = "Fullscreen", Icon = "maximize-2", Tooltip = "Fullscreen", Callback = function() self:ToggleFullscreen() end })
