@@ -120,7 +120,7 @@ return function(window, cfg)
         local modulesCard = page:Card({ Title = "Modules", Side = "Right", Icon = "boxes" })
         local empty = modulesCard:Label("Modules report here with Window:SetModule(name, state)")
         -- a grid of tiles: icon, name and a coloured state pill; a click opens the module's tab
-        local grid = create("Frame", { Name = "ModuleGrid", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = modulesCard:_order(), Parent = modulesCard.body })
+        local grid = create("Frame", { Name = "ModuleGrid", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = modulesCard:_order(), Parent = modulesCard.body })
         Util.list(grid, 6)
         local tiles, gridRows = {}, {}
         -- two tiles per row (plain rows: they size with the card at any width / UI scale)
@@ -163,6 +163,9 @@ return function(window, cfg)
         local function update()
             local order, modules = window:GetModules()
             empty:SetVisible(#order == 0)
+            -- (the grid's height set from its rows, not AutomaticSize: Session next to it matches it at once)
+            local rows = math.ceil(#order / 2)
+            grid.Size = UDim2.new(1, 0, 0, rows > 0 and rows * 38 + (rows - 1) * 6 or 0)
             for index, name in ipairs(order) do
                 local t = tiles[name] or tile(name, index)
                 local module = modules[name]
@@ -186,6 +189,7 @@ return function(window, cfg)
         end
         window:OnStatusChanged(update)
         update()
+        page:MatchHeights(session, modulesCard) -- (side by side, the same height)
     end
 
     ------------------------------------------------------------ live values (only while the dashboard is open)

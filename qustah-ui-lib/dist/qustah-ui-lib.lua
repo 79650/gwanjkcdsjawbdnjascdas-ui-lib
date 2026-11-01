@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.4 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.10.5 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1151,7 +1151,7 @@ return function(window, cfg)
         local modulesCard = page:Card({ Title = "Modules", Side = "Right", Icon = "boxes" })
         local empty = modulesCard:Label("Modules report here with Window:SetModule(name, state)")
         -- a grid of tiles: icon, name and a coloured state pill; a click opens the module's tab
-        local grid = create("Frame", { Name = "ModuleGrid", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = modulesCard:_order(), Parent = modulesCard.body })
+        local grid = create("Frame", { Name = "ModuleGrid", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = modulesCard:_order(), Parent = modulesCard.body })
         Util.list(grid, 6)
         local tiles, gridRows = {}, {}
         -- two tiles per row (plain rows: they size with the card at any width / UI scale)
@@ -1194,6 +1194,9 @@ return function(window, cfg)
         local function update()
             local order, modules = window:GetModules()
             empty:SetVisible(#order == 0)
+            -- (the grid's height set from its rows, not AutomaticSize: Session next to it matches it at once)
+            local rows = math.ceil(#order / 2)
+            grid.Size = UDim2.new(1, 0, 0, rows > 0 and rows * 38 + (rows - 1) * 6 or 0)
             for index, name in ipairs(order) do
                 local t = tiles[name] or tile(name, index)
                 local module = modules[name]
@@ -1217,6 +1220,7 @@ return function(window, cfg)
         end
         window:OnStatusChanged(update)
         update()
+        page:MatchHeights(session, modulesCard) -- (side by side, the same height)
     end
 
     ------------------------------------------------------------ live values (only while the dashboard is open)
@@ -9682,7 +9686,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.10.4",
+    Version = "1.10.5",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -11179,7 +11183,7 @@ return function(window, cfg)
         showKicks()
     end
 
-    -- the status band over the page: all fine / limited / errors, with the debug info button
+    -- Copy debug info (the Errors card's button)
     local function copyDebug()
         local clipboard = setclipboard or toclipboard
         if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
@@ -11188,8 +11192,6 @@ return function(window, cfg)
             window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
         end
     end
-    local band = infoPage:Card({ Wide = true }):Notice({ Kind = "success", Title = "Everything is running", Desc = " ",
-        Button = { Title = "Debug info", Icon = "clipboard-copy", Callback = copyDebug } })
 
     -- each module's state over the last 15 minutes (a sample every 30 s)
     local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes", Desc = "Last 15 minutes" })
@@ -11234,18 +11236,17 @@ return function(window, cfg)
         Callback = function(on) window.debug = on end })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
     local errorText = errorsCard:Paragraph({ Content = "No errors" })
-    local errorButtons = errorsCard -- (Debug info is on the status band)
+    local errorButtons = errorsCard:Row()
+    errorButtons:Button({ Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report", Callback = copyDebug })
     local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
 
     local function update()
         local order, modules = window:GetModules()
         noModules:SetVisible(#order == 0)
-        local limited = 0
         for _, name in ipairs(order) do
             local module = modules[name]
             moduleBars:AddItem({ Title = name, State = module.state, History = { module.state } })
             moduleBars:SetState(name, module.state, module.state .. (module.detail and module.state ~= "Error" and (" · " .. tostring(module.detail)) or ""))
-            if module.state == "Limited" then limited = limited + 1 end
         end
         local errors = window:GetErrors()
         local total = 0
@@ -11261,13 +11262,6 @@ return function(window, cfg)
         errorCount:SetColor(#errors > 0 and RED or "text")
         errorText:Set(#lines > 0 and table.concat(lines, "\n") or "No errors")
         clearErrors:SetVisible(#errors > 0)
-        if #errors > 0 then
-            band:Set({ Kind = "danger", Title = #errors .. (#errors == 1 and " error" or " errors") .. " this session", Desc = "See Errors below · Debug info for a bug report" })
-        elseif limited > 0 then
-            band:Set({ Kind = "warning", Title = "Running with limits", Desc = limited .. (limited == 1 and " module is" or " modules are") .. " limited by the executor" })
-        else
-            band:Set({ Kind = "success", Title = "Everything is running", Desc = #order .. (#order == 1 and " module" or " modules") .. " · no errors" })
-        end
     end
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)
@@ -11753,26 +11747,29 @@ function Page:MatchHeights(...)
         spacers[index] = create("Frame", { Name = "MatchSpacer", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 1e6, Visible = false, Parent = card.frame })
     end
     local busy = false
-    -- the card's own height without the spacer (its list's content height; summed from the children if the
-    -- engine has not measured it yet)
+    -- the card's own height without the spacer: its other children summed (not the list's content size, which
+    -- can still include the spacer's last height for a frame and would make the spacer grow on itself)
     local function natural(card, spacer)
         local scale = self.window.scale and self.window.scale.Scale or 1
         local layout = card.frame:FindFirstChildOfClass("UIListLayout")
         local gap = layout and layout.Padding.Offset or 4
-        local content = layout and layout.AbsoluteContentSize.Y / scale or 0
-        if content > 0 then
-            if spacer.Visible then content = content - spacer.Size.Y.Offset - gap end
-        else
-            local count = 0
-            for _, child in ipairs(card.frame:GetChildren()) do
-                if child:IsA("GuiObject") and child.Visible and child ~= spacer then
-                    content = content + child.AbsoluteSize.Y / scale
-                    count = count + 1
-                end
+        local content, count = 0, 0
+        -- (an AutomaticSize child not measured yet: the tallest of its own children)
+        local function tall(object)
+            local y = object.AbsoluteSize.Y / scale
+            if y > 0 or object.AutomaticSize == Enum.AutomaticSize.None then return y end
+            for _, inner in ipairs(object:GetChildren()) do
+                if inner:IsA("GuiObject") and inner.Visible then y = math.max(y, tall(inner)) end
             end
-            content = content + math.max(0, count - 1) * gap
+            return y
         end
-        return content
+        for _, child in ipairs(card.frame:GetChildren()) do
+            if child:IsA("GuiObject") and child.Visible and child ~= spacer then
+                content = content + tall(child)
+                count = count + 1
+            end
+        end
+        return content + math.max(0, count - 1) * gap
     end
     local function apply()
         if busy then return end

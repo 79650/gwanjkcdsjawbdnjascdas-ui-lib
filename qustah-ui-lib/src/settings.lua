@@ -333,7 +333,7 @@ return function(window, cfg)
         showKicks()
     end
 
-    -- the status band over the page: all fine / limited / errors, with the debug info button
+    -- Copy debug info (the Errors card's button)
     local function copyDebug()
         local clipboard = setclipboard or toclipboard
         if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
@@ -342,8 +342,6 @@ return function(window, cfg)
             window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
         end
     end
-    local band = infoPage:Card({ Wide = true }):Notice({ Kind = "success", Title = "Everything is running", Desc = " ",
-        Button = { Title = "Debug info", Icon = "clipboard-copy", Callback = copyDebug } })
 
     -- each module's state over the last 15 minutes (a sample every 30 s)
     local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes", Desc = "Last 15 minutes" })
@@ -388,18 +386,17 @@ return function(window, cfg)
         Callback = function(on) window.debug = on end })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
     local errorText = errorsCard:Paragraph({ Content = "No errors" })
-    local errorButtons = errorsCard -- (Debug info is on the status band)
+    local errorButtons = errorsCard:Row()
+    errorButtons:Button({ Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report", Callback = copyDebug })
     local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
 
     local function update()
         local order, modules = window:GetModules()
         noModules:SetVisible(#order == 0)
-        local limited = 0
         for _, name in ipairs(order) do
             local module = modules[name]
             moduleBars:AddItem({ Title = name, State = module.state, History = { module.state } })
             moduleBars:SetState(name, module.state, module.state .. (module.detail and module.state ~= "Error" and (" · " .. tostring(module.detail)) or ""))
-            if module.state == "Limited" then limited = limited + 1 end
         end
         local errors = window:GetErrors()
         local total = 0
@@ -415,13 +412,6 @@ return function(window, cfg)
         errorCount:SetColor(#errors > 0 and RED or "text")
         errorText:Set(#lines > 0 and table.concat(lines, "\n") or "No errors")
         clearErrors:SetVisible(#errors > 0)
-        if #errors > 0 then
-            band:Set({ Kind = "danger", Title = #errors .. (#errors == 1 and " error" or " errors") .. " this session", Desc = "See Errors below · Debug info for a bug report" })
-        elseif limited > 0 then
-            band:Set({ Kind = "warning", Title = "Running with limits", Desc = limited .. (limited == 1 and " module is" or " modules are") .. " limited by the executor" })
-        else
-            band:Set({ Kind = "success", Title = "Everything is running", Desc = #order .. (#order == 1 and " module" or " modules") .. " · no errors" })
-        end
     end
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)

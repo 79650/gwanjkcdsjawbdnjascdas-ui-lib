@@ -172,26 +172,29 @@ function Page:MatchHeights(...)
         spacers[index] = create("Frame", { Name = "MatchSpacer", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 1e6, Visible = false, Parent = card.frame })
     end
     local busy = false
-    -- the card's own height without the spacer (its list's content height; summed from the children if the
-    -- engine has not measured it yet)
+    -- the card's own height without the spacer: its other children summed (not the list's content size, which
+    -- can still include the spacer's last height for a frame and would make the spacer grow on itself)
     local function natural(card, spacer)
         local scale = self.window.scale and self.window.scale.Scale or 1
         local layout = card.frame:FindFirstChildOfClass("UIListLayout")
         local gap = layout and layout.Padding.Offset or 4
-        local content = layout and layout.AbsoluteContentSize.Y / scale or 0
-        if content > 0 then
-            if spacer.Visible then content = content - spacer.Size.Y.Offset - gap end
-        else
-            local count = 0
-            for _, child in ipairs(card.frame:GetChildren()) do
-                if child:IsA("GuiObject") and child.Visible and child ~= spacer then
-                    content = content + child.AbsoluteSize.Y / scale
-                    count = count + 1
-                end
+        local content, count = 0, 0
+        -- (an AutomaticSize child not measured yet: the tallest of its own children)
+        local function tall(object)
+            local y = object.AbsoluteSize.Y / scale
+            if y > 0 or object.AutomaticSize == Enum.AutomaticSize.None then return y end
+            for _, inner in ipairs(object:GetChildren()) do
+                if inner:IsA("GuiObject") and inner.Visible then y = math.max(y, tall(inner)) end
             end
-            content = content + math.max(0, count - 1) * gap
+            return y
         end
-        return content
+        for _, child in ipairs(card.frame:GetChildren()) do
+            if child:IsA("GuiObject") and child.Visible and child ~= spacer then
+                content = content + tall(child)
+                count = count + 1
+            end
+        end
+        return content + math.max(0, count - 1) * gap
     end
     local function apply()
         if busy then return end
