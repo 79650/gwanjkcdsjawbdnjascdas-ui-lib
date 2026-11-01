@@ -1,20 +1,13 @@
 -- UI font. Every text object in a registered ScreenGui gets the chosen family; its weight (regular / medium /
--- semibold / bold) is kept. UIFont.set("Poppins"), UIFont.register(gui, maid).
+-- semibold / bold) is kept. UIFont.set("Quicksand"), UIFont.register(gui, maid).
 -- Gotham is Roblox's built-in default; every other font comes from Roblox's own font library (Creator Marketplace)
 -- by asset id, like WindUI does: nothing to download, they work in every executor.
 local UIFont = { current = "Gotham", guis = {} }
 
-UIFont.order = {
-    "Gotham", "Inter",
-    -- clean
-    "Work Sans", "Nunito Sans", "Poppins", "Rubik", "Fira Sans",
-    -- with some character (pixel, bubble, rounded, soft, terminal)
-    "Silkscreen", "Fuzzy Bubbles", "M PLUS Rounded", "Quicksand", "Sono Mono",
-}
+UIFont.order = { "Gotham", "Work Sans", "Quicksand", "Fuzzy Bubbles", "Silkscreen", "Sono Mono" }
 UIFont.Library = {
-    Inter = 12187365364, ["Work Sans"] = 12187373327, ["Nunito Sans"] = 12187363368, Poppins = 11702779409,
-    Rubik = 12187365977, ["Fira Sans"] = 12187374954, Silkscreen = 12187371840, ["Fuzzy Bubbles"] = 11322590111,
-    ["M PLUS Rounded"] = 12188570269, Quicksand = 12187371324, ["Sono Mono"] = 12187362578,
+    ["Work Sans"] = 12187373327, Quicksand = 12187371324, ["Fuzzy Bubbles"] = 11322590111, Silkscreen = 12187371840,
+    ["Sono Mono"] = 12187362578,
 }
 -- Code text (Code, Console, Log; marked with the QCode attribute) has its own monospace font, Sono Mono unless
 -- CreateWindow({ CodeFont = "Silkscreen" }) asks for another. Text marked QFixedFont keeps whatever font it has

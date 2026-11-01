@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.41 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.42 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -5737,15 +5737,10 @@ end
 end
 __modules["font"]=function()
 local UIFont={current="Gotham",guis={}}
-UIFont.order={
-"Gotham","Inter",
-"Work Sans","Nunito Sans","Poppins","Rubik","Fira Sans",
-"Silkscreen","Fuzzy Bubbles","M PLUS Rounded","Quicksand","Sono Mono",
-}
+UIFont.order={"Gotham","Work Sans","Quicksand","Fuzzy Bubbles","Silkscreen","Sono Mono"}
 UIFont.Library={
-Inter=12187365364,["Work Sans"]=12187373327,["Nunito Sans"]=12187363368,Poppins=11702779409,
-Rubik=12187365977,["Fira Sans"]=12187374954,Silkscreen=12187371840,["Fuzzy Bubbles"]=11322590111,
-["M PLUS Rounded"]=12188570269,Quicksand=12187371324,["Sono Mono"]=12187362578,
+["Work Sans"]=12187373327,Quicksand=12187371324,["Fuzzy Bubbles"]=11322590111,Silkscreen=12187371840,
+["Sono Mono"]=12187362578,
 }
 UIFont.code="Sono Mono"
 UIFont.textScale=1
@@ -7156,7 +7151,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.41",
+Version="1.9.42",
 Flags={},
 Windows={},
 Theme=Theme,

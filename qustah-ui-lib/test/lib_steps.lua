@@ -521,8 +521,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("neutral accent follows pack", Lib.Theme.get("accent") == E.Color3.fromRGB(70, 70, 80) and W.__ui_accent.Value == E.Color3.fromRGB(70, 70, 80))
     W.__ui_theme:Set("Dark") wait(0.1)
     check("neutral back on dark", Lib.Theme.get("accent") == E.Color3.fromRGB(177, 178, 183))
-    W.__ui_font:Set("Rubik") wait(0.2)
-    check("font option set", F.__ui_font == "Rubik")
+    W.__ui_font:Set("Quicksand") wait(0.2)
+    check("font option set", F.__ui_font == "Quicksand")
     W.__ui_font:Set("Gotham") wait(0.1)
     -- watermark
     W.__ui_hud_watermark:Set(true) wait(0.7)
@@ -1887,10 +1887,10 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         check("textWidth: no font given works", ok2 and w2 > 0)
     end
 
-    -- fonts: Gotham + Inter + 10 more from Roblox's font library, all by asset id (nothing downloaded)
+    -- fonts: Gotham + 5 more from Roblox's font library, all by asset id (nothing downloaded)
     do
         local fontFlag = window.flags.__ui_font
-        check("fonts: twelve in the list", #fontFlag.Options == 12 and fontFlag.Options[1] == "Gotham" and table.find(fontFlag.Options, "Silkscreen") ~= nil and table.find(fontFlag.Options, "Fuzzy Bubbles") ~= nil)
+        check("fonts: six in the list", #fontFlag.Options == 6 and fontFlag.Options[1] == "Gotham" and table.find(fontFlag.Options, "Silkscreen") ~= nil and table.find(fontFlag.Options, "Fuzzy Bubbles") ~= nil)
         check("fonts: every one but Gotham has a library id", (function()
             for _, name in ipairs(Lib.Fonts.order) do if name ~= "Gotham" and not Lib.Fonts.Library[name] then return false end end
             return true
@@ -1905,8 +1905,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
             end
             return hit > 0 and hit == faces
         end
-        fontFlag:Set("Poppins") wait(0.2)
-        check("fonts: a library font is used by its asset id", using("rbxassetid://11702779409"))
+        fontFlag:Set("Work Sans") wait(0.2)
+        check("fonts: a library font is used by its asset id", using("rbxassetid://12187373327"))
         fontFlag:Set("Silkscreen") wait(0.2)
         check("fonts: the pixel font too", using("rbxassetid://12187371840"))
         fontFlag:Set("Gotham") wait(0.2)
@@ -1914,7 +1914,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         for _, o in ipairs(window.gui:GetDescendants()) do if o:IsA("TextLabel") and o.FontFace and not o:GetAttribute("QCode") and not o:GetAttribute("QFixedFont") and tostring(o.FontFace.Family):find("rbxassetid") then back = back + 1 end end
         check("fonts: Gotham puts the library font back", back == 0)
         check("fonts: an unknown name is refused", Lib.Fonts.set("Comic Sans") == false)
-        check("fonts: nothing to download", Lib.Fonts.Downloadable == nil and #Lib.Fonts.available() == 12)
+        check("fonts: nothing to download", Lib.Fonts.Downloadable == nil and #Lib.Fonts.available() == 6)
         fontFlag:Set("Gotham") wait(0.2)
     end
 
@@ -1933,10 +1933,10 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
             local text = item and (item:IsA("TextLabel") and item or item:FindFirstChildWhichIsA("TextLabel", true))
             return text and text.FontFace and tostring(text.FontFace.Family)
         end
-        check("font list: Poppins drawn in Poppins", itemFamily("Poppins") == "rbxassetid://11702779409")
+        check("font list: Work Sans drawn in Work Sans", itemFamily("Work Sans") == "rbxassetid://12187373327")
         check("font list: Silkscreen drawn in Silkscreen", itemFamily("Silkscreen") == "rbxassetid://12187371840")
-        Lib.Fonts.set("Rubik") wait(0.2)
-        check("font list: names keep their own font when the menu font changes", itemFamily("Poppins") == "rbxassetid://11702779409")
+        Lib.Fonts.set("Quicksand") wait(0.2)
+        check("font list: names keep their own font when the menu font changes", itemFamily("Work Sans") == "rbxassetid://12187373327")
         MOCK.press(Enum.KeyCode.Escape) wait(0.1)
         Lib.Fonts.set("Gotham") wait(0.1)
         -- code text: Sono Mono whatever the menu font is
@@ -1946,7 +1946,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         local line = con.Lines[1] and con.Lines[1].label
         local codeLine = line or cc.frame:FindFirstChild("Line", true)
         check("code text uses the code font", codeLine and codeLine.FontFace and tostring(codeLine.FontFace.Family) == "rbxassetid://12187362578")
-        Lib.Fonts.set("Poppins") wait(0.2)
+        Lib.Fonts.set("Work Sans") wait(0.2)
         check("code text keeps it when the menu font changes", tostring(codeLine.FontFace.Family) == "rbxassetid://12187362578")
         Lib.Fonts.set("Gotham") wait(0.1)
         -- text size

@@ -57,8 +57,8 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- Gotham and Roblox's font library (nothing downloaded). CreateWindow({ Font = "Inter" }) starts with one;
-    -- a list ({ "Poppins", "Inter" }) starts with the first known name
+    -- Gotham and Roblox's font library (nothing downloaded). CreateWindow({ Font = "Quicksand" }) starts with one;
+    -- a list ({ "Quicksand", "Work Sans" }) starts with the first known name
     local fonts = UIFont.available()
     local wanted = type(window.cfg.Font) == "table" and window.cfg.Font or { window.cfg.Font }
     local usable = {}
