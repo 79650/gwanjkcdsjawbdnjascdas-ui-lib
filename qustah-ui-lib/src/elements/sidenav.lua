@@ -12,8 +12,8 @@ local create, corner, label = Util.create, Util.corner, Util.label
 
 return function(card, cfg)
     local width = tonumber(cfg.Width) or 140
-    local holder = create("Frame", { Name = tostring(cfg.Title or "SideNav"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, tonumber(cfg.Height) or 200), LayoutOrder = card:_order(), Parent = card.body })
-    local menu = create("Frame", { Name = "Menu", BackgroundTransparency = 1, Size = UDim2.new(0, width, 1, 0), Parent = holder })
+    local holder = create("Frame", { Name = tostring(cfg.Title or "SideNav"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, tonumber(cfg.Height) or 0), AutomaticSize = cfg.Height and Enum.AutomaticSize.None or Enum.AutomaticSize.Y, LayoutOrder = card:_order(), Parent = card.body })
+    local menu = create("Frame", { Name = "Menu", BackgroundTransparency = 1, Size = UDim2.new(0, width, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = holder })
     local list = create("Frame", { Name = "Items", BackgroundTransparency = 1, Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = menu })
     Util.list(list, 2)
     local divider = create("Frame", { Name = "Divider", Position = UDim2.new(0, width, 0, 0), Size = UDim2.new(0, 1, 1, 0), BorderSizePixel = 0, Parent = holder })
@@ -68,16 +68,7 @@ return function(card, cfg)
         local part = setmetatable({ page = card.page, window = card.window, order = 0, body = foot, frame = card.frame, title = "Footer" }, getmetatable(card))
         card.window:_safe("SideNav footer", cfg.Footer, part)
     end
-    -- the menu column is as tall as the content (or Height)
-    local function fit()
-        if cfg.Height then return end
-        local scale = card.window.scale and card.window.scale.Scale or 1
-        local need = math.max(list.AbsoluteSize.Y, content.AbsoluteSize.Y) / scale
-        if need >= 40 then holder.Size = UDim2.new(1, 0, 0, need) end
-    end
-    content:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
-    list:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
-    task.defer(fit)
+    -- (the card grows with the taller of the menu and the shown part: AutomaticSize, nothing to measure)
     paint()
     return Base.finish(element, cfg)
 end

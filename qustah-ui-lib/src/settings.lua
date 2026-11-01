@@ -364,7 +364,7 @@ return function(window, cfg)
         elseif type(getexecutorname) == "function" then executorName = tostring(getexecutorname()) end
     end)
     local function has(name) return type(getfenv(0)[name]) == "function" or (getgenv and type(getgenv()[name]) == "function") end
-    infoPage:Card({ Title = "Executor", Side = "Right", Icon = "terminal-square", Desc = executorName }):Checklist({ Items = {
+    infoPage:Card({ Title = "Executor", Side = "Right", Icon = "square-terminal", Desc = executorName }):Checklist({ Items = {
         { Title = "File access", Ok = files, Note = "profiles, themes" },
         { Title = "getcustomasset", Ok = has("getcustomasset"), Note = "sharp icons" },
         { Title = "gethui", Ok = has("gethui"), Note = "hidden interface" },

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.3 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.4 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -2300,10 +2300,24 @@ local chevron=Icons.themed(head,"chevron-down",12,"muted",{Name="Chevron",Anchor
 local body=create("Frame",{Name="Items",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=2,Visible=false,Parent=frame})
 Util.list(body,1)
 Util.padding(body,8,0,0,6)
+local lines={}
 for order,text in ipairs(data.Items or{})do
-local item=label(body,"•  "..tostring(text),10,{Name="Item",Size=UDim2.new(1,0,0,15),LayoutOrder=order,TextWrapped=true,AutomaticSize=Enum.AutomaticSize.Y,TextTruncate=Enum.TextTruncate.None})
+local item=label(body,"•  "..tostring(text),10,{Name="Item",Size=UDim2.new(1,0,0,14),LayoutOrder=order,TextWrapped=true,TextTruncate=Enum.TextTruncate.None,TextYAlignment=Enum.TextYAlignment.Top})
 Theme.bind(item,"TextColor3","text")
+lines[#lines+1]=item
 end
+local function wrap()
+local scale=card.window.scale and card.window.scale.Scale or 1
+local width=body.AbsoluteSize.X/scale-8
+if width<40 then return end
+for _,item in ipairs(lines)do
+local count=math.max(1,math.ceil((Util.textWidth(item.Text,10,Enum.Font.Gotham)*1.08+6)/width))
+item.Size=UDim2.new(1,0,0,count*13+1)
+end
+end
+body:GetPropertyChangedSignal("AbsoluteSize"):Connect(wrap)
+body:GetPropertyChangedSignal("Visible"):Connect(function()task.defer(wrap)end)
+task.defer(wrap)
 local line=create("Frame",{Name="Line",Size=UDim2.new(1,0,0,1),BorderSizePixel=0,LayoutOrder=3,Parent=frame})
 Theme.bind(line,"BackgroundColor3","line")
 local entry={frame=frame,body=body,chevron=chevron}
@@ -5567,8 +5581,8 @@ local Icons=require("icons")
 local create,corner,label=Util.create,Util.corner,Util.label
 return function(card,cfg)
 local width=tonumber(cfg.Width)or 140
-local holder=create("Frame",{Name=tostring(cfg.Title or"SideNav"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,tonumber(cfg.Height)or 200),LayoutOrder=card:_order(),Parent=card.body})
-local menu=create("Frame",{Name="Menu",BackgroundTransparency=1,Size=UDim2.new(0,width,1,0),Parent=holder})
+local holder=create("Frame",{Name=tostring(cfg.Title or"SideNav"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,tonumber(cfg.Height)or 0),AutomaticSize=cfg.Height and Enum.AutomaticSize.None or Enum.AutomaticSize.Y,LayoutOrder=card:_order(),Parent=card.body})
+local menu=create("Frame",{Name="Menu",BackgroundTransparency=1,Size=UDim2.new(0,width,0,0),AutomaticSize=Enum.AutomaticSize.Y,Parent=holder})
 local list=create("Frame",{Name="Items",BackgroundTransparency=1,Size=UDim2.new(1,-8,0,0),AutomaticSize=Enum.AutomaticSize.Y,Parent=menu})
 Util.list(list,2)
 local divider=create("Frame",{Name="Divider",Position=UDim2.new(0,width,0,0),Size=UDim2.new(0,1,1,0),BorderSizePixel=0,Parent=holder})
@@ -5621,15 +5635,6 @@ Util.padding(foot,0,0,10,0)
 local part=setmetatable({page=card.page,window=card.window,order=0,body=foot,frame=card.frame,title="Footer"},getmetatable(card))
 card.window:_safe("SideNav footer",cfg.Footer,part)
 end
-local function fit()
-if cfg.Height then return end
-local scale=card.window.scale and card.window.scale.Scale or 1
-local need=math.max(list.AbsoluteSize.Y,content.AbsoluteSize.Y)/scale
-if need>=40 then holder.Size=UDim2.new(1,0,0,need)end
-end
-content:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
-list:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
-task.defer(fit)
 paint()
 return Base.finish(element,cfg)
 end
@@ -6365,7 +6370,7 @@ corner(switch,8)
 local knob=create("Frame",{Name="Knob",Position=UDim2.fromOffset(2,2),Size=UDim2.fromOffset(12,12),BorderSizePixel=0,Parent=switch})
 corner(knob,6)
 Theme.bind(knob,"BackgroundColor3","knob")
-local item=Base.element(card,"Toggle",{Title=spec.Title,Flag=spec.Flag,Callback=spec.Callback},box,title,nil)
+local item=Base.element(card,"Toggle",{Title=spec.Title,Flag=spec.Flag,Callback=spec.Callback,Reset=false},box,title,nil)
 item.Value=spec.Default==true
 local function render(animate)
 Theme.tweenTo(switch,"BackgroundColor3",item.Value and(spec.OnRole or"success")or"buttonEdge",animate and 0.15 or nil)
@@ -6753,7 +6758,7 @@ if icon then Theme.tweenTo(icon,"ImageColor3",role and role~="muted"and role or(
 Theme.tweenTo(title,"TextColor3",lit and"heading"or"text",0.12)
 end
 if spec.Flag~=nil or spec.Default~=nil and spec.State==nil then
-local item=Base.element(card,"Toggle",{Title=spec.Title,Flag=spec.Flag,Callback=spec.Callback},box,title,nil)
+local item=Base.element(card,"Toggle",{Title=spec.Title,Flag=spec.Flag,Callback=spec.Callback,Reset=false},box,title,nil)
 item.Value=spec.Default==true
 local function render()
 paint(item.Value,nil)
@@ -8528,7 +8533,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.3",
+Version="1.10.4",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9872,7 +9877,7 @@ if type(identifyexecutor)=="function"then executorName=table.concat({identifyexe
 elseif type(getexecutorname)=="function"then executorName=tostring(getexecutorname())end
 end)
 local function has(name)return type(getfenv(0)[name])=="function"or(getgenv and type(getgenv()[name])=="function")end
-infoPage:Card({Title="Executor",Side="Right",Icon="terminal-square",Desc=executorName}):Checklist({Items={
+infoPage:Card({Title="Executor",Side="Right",Icon="square-terminal",Desc=executorName}):Checklist({Items={
 {Title="File access",Ok=files,Note="profiles, themes"},
 {Title="getcustomasset",Ok=has("getcustomasset"),Note="sharp icons"},
 {Title="gethui",Ok=has("gethui"),Note="hidden interface"},

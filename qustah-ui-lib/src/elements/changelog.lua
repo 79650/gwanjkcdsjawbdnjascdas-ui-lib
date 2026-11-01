@@ -38,10 +38,25 @@ return function(card, cfg)
             local body = create("Frame", { Name = "Items", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, Visible = false, Parent = frame })
             Util.list(body, 1)
             Util.padding(body, 8, 0, 0, 6)
+            local lines = {}
             for order, text in ipairs(data.Items or {}) do
-                local item = label(body, "•  " .. tostring(text), 10, { Name = "Item", Size = UDim2.new(1, 0, 0, 15), LayoutOrder = order, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y, TextTruncate = Enum.TextTruncate.None })
+                local item = label(body, "•  " .. tostring(text), 10, { Name = "Item", Size = UDim2.new(1, 0, 0, 14), LayoutOrder = order, TextWrapped = true, TextTruncate = Enum.TextTruncate.None, TextYAlignment = Enum.TextYAlignment.Top })
                 Theme.bind(item, "TextColor3", "text")
+                lines[#lines + 1] = item
             end
+            -- each note as tall as its wrapped lines (measured from the text width, not left to AutomaticSize)
+            local function wrap()
+                local scale = card.window.scale and card.window.scale.Scale or 1
+                local width = body.AbsoluteSize.X / scale - 8
+                if width < 40 then return end
+                for _, item in ipairs(lines) do
+                    local count = math.max(1, math.ceil((Util.textWidth(item.Text, 10, Enum.Font.Gotham) * 1.08 + 6) / width))
+                    item.Size = UDim2.new(1, 0, 0, count * 13 + 1)
+                end
+            end
+            body:GetPropertyChangedSignal("AbsoluteSize"):Connect(wrap)
+            body:GetPropertyChangedSignal("Visible"):Connect(function() task.defer(wrap) end)
+            task.defer(wrap)
             local line = create("Frame", { Name = "Line", Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, LayoutOrder = 3, Parent = frame })
             Theme.bind(line, "BackgroundColor3", "line")
             local entry = { frame = frame, body = body, chevron = chevron }

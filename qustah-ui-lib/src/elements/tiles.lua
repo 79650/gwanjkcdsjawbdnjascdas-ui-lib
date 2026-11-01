@@ -42,7 +42,7 @@ return function(card, cfg)
             Theme.tweenTo(title, "TextColor3", lit and "heading" or "text", 0.12)
         end
         if spec.Flag ~= nil or spec.Default ~= nil and spec.State == nil then
-            local item = Base.element(card, "Toggle", { Title = spec.Title, Flag = spec.Flag, Callback = spec.Callback }, box, title, nil)
+            local item = Base.element(card, "Toggle", { Title = spec.Title, Flag = spec.Flag, Callback = spec.Callback, Reset = false }, box, title, nil)
             item.Value = spec.Default == true
             local function render()
                 paint(item.Value, nil)

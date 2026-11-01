@@ -57,7 +57,7 @@ return function(card, cfg)
             local knob = create("Frame", { Name = "Knob", Position = UDim2.fromOffset(2, 2), Size = UDim2.fromOffset(12, 12), BorderSizePixel = 0, Parent = switch })
             corner(knob, 6)
             Theme.bind(knob, "BackgroundColor3", "knob")
-            local item = Base.element(card, "Toggle", { Title = spec.Title, Flag = spec.Flag, Callback = spec.Callback }, box, title, nil)
+            local item = Base.element(card, "Toggle", { Title = spec.Title, Flag = spec.Flag, Callback = spec.Callback, Reset = false }, box, title, nil)
             item.Value = spec.Default == true
             local function render(animate)
                 Theme.tweenTo(switch, "BackgroundColor3", item.Value and (spec.OnRole or "success") or "buttonEdge", animate and 0.15 or nil)
