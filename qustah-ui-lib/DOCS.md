@@ -478,10 +478,10 @@ crosshair:Update({ Style = "Circle + Dot" })     -- only the given settings chan
 local preview = Card:CrosshairPreview({ Height = 110 })          -- the same settings at 2x, the style in the corner
 preview:Update({ Style = "X", Spin = true })                      -- turns while it is in view
 
-local fov = Card:FovPreview()                                     -- the screen in small (at most 130 px tall)
+local fov = Card:FovPreview()                                     -- the FOV round the cursor at its real size
 fov:Update({ Radius = 140, Sides = 6, Thickness = 1, Color = Color3.new(1, 1, 1), Transparency = 0,
     Filled = true, FillColor = Color3.new(1, 1, 1), FillTransparency = 0.85, Visible = true })
--- "140 px on 1920×1080" in the corner; under 16 sides the circle is drawn as the polygon it is
+-- "60 px · real size" (or "· shown at 40 %" when shrunk to fit) in the corner; under 16 sides the circle is drawn as the polygon it is
 ```
 
 ---

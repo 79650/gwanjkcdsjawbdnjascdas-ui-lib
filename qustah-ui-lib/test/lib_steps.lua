@@ -460,7 +460,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         if shownTab then shownTab:Select() wait(0.1) end
         -- FOV preview: the circle at its real size, polygons under 16 sides
         local fov = xcard:FovPreview({ Settings = { Radius = 120 } }) wait(0.1)
-        check("fov preview note", fov.Row:FindFirstChild("Note").Text:find("^120 px on ") ~= nil)
+        check("fov preview note", fov.Row:FindFirstChild("Note").Text:find("^120 px · shown at ") ~= nil)
         fov:Update({ Sides = 6 }) wait(0.05)
         local sides = 0
         for _, c in ipairs(fov.Row:GetChildren()) do if c.Name == "Side" and c.Visible then sides = sides + 1 end end

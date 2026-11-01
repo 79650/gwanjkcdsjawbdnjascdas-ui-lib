@@ -1,8 +1,9 @@
--- card:FovPreview({ Height = 130 }) - the screen in small (a frame of the real screen's shape, as big as fits in a
--- box at most Height tall) with an aim FOV circle at its real size against it, and "140 px on 1920×1080" in the corner. element:Update(settings):
+-- card:FovPreview({ Height = 140 }) - the aim FOV circle round the cursor exactly as big as on screen (real pixels,
+-- whatever the UI scale); one too big for the box is shrunk to fit and the corner says so ("300 px · shown at 40 %").
+-- element:Update(settings):
 --   Radius (px on the real screen), Sides (under 16: drawn as the polygon it is), Thickness, Color,
 --   Transparency (0 - 1, the outline), Filled, FillColor, FillTransparency (0 - 1), Visible (false: shown faint).
--- Drawn again on its own when the screen size or the UI scale changes.
+-- Drawn again on its own when the UI scale changes.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -17,15 +18,12 @@ local DEFAULTS = {
 return function(card, cfg)
     local window = card.window
     local box = create("Frame", {
-        Name = "FovPreview", Size = UDim2.new(1, 0, 0, cfg.Height or 130), BorderSizePixel = 0, ClipsDescendants = true,
+        Name = "FovPreview", Size = UDim2.new(1, 0, 0, cfg.Height or 140), BorderSizePixel = 0, ClipsDescendants = true,
         LayoutOrder = card:_order(), Parent = card.body,
     })
     Theme.bind(box, "BackgroundColor3", "base")
     corner(box, 6)
     Theme.bind(stroke(box), "Color", "line")
-    local frame = create("Frame", { Name = "Screen", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1, Parent = box })
-    corner(frame, 4)
-    Theme.bind(stroke(frame), "Color", "line")
     local cursor = create("Frame", { Name = "Cursor", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(4, 4), BorderSizePixel = 0, BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 3, Parent = box })
     corner(cursor, 2)
     local circle = create("Frame", { Name = "Circle", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BorderSizePixel = 0, Parent = box })
@@ -41,19 +39,16 @@ return function(card, cfg)
 
     local function draw()
         local s = element.Settings
-        local camera = workspace.CurrentCamera
-        local screen = camera and camera.ViewportSize or Vector2.new(1920, 1080)
-        -- the screen's shape as big as fits in the box (a few px inside it); everything is scaled the same way
+        -- real screen pixels: the window's UI scale is undone (k = 1 / scale), unless the circle would not fit
         local scaleUI = window and window.scale and window.scale.Scale or 1
-        local width = box.AbsoluteSize.X / scaleUI
-        local height = math.clamp(width * screen.Y / math.max(screen.X, 1), 90, cfg.Height or 130)
-        box.Size = UDim2.new(1, 0, 0, height)
-        local k = math.min((width - 16) / math.max(screen.X, 1), (height - 16) / math.max(screen.Y, 1))
-        frame.Size = UDim2.fromOffset(screen.X * k, screen.Y * k)
-        local radius = (tonumber(s.Radius) or 60) * k
+        local height = cfg.Height or 140
+        local realRadius = math.max(tonumber(s.Radius) or 60, 1)
+        local k = math.min(1 / scaleUI, (height - 14) / (2 * realRadius))
+        local fit = k * scaleUI
+        local radius = realRadius * k
         local sides = math.floor(tonumber(s.Sides) or 100)
         local color = typeof(s.Color) == "Color3" and s.Color or Color3.new(1, 1, 1)
-        local thickness = math.max(1, (tonumber(s.Thickness) or 1) * math.max(k * 2, 0.75))
+        local thickness = math.max(1, (tonumber(s.Thickness) or 1) * k)
         local shown = s.Visible ~= false
         local outline = shown and math.clamp(tonumber(s.Transparency) or 0, 0, 1) or 0.85
         circle.Size = UDim2.fromOffset(radius * 2, radius * 2)
@@ -112,33 +107,20 @@ return function(card, cfg)
                 line.Visible = false
             end
         end
-        note.Text = (shown and "" or "hidden · ") .. math.floor(tonumber(s.Radius) or 60) .. " px on " .. math.floor(screen.X) .. "×" .. math.floor(screen.Y)
+        note.Text = (shown and "" or "hidden · ") .. math.floor(realRadius) .. " px"
+            .. (fit < 0.995 and " · shown at " .. math.floor(fit * 100 + 0.5) .. " %" or " · real size")
     end
     function element:Update(changes)
         for key, value in pairs(changes or {}) do self.Settings[key] = value end
         draw()
     end
 
-    -- the box resized (UI scale, window size) or the screen size changed: drawn again
-    local maid = window and window.maid
-    local lastWidth
+    -- the UI scale changed (the box's on-screen size with it): drawn again, so the circle stays real size
+    local lastSize
     local sizeConnection = box:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        if box.AbsoluteSize.X ~= lastWidth then lastWidth = box.AbsoluteSize.X draw() end
+        if box.AbsoluteSize ~= lastSize then lastSize = box.AbsoluteSize draw() end
     end)
-    local viewportConnection
-    local function watchCamera()
-        if viewportConnection then viewportConnection:Disconnect() viewportConnection = nil end
-        local camera = workspace.CurrentCamera
-        if camera then viewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(draw) end
-        draw()
-    end
-    local cameraConnection = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
-    if maid then
-        maid:give(sizeConnection)
-        maid:give(cameraConnection)
-        maid:give(function() if viewportConnection then viewportConnection:Disconnect() end end)
-    end
+    if window and window.maid then window.maid:give(sizeConnection) end
     element:Update(cfg.Settings)
-    watchCamera()
     return Base.finish(element, cfg)
 end
