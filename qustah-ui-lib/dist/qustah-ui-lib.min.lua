@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.36 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.9.37 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -680,7 +680,7 @@ if not ok or type(files)~="table"then return names end
 local seen={}
 for _,file in ipairs(files)do
 local path=tostring(file):gsub("\\","/")
-local name=path:match("([^/]+)%.json$")or path:match("([^/]+)%.json%.tmp%.txt$")or path:match("([^/]+)%.json%.tmp$")
+local name=path:match("([^/]+)%.json$")or path:match("([^/]+)%.json%.tmp%.txt$")
 local parent=path:match("^(.*)/[^/]+$")or""
 if name and not seen[name]and(parent==""or parent:sub(-#self.path)==self.path)then
 seen[name]=true
@@ -6900,7 +6900,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.9.36",
+Version="1.9.37",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9893,7 +9893,7 @@ gui.Parent=Util.guiParent()
 return gui
 end
 function Util.tmpOf(path)return path..".tmp.txt"end
-local function tmpFiles(path)return{path..".tmp.txt",path..".tmp"}end
+local function tmpFiles(path)return{path..".tmp.txt"}end
 Util.tmpFiles=tmpFiles
 function Util.writeAtomic(path,text)
 if type(writefile)~="function"then return false,"writefile is not available"end

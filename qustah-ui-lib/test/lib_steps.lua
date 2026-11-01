@@ -942,7 +942,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local cfgs = window.Config
     cfgs:Save("atomic")
     local apath = cfgs.path .. "/atomic.json"
-    check("atomic save writes, no tmp left", E.isfile(apath) and not E.isfile(apath .. ".tmp") and not E.isfile(apath .. ".tmp.txt"))
+    check("atomic save writes, no tmp left", E.isfile(apath) and not E.isfile(apath .. ".tmp.txt"))
     local good = E.readfile(apath)
     MOCK.files[apath] = "{broken"
     -- executors that only write known extensions ("Illegal extension" for .tmp)
@@ -963,16 +963,16 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         E.writefile = realWrite
         window.Config:Delete("strict") window.Config:Delete("strict2")
     end
-    MOCK.files[apath .. ".tmp"] = good
+    MOCK.files[apath .. ".tmp.txt"] = good
     local recovered
     cfgs:OnRecovered(function(name) recovered = name end)
     local lok = cfgs:Load("atomic")
-    check("damaged profile restored from tmp", lok == true and recovered == "atomic" and E.readfile(apath) == good and not E.isfile(apath .. ".tmp"))
-    MOCK.files[apath .. ".tmp"] = "{stale"
+    check("damaged profile restored from tmp", lok == true and recovered == "atomic" and E.readfile(apath) == good and not E.isfile(apath .. ".tmp.txt"))
+    MOCK.files[apath .. ".tmp.txt"] = "{stale"
     cfgs:Read("atomic")
-    check("stale tmp removed when the file is fine", not E.isfile(apath .. ".tmp"))
+    check("stale tmp removed when the file is fine", not E.isfile(apath .. ".tmp.txt"))
     MOCK.files[apath] = nil
-    MOCK.files[apath .. ".tmp"] = good
+    MOCK.files[apath .. ".tmp.txt"] = good
     check("tmp-only profile is listed", table.find(cfgs:List(), "atomic") ~= nil and cfgs:Exists("atomic"))
     cfgs:Read("atomic")
     check("tmp-only profile restored", E.isfile(apath))
@@ -1352,8 +1352,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
 
     -- a newer complete .tmp wins
     local jpath = window.Config.folder .. "/probe.json"
-    E.writefile(jpath, '{"v":1}') E.writefile(jpath .. ".tmp", '{"v":2}')
-    check("newer tmp wins", window.Config:ReadJSON("probe").v == 2 and E.readfile(jpath) == '{"v":2}' and not E.isfile(jpath .. ".tmp"))
+    E.writefile(jpath, '{"v":1}') E.writefile(jpath .. ".tmp.txt", '{"v":2}')
+    check("newer tmp wins", window.Config:ReadJSON("probe").v == 2 and E.readfile(jpath) == '{"v":2}' and not E.isfile(jpath .. ".tmp.txt"))
 
     -- key system
     local keyWindow

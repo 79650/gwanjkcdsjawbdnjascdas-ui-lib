@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.9.36 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.9.37 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -775,7 +775,7 @@ function Config:List()
     for _, file in ipairs(files) do
         -- (a profile whose first save was cut off only has its .tmp: listed, restored when read)
         local path = tostring(file):gsub("\\", "/")
-        local name = path:match("([^/]+)%.json$") or path:match("([^/]+)%.json%.tmp%.txt$") or path:match("([^/]+)%.json%.tmp$")
+        local name = path:match("([^/]+)%.json$") or path:match("([^/]+)%.json%.tmp%.txt$")
         local parent = path:match("^(.*)/[^/]+$") or ""
         if name and not seen[name] and (parent == "" or parent:sub(-#self.path) == self.path) then
             seen[name] = true
@@ -7790,7 +7790,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.9.36",
+    Version = "1.9.37",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -9051,7 +9051,7 @@ return function(window, cfg)
     table.insert(window._menuListeners, function(key) if menuKey.Value ~= key then menuKey:Set(key, true) end end)
     -- UI scale: this PC only (not part of profiles)
     local SCALES = { "80%", "100%", "110%", "120%" }
-    -- another scale (CreateWindow({ Scale = 0.9 }), or one saved from the older list) stays as it is; the list shows the nearest
+    -- another scale (CreateWindow({ Scale = 0.9 })) stays as it is; the list shows the nearest
     local percent = math.floor((window:GetUIScale() * 100) + 0.5)
     local nearest = 100
     for _, text in ipairs(SCALES) do
@@ -11244,9 +11244,9 @@ function Util.screenGui(name, order)
 end
 
 -- The temporary copy of a file: <file>.tmp.txt (many executors only write known extensions such as .txt / .json and
--- refuse ".tmp" with "Illegal extension"); <file>.tmp from older versions is still read.
+-- refuse ".tmp" with "Illegal extension").
 function Util.tmpOf(path) return path .. ".tmp.txt" end
-local function tmpFiles(path) return { path .. ".tmp.txt", path .. ".tmp" } end
+local function tmpFiles(path) return { path .. ".tmp.txt" } end
 Util.tmpFiles = tmpFiles
 
 -- Crash-safe writes: the text goes to <file>.tmp.txt first, is read back, then written over the file and the .tmp removed.

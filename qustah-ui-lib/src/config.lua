@@ -234,7 +234,7 @@ function Config:List()
     for _, file in ipairs(files) do
         -- (a profile whose first save was cut off only has its .tmp: listed, restored when read)
         local path = tostring(file):gsub("\\", "/")
-        local name = path:match("([^/]+)%.json$") or path:match("([^/]+)%.json%.tmp%.txt$") or path:match("([^/]+)%.json%.tmp$")
+        local name = path:match("([^/]+)%.json$") or path:match("([^/]+)%.json%.tmp%.txt$")
         local parent = path:match("^(.*)/[^/]+$") or ""
         if name and not seen[name] and (parent == "" or parent:sub(-#self.path) == self.path) then
             seen[name] = true

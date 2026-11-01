@@ -500,9 +500,9 @@ function Util.screenGui(name, order)
 end
 
 -- The temporary copy of a file: <file>.tmp.txt (many executors only write known extensions such as .txt / .json and
--- refuse ".tmp" with "Illegal extension"); <file>.tmp from older versions is still read.
+-- refuse ".tmp" with "Illegal extension").
 function Util.tmpOf(path) return path .. ".tmp.txt" end
-local function tmpFiles(path) return { path .. ".tmp.txt", path .. ".tmp" } end
+local function tmpFiles(path) return { path .. ".tmp.txt" } end
 Util.tmpFiles = tmpFiles
 
 -- Crash-safe writes: the text goes to <file>.tmp.txt first, is read back, then written over the file and the .tmp removed.
