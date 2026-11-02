@@ -521,6 +521,7 @@ Card:Tiles({ Columns = 4, Items = {                                     -- squar
     { Title = "Rejoin", Icon = "rotate-ccw", Callback = fn },               -- button tile
 } })
 Card:Chips({ Flag = "quick", Items = { { Title = "ESP", Icon = "eye" }, "Camera" }, Multi = true, Default = { "ESP" } })
+Card:Chips({ Static = true, Items = { { Title = "Hit 100%", Icon = "crosshair" } } })   -- only shows values (:SetItems)
 ```
 
 **Activity**

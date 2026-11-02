@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.7 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.10.8 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -2773,6 +2773,7 @@ __modules["elements/chips"] = function()
 -- A wrapping row of rounded chips. Multi = true: each chip turns on / off (value = list of names);
 -- Multi = false: one chosen at a time (value = the name). Lit chips get the accent outline.
 -- :Set(value), :Get(), :SetItems(items).
+-- Static = true: chips that only show something (values, tags): no clicking, no flag; :SetItems to change them.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -2835,7 +2836,7 @@ return function(card, cfg)
             local chip = { name = name, button = button, edge = edge, text = text, icon = icon, width = width }
             chips[#chips + 1] = chip
             button.Activated:Connect(function()
-                if element.Locked then return end
+                if element.Locked or cfg.Static then return end
                 if multi then
                     local value = table.clone(type(element.Value) == "table" and element.Value or {})
                     local at = table.find(value, name)
@@ -9692,7 +9693,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.10.7",
+    Version = "1.10.8",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

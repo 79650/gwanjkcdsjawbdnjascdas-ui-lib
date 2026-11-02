@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.7 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.8 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -2483,7 +2483,7 @@ local text=label(button,name,10,{Name="Text",Position=UDim2.fromOffset(11+(icon 
 local chip={name=name,button=button,edge=edge,text=text,icon=icon,width=width}
 chips[#chips+1]=chip
 button.Activated:Connect(function()
-if element.Locked then return end
+if element.Locked or cfg.Static then return end
 if multi then
 local value=table.clone(type(element.Value)=="table"and element.Value or{})
 local at=table.find(value,name)
@@ -8540,7 +8540,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.7",
+Version="1.10.8",
 Flags={},
 Windows={},
 Theme=Theme,
