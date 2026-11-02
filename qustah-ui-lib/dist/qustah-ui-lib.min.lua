@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.9 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.10 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -7069,6 +7069,7 @@ world.Parent=view
 local empty=label(holder,"No object",10,{Name="Empty",Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center})
 Theme.bind(empty,"TextColor3","muted")
 local element=Base.element(card,"Viewport",{},holder,nil,nil)
+element.Camera,element.View=camera,view
 local center,radius=Vector3.zero,5
 local yaw,pitch,zoom=math.rad(25),math.rad(-12),1
 local spin=cfg.Spin==true
@@ -8548,7 +8549,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.9",
+Version="1.10.10",
 Flags={},
 Windows={},
 Theme=Theme,

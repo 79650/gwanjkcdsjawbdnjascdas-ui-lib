@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.9 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.10.10 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7995,7 +7995,8 @@ end
 __modules["elements/viewport"] = function()
 -- card:Viewport({ Object = workspace.Model | BasePart, Height = 170, Interactive = true, Spin = false, Distance })
 -- A 3D preview of a clone of the object (an avatar, a weapon...). Drag to turn it, wheel to zoom.
--- :SetObject(obj) swaps the model; :SetSpin(true) turns it slowly. element.Model is the clone on show.
+-- :SetObject(obj) swaps the model; :SetSpin(true) turns it slowly. element.Model is the clone on show,
+-- element.Camera / element.View its camera and ViewportFrame.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -8024,6 +8025,7 @@ return function(card, cfg)
     Theme.bind(empty, "TextColor3", "muted")
 
     local element = Base.element(card, "Viewport", {}, holder, nil, nil)
+    element.Camera, element.View = camera, view -- (to project points of the model onto the frame)
     local center, radius = Vector3.zero, 5
     local yaw, pitch, zoom = math.rad(25), math.rad(-12), 1
     local spin = cfg.Spin == true
@@ -9703,7 +9705,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.10.9",
+    Version = "1.10.10",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

@@ -465,6 +465,7 @@ Card:ImagePicker({ Title = "Crosshair", Flag = "cross", Columns = 4, Images = { 
 Card:PlayerList({ Title = "Whitelist", Flag = "whitelist", Multi = true, Height = 150,
     Callback = function(userIds) end })          -- search; updates as players join and leave; :GetPlayers()
 Card:Viewport({ Object = game.Players.LocalPlayer.Character, Height = 150, Spin = true })   -- drag to rotate, wheel to zoom
+-- view.Model is the clone on show, view.Camera / view.View its camera and ViewportFrame
 ```
 
 ### Crosshair and FOV preview
