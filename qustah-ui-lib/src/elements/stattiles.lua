@@ -1,4 +1,4 @@
--- card:StatTiles({ Columns = 4, Tiles = {
+-- card:StatTiles({ Columns = 4, Items = {
 --     { Title = "FPS", Source = "FPS" },                                   -- live (the library's sampler)
 --     { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
 --     { Title = "Memory", Value = "26 MB", Sub = "Lua", History = { 20, 22, 26 }, Color = Color3.fromRGB(180, 140, 232) },
@@ -17,7 +17,7 @@ local create, label = Util.create, Util.label
 
 return function(card, cfg)
     local window = card.window
-    local list = cfg.Tiles or {}
+    local list = cfg.Items or {}
     local columns = math.max(1, tonumber(cfg.Columns) or math.min(#list, 4))
     local height, gap = tonumber(cfg.Height) or 74, 6
     local holder = create("Frame", { Name = tostring(cfg.Title or "StatTiles"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, Parts.gridHeight(#list, columns, gap, height)), LayoutOrder = card:_order(), Parent = card.body })

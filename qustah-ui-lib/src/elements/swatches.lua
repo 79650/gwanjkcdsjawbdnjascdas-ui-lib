@@ -1,4 +1,4 @@
--- card:Swatches({ Title, Desc, Flag, Colors = { { "Neutral", Color3 }, { "Blue", Color3 }, ... }, Default = "Blue", Columns = 4, Callback = function(color, name) end })
+-- card:Swatches({ Title, Desc, Flag, Items = { { "Neutral", Color3 }, { "Blue", Color3 }, ... }, Default = "Blue", Columns = 4, Callback = function(color, name) end })
 -- Named colour presets as a grid (Qustah's accent picker). Value is the chosen name; Callback gets the Color3 and the name.
 -- Without Colors it uses Qustah's eight accent presets.
 -- Style = "Dots": one row of small round colour dots (the name shows on hover). Custom = function(open) end adds a
@@ -17,7 +17,7 @@ local PRESETS = {
 }
 
 return function(card, cfg)
-    local colors = cfg.Colors or PRESETS
+    local colors = cfg.Items or PRESETS
     local dots = cfg.Style == "Dots"
     local maxColumns = math.max(1, tonumber(cfg.Columns) or 4)
     local columns = maxColumns

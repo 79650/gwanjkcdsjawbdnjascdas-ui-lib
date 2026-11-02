@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.11 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.12 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -945,7 +945,7 @@ local ok,kb=pcall(collectgarbage,"count")
 if not ok or type(kb)~="number"then ok,kb=pcall(function()return gcinfo()end)end
 return ok and type(kb)=="number"and kb/1024 or nil
 end
-page:Card({Wide=true}):StatTiles({Interval=2,Tiles={
+page:Card({Wide=true}):StatTiles({Interval=2,Items={
 {Title="FPS",Source="FPS"},
 {Title="Ping",Source="Ping",Suffix=" ms",Color="warning"},
 {Title="Players",Source=function()return#Players:GetPlayers()end,Sub="this server",
@@ -2134,7 +2134,7 @@ task.defer(fit)
 end
 if not silent then run(option)end
 end
-function element:SetOptions(list)
+function element:SetMenu(list)
 if not menu then return end
 menu=entries(list)
 local still=false
@@ -2289,7 +2289,7 @@ entry.body.Visible=open
 if entry.chevron then Util.tween(entry.chevron,0.15,{Rotation=open and 180 or 0})end
 end
 end
-function element:SetEntries(list)
+function element:SetItems(list)
 for _,entry in ipairs(entries)do entry.frame:Destroy()end
 table.clear(entries)
 for index,data in ipairs(list or{})do
@@ -2334,7 +2334,7 @@ end
 local open=tonumber(cfg.Open)or 1
 if entries[open]then entries[open].body.Visible=true if entries[open].chevron then entries[open].chevron.Rotation=180 end end
 end
-element:SetEntries(cfg.Entries)
+element:SetItems(cfg.Items)
 return Base.finish(element,cfg)
 end
 end
@@ -3078,7 +3078,7 @@ local holder=create("Frame",{Name=tostring(cfg.Title or"DiffList"),BackgroundTra
 Util.list(holder,0)
 local element=Base.element(card,"DiffList",{Title=cfg.Title},holder,nil,nil)
 local rows,frames={},{}
-function element:SetRows(list)
+function element:SetItems(list)
 for _,frame in ipairs(frames)do frame:Destroy()end
 table.clear(frames)
 rows=list or{}
@@ -3117,9 +3117,9 @@ end
 frames[#frames+1]=frame
 end
 end
-function element:GetRows()return rows end
+function element:GetItems()return rows end
 function element:Count()return#rows end
-element:SetRows(cfg.Rows)
+element:SetItems(cfg.Items)
 return Base.finish(element,cfg)
 end
 end
@@ -3169,7 +3169,7 @@ end
 table.sort(options,function(a,b)return info[a].Title:lower()<info[b].Title:lower()end)
 end
 end
-setOptions(cfg.Options or cfg.Values)
+setOptions(cfg.Items)
 local function titleOf(key)return info[key]and info[key].Title or tostring(key)end
 local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=160})
 title.Size=UDim2.new(0.55,-8-title.Position.X.Offset,0,title.Size.Y.Offset)
@@ -3197,7 +3197,7 @@ arrowBars[index]=bar
 end
 local function tintArrow(role)for _,bar in ipairs(arrowBars)do Theme.tweenTo(bar,"BackgroundColor3",role,0.1)end end
 local element=Base.element(card,"Dropdown",cfg,row,title,desc)
-element.Options=options
+element.Items=options
 local function chosen(option)
 if multi then return table.find(element.Value,option)~=nil end
 return element.Value==option
@@ -3473,13 +3473,13 @@ self:_fire(self.Value,silent)
 end
 function element:Get()return self.Value end
 function element:GetLabel(key)return titleOf(key or self.Value)end
-function element:SetOptions(list,keep)
+function element:SetItems(list,keep)
 setOptions(list)
-self.Options=options
+self.Items=options
 if popup then window:_closePopup()end
 self:Set(keep and self.Value or(multi and{}or nil),true)
 end
-function element:Refresh(list)self:SetOptions(list,true)end
+function element:Refresh(list)self:SetItems(list,true)end
 if multi then
 element.Value={}
 element:Set(cfg.Default or{},true)
@@ -3691,7 +3691,7 @@ local Parts=require("elements/parts")
 local create,label=Util.create,Util.label
 return function(card,cfg)
 local window=card.window
-local list=cfg.Gauges or{}
+local list=cfg.Items or{}
 local size=tonumber(cfg.Size)or 62
 local holder=create("Frame",{Name=tostring(cfg.Title or"Gauges"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,size+20),LayoutOrder=card:_order(),Parent=card.body})
 local element=Base.element(card,"Gauges",cfg,holder,nil,nil)
@@ -4128,7 +4128,7 @@ local Base=require("elements/base")
 local Icons=require("icons")
 local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
 return function(card,cfg)
-local images=cfg.Images or{}
+local images=cfg.Items or{}
 local columns=math.max(1,tonumber(cfg.Columns)or 5)
 local cell=tonumber(cfg.CellSize)or 40
 local rowsCount=math.ceil(#images/columns)
@@ -5081,7 +5081,8 @@ if indeterminate then
 fill.Size=UDim2.fromScale(0.3,1)
 local started=os.clock()
 spinner=window.maid:connect(Util.Services.RunService.Heartbeat,function()
-if not row.Parent then return end
+if not row.Parent then if spinner then spinner:Disconnect()spinner=nil end return end
+if not Util.shown(row)then return end
 local t=((os.clock()-started)/1.2)%1
 fill.Position=UDim2.fromScale(-0.3+t*1.3,0)
 end)
@@ -5196,12 +5197,12 @@ render(true)
 self:_fire(value,silent or not changed)
 end
 function element:Get()return self.Value end
-function element:SetOptions(list)
+function element:SetItems(list)
 options=normalize(list)
 build()
 if not has(self.Value)then self.Value=options[1]and options[1].value or nil self:_fire(self.Value,true)end
 end
-options=normalize(cfg.Options)
+options=normalize(cfg.Items)
 build()
 element.Value=has(cfg.Default)and cfg.Default or(options[1]and options[1].value)
 render(false)
@@ -5414,7 +5415,7 @@ local Base=require("elements/base")
 local create,corner,stroke=Util.create,Util.corner,Util.stroke
 return function(card,cfg)
 local options={}
-for _,option in ipairs(cfg.Options or cfg.Values or{})do options[#options+1]=tostring(option)end
+for _,option in ipairs(cfg.Items or{})do options[#options+1]=tostring(option)end
 local row,title,desc=Base.row(card,cfg,40,{})
 title.Size=UDim2.new(0,110,0,cfg.Desc and 18 or 40)
 if desc then desc.Size=UDim2.new(0,110,0,14)end
@@ -5428,7 +5429,7 @@ local STYLES={Boxed=true,Track=true,Underline=true,Line=true,Dot=true,Divided=tr
 if not STYLES[style]then style="Boxed"end
 local element=Base.element(card,"Segment",cfg,row,title,desc)
 element.Style=style
-element.Options=options
+element.Items=options
 local buttons,outlines={},{}
 local count=math.max(1,#options)
 local thumb,bar
@@ -5924,7 +5925,7 @@ local Parts=require("elements/parts")
 local create,label=Util.create,Util.label
 return function(card,cfg)
 local window=card.window
-local list=cfg.Tiles or{}
+local list=cfg.Items or{}
 local columns=math.max(1,tonumber(cfg.Columns)or math.min(#list,4))
 local height,gap=tonumber(cfg.Height)or 74,6
 local holder=create("Frame",{Name=tostring(cfg.Title or"StatTiles"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,Parts.gridHeight(#list,columns,gap,height)),LayoutOrder=card:_order(),Parent=card.body})
@@ -6171,7 +6172,7 @@ local PRESETS={
 {"Orange",Color3.fromRGB(215,170,105)},{"Cyan",Color3.fromRGB(100,200,210)},
 }
 return function(card,cfg)
-local colors=cfg.Colors or PRESETS
+local colors=cfg.Items or PRESETS
 local dots=cfg.Style=="Dots"
 local maxColumns=math.max(1,tonumber(cfg.Columns)or 4)
 local columns=maxColumns
@@ -6591,7 +6592,7 @@ row=row or{}
 for index=1,math.max(#columns,#row)do out[index]=row[index]end
 return out
 end
-function element:SetRows(list)
+function element:SetItems(list)
 rows={}
 for _,row in ipairs(list or{})do rows[#rows+1]=copy(row)end
 render()
@@ -6600,7 +6601,7 @@ function element:AddRow(row)rows[#rows+1]=copy(row)render()return#rows end
 function element:RemoveRow(index)if rows[index]then table.remove(rows,index)render()end end
 function element:UpdateRow(index,row)if rows[index]then rows[index]=copy(row)render()end end
 function element:Clear()rows={}render()end
-function element:GetRows()return rows end
+function element:GetItems()return rows end
 function element:Sort(column,desc)
 if column~=nil and not columns[column]then
 for index,item in ipairs(columns)do if item.title==column then column=index break end end
@@ -6610,9 +6611,9 @@ descending=desc==true
 render()
 end
 function element:Get()return rows end
-function element:Set(list)self:SetRows(list)end
+function element:Set(list)self:SetItems(list)end
 if search then search:GetPropertyChangedSignal("Text"):Connect(render)end
-element:SetRows(cfg.Rows)
+element:SetItems(cfg.Items)
 if cfg.SortBy then element:Sort(cfg.SortBy,cfg.Descending)end
 return element
 end
@@ -7105,7 +7106,18 @@ end)
 if okBox then center,radius=cf.Position,math.max(size.Magnitude/2,0.5)end
 place()
 end
-function element:SetSpin(on)spin=on==true end
+local spinConnection
+function element:SetSpin(on)
+spin=on==true
+if spin and not spinConnection then
+spinConnection=window.maid:connect(Util.Services.RunService.Heartbeat,function(dt)
+if not holder.Parent then spinConnection:Disconnect()spinConnection=nil return end
+if holder.AbsoluteSize.X>0 and Util.shown(holder)then yaw=yaw+(dt or 0.016)*0.6 place()end
+end)
+elseif not spin and spinConnection then
+spinConnection:Disconnect()spinConnection=nil
+end
+end
 if cfg.Interactive~=false then
 local hit=create("TextButton",{Name="Drag",Text="",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ZIndex=3,Parent=holder})
 hit.InputBegan:Connect(function(input)
@@ -7126,9 +7138,7 @@ place()
 end
 end)
 end
-window.maid:connect(Util.Services.RunService.Heartbeat,function(dt)
-if spin and holder.Parent and holder.AbsoluteSize.X>0 and Util.shown(holder)then yaw=yaw+(dt or 0.016)*0.6 place()end
-end)
+element:SetSpin(spin)
 element:SetObject(cfg.Object)
 return element
 end
@@ -8549,7 +8559,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.11",
+Version="1.10.12",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9597,7 +9607,7 @@ end
 local customThemes=window.Config:ReadJSON("themes")
 for name,data in pairs(customThemes)do Theme.registerCustom(name,data)end
 local themeDropdown=look:Dropdown({
-Title="Theme",Options=Theme.packOrder,Default="Dark",Flag="__ui_theme",
+Title="Theme",Items=Theme.packOrder,Default="Dark",Flag="__ui_theme",
 Callback=function(name)
 Theme.applyPack(name)
 if picker then picker:Set(Theme.get("accentUser"),true)end
@@ -9626,7 +9636,7 @@ local startFont=usable[1]or"Gotham"
 local fontOptions={}
 for _,name in ipairs(fonts)do fontOptions[#fontOptions+1]={Title=name,Font=UIFont.family(name)}end
 look:Dropdown({
-Title="Font",Options=fontOptions,Default=startFont,Flag="__ui_font",
+Title="Font",Items=fontOptions,Default=startFont,Flag="__ui_font",
 Callback=function(name)
 if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not available here",Color=RED})end
 end,
@@ -9635,7 +9645,7 @@ if startFont~="Gotham"then UIFont.set(startFont)end
 if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont)end
 local TEXT_SIZES={Small=0.9,Normal=1,Large=1.1}
 look:Segment({
-Title="Text size",Flag="__ui_textsize",Options={"Small","Normal","Large"},Default="Normal",
+Title="Text size",Flag="__ui_textsize",Items={"Small","Normal","Large"},Default="Normal",
 Callback=function(choice)UIFont.setTextScale(TEXT_SIZES[choice]or 1)end,
 })
 look:Toggle({
@@ -9658,7 +9668,7 @@ local value=tonumber(text:match("%d+"))
 if math.abs(value-percent)<math.abs(nearest-percent)then nearest=value end
 end
 scaleDropdown=menu:Dropdown({
-Title="UI scale",Desc="Bigger or smaller menu",Options=SCALES,Default=nearest.."%",
+Title="UI scale",Desc="Bigger or smaller menu",Items=SCALES,Default=nearest.."%",
 Callback=function(text)window:SetUIScale((tonumber(text:match("%d+"))or 100)/100)end,
 })
 window._scaleDropdown=scaleDropdown
@@ -9738,7 +9748,7 @@ overlays:Toggle({Title="Watermark",Desc="Name · FPS · ping · clock",Flag="__u
 overlays:Toggle({Title="Keybind list",Desc="Bound keys on screen",Flag="__ui_hud_keys",Callback=function(on)window:KeybindList(on)end})
 overlays:Toggle({Title="Session bar",Desc="FPS · ping · players · time",Flag="__ui_hud_session",Callback=function(on)window:SessionBar(on)end})
 overlays:Dropdown({
-Title="Performance",Options={"Off","Header","Floating"},Default="Off",Flag="__ui_hud_stats",
+Title="Performance",Items={"Off","Header","Floating"},Default="Off",Flag="__ui_hud_stats",
 Callback=function(mode)window:StatsMonitor(mode)end,
 })
 local editorCard=interface:Card({Title="Theme editor",Side="Left",Icon="paintbrush"})
@@ -9747,7 +9757,7 @@ local ROLE_NAMES={"Background","Cards","Inputs","Outlines","Text","Muted text","
 local ROLE_OF={}
 for index,name in ipairs(ROLE_NAMES)do ROLE_OF[name]=Theme.EDITABLE[index]end
 local roleColor
-local roleDropdown=editor:Dropdown({Title="Colour",Options=ROLE_NAMES,Default="Background",
+local roleDropdown=editor:Dropdown({Title="Colour",Items=ROLE_NAMES,Default="Background",
 Callback=function(name)
 local role=ROLE_OF[name]
 if roleColor and role then roleColor:Set(Theme.get(role=="accent"and"accentUser"or role),true)end
@@ -9760,7 +9770,7 @@ if role=="accent"then picker:Set(color)else Theme.set(role,color)end
 end})
 local function saveThemes()window.Config:WriteJSON("themes",customThemes)end
 local function refreshThemeList(select)
-themeDropdown:SetOptions(Theme.packOrder,true)
+themeDropdown:SetItems(Theme.packOrder,true)
 if select then themeDropdown:Set(select)end
 end
 editor:ActionInput({Name="SaveTheme",Icon="save",Placeholder="Theme name",Button="Save",
@@ -9904,7 +9914,7 @@ if type(window.cfg.Changelog)=="table"then
 local log=window.cfg.Changelog
 local entries={{Version=tostring(log.Version or window.Version),Time="this version",Items=log.Items or{}}}
 for _,old in ipairs(log.History or{})do entries[#entries+1]={Version=tostring(old.Version or""),Time=old.Date or old.Time,Items=old.Items or{}}end
-infoPage:Card({Title="What's new",Side="Right",Icon="newspaper"}):Changelog({Entries=entries})
+infoPage:Card({Title="What's new",Side="Right",Icon="newspaper"}):Changelog({Items=entries})
 end
 local errorsCard=infoPage:Card({Title="Errors",Side="Right",Icon="bug"})
 errorsCard:HeaderSwitch({Title="Debug",Flag="__ui_debug",Default=window.cfg.Debug==true,Tooltip="A notification for every new error",

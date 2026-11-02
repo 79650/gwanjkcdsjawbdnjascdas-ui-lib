@@ -17,7 +17,7 @@
 -- Badge = "3" / "NEW": a small tag on the corner; element:SetBadge(text or nil).
 -- Icon without a Title gives an icon-only button. Put buttons in card:Row() to line them up side by side.
 -- element:SetStyle(style), :SetTitle(text), :SetIcon(name), :SetLoading(on, text), :SetBadge(text), :SetBind(key),
---   :SetCooldown(seconds), :ResetCooldown(), :Set(value) / :Get() (Toggle), :SetOptions(list), :Select(option), :Fire()
+--   :SetCooldown(seconds), :ResetCooldown(), :Set(value) / :Get() (Toggle), :SetMenu(list), :Select(option), :Fire()
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -490,7 +490,7 @@ return function(card, cfg)
         end
         if not silent then run(option) end
     end
-    function element:SetOptions(list)
+    function element:SetMenu(list)
         if not menu then return end
         menu = entries(list)
         local still = false

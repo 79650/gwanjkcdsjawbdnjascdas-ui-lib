@@ -1,4 +1,4 @@
--- card:Gauges({ Size = 62, Gauges = {
+-- card:Gauges({ Size = 62, Items = {
 --     { Title = "FPS", Value = 60, Max = 60, Color = "heading" },
 --     { Title = "Ping", Value = 40, Max = 150, Sub = "ms", Color = "warning" },
 --     { Title = "Players", Value = 2, Max = 50, Sub = "of 50" },
@@ -16,7 +16,7 @@ local create, label = Util.create, Util.label
 
 return function(card, cfg)
     local window = card.window
-    local list = cfg.Gauges or {}
+    local list = cfg.Items or {}
     local size = tonumber(cfg.Size) or 62
     local holder = create("Frame", { Name = tostring(cfg.Title or "Gauges"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, size + 20), LayoutOrder = card:_order(), Parent = card.body })
     local element = Base.element(card, "Gauges", cfg, holder, nil, nil)

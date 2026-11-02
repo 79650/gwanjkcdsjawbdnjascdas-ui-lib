@@ -67,7 +67,19 @@ return function(card, cfg)
         if okBox then center, radius = cf.Position, math.max(size.Magnitude / 2, 0.5) end
         place()
     end
-    function element:SetSpin(on) spin = on == true end
+    -- turning: a per-frame step only while Spin is on (and nothing done while the preview is out of sight)
+    local spinConnection
+    function element:SetSpin(on)
+        spin = on == true
+        if spin and not spinConnection then
+            spinConnection = window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
+                if not holder.Parent then spinConnection:Disconnect() spinConnection = nil return end
+                if holder.AbsoluteSize.X > 0 and Util.shown(holder) then yaw = yaw + (dt or 0.016) * 0.6 place() end
+            end)
+        elseif not spin and spinConnection then
+            spinConnection:Disconnect() spinConnection = nil
+        end
+    end
 
     if cfg.Interactive ~= false then
         local hit = create("TextButton", { Name = "Drag", Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 3, Parent = holder })
@@ -89,9 +101,7 @@ return function(card, cfg)
             end
         end)
     end
-    window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
-        if spin and holder.Parent and holder.AbsoluteSize.X > 0 and Util.shown(holder) then yaw = yaw + (dt or 0.016) * 0.6 place() end
-    end)
+    element:SetSpin(spin)
     element:SetObject(cfg.Object)
     return element
 end

@@ -51,7 +51,7 @@ return function(window, cfg)
             if not ok or type(kb) ~= "number" then ok, kb = pcall(function() return gcinfo() end) end
             return ok and type(kb) == "number" and kb / 1024 or nil
         end
-        page:Card({ Wide = true }):StatTiles({ Interval = 2, Tiles = {
+        page:Card({ Wide = true }):StatTiles({ Interval = 2, Items = {
             { Title = "FPS", Source = "FPS" },
             { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
             { Title = "Players", Source = function() return #Players:GetPlayers() end, Sub = "this server",

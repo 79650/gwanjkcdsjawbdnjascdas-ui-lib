@@ -1,8 +1,8 @@
--- card:DiffList({ Empty = "No changes", OnRevert = function(row, index) end, Rows = {
+-- card:DiffList({ Empty = "No changes", OnRevert = function(row, index) end, Items = {
 --     { Tag = "ESP", Title = "Max distance", Old = "1000", New = "1500" },
 -- } })
 -- What changed: per row a small tag, the setting, the old value struck through in red, an arrow and the new value
--- in green, and (with OnRevert) a small undo button. :SetRows(rows), :GetRows(), :Count(). No flag.
+-- in green, and (with OnRevert) a small undo button. :SetItems(rows), :GetItems(), :Count(). No flag.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -16,7 +16,7 @@ return function(card, cfg)
     Util.list(holder, 0)
     local element = Base.element(card, "DiffList", { Title = cfg.Title }, holder, nil, nil)
     local rows, frames = {}, {}
-    function element:SetRows(list)
+    function element:SetItems(list)
         for _, frame in ipairs(frames) do frame:Destroy() end
         table.clear(frames)
         rows = list or {}
@@ -55,8 +55,8 @@ return function(card, cfg)
             frames[#frames + 1] = frame
         end
     end
-    function element:GetRows() return rows end
+    function element:GetItems() return rows end
     function element:Count() return #rows end
-    element:SetRows(cfg.Rows)
+    element:SetItems(cfg.Items)
     return Base.finish(element, cfg)
 end

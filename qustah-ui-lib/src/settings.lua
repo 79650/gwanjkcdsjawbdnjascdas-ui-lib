@@ -34,7 +34,7 @@ return function(window, cfg)
     local customThemes = window.Config:ReadJSON("themes")
     for name, data in pairs(customThemes) do Theme.registerCustom(name, data) end
     local themeDropdown = look:Dropdown({
-        Title = "Theme", Options = Theme.packOrder, Default = "Dark", Flag = "__ui_theme",
+        Title = "Theme", Items = Theme.packOrder, Default = "Dark", Flag = "__ui_theme",
         Callback = function(name)
             Theme.applyPack(name)
             -- the pack may swap the neutral accent: keep the picker / presets in step
@@ -68,7 +68,7 @@ return function(window, cfg)
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
     look:Dropdown({
-        Title = "Font", Options = fontOptions, Default = startFont, Flag = "__ui_font",
+        Title = "Font", Items = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
         end,
@@ -79,7 +79,7 @@ return function(window, cfg)
     -- text size: every text a bit smaller / larger, the menu itself stays the same size
     local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
     look:Segment({
-        Title = "Text size", Flag = "__ui_textsize", Options = { "Small", "Normal", "Large" }, Default = "Normal",
+        Title = "Text size", Flag = "__ui_textsize", Items = { "Small", "Normal", "Large" }, Default = "Normal",
         Callback = function(choice) UIFont.setTextScale(TEXT_SIZES[choice] or 1) end,
     })
     look:Toggle({
@@ -105,7 +105,7 @@ return function(window, cfg)
         if math.abs(value - percent) < math.abs(nearest - percent) then nearest = value end
     end
     scaleDropdown = menu:Dropdown({
-        Title = "UI scale", Desc = "Bigger or smaller menu", Options = SCALES, Default = nearest .. "%",
+        Title = "UI scale", Desc = "Bigger or smaller menu", Items = SCALES, Default = nearest .. "%",
         Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
     })
     window._scaleDropdown = scaleDropdown
@@ -189,7 +189,7 @@ return function(window, cfg)
     overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
     overlays:Toggle({ Title = "Session bar", Desc = "FPS · ping · players · time", Flag = "__ui_hud_session", Callback = function(on) window:SessionBar(on) end })
     overlays:Dropdown({
-        Title = "Performance", Options = { "Off", "Header", "Floating" }, Default = "Off", Flag = "__ui_hud_stats",
+        Title = "Performance", Items = { "Off", "Header", "Floating" }, Default = "Off", Flag = "__ui_hud_stats",
         Callback = function(mode) window:StatsMonitor(mode) end,
     })
 
@@ -200,7 +200,7 @@ return function(window, cfg)
     local ROLE_OF = {}
     for index, name in ipairs(ROLE_NAMES) do ROLE_OF[name] = Theme.EDITABLE[index] end
     local roleColor
-    local roleDropdown = editor:Dropdown({ Title = "Colour", Options = ROLE_NAMES, Default = "Background",
+    local roleDropdown = editor:Dropdown({ Title = "Colour", Items = ROLE_NAMES, Default = "Background",
         Callback = function(name)
             local role = ROLE_OF[name]
             if roleColor and role then roleColor:Set(Theme.get(role == "accent" and "accentUser" or role), true) end
@@ -213,7 +213,7 @@ return function(window, cfg)
         end })
     local function saveThemes() window.Config:WriteJSON("themes", customThemes) end
     local function refreshThemeList(select)
-        themeDropdown:SetOptions(Theme.packOrder, true)
+        themeDropdown:SetItems(Theme.packOrder, true)
         if select then themeDropdown:Set(select) end
     end
     editor:ActionInput({ Name = "SaveTheme", Icon = "save", Placeholder = "Theme name", Button = "Save",
@@ -377,7 +377,7 @@ return function(window, cfg)
         local log = window.cfg.Changelog
         local entries = { { Version = tostring(log.Version or window.Version), Time = "this version", Items = log.Items or {} } }
         for _, old in ipairs(log.History or {}) do entries[#entries + 1] = { Version = tostring(old.Version or ""), Time = old.Date or old.Time, Items = old.Items or {} } end
-        infoPage:Card({ Title = "What's new", Side = "Right", Icon = "newspaper" }):Changelog({ Entries = entries })
+        infoPage:Card({ Title = "What's new", Side = "Right", Icon = "newspaper" }):Changelog({ Items = entries })
     end
 
     local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right", Icon = "bug" })

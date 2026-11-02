@@ -1,9 +1,9 @@
--- card:Changelog({ Entries = {
+-- card:Changelog({ Items = {
 --     { Version = "V1.00 · rev 571", Time = "now", Items = { "Click TP: the game's own teleport", "ESP: bars under the feet" } },
 --     { Version = "rev 560", Time = "3 days ago", Items = { "Crosshair from the library" } },
 -- }, Open = 1 })
 -- Release notes: one row per version (bold version, muted time, a chevron); click a row to open its bullet list.
--- The Open-th entry starts open (0 = none). :SetEntries(entries), :Open(index). No flag.
+-- The Open-th entry starts open (0 = none). :SetItems(entries), :Open(index). No flag.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -24,7 +24,7 @@ return function(card, cfg)
             if entry.chevron then Util.tween(entry.chevron, 0.15, { Rotation = open and 180 or 0 }) end
         end
     end
-    function element:SetEntries(list)
+    function element:SetItems(list)
         for _, entry in ipairs(entries) do entry.frame:Destroy() end
         table.clear(entries)
         for index, data in ipairs(list or {}) do
@@ -71,6 +71,6 @@ return function(card, cfg)
         local open = tonumber(cfg.Open) or 1
         if entries[open] then entries[open].body.Visible = true if entries[open].chevron then entries[open].chevron.Rotation = 180 end end
     end
-    element:SetEntries(cfg.Entries)
+    element:SetItems(cfg.Items)
     return Base.finish(element, cfg)
 end

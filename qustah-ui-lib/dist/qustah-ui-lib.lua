@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.11 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.10.12 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1082,7 +1082,7 @@ return function(window, cfg)
             if not ok or type(kb) ~= "number" then ok, kb = pcall(function() return gcinfo() end) end
             return ok and type(kb) == "number" and kb / 1024 or nil
         end
-        page:Card({ Wide = true }):StatTiles({ Interval = 2, Tiles = {
+        page:Card({ Wide = true }):StatTiles({ Interval = 2, Items = {
             { Title = "FPS", Source = "FPS" },
             { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
             { Title = "Players", Source = function() return #Players:GetPlayers() end, Sub = "this server",
@@ -1973,7 +1973,7 @@ __modules["elements/button"] = function()
 -- Badge = "3" / "NEW": a small tag on the corner; element:SetBadge(text or nil).
 -- Icon without a Title gives an icon-only button. Put buttons in card:Row() to line them up side by side.
 -- element:SetStyle(style), :SetTitle(text), :SetIcon(name), :SetLoading(on, text), :SetBadge(text), :SetBind(key),
---   :SetCooldown(seconds), :ResetCooldown(), :Set(value) / :Get() (Toggle), :SetOptions(list), :Select(option), :Fire()
+--   :SetCooldown(seconds), :ResetCooldown(), :Set(value) / :Get() (Toggle), :SetMenu(list), :Select(option), :Fire()
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -2446,7 +2446,7 @@ return function(card, cfg)
         end
         if not silent then run(option) end
     end
-    function element:SetOptions(list)
+    function element:SetMenu(list)
         if not menu then return end
         menu = entries(list)
         local still = false
@@ -2590,12 +2590,12 @@ end
 end
 
 __modules["elements/changelog"] = function()
--- card:Changelog({ Entries = {
+-- card:Changelog({ Items = {
 --     { Version = "V1.00 · rev 571", Time = "now", Items = { "Click TP: the game's own teleport", "ESP: bars under the feet" } },
 --     { Version = "rev 560", Time = "3 days ago", Items = { "Crosshair from the library" } },
 -- }, Open = 1 })
 -- Release notes: one row per version (bold version, muted time, a chevron); click a row to open its bullet list.
--- The Open-th entry starts open (0 = none). :SetEntries(entries), :Open(index). No flag.
+-- The Open-th entry starts open (0 = none). :SetItems(entries), :Open(index). No flag.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -2616,7 +2616,7 @@ return function(card, cfg)
             if entry.chevron then Util.tween(entry.chevron, 0.15, { Rotation = open and 180 or 0 }) end
         end
     end
-    function element:SetEntries(list)
+    function element:SetItems(list)
         for _, entry in ipairs(entries) do entry.frame:Destroy() end
         table.clear(entries)
         for index, data in ipairs(list or {}) do
@@ -2663,7 +2663,7 @@ return function(card, cfg)
         local open = tonumber(cfg.Open) or 1
         if entries[open] then entries[open].body.Visible = true if entries[open].chevron then entries[open].chevron.Rotation = 180 end end
     end
-    element:SetEntries(cfg.Entries)
+    element:SetItems(cfg.Items)
     return Base.finish(element, cfg)
 end
 end
@@ -3483,11 +3483,11 @@ end
 end
 
 __modules["elements/difflist"] = function()
--- card:DiffList({ Empty = "No changes", OnRevert = function(row, index) end, Rows = {
+-- card:DiffList({ Empty = "No changes", OnRevert = function(row, index) end, Items = {
 --     { Tag = "ESP", Title = "Max distance", Old = "1000", New = "1500" },
 -- } })
 -- What changed: per row a small tag, the setting, the old value struck through in red, an arrow and the new value
--- in green, and (with OnRevert) a small undo button. :SetRows(rows), :GetRows(), :Count(). No flag.
+-- in green, and (with OnRevert) a small undo button. :SetItems(rows), :GetItems(), :Count(). No flag.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -3501,7 +3501,7 @@ return function(card, cfg)
     Util.list(holder, 0)
     local element = Base.element(card, "DiffList", { Title = cfg.Title }, holder, nil, nil)
     local rows, frames = {}, {}
-    function element:SetRows(list)
+    function element:SetItems(list)
         for _, frame in ipairs(frames) do frame:Destroy() end
         table.clear(frames)
         rows = list or {}
@@ -3540,9 +3540,9 @@ return function(card, cfg)
             frames[#frames + 1] = frame
         end
     end
-    function element:GetRows() return rows end
+    function element:GetItems() return rows end
     function element:Count() return #rows end
-    element:SetRows(cfg.Rows)
+    element:SetItems(cfg.Items)
     return Base.finish(element, cfg)
 end
 end
@@ -3564,7 +3564,7 @@ end
 end
 
 __modules["elements/dropdown"] = function()
--- card:Dropdown({ Title, Desc, Flag, Options = {...}, Default, Multi, AllowNone, Search, DragSelect, Callback, Locked })
+-- card:Dropdown({ Title, Desc, Flag, Items = {...}, Default, Multi, AllowNone, Search, DragSelect, Callback, Locked })
 -- Single: Value is the chosen option. Multi: Value is a list of chosen options.
 -- Options can be:
 --   strings                                   { "Head", "Body" }
@@ -3609,7 +3609,7 @@ return function(card, cfg)
             table.sort(options, function(a, b) return info[a].Title:lower() < info[b].Title:lower() end)
         end
     end
-    setOptions(cfg.Options or cfg.Values)
+    setOptions(cfg.Items)
     local function titleOf(key) return info[key] and info[key].Title or tostring(key) end
 
     local row, title, desc = Base.row(card, cfg, cfg.Desc and 40 or 30, { right = 160 })
@@ -3641,7 +3641,7 @@ return function(card, cfg)
     local function tintArrow(role) for _, bar in ipairs(arrowBars) do Theme.tweenTo(bar, "BackgroundColor3", role, 0.1) end end
 
     local element = Base.element(card, "Dropdown", cfg, row, title, desc)
-    element.Options = options
+    element.Items = options
 
     local function chosen(option)
         if multi then return table.find(element.Value, option) ~= nil end
@@ -3934,14 +3934,14 @@ return function(card, cfg)
     end
     function element:Get() return self.Value end
     function element:GetLabel(key) return titleOf(key or self.Value) end
-    -- SetOptions accepts the same forms as Options; chosen values that no longer exist are dropped
-    function element:SetOptions(list, keep)
+    -- SetItems accepts the same forms as Options; chosen values that no longer exist are dropped
+    function element:SetItems(list, keep)
         setOptions(list)
-        self.Options = options
+        self.Items = options
         if popup then window:_closePopup() end
         self:Set(keep and self.Value or (multi and {} or nil), true)
     end
-    function element:Refresh(list) self:SetOptions(list, true) end
+    function element:Refresh(list) self:SetItems(list, true) end
 
     if multi then
         element.Value = {}
@@ -4176,7 +4176,7 @@ end
 end
 
 __modules["elements/gauges"] = function()
--- card:Gauges({ Size = 62, Gauges = {
+-- card:Gauges({ Size = 62, Items = {
 --     { Title = "FPS", Value = 60, Max = 60, Color = "heading" },
 --     { Title = "Ping", Value = 40, Max = 150, Sub = "ms", Color = "warning" },
 --     { Title = "Players", Value = 2, Max = 50, Sub = "of 50" },
@@ -4194,7 +4194,7 @@ local create, label = Util.create, Util.label
 
 return function(card, cfg)
     local window = card.window
-    local list = cfg.Gauges or {}
+    local list = cfg.Items or {}
     local size = tonumber(cfg.Size) or 62
     local holder = create("Frame", { Name = tostring(cfg.Title or "Gauges"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, size + 20), LayoutOrder = card:_order(), Parent = card.body })
     local element = Base.element(card, "Gauges", cfg, holder, nil, nil)
@@ -4679,7 +4679,7 @@ end
 end
 
 __modules["elements/imagepicker"] = function()
--- card:ImagePicker({ Title, Flag, Images = { "251497633", "rbxassetid://12140499119", ... }, Default, Columns = 5, Callback })
+-- card:ImagePicker({ Title, Flag, Items = { "251497633", "rbxassetid://12140499119", ... }, Default, Columns = 5, Callback })
 -- A grid of images (crosshairs, icons...); the chosen one is outlined. Value is the image exactly as given.
 local Util = require("util")
 local Theme = require("theme")
@@ -4689,7 +4689,7 @@ local Icons = require("icons")
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 
 return function(card, cfg)
-    local images = cfg.Images or {}
+    local images = cfg.Items or {}
     local columns = math.max(1, tonumber(cfg.Columns) or 5)
     local cell = tonumber(cfg.CellSize) or 40
     local rowsCount = math.ceil(#images / columns)
@@ -5774,7 +5774,9 @@ return function(card, cfg)
             fill.Size = UDim2.fromScale(0.3, 1)
             local started = os.clock()
             spinner = window.maid:connect(Util.Services.RunService.Heartbeat, function()
-                if not row.Parent then return end
+                -- (gone: stop for good; out of sight: nothing to move)
+                if not row.Parent then if spinner then spinner:Disconnect() spinner = nil end return end
+                if not Util.shown(row) then return end
                 local t = ((os.clock() - started) / 1.2) % 1
                 fill.Position = UDim2.fromScale(-0.3 + t * 1.3, 0)
             end)
@@ -5811,9 +5813,9 @@ end
 end
 
 __modules["elements/radio"] = function()
--- card:Radio({ Title, Flag, Options = { "Closest", "Lowest HP", { Title = "Random", Desc = "Any target" } }, Default, Callback, Locked })
+-- card:Radio({ Title, Flag, Items = { "Closest", "Lowest HP", { Title = "Random", Desc = "Any target" } }, Default, Callback, Locked })
 -- One choice from a short list, every option visible with a round marker. Value is the chosen option's text
--- (or its Value, when an option is { Value = "hp", Title = "Lowest HP" }). :SetOptions(list).
+-- (or its Value, when an option is { Value = "hp", Title = "Lowest HP" }). :SetItems(list).
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -5898,13 +5900,13 @@ return function(card, cfg)
         self:_fire(value, silent or not changed)
     end
     function element:Get() return self.Value end
-    function element:SetOptions(list)
+    function element:SetItems(list)
         options = normalize(list)
         build()
         if not has(self.Value) then self.Value = options[1] and options[1].value or nil self:_fire(self.Value, true) end
     end
 
-    options = normalize(cfg.Options)
+    options = normalize(cfg.Items)
     build()
     element.Value = has(cfg.Default) and cfg.Default or (options[1] and options[1].value)
     render(false)
@@ -6138,7 +6140,7 @@ end
 end
 
 __modules["elements/segment"] = function()
--- card:Segment({ Title, Desc, Flag, Options = { "Head", "Body", "Closest" }, Default, Callback, Locked, Style })
+-- card:Segment({ Title, Desc, Flag, Items = { "Head", "Body", "Closest" }, Default, Callback, Locked, Style })
 -- One choice shown as a row of buttons (Qustah's Aim Part / Priority rows). On a narrow card the buttons move
 -- under the title. Style (or CreateWindow({ SegmentStyle })): "Boxed" (a framed button each, the default),
 -- "Track" (one rounded track, a thumb slides under the chosen one), "Underline" (plain words, a line under the
@@ -6154,7 +6156,7 @@ local create, corner, stroke = Util.create, Util.corner, Util.stroke
 
 return function(card, cfg)
     local options = {}
-    for _, option in ipairs(cfg.Options or cfg.Values or {}) do options[#options + 1] = tostring(option) end
+    for _, option in ipairs(cfg.Items or {}) do options[#options + 1] = tostring(option) end
     local row, title, desc = Base.row(card, cfg, 40, {})
     title.Size = UDim2.new(0, 110, 0, cfg.Desc and 18 or 40)
     if desc then desc.Size = UDim2.new(0, 110, 0, 14) end
@@ -6169,7 +6171,7 @@ return function(card, cfg)
     if not STYLES[style] then style = "Boxed" end
     local element = Base.element(card, "Segment", cfg, row, title, desc)
     element.Style = style
-    element.Options = options
+    element.Items = options
     local buttons, outlines = {}, {}
     local count = math.max(1, #options)
     -- the moving part of Track (a thumb behind the chosen word) and Underline (a bar under it)
@@ -6715,7 +6717,7 @@ end
 end
 
 __modules["elements/stattiles"] = function()
--- card:StatTiles({ Columns = 4, Tiles = {
+-- card:StatTiles({ Columns = 4, Items = {
 --     { Title = "FPS", Source = "FPS" },                                   -- live (the library's sampler)
 --     { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
 --     { Title = "Memory", Value = "26 MB", Sub = "Lua", History = { 20, 22, 26 }, Color = Color3.fromRGB(180, 140, 232) },
@@ -6734,7 +6736,7 @@ local create, label = Util.create, Util.label
 
 return function(card, cfg)
     local window = card.window
-    local list = cfg.Tiles or {}
+    local list = cfg.Items or {}
     local columns = math.max(1, tonumber(cfg.Columns) or math.min(#list, 4))
     local height, gap = tonumber(cfg.Height) or 74, 6
     local holder = create("Frame", { Name = tostring(cfg.Title or "StatTiles"), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, Parts.gridHeight(#list, columns, gap, height)), LayoutOrder = card:_order(), Parent = card.body })
@@ -6996,7 +6998,7 @@ end
 end
 
 __modules["elements/swatches"] = function()
--- card:Swatches({ Title, Desc, Flag, Colors = { { "Neutral", Color3 }, { "Blue", Color3 }, ... }, Default = "Blue", Columns = 4, Callback = function(color, name) end })
+-- card:Swatches({ Title, Desc, Flag, Items = { { "Neutral", Color3 }, { "Blue", Color3 }, ... }, Default = "Blue", Columns = 4, Callback = function(color, name) end })
 -- Named colour presets as a grid (Qustah's accent picker). Value is the chosen name; Callback gets the Color3 and the name.
 -- Without Colors it uses Qustah's eight accent presets.
 -- Style = "Dots": one row of small round colour dots (the name shows on hover). Custom = function(open) end adds a
@@ -7015,7 +7017,7 @@ local PRESETS = {
 }
 
 return function(card, cfg)
-    local colors = cfg.Colors or PRESETS
+    local colors = cfg.Items or PRESETS
     local dots = cfg.Style == "Dots"
     local maxColumns = math.max(1, tonumber(cfg.Columns) or 4)
     local columns = maxColumns
@@ -7290,12 +7292,12 @@ __modules["elements/table"] = function()
 -- card:Table({
 --     Title = "Players", Height = 160, Search = false, Sortable = true,
 --     Columns = { "Name", { Title = "Kills", Width = 0.2, Align = "Right" }, { Title = "Team", Width = 0.25 } },
---     Rows = { { "Player1", 12, "Red" }, ... },
+--     Items = { { "Player1", 12, "Red" }, ... },
 --     OnRowClick = function(row, index) end,
 -- })
 -- A scrolling table. Click a column header to sort by it (again for the other direction); numbers sort as
--- numbers. Search = true adds a filter box. :SetRows(rows), :AddRow(row), :RemoveRow(index), :UpdateRow(index, row),
--- :Clear(), :Sort(column, descending), :GetRows(). No flag (it shows data).
+-- numbers. Search = true adds a filter box. :SetItems(rows), :AddRow(row), :RemoveRow(index), :UpdateRow(index, row),
+-- :Clear(), :Sort(column, descending), :GetItems(). No flag (it shows data).
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -7479,7 +7481,7 @@ return function(card, cfg)
         for index = 1, math.max(#columns, #row) do out[index] = row[index] end
         return out
     end
-    function element:SetRows(list)
+    function element:SetItems(list)
         rows = {}
         for _, row in ipairs(list or {}) do rows[#rows + 1] = copy(row) end
         render()
@@ -7488,7 +7490,7 @@ return function(card, cfg)
     function element:RemoveRow(index) if rows[index] then table.remove(rows, index) render() end end
     function element:UpdateRow(index, row) if rows[index] then rows[index] = copy(row) render() end end
     function element:Clear() rows = {} render() end
-    function element:GetRows() return rows end
+    function element:GetItems() return rows end
     function element:Sort(column, desc)
         if column ~= nil and not columns[column] then
             for index, item in ipairs(columns) do if item.title == column then column = index break end end
@@ -7498,10 +7500,10 @@ return function(card, cfg)
         render()
     end
     function element:Get() return rows end
-    function element:Set(list) self:SetRows(list) end
+    function element:Set(list) self:SetItems(list) end
     if search then search:GetPropertyChangedSignal("Text"):Connect(render) end
 
-    element:SetRows(cfg.Rows)
+    element:SetItems(cfg.Items)
     if cfg.SortBy then element:Sort(cfg.SortBy, cfg.Descending) end
     return element
 end
@@ -8062,7 +8064,19 @@ return function(card, cfg)
         if okBox then center, radius = cf.Position, math.max(size.Magnitude / 2, 0.5) end
         place()
     end
-    function element:SetSpin(on) spin = on == true end
+    -- turning: a per-frame step only while Spin is on (and nothing done while the preview is out of sight)
+    local spinConnection
+    function element:SetSpin(on)
+        spin = on == true
+        if spin and not spinConnection then
+            spinConnection = window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
+                if not holder.Parent then spinConnection:Disconnect() spinConnection = nil return end
+                if holder.AbsoluteSize.X > 0 and Util.shown(holder) then yaw = yaw + (dt or 0.016) * 0.6 place() end
+            end)
+        elseif not spin and spinConnection then
+            spinConnection:Disconnect() spinConnection = nil
+        end
+    end
 
     if cfg.Interactive ~= false then
         local hit = create("TextButton", { Name = "Drag", Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 3, Parent = holder })
@@ -8084,9 +8098,7 @@ return function(card, cfg)
             end
         end)
     end
-    window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
-        if spin and holder.Parent and holder.AbsoluteSize.X > 0 and Util.shown(holder) then yaw = yaw + (dt or 0.016) * 0.6 place() end
-    end)
+    element:SetSpin(spin)
     element:SetObject(cfg.Object)
     return element
 end
@@ -9705,7 +9717,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.10.11",
+    Version = "1.10.12",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -10903,7 +10915,7 @@ return function(window, cfg)
     local customThemes = window.Config:ReadJSON("themes")
     for name, data in pairs(customThemes) do Theme.registerCustom(name, data) end
     local themeDropdown = look:Dropdown({
-        Title = "Theme", Options = Theme.packOrder, Default = "Dark", Flag = "__ui_theme",
+        Title = "Theme", Items = Theme.packOrder, Default = "Dark", Flag = "__ui_theme",
         Callback = function(name)
             Theme.applyPack(name)
             -- the pack may swap the neutral accent: keep the picker / presets in step
@@ -10937,7 +10949,7 @@ return function(window, cfg)
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
     look:Dropdown({
-        Title = "Font", Options = fontOptions, Default = startFont, Flag = "__ui_font",
+        Title = "Font", Items = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
         end,
@@ -10948,7 +10960,7 @@ return function(window, cfg)
     -- text size: every text a bit smaller / larger, the menu itself stays the same size
     local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
     look:Segment({
-        Title = "Text size", Flag = "__ui_textsize", Options = { "Small", "Normal", "Large" }, Default = "Normal",
+        Title = "Text size", Flag = "__ui_textsize", Items = { "Small", "Normal", "Large" }, Default = "Normal",
         Callback = function(choice) UIFont.setTextScale(TEXT_SIZES[choice] or 1) end,
     })
     look:Toggle({
@@ -10974,7 +10986,7 @@ return function(window, cfg)
         if math.abs(value - percent) < math.abs(nearest - percent) then nearest = value end
     end
     scaleDropdown = menu:Dropdown({
-        Title = "UI scale", Desc = "Bigger or smaller menu", Options = SCALES, Default = nearest .. "%",
+        Title = "UI scale", Desc = "Bigger or smaller menu", Items = SCALES, Default = nearest .. "%",
         Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
     })
     window._scaleDropdown = scaleDropdown
@@ -11058,7 +11070,7 @@ return function(window, cfg)
     overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
     overlays:Toggle({ Title = "Session bar", Desc = "FPS · ping · players · time", Flag = "__ui_hud_session", Callback = function(on) window:SessionBar(on) end })
     overlays:Dropdown({
-        Title = "Performance", Options = { "Off", "Header", "Floating" }, Default = "Off", Flag = "__ui_hud_stats",
+        Title = "Performance", Items = { "Off", "Header", "Floating" }, Default = "Off", Flag = "__ui_hud_stats",
         Callback = function(mode) window:StatsMonitor(mode) end,
     })
 
@@ -11069,7 +11081,7 @@ return function(window, cfg)
     local ROLE_OF = {}
     for index, name in ipairs(ROLE_NAMES) do ROLE_OF[name] = Theme.EDITABLE[index] end
     local roleColor
-    local roleDropdown = editor:Dropdown({ Title = "Colour", Options = ROLE_NAMES, Default = "Background",
+    local roleDropdown = editor:Dropdown({ Title = "Colour", Items = ROLE_NAMES, Default = "Background",
         Callback = function(name)
             local role = ROLE_OF[name]
             if roleColor and role then roleColor:Set(Theme.get(role == "accent" and "accentUser" or role), true) end
@@ -11082,7 +11094,7 @@ return function(window, cfg)
         end })
     local function saveThemes() window.Config:WriteJSON("themes", customThemes) end
     local function refreshThemeList(select)
-        themeDropdown:SetOptions(Theme.packOrder, true)
+        themeDropdown:SetItems(Theme.packOrder, true)
         if select then themeDropdown:Set(select) end
     end
     editor:ActionInput({ Name = "SaveTheme", Icon = "save", Placeholder = "Theme name", Button = "Save",
@@ -11246,7 +11258,7 @@ return function(window, cfg)
         local log = window.cfg.Changelog
         local entries = { { Version = tostring(log.Version or window.Version), Time = "this version", Items = log.Items or {} } }
         for _, old in ipairs(log.History or {}) do entries[#entries + 1] = { Version = tostring(old.Version or ""), Time = old.Date or old.Time, Items = old.Items or {} } end
-        infoPage:Card({ Title = "What's new", Side = "Right", Icon = "newspaper" }):Changelog({ Entries = entries })
+        infoPage:Card({ Title = "What's new", Side = "Right", Icon = "newspaper" }):Changelog({ Items = entries })
     end
 
     local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right", Icon = "bug" })

@@ -1,4 +1,4 @@
--- card:Dropdown({ Title, Desc, Flag, Options = {...}, Default, Multi, AllowNone, Search, DragSelect, Callback, Locked })
+-- card:Dropdown({ Title, Desc, Flag, Items = {...}, Default, Multi, AllowNone, Search, DragSelect, Callback, Locked })
 -- Single: Value is the chosen option. Multi: Value is a list of chosen options.
 -- Options can be:
 --   strings                                   { "Head", "Body" }
@@ -43,7 +43,7 @@ return function(card, cfg)
             table.sort(options, function(a, b) return info[a].Title:lower() < info[b].Title:lower() end)
         end
     end
-    setOptions(cfg.Options or cfg.Values)
+    setOptions(cfg.Items)
     local function titleOf(key) return info[key] and info[key].Title or tostring(key) end
 
     local row, title, desc = Base.row(card, cfg, cfg.Desc and 40 or 30, { right = 160 })
@@ -75,7 +75,7 @@ return function(card, cfg)
     local function tintArrow(role) for _, bar in ipairs(arrowBars) do Theme.tweenTo(bar, "BackgroundColor3", role, 0.1) end end
 
     local element = Base.element(card, "Dropdown", cfg, row, title, desc)
-    element.Options = options
+    element.Items = options
 
     local function chosen(option)
         if multi then return table.find(element.Value, option) ~= nil end
@@ -368,14 +368,14 @@ return function(card, cfg)
     end
     function element:Get() return self.Value end
     function element:GetLabel(key) return titleOf(key or self.Value) end
-    -- SetOptions accepts the same forms as Options; chosen values that no longer exist are dropped
-    function element:SetOptions(list, keep)
+    -- SetItems accepts the same forms as Options; chosen values that no longer exist are dropped
+    function element:SetItems(list, keep)
         setOptions(list)
-        self.Options = options
+        self.Items = options
         if popup then window:_closePopup() end
         self:Set(keep and self.Value or (multi and {} or nil), true)
     end
-    function element:Refresh(list) self:SetOptions(list, true) end
+    function element:Refresh(list) self:SetItems(list, true) end
 
     if multi then
         element.Value = {}

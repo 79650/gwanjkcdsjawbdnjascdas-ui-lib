@@ -145,6 +145,7 @@ Each element is a method of a card, or of a Section, Row, Group or Tabs section:
 - `DependsOn`: follow another flag (see below)
 - `Locked`, `LockedTitle`
 - `Reset = false`: no reset icon for this element (see [Flags](#flags))
+- `Items`: every list an element takes is called `Items` - the choices of a Dropdown, Segment or Radio, the rows of a Table or DiffList, the tiles, gauges, swatches, images, a Changelog's versions - and `:SetItems(list)` replaces it (a Button's split menu: `Menu` / `:SetMenu(list)`)
 
 **Common methods:**
 
@@ -219,25 +220,25 @@ Card:Stepper({ Title = "Clicks per second", Flag = "cps", Min = 1, Max = 20, Ste
 ### Dropdown, Segment and Radio
 
 ```lua
-Card:Dropdown({ Title = "Font", Flag = "font", Options = { "Gotham", "Code", "Arcade" }, Default = "Gotham" })
+Card:Dropdown({ Title = "Font", Flag = "font", Items = { "Gotham", "Code", "Arcade" }, Default = "Gotham" })
 
-Card:Dropdown({ Title = "Show", Flag = "parts", Multi = true, Options = { "Name", "Health", "Distance" }, Default = { "Name" } })
+Card:Dropdown({ Title = "Show", Flag = "parts", Multi = true, Items = { "Name", "Health", "Distance" }, Default = { "Name" } })
 -- (a multi box shows as many names as fit, then "+N": "Name, Health +2")
 
-Card:Dropdown({ Title = "Target", Flag = "priority", AllowNone = true, Options = {
+Card:Dropdown({ Title = "Target", Flag = "priority", AllowNone = true, Items = {
     { Title = "Closest",   Icon = "footprints", Desc = "Nearest to you" },
     { Title = "Crosshair", Icon = "crosshair" },
     { Title = "Bounty",    Icon = "gem", Locked = true },
 } })
 
-Card:Dropdown({ Title = "Mode", Options = { pvp = "PvP mode", farm = "Auto farm" } })   -- the value is the key ("pvp")
+Card:Dropdown({ Title = "Mode", Items = { pvp = "PvP mode", farm = "Auto farm" } })   -- the value is the key ("pvp")
 
-Card:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body", "Closest" }, Default = "Head" })
+Card:Segment({ Title = "Aim part", Flag = "aimPart", Items = { "Head", "Body", "Closest" }, Default = "Head" })
 -- Style (or CreateWindow({ SegmentStyle })): "Boxed" a framed button each · "Tab" words over a faint line, a short
 -- line slides under the chosen one · "Underline" / "Line" / "Dot" / "Divided" / "Ghost" lighter word styles ·
 -- "Track" one track with a sliding thumb · "Pills" / "Capsule" pills as wide as their word
 
-Card:Radio({ Title = "Priority", Flag = "priority", Options = {         -- every option visible, one chosen
+Card:Radio({ Title = "Priority", Flag = "priority", Items = {         -- every option visible, one chosen
     "Closest",
     { Title = "Lowest HP", Value = "hp", Desc = "Finish weak targets" },
     { Title = "Bounty", Locked = true },
@@ -247,7 +248,7 @@ Card:Radio({ Title = "Priority", Flag = "priority", Options = {         -- every
 - Lists with more than 8 options get a search box (`Search = true/false`).
 - Thousands of options stay fast: the list is drawn in chunks.
 - In multi lists you can drag over options to select them (`DragSelect = false` turns it off).
-- `:SetOptions(list, keepValue)` (`:Refresh(list)` is the same, keeping the value), `:GetLabel()`.
+- `:SetItems(list, keepValue)` (`:Refresh(list)` is the same, keeping the value), `:GetLabel()`.
 - An option table can carry `Font = family` (e.g. `"rbxassetid://12187365364"`): that option is drawn in that font.
 
 ### Keybind
@@ -279,7 +280,7 @@ Card:Gradient({ Title = "Chams", Flag = "chams", Default = { Color3.new(1, 0, 0)
     Callback = function(sequence, a, b) end })   -- :GetSequence()
 
 Card:Swatches({ Title = "Name color", Flag = "nameColor", Default = "Blue",
-    Callback = function(color, name) end })      -- without Colors = { { "Blue", Color3 }, ... } it uses 8 presets
+    Callback = function(color, name) end })      -- without Items = { { "Blue", Color3 }, ... } it uses 8 presets
 Card:Swatches({ Title = "Accent", Style = "Dots", Custom = function(open) end })   -- one row of round dots, the last for "any colour"
 ```
 
@@ -396,7 +397,7 @@ inbox:SetBadge("NEW")
 
 Methods: `button:SetStyle("Primary")`, `button:SetTitle(text)`, `button:SetIcon(name)`, `button:Fire()`,
 `button:SetLoading(true, "Saving...")`, `button:SetCooldown(seconds)`, `button:ResetCooldown()`, `button:SetBind(key)`,
-`button:SetBadge(text)`, `button:Set(on)` / `button:Get()` (Toggle), `button:Select(option)` / `button:SetOptions(list)` (Menu).
+`button:SetBadge(text)`, `button:Set(on)` / `button:Get()` (Toggle), `button:Select(option)` / `button:SetMenu(list)` (Menu).
 Fields: `button.Value`, `button.Selected`, `button.Loading`, `button.CoolingDown`.
 
 ### Text: Label, Paragraph, Info, Divider and Code
@@ -437,7 +438,7 @@ log:Log("Same as Append", "info")      -- (another name for Append)
 
 local board = Card:Table({ Title = "Top players", Height = 160, Search = true,
     Columns = { "Name", { Title = "Kills", Align = "Right", Width = 0.25 }, "Team" },
-    Rows = { { "Nova", 31, "Red" }, { "Kite", 24, "Blue" } },
+    Items = { { "Nova", 31, "Red" }, { "Kite", 24, "Blue" } },
     SortBy = "Kills", Descending = true,
     OnRowClick = function(row, index) print(row[1]) end })
 board:AddRow({ "Ash", 12, "Red" })
@@ -455,13 +456,13 @@ board:AddRow({ "Ash", 12, "Red" })
 
 **Table**
 - Click a column header to sort, click again to flip; numbers sort as numbers, empty cells go last.
-- Methods: `:SetRows(rows)`, `:AddRow(row)`, `:UpdateRow(i, row)`, `:RemoveRow(i)`, `:Clear()`, `:Sort(column, descending)`, `:GetRows()`.
+- Methods: `:SetItems(rows)`, `:AddRow(row)`, `:UpdateRow(i, row)`, `:RemoveRow(i)`, `:Clear()`, `:Sort(column, descending)`, `:GetItems()`.
 
 ### Visual: Image, ImagePicker, PlayerList and Viewport
 
 ```lua
 Card:Image({ Image = "rbxassetid://123", Height = 120, Caption = "Preview" })   -- icon names and web images work too
-Card:ImagePicker({ Title = "Crosshair", Flag = "cross", Columns = 4, Images = { "crosshair", "rbxassetid://9943168532" } })
+Card:ImagePicker({ Title = "Crosshair", Flag = "cross", Columns = 4, Items = { "crosshair", "rbxassetid://9943168532" } })
 Card:PlayerList({ Title = "Whitelist", Flag = "whitelist", Multi = true, Height = 150,
     Callback = function(userIds) end })          -- search; updates as players join and leave; :GetPlayers()
 Card:Viewport({ Object = game.Players.LocalPlayer.Character, Height = 150, Spin = true })   -- drag to rotate, wheel to zoom
@@ -491,14 +492,14 @@ Bigger building blocks for dashboards, info and settings pages. `test/widgets_de
 
 **Numbers and health**
 ```lua
-local tiles = Card:StatTiles({ Columns = 4, Tiles = {
+local tiles = Card:StatTiles({ Columns = 4, Items = {
     { Title = "FPS", Source = "FPS" },                                  -- live, "avg ..." under it
     { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
     { Title = "Memory", Value = "26 MB", Sub = "Lua", History = { 20, 22, 26 }, Color = Color3.fromRGB(180, 140, 232) },
 } })
 tiles:Set("Memory", { Value = "30 MB" }) tiles:Push("Memory", 30)    -- by title or index
 
-local gauges = Card:Gauges({ Gauges = { { Title = "FPS", Source = "FPS", Max = 60 }, { Title = "Ping", Value = 40, Max = 150, Sub = "ms", Color = "warning" } } })
+local gauges = Card:Gauges({ Items = { { Title = "FPS", Source = "FPS", Max = 60 }, { Title = "Ping", Value = 40, Max = 150, Sub = "ms", Color = "warning" } } })
 gauges:Set("Ping", 55)                                                 -- a ring of dots fills to Value / Max
 
 local hero = Card:Hero({ Title = "Tester", Desc = "@Tester", UserId = player.UserId, Label = "SESSION", Value = "00:00:00",
@@ -529,7 +530,7 @@ Card:Chips({ Static = true, Items = { { Title = "Hit 100%", Icon = "crosshair" }
 ```lua
 local feed = Card:Timeline({ Max = 50, Filters = { "All", "Modules", "Combat" } })   -- Compact = true: one line each
 feed:Add({ Title = "Click TP", Desc = "212 studs", Icon = "navigation", Kind = "success", Tag = "Combat" })
-Card:Changelog({ Entries = { { Version = "1.10", Time = "now", Items = { "New blocks" } } } })   -- click a version to open it
+Card:Changelog({ Items = { { Version = "1.10", Time = "now", Items = { "New blocks" } } } })   -- click a version to open it
 ```
 
 **Settings pages**
@@ -554,7 +555,7 @@ Card:ItemCards({ Columns = 2, AddNew = "New profile", OnAction = function(item) 
     { Title = "Default", Sub = "now · 46 settings", Desc = "Active", Color = Color3.fromRGB(232, 232, 236),
       Badges = { { Text = "ACTIVE", Role = "success" }, "AUTO" }, Action = "Save", Highlight = true },
 } })
-Card:DiffList({ OnRevert = function(row) end, Rows = { { Tag = "ESP", Title = "Max distance", Old = "1000", New = "1500" } } })
+Card:DiffList({ OnRevert = function(row) end, Items = { { Tag = "ESP", Title = "Max distance", Old = "1000", New = "1500" } } })
 ```
 
 ---

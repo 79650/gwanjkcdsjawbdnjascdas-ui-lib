@@ -1,6 +1,6 @@
--- card:Radio({ Title, Flag, Options = { "Closest", "Lowest HP", { Title = "Random", Desc = "Any target" } }, Default, Callback, Locked })
+-- card:Radio({ Title, Flag, Items = { "Closest", "Lowest HP", { Title = "Random", Desc = "Any target" } }, Default, Callback, Locked })
 -- One choice from a short list, every option visible with a round marker. Value is the chosen option's text
--- (or its Value, when an option is { Value = "hp", Title = "Lowest HP" }). :SetOptions(list).
+-- (or its Value, when an option is { Value = "hp", Title = "Lowest HP" }). :SetItems(list).
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -85,13 +85,13 @@ return function(card, cfg)
         self:_fire(value, silent or not changed)
     end
     function element:Get() return self.Value end
-    function element:SetOptions(list)
+    function element:SetItems(list)
         options = normalize(list)
         build()
         if not has(self.Value) then self.Value = options[1] and options[1].value or nil self:_fire(self.Value, true) end
     end
 
-    options = normalize(cfg.Options)
+    options = normalize(cfg.Items)
     build()
     element.Value = has(cfg.Default) and cfg.Default or (options[1] and options[1].value)
     render(false)

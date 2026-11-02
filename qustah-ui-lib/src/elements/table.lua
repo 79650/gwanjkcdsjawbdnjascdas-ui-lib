@@ -1,12 +1,12 @@
 -- card:Table({
 --     Title = "Players", Height = 160, Search = false, Sortable = true,
 --     Columns = { "Name", { Title = "Kills", Width = 0.2, Align = "Right" }, { Title = "Team", Width = 0.25 } },
---     Rows = { { "Player1", 12, "Red" }, ... },
+--     Items = { { "Player1", 12, "Red" }, ... },
 --     OnRowClick = function(row, index) end,
 -- })
 -- A scrolling table. Click a column header to sort by it (again for the other direction); numbers sort as
--- numbers. Search = true adds a filter box. :SetRows(rows), :AddRow(row), :RemoveRow(index), :UpdateRow(index, row),
--- :Clear(), :Sort(column, descending), :GetRows(). No flag (it shows data).
+-- numbers. Search = true adds a filter box. :SetItems(rows), :AddRow(row), :RemoveRow(index), :UpdateRow(index, row),
+-- :Clear(), :Sort(column, descending), :GetItems(). No flag (it shows data).
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -190,7 +190,7 @@ return function(card, cfg)
         for index = 1, math.max(#columns, #row) do out[index] = row[index] end
         return out
     end
-    function element:SetRows(list)
+    function element:SetItems(list)
         rows = {}
         for _, row in ipairs(list or {}) do rows[#rows + 1] = copy(row) end
         render()
@@ -199,7 +199,7 @@ return function(card, cfg)
     function element:RemoveRow(index) if rows[index] then table.remove(rows, index) render() end end
     function element:UpdateRow(index, row) if rows[index] then rows[index] = copy(row) render() end end
     function element:Clear() rows = {} render() end
-    function element:GetRows() return rows end
+    function element:GetItems() return rows end
     function element:Sort(column, desc)
         if column ~= nil and not columns[column] then
             for index, item in ipairs(columns) do if item.title == column then column = index break end end
@@ -209,10 +209,10 @@ return function(card, cfg)
         render()
     end
     function element:Get() return rows end
-    function element:Set(list) self:SetRows(list) end
+    function element:Set(list) self:SetItems(list) end
     if search then search:GetPropertyChangedSignal("Text"):Connect(render) end
 
-    element:SetRows(cfg.Rows)
+    element:SetItems(cfg.Items)
     if cfg.SortBy then element:Sort(cfg.SortBy, cfg.Descending) end
     return element
 end

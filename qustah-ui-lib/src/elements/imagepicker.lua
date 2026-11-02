@@ -1,4 +1,4 @@
--- card:ImagePicker({ Title, Flag, Images = { "251497633", "rbxassetid://12140499119", ... }, Default, Columns = 5, Callback })
+-- card:ImagePicker({ Title, Flag, Items = { "251497633", "rbxassetid://12140499119", ... }, Default, Columns = 5, Callback })
 -- A grid of images (crosshairs, icons...); the chosen one is outlined. Value is the image exactly as given.
 local Util = require("util")
 local Theme = require("theme")
@@ -8,7 +8,7 @@ local Icons = require("icons")
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 
 return function(card, cfg)
-    local images = cfg.Images or {}
+    local images = cfg.Items or {}
     local columns = math.max(1, tonumber(cfg.Columns) or 5)
     local cell = tonumber(cfg.CellSize) or 40
     local rowsCount = math.ceil(#images / columns)

@@ -63,7 +63,9 @@ return function(card, cfg)
             fill.Size = UDim2.fromScale(0.3, 1)
             local started = os.clock()
             spinner = window.maid:connect(Util.Services.RunService.Heartbeat, function()
-                if not row.Parent then return end
+                -- (gone: stop for good; out of sight: nothing to move)
+                if not row.Parent then if spinner then spinner:Disconnect() spinner = nil end return end
+                if not Util.shown(row) then return end
                 local t = ((os.clock() - started) / 1.2) % 1
                 fill.Position = UDim2.fromScale(-0.3 + t * 1.3, 0)
             end)

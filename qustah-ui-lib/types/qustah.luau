@@ -70,7 +70,7 @@ export type Toggle = Element<boolean> & {
 }
 export type Slider = Element<number> & { SetRange: (self: any, min: number, max: number) -> (), Dragging: boolean }
 export type Dropdown = Element<any> & {
-	SetOptions: (self: any, options: { any }, keepValue: boolean?) -> (),
+	SetItems: (self: any, options: { any }, keepValue: boolean?) -> (),
 	GetLabel: (self: any) -> string?,
 }
 export type Keybind = Element<any> & { Held: boolean, Mode: "Press" | "Hold" }
@@ -95,15 +95,15 @@ export type Console = Element<string> & {
 	GetText: (self: any) -> string,
 }
 export type Table = Element<{ { any } }> & {
-	SetRows: (self: any, rows: { { any } }) -> (),
+	SetItems: (self: any, rows: { { any } }) -> (),
 	AddRow: (self: any, row: { any }) -> number,
 	RemoveRow: (self: any, index: number) -> (),
 	UpdateRow: (self: any, index: number, row: { any }) -> (),
 	Clear: (self: any) -> (),
 	Sort: (self: any, column: number | string | nil, descending: boolean?) -> (),
-	GetRows: (self: any) -> { { any } },
+	GetItems: (self: any) -> { { any } },
 }
-export type Radio = Element<any> & { SetOptions: (self: any, options: { any }) -> () }
+export type Radio = Element<any> & { SetItems: (self: any, options: { any }) -> () }
 export type PlayerList = Element<any> & { GetPlayers: (self: any) -> { Player } }
 export type Info = Element<any> & { SetColor: (self: any, color: Paint?) -> () }
 
@@ -114,13 +114,13 @@ export type Container = {
 	Stepper: (self: Container, cfg: ElementConfig & { Min: number?, Max: number?, Step: number?, Default: number?, Suffix: string?, Callback: Callback<number>? }) -> Slider,
 	TextArea: (self: Container, cfg: ElementConfig & { Placeholder: string?, Default: string?, Height: number?, MaxLength: number?, Finished: boolean?, Validate: ((text: string) -> (boolean?, string?))?, Callback: Callback<string>? }) -> Element<string> & { Valid: boolean? },
 	Range: (self: Container, cfg: ElementConfig & { Min: number?, Max: number?, Default: { number }?, Step: number?, Suffix: string?, MinGap: number?, Callback: Callback<{ number }>? }) -> Element<{ number }>,
-	Dropdown: (self: Container, cfg: ElementConfig & { Options: { any } | { [string]: string }, Default: any?, Multi: boolean?, AllowNone: boolean?, Search: boolean?, DragSelect: boolean?, Callback: Callback<any>? }) -> Dropdown,
-	Segment: (self: Container, cfg: ElementConfig & { Options: { string }, Default: string?, Style: string?, Callback: Callback<string>? }) -> Element<string>,
-	Radio: (self: Container, cfg: ElementConfig & { Options: { any }, Default: any?, Callback: Callback<any>? }) -> Radio,
+	Dropdown: (self: Container, cfg: ElementConfig & { Items: { any } | { [string]: string }, Default: any?, Multi: boolean?, AllowNone: boolean?, Search: boolean?, DragSelect: boolean?, Callback: Callback<any>? }) -> Dropdown,
+	Segment: (self: Container, cfg: ElementConfig & { Items: { string }, Default: string?, Style: string?, Callback: Callback<string>? }) -> Element<string>,
+	Radio: (self: Container, cfg: ElementConfig & { Items: { any }, Default: any?, Callback: Callback<any>? }) -> Radio,
 	Keybind: (self: Container, cfg: ElementConfig & { Default: any?, Chord: boolean?, Mode: ("Press" | "Hold")?, Callback: Callback<any>?, Pressed: Callback<any>? }) -> Keybind,
 	ColorPicker: (self: Container, cfg: ElementConfig & { Default: (Color3 | string)?, Apply: boolean?, Rainbow: boolean?, RainbowSpeed: number?, Alpha: boolean?, Transparency: number?, Callback: ((color: Color3, transparency: number?) -> ())? }) -> ColorPicker,
 	Gradient: (self: Container, cfg: ElementConfig & { Default: { Color3 }?, Rotation: number?, Callback: ((sequence: ColorSequence, a: Color3, b: Color3) -> ())? }) -> Element<{ Color3 }>,
-	Swatches: (self: Container, cfg: ElementConfig & { Colors: { any }?, Default: string?, Columns: number?, Style: ("Grid" | "Dots")?, Custom: ((open: boolean) -> ())?, Callback: ((color: Color3, name: string) -> ())? }) -> Element<string>,
+	Swatches: (self: Container, cfg: ElementConfig & { Items: { any }?, Default: string?, Columns: number?, Style: ("Grid" | "Dots")?, Custom: ((open: boolean) -> ())?, Callback: ((color: Color3, name: string) -> ())? }) -> Element<string>,
 	Input: (self: Container, cfg: ElementConfig & { Default: string?, Placeholder: string?, Numeric: boolean?, ClearOnFocus: boolean?, Finished: boolean?, Callback: Callback<string>? }) -> Element<string>,
 	ActionInput: (self: Container, cfg: ElementConfig & { Placeholder: string?, Button: string?, Hint: string?, Validate: ((text: string) -> (boolean?, string?))?, ClearOnAction: boolean?, Callback: Callback<string>? }) -> Element<string>,
 	Button: (self: Container, cfg: ElementConfig & { Confirm: (boolean | string)?, Callback: Callback<>?,
@@ -131,7 +131,7 @@ export type Container = {
 		Fire: (self: any) -> (), SetStyle: (self: any, style: string) -> (), SetTitle: (self: any, text: string) -> (), SetIcon: (self: any, name: string) -> (),
 		SetLoading: (self: any, on: boolean, text: string?) -> (), SetCooldown: (self: any, seconds: number) -> (), ResetCooldown: (self: any) -> (),
 		SetBind: (self: any, key: (Key | string)?) -> (), SetBadge: (self: any, text: (string | number)?) -> (),
-		Select: (self: any, option: string, silent: boolean?) -> (), SetOptions: (self: any, list: { any }) -> (),
+		Select: (self: any, option: string, silent: boolean?) -> (), SetItems: (self: any, list: { any }) -> (),
 		Style: string, Selected: string?, Loading: boolean?, CoolingDown: boolean? },
 	Label: (self: Container, cfg: string | { Title: string?, Color: Paint? }) -> Element<string>,
 	Paragraph: (self: Container, cfg: { Title: string?, Content: string? }) -> Element<string>,
@@ -142,9 +142,9 @@ export type Container = {
 	Stat: (self: Container, cfg: { Title: string?, Value: number?, Icon: string?, Prefix: string?, Suffix: string?, Decimals: number?, Separator: string?, Delta: ("percent" | "absolute" | false)?, Invert: boolean?, Format: ((value: number) -> string)? }) -> Stat,
 	Graph: (self: Container, cfg: { Title: string?, Source: any?, Max: number?, Suffix: string?, Height: number?, Points: number?, Interval: number?, Style: ("Bars" | "Line")?, Compact: boolean?, Color: Paint?, Series: { { Name: string?, Source: any?, Color: Paint?, Suffix: string? } }? }) -> Graph,
 	Console: (self: Container, cfg: { Title: string?, Height: number?, MaxLines: number?, Follow: boolean?, Time: boolean?, Copy: boolean? }) -> Console,
-	Table: (self: Container, cfg: { Title: string?, Columns: { any }, Rows: { { any } }?, Height: number?, Search: boolean?, Sortable: boolean?, SortBy: any?, Descending: boolean?, OnRowClick: ((row: { any }, index: number) -> ())? }) -> Table,
+	Table: (self: Container, cfg: { Title: string?, Columns: { any }, Items: { { any } }?, Height: number?, Search: boolean?, Sortable: boolean?, SortBy: any?, Descending: boolean?, OnRowClick: ((row: { any }, index: number) -> ())? }) -> Table,
 	Image: (self: Container, cfg: { Image: string, Height: number?, Radius: number?, Fit: ("Crop" | "Fit")?, Caption: string? }) -> Element<string>,
-	ImagePicker: (self: Container, cfg: ElementConfig & { Images: { string }, Default: string?, Columns: number?, Callback: Callback<string>? }) -> Element<string>,
+	ImagePicker: (self: Container, cfg: ElementConfig & { Items: { string }, Default: string?, Columns: number?, Callback: Callback<string>? }) -> Element<string>,
 	PlayerList: (self: Container, cfg: ElementConfig & { Multi: boolean?, Height: number?, IncludeSelf: boolean?, Callback: Callback<any>? }) -> PlayerList,
 	Viewport: (self: Container, cfg: { Object: Instance?, Height: number?, Interactive: boolean?, Spin: boolean?, Distance: number? }) -> any,
 	CrosshairPreview: (self: Container, cfg: { Height: number?, Scale: number?, Settings: { [string]: any }? }?) -> any,

@@ -423,16 +423,16 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     -- Segment styles: Tab (a word-wide line slides to the chosen word), Capsule (the thumb fits the chosen word)
     do
         local scard = tabNamed("Live").Pages[1]:Card({ Title = "SegStyles" })
-        local tabSeg = scard:Segment({ Title = "Tab", Options = { "Always", "Hold" }, Style = "Tab" })
+        local tabSeg = scard:Segment({ Title = "Tab", Items = { "Always", "Hold" }, Style = "Tab" })
         local bar = tabSeg.Row:FindFirstChild("Bar", true)
         local w1 = bar and bar.Size.X.Offset
         tabSeg:Set("Hold") wait(0.3)
         check("segment Tab: the line is as wide as the word, moves to the chosen one", bar and w1 == Lib.Util.textWidth("Always", 10, Enum.Font.GothamMedium) + 16 and bar.Position.X.Scale == 0.75)
-        local cap = scard:Segment({ Title = "Capsule", Options = { "Head", "Body", "Closest" }, Style = "Capsule", Default = "Body" })
+        local cap = scard:Segment({ Title = "Capsule", Items = { "Head", "Body", "Closest" }, Style = "Capsule", Default = "Body" })
         local thumb = cap.Row:FindFirstChild("Thumb", true)
         local body = cap.Row:FindFirstChild("Body", true)
         check("segment Capsule: the thumb sits on the chosen word", thumb and body and thumb.Position.X.Offset == body.Position.X.Offset and thumb.Size.X.Offset == body.Size.X.Offset)
-        local odd = scard:Segment({ Title = "Odd", Options = { "A", "B" }, Style = "Nope" })
+        local odd = scard:Segment({ Title = "Odd", Items = { "A", "B" }, Style = "Nope" })
         check("segment: an unknown style is Boxed", odd.Style == "Boxed")
         scard.frame:Destroy()
     end
@@ -474,10 +474,10 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         -- dashboard-style elements (1.10)
         local wpage = tabNamed("Live").Pages[1]
         local wc = wpage:Card({ Title = "Widgets" })
-        local st = wc:StatTiles({ Tiles = { { Title = "FPS", Value = "60", History = { 1, 2, 3 } }, { Title = "Mem", Value = "26 MB" } } })
+        local st = wc:StatTiles({ Items = { { Title = "FPS", Value = "60", History = { 1, 2, 3 } }, { Title = "Mem", Value = "26 MB" } } })
         st:Set("Mem", { Value = "30 MB", Sub = "Lua" }) st:Push(1, 4)
         check("stat tiles: set by title", st:Get("Mem") == "30 MB" and st.Row:FindFirstChild("Mem"):FindFirstChild("Sub").Text == "Lua")
-        local gg = wc:Gauges({ Gauges = { { Title = "FPS", Value = 30, Max = 60 } } })
+        local gg = wc:Gauges({ Items = { { Title = "FPS", Value = 30, Max = 60 } } })
         local lit = 0
         for _, d in ipairs(gg.Row:GetDescendants()) do if d.Name == "Seg" and d.BackgroundColor3 ~= Lib.Theme.get("line") then lit = lit + 1 end end
         check("gauges: half the ring lit", lit > 0 and gg:Get("FPS") == 30)
@@ -515,8 +515,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         check("side nav: one part shown", nav.Selected == "Two" and nav:Section("Two").body.Visible and not nav:Section("One").body.Visible)
         local ic = wc:ItemCards({ AddNew = "New", Items = { { Title = "Default", Badges = { "ACTIVE" } }, { Title = "Farm" } } })
         check("item cards: cards + add", ic.Row:FindFirstChild("Default") and ic.Row:FindFirstChild("AddNew") and #ic:GetItems() == 2)
-        local dl = wc:DiffList({ Rows = { { Tag = "ESP", Title = "Range", Old = "1", New = "2" } } })
-        dl:SetRows({})
+        local dl = wc:DiffList({ Items = { { Tag = "ESP", Title = "Range", Old = "1", New = "2" } } })
+        dl:SetItems({})
         check("diff list: empty text", dl:Count() == 0 and dl.Row:FindFirstChild("Empty") ~= nil)
         local sb = wc:StatusBars({ Slots = 10, Items = { { Title = "ESP", State = "on" } } })
         sb:Push("ESP", "limited")
@@ -528,7 +528,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         local nt = wc:Notice({ Kind = "warning", Title = "Unsaved", Desc = "3 changes" })
         nt:Set({ Kind = "success", Title = "Saved" })
         check("notice: set", nt.Row:FindFirstChild("Title").Text == "Saved")
-        local cg = wc:Changelog({ Entries = { { Version = "1", Items = { "a" } }, { Version = "2", Items = { "b" } } } })
+        local cg = wc:Changelog({ Items = { { Version = "1", Items = { "a" } }, { Version = "2", Items = { "b" } } } })
         cg:Open(2)
         check("changelog: one open", cg.Row:FindFirstChild("2"):FindFirstChild("Items").Visible and not cg.Row:FindFirstChild("1"):FindFirstChild("Items").Visible)
         local tp = wc:ThemePreview({ Caption = "Gotham" })
@@ -644,7 +644,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local saveBox = findIn("SaveTheme", "Box")
     T.set("base", E.Color3.fromRGB(20, 10, 30))
     saveBox.Text = "Grape" MOCK.click(findIn("SaveTheme", "Action")) wait(0.1)
-    check("custom theme saved", T.packs.Grape ~= nil and table.find(W.__ui_theme.Options, "Grape") ~= nil and F.__ui_theme == "Grape")
+    check("custom theme saved", T.packs.Grape ~= nil and table.find(W.__ui_theme.Items, "Grape") ~= nil and F.__ui_theme == "Grape")
     check("custom theme on disk", E.readfile("Qustah/themes.json"):find("Grape") ~= nil)
     MOCK.clipboard = nil
     MOCK.click(find("Copy code"):FindFirstChild("Button")) wait(0.1)
@@ -847,7 +847,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     -- dropdown: option tables, AllowNone, locked, search
     tabNamed("Combat"):Select() wait(0.1)
     local priority = W.priority
-    check("dropdown table options", F.priority == "Closest" and priority.Options[4] == "Highest bounty")
+    check("dropdown table options", F.priority == "Closest" and priority.Items[4] == "Highest bounty")
     MOCK.click(priority.Row:FindFirstChild("Select")) wait(0.1)
     local list = find("DropdownList")
     check("dropdown option desc + icon", list and list:FindFirstChild("Crosshair", true):FindFirstChild("Icon") ~= nil)
@@ -857,7 +857,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("AllowNone clears", F.priority == nil)
     local many = {}
     for i = 1, 12 do many[i] = "Option " .. i end
-    local big = tabNamed("Combat").Pages[1]:Card({ Title = "Big" }):Dropdown({ Title = "Big list", Options = many })
+    local big = tabNamed("Combat").Pages[1]:Card({ Title = "Big" }):Dropdown({ Title = "Big list", Items = many })
     MOCK.click(big.Row:FindFirstChild("Select")) wait(0.1)
     local search = find("DropdownList"):FindFirstChild("Search", true)
     check("search box above 8 options", search ~= nil)
@@ -933,13 +933,13 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
 
     -- v1.5 dropdown: key / label values, images, chunks, drag select
     local dcard = tabNamed("Live").Pages[1]:Card({ Title = "Dd" })
-    local dict = dcard:Dropdown({ Title = "Mode", Options = { pvp = "PvP mode", farm = "Auto farm" }, Default = "farm" })
+    local dict = dcard:Dropdown({ Title = "Mode", Items = { pvp = "PvP mode", farm = "Auto farm" }, Default = "farm" })
     check("dict dropdown value is the key", dict.Value == "farm" and dict.Row:FindFirstChild("Select"):FindFirstChildWhichIsA("TextLabel").Text == "Auto farm")
     dict:Set("PvP mode")
     check("set by label resolves to key", dict.Value == "pvp" and dict:GetLabel() == "PvP mode")
     local huge = {}
     for i = 1, 5000 do huge[i] = "Item " .. i end
-    local big2 = dcard:Dropdown({ Title = "Huge", Options = huge })
+    local big2 = dcard:Dropdown({ Title = "Huge", Items = huge })
     MOCK.click(big2.Row:FindFirstChild("Select")) wait(0.1)
     local drawnCount = 0
     for _, c in ipairs(find("DropdownList"):FindFirstChild("Options"):GetChildren()) do if c:IsA("TextButton") then drawnCount = drawnCount + 1 end end
@@ -947,7 +947,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     find("DropdownList"):FindFirstChild("Search", true).Text = "Item 4999" wait(0.1)
     check("search finds beyond the first chunk", find("DropdownList"):FindFirstChild("Item 4999", true) ~= nil)
     window:_closePopup()
-    local pics = dcard:Dropdown({ Title = "Pics", Multi = true, Options = { { Title = "A", Image = "rbxassetid://1" }, { Title = "B" }, { Title = "C" }, { Title = "D" } } })
+    local pics = dcard:Dropdown({ Title = "Pics", Multi = true, Items = { { Title = "A", Image = "rbxassetid://1" }, { Title = "B" }, { Title = "C" }, { Title = "D" } } })
     MOCK.click(pics.Row:FindFirstChild("Select")) wait(0.1)
     local plist = find("DropdownList")
     check("option image", plist:FindFirstChild("A", true):FindFirstChild("Icon").Image == "rbxassetid://1")
@@ -1318,7 +1318,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
 
     -- radio
     local picked
-    local rd = t7:Radio({ Title = "Target", Flag = "radioTarget", Options = { "Closest", { Title = "Lowest HP", Value = "hp", Desc = "Weakest first" }, { Title = "Locked", Locked = true } }, Callback = function(v) picked = v end })
+    local rd = t7:Radio({ Title = "Target", Flag = "radioTarget", Items = { "Closest", { Title = "Lowest HP", Value = "hp", Desc = "Weakest first" }, { Title = "Locked", Locked = true } }, Callback = function(v) picked = v end })
     check("radio default", F.radioTarget == "Closest")
     MOCK.click(rd.Row:FindFirstChild("Lowest HP", true)) wait(0.1)
     check("radio click uses Value", F.radioTarget == "hp" and picked == "hp")
@@ -1326,14 +1326,14 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("radio locked option ignored", F.radioTarget == "hp")
     rd:Set("Closest")
     check("radio set by title", F.radioTarget == "Closest")
-    rd:SetOptions({ "A", "B" })
+    rd:SetItems({ "A", "B" })
     check("radio options swapped", F.radioTarget == "A")
 
     -- table
     local clicked
     local tb = t7:Table({ Title = "Players", Search = true, Columns = { "Name", { Title = "Kills", Align = "Right" }, "Team" },
-        Rows = { { "Zed", 3, "Red" }, { "Amy", 12, "Blue" }, { "Bob", nil, "Red" } }, OnRowClick = function(row) clicked = row[1] end })
-    check("table rows", #tb:GetRows() == 3 and tb:GetRows()[3][3] == "Red" and tb.Row:FindFirstChild("Count").Text == "3 rows")
+        Items = { { "Zed", 3, "Red" }, { "Amy", 12, "Blue" }, { "Bob", nil, "Red" } }, OnRowClick = function(row) clicked = row[1] end })
+    check("table rows", #tb:GetItems() == 3 and tb:GetItems()[3][3] == "Red" and tb.Row:FindFirstChild("Count").Text == "3 rows")
     tb:Sort("Kills", true)
     local body = tb.Row:FindFirstChild("Rows", true)
     local function firstName()
@@ -1352,7 +1352,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     for _, child in ipairs(body:GetChildren()) do if child:IsA("TextButton") and child:FindFirstChild("Cell1").Text == "Bob" then MOCK.click(child) end end
     check("table row click", clicked == "Bob")
     tb:AddRow({ "Cat", 5, "Blue" }) tb:RemoveRow(1)
-    check("table add / remove", #tb:GetRows() == 3 and tb:GetRows()[1][1] == "Amy")
+    check("table add / remove", #tb:GetItems() == 3 and tb:GetItems()[1][1] == "Amy")
     tb:Clear()
     check("table clear", tb.Row:FindFirstChild("Empty", true).Visible)
 
@@ -1564,7 +1564,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("scrollbar fades again", pageFrame.ScrollBarImageTransparency == 1)
 
     -- hover pop on grid cells
-    local pick = t8:ImagePicker({ Title = "Pop", Images = { "crosshair", "target" } })
+    local pick = t8:ImagePicker({ Title = "Pop", Items = { "crosshair", "target" } })
     local cell = pick.Row:FindFirstChild("Image1", true)
     MOCK.fire(cell, "MouseEnter") wait(0.3)
     check("image cell grows on hover", cell:FindFirstChildOfClass("UIScale").Scale > 1)
@@ -1597,7 +1597,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     window:SetUIScale(1) wait()
     check("ui scale back", window.scale.Scale == 1 and window.memory.uiScale == nil)
     do
-        local opts = window._scaleDropdown and window._scaleDropdown.Options
+        local opts = window._scaleDropdown and window._scaleDropdown.Items
         check("ui scale options are 80 / 100 / 110 / 120", opts and table.concat(opts, ",") == "80%,100%,110%,120%")
     end
 
@@ -1769,8 +1769,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     picked = nil
     MOCK.click(split.Row.Button) wait(0.1)
     check("menu main part repeats the choice", picked == "Shop")
-    split:SetOptions({ "North", "South" })
-    check("menu SetOptions", split.Selected == "North")
+    split:SetMenu({ "North", "South" })
+    check("menu SetMenu", split.Selected == "North")
 
     local badged = bx:Button({ Title = "Inbox", Badge = 3 })
     check("badge shows", badged.Row.Button.Badge.Visible and badged.Row.Button.Badge:FindFirstChildWhichIsA("TextLabel").Text == "3")
@@ -1970,7 +1970,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     -- fonts: Gotham + 5 more from Roblox's font library, all by asset id (nothing downloaded)
     do
         local fontFlag = window.flags.__ui_font
-        check("fonts: six in the list", #fontFlag.Options == 6 and fontFlag.Options[1] == "Gotham" and table.find(fontFlag.Options, "Silkscreen") ~= nil and table.find(fontFlag.Options, "Fuzzy Bubbles") ~= nil)
+        check("fonts: six in the list", #fontFlag.Items == 6 and fontFlag.Items[1] == "Gotham" and table.find(fontFlag.Items, "Silkscreen") ~= nil and table.find(fontFlag.Items, "Fuzzy Bubbles") ~= nil)
         check("fonts: every one but Gotham has a library id", (function()
             for _, name in ipairs(Lib.Fonts.order) do if name ~= "Gotham" and not Lib.Fonts.Library[name] then return false end end
             return true
@@ -2004,7 +2004,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         -- (an earlier check swapped in plain names: the list as Settings builds it)
         local opts = {}
         for _, name in ipairs(Lib.Fonts.available()) do opts[#opts + 1] = { Title = name, Font = Lib.Fonts.family(name) } end
-        fontFlag:SetOptions(opts, true)
+        fontFlag:SetItems(opts, true)
         settingsTab:Select() settingsTab.Pages[1]:Select() wait(0.2)
         MOCK.click(fontFlag.Row:FindFirstChild("Select")) wait(0.2)
         local list = find("DropdownList")
@@ -2277,7 +2277,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         local v = inf.Row:FindFirstChild("Value")
         check("info: long value gets more room", v.Position.X.Scale == 0 and v.Position.X.Offset < inf.Row.AbsoluteSize.X * 0.42)
         -- multi dropdown: names that do not fit become "+N"
-        local dd = c5:Dropdown({ Title = "Parts", Multi = true, Options = { "Name", "Health", "Distance", "Weapon", "Team" }, Default = { "Name", "Health", "Distance", "Weapon", "Team" } }) wait(0.1)
+        local dd = c5:Dropdown({ Title = "Parts", Multi = true, Items = { "Name", "Health", "Distance", "Weapon", "Team" }, Default = { "Name", "Health", "Distance", "Weapon", "Team" } }) wait(0.1)
         local shown = dd.Row:FindFirstChild("Select"):FindFirstChildWhichIsA("TextLabel").Text
         check("dropdown: overflow as +N", shown:find("+", 1, true) ~= nil and shown:sub(1, 4) == "Name")
         -- split button in a narrow row: the chosen option hides before the title is cut

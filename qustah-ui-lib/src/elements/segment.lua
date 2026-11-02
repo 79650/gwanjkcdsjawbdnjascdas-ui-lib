@@ -1,4 +1,4 @@
--- card:Segment({ Title, Desc, Flag, Options = { "Head", "Body", "Closest" }, Default, Callback, Locked, Style })
+-- card:Segment({ Title, Desc, Flag, Items = { "Head", "Body", "Closest" }, Default, Callback, Locked, Style })
 -- One choice shown as a row of buttons (Qustah's Aim Part / Priority rows). On a narrow card the buttons move
 -- under the title. Style (or CreateWindow({ SegmentStyle })): "Boxed" (a framed button each, the default),
 -- "Track" (one rounded track, a thumb slides under the chosen one), "Underline" (plain words, a line under the
@@ -14,7 +14,7 @@ local create, corner, stroke = Util.create, Util.corner, Util.stroke
 
 return function(card, cfg)
     local options = {}
-    for _, option in ipairs(cfg.Options or cfg.Values or {}) do options[#options + 1] = tostring(option) end
+    for _, option in ipairs(cfg.Items or {}) do options[#options + 1] = tostring(option) end
     local row, title, desc = Base.row(card, cfg, 40, {})
     title.Size = UDim2.new(0, 110, 0, cfg.Desc and 18 or 40)
     if desc then desc.Size = UDim2.new(0, 110, 0, 14) end
@@ -29,7 +29,7 @@ return function(card, cfg)
     if not STYLES[style] then style = "Boxed" end
     local element = Base.element(card, "Segment", cfg, row, title, desc)
     element.Style = style
-    element.Options = options
+    element.Items = options
     local buttons, outlines = {}, {}
     local count = math.max(1, #options)
     -- the moving part of Track (a thumb behind the chosen word) and Underline (a bar under it)
