@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.10 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.11 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -5274,7 +5274,7 @@ fill.Position=UDim2.new(a,5-10*a,0,0)
 fill.Size=UDim2.new(b-a,-10*(b-a),1,0)
 if not focused.low then lowBox.Text=format(low)end
 if not focused.high then highBox.Text=format(high)..suffix end
-local function width(object)return math.max(18,Util.textWidth(object.Text,10,Enum.Font.GothamMedium)+(focused[object==lowBox and"low"or"high"]and 14 or 2))end
+local function width(object)return math.max(18,Util.textWidth(object.Text,10,Enum.Font.GothamMedium)+(focused[object==lowBox and"low"or"high"]and 14 or 4))end
 local highWidth,lowWidth=width(highBox),width(lowBox)
 highBox.Position,highBox.Size=UDim2.new(1,-highWidth,0,0),UDim2.fromOffset(highWidth,20)
 dash.Position=UDim2.new(1,-highWidth-14,0,0)
@@ -8549,7 +8549,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.10",
+Version="1.10.11",
 Flags={},
 Windows={},
 Theme=Theme,

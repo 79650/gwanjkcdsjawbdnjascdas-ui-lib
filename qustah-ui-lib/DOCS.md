@@ -537,6 +537,7 @@ Card:Changelog({ Entries = { { Version = "1.10", Time = "now", Items = { "New bl
 Page:Card({ Wide = true }):Search({ Placeholder = "Search settings…" })    -- filters this page as you type
 Card:ListItem({ Title = "Theme", Icon = "palette", Value = "Dark", Callback = fn })          -- link row with a chevron
 Card:ListItem({ Title = "Free mouse", Icon = "mouse-pointer", Toggle = true, Flag = "free" })  -- or a switch
+Card:Row():ListItem({ ... })                    -- two to a row: put them in a Row (Badge = "NEW", Risky = true as on a Toggle)
 Card:Gallery({ Flag = "theme", Default = "Dark", Items = {
     { Name = "Dark", Colors = { background, card, accent } },          -- a theme thumbnail
     { Name = "Gotham", Font = Enum.Font.Gotham },                       -- an "Aa" font sample
@@ -569,7 +570,7 @@ Window.Flags.range = 2000           -- updates the element and runs its callback
 for flag, value in Window.Flags do print(flag, value) end
 
 Window:SetFlag("esp", false)        -- if the element doesn't exist yet, the value is applied when it's created
-Window:GetElement("esp"):Lock("Premium only")
+Window:GetElement("esp"):Lock("Premium only")    -- (Window:GetFlag("esp") is the same element, from the library's flag list)
 ```
 
 With `CreateWindow({ AutoFlags = true })`, value elements without a Flag get one named `"Tab.Card.Title"`. If two elements end up with the same name, the second gets `" 2"`. Settings and Dashboard elements don't get auto flags.
@@ -813,7 +814,7 @@ On phones and tablets the menu adapts: a reopen button while it is hidden, talle
 Window:HeaderButton({ Icon = "refresh-cw", Tooltip = "Rejoin", Callback = rejoin })
 Window:AddTag("NEW", { Color = "warning", Style = "Solid" | "Soft" })   -- text colour is picked to read on the fill
 
-Window:ToggleFullscreen()                       -- a double click on the header does the same
+Window:SetFullscreen(true)                      -- or Window:ToggleFullscreen(); a double click on the header does the same
 Window:SetBackgroundImage("rbxassetid://123", 0.85)
 Window:SetBackgroundTransparency(0.2)
 Window:SetLiveBackground(true)                  -- slow accent light drifting behind the content
@@ -821,6 +822,7 @@ Window:SetAccentGlow(true)                      -- the window edge pulses in the
 
 Window:SetBlur(true)                            -- blurs the game behind the open menu
 Window:SetAnonymous(true)                       -- hides your name and avatar everywhere (the avatar button in the dock)
+Window:OnAnonymousChanged(function(on) end)     -- redraw your own name labels when it changes
 Window:SetMouseUnlock(false)
 
 Window:SetUIScale(1.25)                         -- bigger menu (Settings › Behaviour › UI scale)

@@ -319,6 +319,7 @@ export type Window = {
 	SetAccentGlow: (self: Window, on: boolean) -> (),
 	SetBlur: (self: Window, on: boolean, size: number?) -> (),
 	SetAnonymous: (self: Window, on: boolean) -> (),
+	OnAnonymousChanged: (self: Window, callback: (on: boolean) -> ()) -> (),
 	SetMouseUnlock: (self: Window, on: boolean) -> (),
 	ShowChangelog: (self: Window) -> any,
 	Tour: (self: Window, steps: { { Target: any?, Title: string?, Text: string?, OnShow: (() -> ())? } }?, opts: { Id: string?, Once: boolean?, Force: boolean?, OnFinish: ((completed: boolean) -> ())? }?) -> any,

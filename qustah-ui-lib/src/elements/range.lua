@@ -72,7 +72,7 @@ return function(card, cfg)
         if not focused.low then lowBox.Text = format(low) end -- (the unit once, after the high value: "0 – 100 %")
         if not focused.high then highBox.Text = format(high) .. suffix end
         -- "low – high" packed against the right edge (boxes as wide as their text)
-        local function width(object) return math.max(18, Util.textWidth(object.Text, 10, Enum.Font.GothamMedium) + (focused[object == lowBox and "low" or "high"] and 14 or 2)) end
+        local function width(object) return math.max(18, Util.textWidth(object.Text, 10, Enum.Font.GothamMedium) + (focused[object == lowBox and "low" or "high"] and 14 or 4)) end
         local highWidth, lowWidth = width(highBox), width(lowBox)
         highBox.Position, highBox.Size = UDim2.new(1, -highWidth, 0, 0), UDim2.fromOffset(highWidth, 20)
         dash.Position = UDim2.new(1, -highWidth - 14, 0, 0)
