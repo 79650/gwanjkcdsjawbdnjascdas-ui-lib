@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.6 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.7 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -1500,7 +1500,7 @@ Position=UDim2.fromOffset(-4,-2),Size=UDim2.new(1,8,1,4),ZIndex=20,Parent=row,
 })
 Theme.bind(cover,"BackgroundColor3","card")
 corner(cover,6)
-cover.MouseEnter:Connect(function()if self._lockReason then window:_tip(self._lockReason)end end)
+cover.MouseEnter:Connect(function()if self._lockReason and self._lockReason~=""then window:_tip(self._lockReason)end end)
 cover.MouseLeave:Connect(function()window:_hideTip()end)
 self._lock=cover
 local pill=create("Frame",{
@@ -8540,7 +8540,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.6",
+Version="1.10.7",
 Flags={},
 Windows={},
 Theme=Theme,

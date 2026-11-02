@@ -5,6 +5,7 @@
 --   DependsOn = "silentAim"                                   locked while silentAim is off
 --   DependsOn = { Flag = "aimPart", Value = "Head" }          ... unless aimPart is "Head" (in a list for multi dropdowns)
 --   DependsOn = { Flag = "esp", Not = true, Mode = "Hide", Reason = "..." }   Mode "Hide" hides instead of locking
+--   (Reason = "": only dimmed and not usable, no lock icon or text)
 --   DependsOn = function(flags) return flags.esp and flags.range > 500 end
 -- Tooltip = "text": shown next to the mouse after a short hover (:SetTooltip(text)).
 local Util = require("util")
@@ -262,7 +263,7 @@ function Base.element(card, kind, cfg, row, title, desc)
             })
             Theme.bind(cover, "BackgroundColor3", "card")
             corner(cover, 6)
-            cover.MouseEnter:Connect(function() if self._lockReason then window:_tip(self._lockReason) end end)
+            cover.MouseEnter:Connect(function() if self._lockReason and self._lockReason ~= "" then window:_tip(self._lockReason) end end)
             cover.MouseLeave:Connect(function() window:_hideTip() end)
             self._lock = cover
             -- reason pill over the control (rows without a description)
