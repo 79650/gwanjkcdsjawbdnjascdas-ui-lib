@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.8 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.10.9 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -4594,6 +4594,7 @@ local Util=require("util")
 local Theme=require("theme")
 local Base=require("elements/base")
 local Icons=require("icons")
+local Parts=require("elements/parts")
 local create,corner,label=Util.create,Util.corner,Util.label
 return function(card,cfg)
 local row=create("TextButton",{Name=tostring(cfg.Title or"ListItem"),Text="",AutoButtonColor=false,BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.new(1,0,0,cfg.Desc and 42 or 36),LayoutOrder=card:_order(),Parent=card.body})
@@ -4607,11 +4608,18 @@ corner(box,6)
 Icons.themed(box,cfg.Icon,12,cfg.IconColor or"icon",{Name="Icon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
 x=32
 end
-local title=label(row,tostring(cfg.Title or""),11,{Name="Title",Position=UDim2.fromOffset(x,cfg.Desc and 5 or 0),Size=UDim2.new(1,-x-130,0,cfg.Desc and 18 or 36)})
-Theme.bind(title,"TextColor3","text")
+local reserve=cfg.Toggle and 44 or 130
+local title=label(row,tostring(cfg.Title or""),11,{Name="Title",Position=UDim2.fromOffset(x,cfg.Desc and 5 or 0),Size=UDim2.new(1,-x-reserve,0,cfg.Desc and 18 or 36)})
+Theme.bind(title,"TextColor3",cfg.Risky and"danger"or"text")
+if cfg.Badge then
+local tag=Parts.chip(row,tostring(cfg.Badge),cfg.Risky and"danger"or"muted",nil,{Name="Badge",AnchorPoint=Vector2.new(0,0.5),
+Position=UDim2.new(0,x+Util.textWidth(tostring(cfg.Title or""),11,Enum.Font.Gotham)+6,0,cfg.Desc and 14 or 18)})
+tag.Size=UDim2.fromOffset(tag.Size.X.Offset,15)
+tag:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,4)
+end
 local desc
 if cfg.Desc then
-desc=label(row,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(x,22),Size=UDim2.new(1,-x-130,0,13)})
+desc=label(row,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(x,22),Size=UDim2.new(1,-x-reserve,0,13)})
 Theme.bind(desc,"TextColor3","muted")
 end
 local kind=cfg.Toggle and"Toggle"or"ListItem"
@@ -4646,8 +4654,8 @@ if chevron and cfg.Chevron==false then chevron.Visible=false end
 function element:SetValue(text)value.Text=tostring(text)end
 row.Activated:Connect(function()if not element.Locked and cfg.Callback then element:_call(cfg.Callback)end end)
 end
-row.MouseEnter:Connect(function()Theme.tweenTo(title,"TextColor3","heading",0.1)end)
-row.MouseLeave:Connect(function()Theme.tweenTo(title,"TextColor3","text",0.1)end)
+row.MouseEnter:Connect(function()if not cfg.Risky then Theme.tweenTo(title,"TextColor3","heading",0.1)end end)
+row.MouseLeave:Connect(function()if not cfg.Risky then Theme.tweenTo(title,"TextColor3","text",0.1)end end)
 return Base.finish(element,cfg)
 end
 end
@@ -8540,7 +8548,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.8",
+Version="1.10.9",
 Flags={},
 Windows={},
 Theme=Theme,
