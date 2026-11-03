@@ -109,6 +109,11 @@ return function(window, cfg)
         Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
     })
     window._scaleDropdown = scaleDropdown
+    -- where the tab icons and the page names sit
+    menu:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",
+        Callback = function(side) window:SetDockSide(side) end })
+    menu:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
+        Callback = function(mode) window:SetPageTabs(mode) end })
     menu:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Icon = "hand", Flag = "__ui_mouse",
         Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
     menu:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "venetian-mask", Flag = "__ui_anon", Default = window.anonymous == true,
@@ -151,7 +156,7 @@ return function(window, cfg)
     })
     -- the look of the menu back to its defaults (theme, accent, font, window, overlays, scale) - nothing else changes
     local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
-        "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats" }
+        "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats", "__ui_dock", "__ui_pagetabs" }
     menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
         window:Confirm("Reset the interface?", "Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.", function()
             for _, flag in ipairs(LOOK_FLAGS) do

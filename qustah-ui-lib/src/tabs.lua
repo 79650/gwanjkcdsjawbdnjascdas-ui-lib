@@ -98,7 +98,9 @@ function Page.new(tab, name, cfg)
     Theme.bind(underline, "BackgroundColor3", "accent")
     self.button, self.underline = button, underline
     button.MouseEnter:Connect(function() if tab.current ~= self then Theme.tweenTo(button, "TextColor3", "heading", 0.12) end end)
-    button.MouseLeave:Connect(function() if tab.current ~= self then Theme.tweenTo(button, "TextColor3", "text", 0.12) end end)
+    button.MouseLeave:Connect(function()
+        if tab.current ~= self then Theme.tweenTo(button, "TextColor3", (window.pagesInHeader and window.current == tab) and "muted" or "text", 0.12) end
+    end)
     button.Activated:Connect(function() self:Select() end)
     self:_columns(window.width)
     return self
@@ -272,7 +274,9 @@ function Page:Select()
         local selected = page == self
         page.frame.Visible = selected and tab.window.current == tab
         page.underline.Visible = selected
-        Theme.tweenTo(page.button, "TextColor3", selected and "accent" or "text", 0.12)
+        -- (in the title row: like the header tabs, heading / muted)
+        local header = tab.window.pagesInHeader and tab.window.current == tab
+        Theme.tweenTo(page.button, "TextColor3", selected and (header and "heading" or "accent") or (header and "muted" or "text"), 0.12)
     end
     tab.window:_updateLocation()
 end
@@ -413,6 +417,7 @@ function Tab:Page(name, cfg)
         item.button.Position = UDim2.new((index - 1) / count, 0, 0, 0)
         item.button.Size = UDim2.new(1 / count, 0, 1, 0)
     end
+    if self.window.current == self then self.window:_layoutBody() end
     if not self.current then self.current = page end
     if self.window.current == self then self:Select() end
     return page

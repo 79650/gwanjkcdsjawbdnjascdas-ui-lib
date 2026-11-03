@@ -32,6 +32,11 @@ function Window.new(Lib, cfg)
         width = size.X, height = size.Y,
         minSize = cfg.MinSize or Vector2.new(400, 300), maxSize = cfg.MaxSize or Vector2.new(920, 660),
         key = cfg.ToggleKey or Enum.KeyCode.RightShift, visible = true, folded = false, alive = true,
+        -- DockSide = "Right" (beside the window, default) | "Bottom" (under it, in a row)
+        dockSide = cfg.DockSide == "Bottom" and "Bottom" or "Right",
+        -- PageTabs = "Row" (a row of page names over the cards, default) | "Header" (in the title row, like the
+        -- header tabs; a tab whose page names don't fit there keeps the row)
+        pageTabs = cfg.PageTabs == "Header" and "Header" or "Row",
     }, Window)
     require("loader").setTitle(self.Title) -- the download strip says whose files these are
     -- key conflicts the script starts with are only marked; later ones also get a notification
@@ -257,11 +262,13 @@ function Window:_build()
     self.dockScale = create("UIScale", { Scale = 1, Parent = dock })
     -- drag handle (three lines) at the top of the dock moves the window like the header
     local dockGrip = create("TextButton", { Name = "DragHandle", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.fromOffset(5, 6), Size = UDim2.fromOffset(30, 28), ZIndex = 42, Parent = dock })
+    local gripBars = {}
     for _, lineY in ipairs({ 9, 13, 17 }) do
         local bar = create("Frame", { Position = UDim2.fromOffset(9, lineY), Size = UDim2.fromOffset(12, 1), BorderSizePixel = 0, ZIndex = 43, Parent = dockGrip })
         Theme.bind(bar, "BackgroundColor3", "muted")
+        gripBars[#gripBars + 1] = bar
     end
-    self.dockGrip, self.dockDividers = dockGrip, {}
+    self.dockGrip, self.dockGripBars, self.dockDividers = dockGrip, gripBars, {}
 
     ---------------------------------------------------------------- tooltip
     local tip = create("Frame", { Name = "Tooltip", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 22), BorderSizePixel = 0, Visible = false, ZIndex = 300, Parent = gui })
@@ -400,31 +407,117 @@ end
 function Window:_layout()
     if not self.alive then return end
     local viewport = Util.viewport()
-    local total = self.width + DOCK_GAP + DOCK_WIDTH
+    local total, tall = self:_extent()
     -- the chosen UI scale (Settings / Window:SetUIScale), made smaller when the screen can't fit it
-    local s = math.clamp(math.min(self.uiScale or 1, (viewport.X - 24) / total, (viewport.Y - 24) / self.height), 0.4, 1.5)
+    local s = math.clamp(math.min(self.uiScale or 1, (viewport.X - 24) / total, (viewport.Y - 24) / tall), 0.4, 1.5)
     self.scale.Scale, self.dockScale.Scale = s, s
     local height = self.folded and HEADER or self.height
     self.main.Size = UDim2.fromOffset(self.width, height)
     if not self.topLeft then
         local saved = self.memory and self.memory.window
         if type(saved) == "table" and tonumber(saved.x) and tonumber(saved.y) then
-            local room = Vector2.new(viewport.X - total * s, viewport.Y - self.height * s)
+            local room = Vector2.new(viewport.X - total * s, viewport.Y - tall * s)
             self.topLeft = Vector2.new(tonumber(saved.x) * room.X, tonumber(saved.y) * room.Y)
         else
-            self.topLeft = Vector2.new((viewport.X - total * s) / 2, (viewport.Y - self.height * s) / 2)
+            self.topLeft = Vector2.new((viewport.X - total * s) / 2, (viewport.Y - tall * s) / 2)
         end
     end
     local x = math.clamp(self.topLeft.X, 8, math.max(8, viewport.X - total * s - 8))
-    local y = math.clamp(self.topLeft.Y, 8, math.max(8, viewport.Y - height * s - 8))
+    local y = math.clamp(self.topLeft.Y, 8, math.max(8, viewport.Y - (self.folded and height or tall) * s - 8))
     self.topLeft = Vector2.new(x, y)
     self.main.Position = UDim2.fromOffset(x, y)
-    self.dock.Size = UDim2.fromOffset(DOCK_WIDTH, self.dockHeight or DOCK_TOP)
-    self.dock.Position = UDim2.fromOffset(x + (self.width + DOCK_GAP) * s, y)
+    local length = self.dockHeight or DOCK_TOP
+    if self.dockSide == "Bottom" then
+        self.dock.Size = UDim2.fromOffset(length, DOCK_WIDTH)
+        self.dock.Position = UDim2.fromOffset(x + (self.width - length) / 2 * s, y + (self.height + DOCK_GAP) * s)
+    else
+        self.dock.Size = UDim2.fromOffset(DOCK_WIDTH, length)
+        self.dock.Position = UDim2.fromOffset(x + (self.width + DOCK_GAP) * s, y)
+    end
     self.dock.Visible = self.main.Visible and not self.folded and #self.Tabs > 0
     self.grip.Visible = not self.folded
     for _, tab in ipairs(self.Tabs) do for _, page in ipairs(tab.Pages) do page:_columns(self.width) end end
+    self:_placePageTabs()
     self:_updateLocation()
+end
+
+-- The window with its dock: width and height (unscaled).
+function Window:_extent()
+    if self.dockSide == "Bottom" then
+        return math.max(self.width, self.dockHeight or DOCK_TOP), self.height + DOCK_GAP + DOCK_WIDTH
+    end
+    return self.width + DOCK_GAP + DOCK_WIDTH, self.height
+end
+
+-- Window:SetDockSide("Right" | "Bottom")
+function Window:SetDockSide(side)
+    side = side == "Bottom" and "Bottom" or "Right"
+    if side == self.dockSide then return end
+    self.dockSide = side
+    self:_layoutDock()
+    self:_layout()
+    self:_saveMemory()
+end
+
+-- Window:SetPageTabs("Row" | "Header")
+function Window:SetPageTabs(mode)
+    self.pageTabs = mode == "Header" and "Header" or "Row"
+    self:_placePageTabs()
+    self:_layoutBody()
+    self:_updateLocation()
+end
+
+-- The page names of the open tab: in the title row (PageTabs = "Header", when they fit) or the row over the cards.
+local PAGE_GAP = 14
+function Window:_pageTabWidths(tab)
+    local widths, total = {}, 0
+    for index, page in ipairs(tab.Pages) do
+        widths[index] = Util.textWidth(page.Name, 11, Enum.Font.GothamMedium) + PAGE_GAP
+        total = total + widths[index]
+    end
+    return widths, total
+end
+function Window:_placePageTabs()
+    local holder, tab = self.stripHolder, self.current
+    if not holder then return end
+    local inHeader = false
+    if self.pageTabs == "Header" and tab and #tab.Pages > 1 then
+        local _, total = self:_pageTabWidths(tab)
+        local room = self.width - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
+        inHeader = total <= room
+    end
+    self.pagesInHeader = inHeader
+    for _, other in ipairs(self.Tabs) do
+        local header = inHeader and other == tab
+        local widths = header and self:_pageTabWidths(other) or nil
+        local x, count = 0, #other.Pages
+        for index, page in ipairs(other.Pages) do
+            local button, underline = page.button, page.underline
+            if header then
+                button.Position, button.Size = UDim2.fromOffset(x, 0), UDim2.fromOffset(widths[index], HEADER)
+                button.TextSize = 11
+                underline.Size = UDim2.new(1, -14, 0, 2)
+                x = x + widths[index]
+            else
+                button.Position, button.Size = UDim2.new((index - 1) / count, 0, 0, 0), UDim2.new(1 / count, 0, 1, 0)
+                button.TextSize = 10
+                underline.Size = UDim2.fromOffset(math.max(12, Util.textWidth(page.Name, 10, Enum.Font.GothamMedium)), 1)
+            end
+            Theme.bind(button, "TextColor3", (other.current == page) and (header and "heading" or "accent") or (header and "muted" or "text"))
+        end
+    end
+    if inHeader then
+        local _, total = self:_pageTabWidths(tab)
+        holder.Parent = self.main
+        holder.AnchorPoint = Vector2.new(1, 0)
+        holder.Position = UDim2.new(1, -(self.headerRight or 90), 0, 0)
+        holder.Size = UDim2.fromOffset(total, HEADER)
+    else
+        holder.Parent = self.body
+        holder.AnchorPoint = Vector2.new(0, 0)
+        holder.Position = UDim2.fromOffset(16, 6)
+        holder.Size = UDim2.new(1, -32, 0, 26)
+    end
 end
 
 -- Saves position (as a 0-1 fraction of the free screen space) and size; written at most twice a second.
@@ -432,7 +525,8 @@ function Window:_saveMemory()
     if self.cfg.SaveWindow == false or not self.alive then return end
     local viewport = Util.viewport()
     local s = self.scale.Scale
-    local room = Vector2.new(math.max(1, viewport.X - (self.width + DOCK_GAP + DOCK_WIDTH) * s), math.max(1, viewport.Y - self.height * s))
+    local total, tall = self:_extent()
+    local room = Vector2.new(math.max(1, viewport.X - total * s), math.max(1, viewport.Y - tall * s))
     self.memory.window = {
         x = math.clamp(self.topLeft.X / room.X, 0, 1), y = math.clamp(self.topLeft.Y / room.Y, 0, 1), w = self.width, h = self.height,
     }
@@ -458,22 +552,38 @@ function Window:_closePopup()
     if popup then Util.safe(popup.close) end
 end
 
--- Dock slots: drag handle, then one button per tab (37 px apart) with a divider above tabs marked Divider.
+-- Dock slots: drag handle, then one button per tab (37 px apart) with a divider before tabs marked Divider -
+-- top to bottom (DockSide = "Right") or left to right ("Bottom"). `along` is the place on the dock's length.
+function Window:_dockSpot(object, along, across)
+    if self.dockSide == "Bottom" then object.Position = UDim2.fromOffset(along, across)
+    else object.Position = UDim2.fromOffset(across, along) end
+end
+function Window:_dockLine(line, along)
+    line.Size = self.dockSide == "Bottom" and UDim2.fromOffset(1, 22) or UDim2.fromOffset(22, 1)
+    self:_dockSpot(line, along, 9)
+end
 function Window:_layoutDock()
     for _, divider in ipairs(self.dockDividers) do divider:Destroy() end
     self.dockDividers = {}
+    local bottom = self.dockSide == "Bottom"
+    self.dockGrip.Size = bottom and UDim2.fromOffset(28, 30) or UDim2.fromOffset(30, 28)
+    self:_dockSpot(self.dockGrip, 6, 5)
+    for index, bar in ipairs(self.dockGripBars) do
+        bar.Position = UDim2.fromOffset(bottom and 8 or 9, (bottom and 10 or 9) + (index - 1) * 4)
+    end
     local cursor = DOCK_TOP
     for _, tab in ipairs(self.Tabs) do
         if tab.Hidden then tab.button.Visible = false continue end
         tab.button.Visible = true
         if tab.Divider then
-            local divider = create("Frame", { Name = "Divider", Position = UDim2.fromOffset(9, cursor + 1), Size = UDim2.fromOffset(22, 1), BorderSizePixel = 0, ZIndex = 42, Parent = self.dock })
+            local divider = create("Frame", { Name = "Divider", BorderSizePixel = 0, ZIndex = 42, Parent = self.dock })
             Theme.bind(divider, "BackgroundColor3", "line")
+            self:_dockLine(divider, cursor + 1)
             self.dockDividers[#self.dockDividers + 1] = divider
             cursor = cursor + 8
         end
         tab.y = cursor
-        tab.button.Position = UDim2.fromOffset(5, cursor)
+        self:_dockSpot(tab.button, cursor, 5)
         cursor = cursor + DOCK_STEP
     end
     self.dockHeight = cursor + 8
@@ -482,7 +592,8 @@ end
 -- Page area: below the strip (if the open tab has pages) and above the key hint bar (if there are hints).
 function Window:_layoutBody()
     local tab = self.current
-    local top = (tab and #tab.Pages > 1) and 38 or 6
+    self:_placePageTabs()
+    local top = (tab and #tab.Pages > 1 and not self.pagesInHeader) and 38 or 6
     local bottom = self.hintBar.Visible and HINTS or 0
     self.pages.Position = UDim2.fromOffset(0, top)
     self.pages.Size = UDim2.new(1, 0, 1, -(top + bottom))
@@ -531,7 +642,7 @@ function Window:_updateLocation()
     local short = (page and #tab.Pages > 1) and page.Name or tab.Title
     local function fits(text) return Util.textWidth(text, label.TextSize, label.Font) <= width end
     label.Text = fits(full) and full or short
-    label.Visible = room >= 40 and fits(label.Text) and not self.headerTabs.Visible
+    label.Visible = room >= 40 and fits(label.Text) and not self.headerTabs.Visible and not self.pagesInHeader
     label.Size = UDim2.fromOffset(width, 20)
 end
 
@@ -555,7 +666,11 @@ function Window:_dockTip(text, y)
     local dockX = self.dock.Position.X.Offset
     local top = self.dock.Position.Y.Offset + (y + 5) * s
     self.tipText.Text = text
-    if dockX + (DOCK_WIDTH + 8) * s + 150 > Util.viewport().X then
+    if self.dockSide == "Bottom" then
+        -- over the button
+        self.tip.AnchorPoint = Vector2.new(0, 1)
+        self.tip.Position = UDim2.fromOffset(dockX + (y - 2) * s, self.dock.Position.Y.Offset - 6)
+    elseif dockX + (DOCK_WIDTH + 8) * s + 150 > Util.viewport().X then
         self.tip.AnchorPoint = Vector2.new(1, 0)
         self.tip.Position = UDim2.fromOffset(dockX - 8, top)
     else

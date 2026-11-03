@@ -18,6 +18,7 @@ return function(Window)
         self.headerRight = -self._slotX + 16
         if self.locationLabel then self.locationLabel.Position = UDim2.new(1, -self.headerRight, 0, 12) end
         if self.headerTabs then self.headerTabs.Position = UDim2.new(1, -self.headerRight, 0, 0) end
+        if self._placePageTabs then self:_placePageTabs() end
         return self._slotX
     end
 
@@ -98,10 +99,10 @@ return function(Window)
     function Window:_layoutDock()
         layoutDock(self)
         if self._profile and self._profile.Visible then
-            local y = self.dockHeight - 2
-            self._profileLine.Position = UDim2.fromOffset(9, y)
-            self._profile.Position = UDim2.fromOffset(5, y + 7)
-            self.dockHeight = y + 7 + 30 + 8
+            local at = self.dockHeight - 2
+            self:_dockLine(self._profileLine, at)
+            self:_dockSpot(self._profile, at + 7, 5)
+            self.dockHeight = at + 7 + 30 + 8
         end
     end
 
@@ -199,7 +200,8 @@ return function(Window)
                 Theme.tweenTo(ring, "Color", on and "accent" or "buttonEdge", 0.12)
             end)
             button.MouseEnter:Connect(function()
-                self:_dockTip(self.anonymous and "Anonymous · click to show" or (player.DisplayName .. " · click to hide"), button.Position.Y.Offset)
+                self:_dockTip(self.anonymous and "Anonymous · click to show" or (player.DisplayName .. " · click to hide"),
+                    self.dockSide == "Bottom" and button.Position.X.Offset or button.Position.Y.Offset)
             end)
             button.MouseLeave:Connect(function() self:_hideTip() end)
             button.Activated:Connect(function() self:SetAnonymous(not self.anonymous) end)

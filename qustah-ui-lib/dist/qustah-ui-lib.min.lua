@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.10.12 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.11.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8559,7 +8559,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.10.12",
+Version="1.11.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9672,6 +9672,10 @@ Title="UI scale",Desc="Bigger or smaller menu",Items=SCALES,Default=nearest.."%"
 Callback=function(text)window:SetUIScale((tonumber(text:match("%d+"))or 100)/100)end,
 })
 window._scaleDropdown=scaleDropdown
+menu:Segment({Title="Dock",Items={"Right","Bottom"},Default=window.dockSide,Flag="__ui_dock",
+Callback=function(side)window:SetDockSide(side)end})
+menu:Segment({Title="Page tabs",Items={"Header","Row"},Default=window.pageTabs,Flag="__ui_pagetabs",
+Callback=function(mode)window:SetPageTabs(mode)end})
 menu:Toggle({Title="Free mouse",Desc="Free cursor while open",Icon="hand",Flag="__ui_mouse",
 Default=window.unlockMouse~=false,Callback=function(on)window:SetMouseUnlock(on)end})
 menu:Toggle({Title="Anonymous mode",Desc="Hides your name and avatar",Icon="venetian-mask",Flag="__ui_anon",Default=window.anonymous==true,
@@ -9712,7 +9716,7 @@ window:Confirm("Unload "..window.Title.."?","The menu and everything it runs wil
 end,
 })
 local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_textsize","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
-"__ui_live","__ui_edge_glow","__ui_blur","__ui_hud_watermark","__ui_hud_keys","__ui_hud_session","__ui_hud_stats"}
+"__ui_live","__ui_edge_glow","__ui_blur","__ui_hud_watermark","__ui_hud_keys","__ui_hud_session","__ui_hud_stats","__ui_dock","__ui_pagetabs"}
 menu:Button({Title="Reset interface",Icon="paintbrush",Style="Ghost",Callback=function()
 window:Confirm("Reset the interface?","Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.",function()
 for _,flag in ipairs(LOOK_FLAGS)do
@@ -10285,7 +10289,9 @@ BorderSizePixel=0,Visible=false,Parent=button,
 Theme.bind(underline,"BackgroundColor3","accent")
 self.button,self.underline=button,underline
 button.MouseEnter:Connect(function()if tab.current~=self then Theme.tweenTo(button,"TextColor3","heading",0.12)end end)
-button.MouseLeave:Connect(function()if tab.current~=self then Theme.tweenTo(button,"TextColor3","text",0.12)end end)
+button.MouseLeave:Connect(function()
+if tab.current~=self then Theme.tweenTo(button,"TextColor3",(window.pagesInHeader and window.current==tab)and"muted"or"text",0.12)end
+end)
 button.Activated:Connect(function()self:Select()end)
 self:_columns(window.width)
 return self
@@ -10440,7 +10446,8 @@ for _,page in ipairs(tab.Pages)do
 local selected=page==self
 page.frame.Visible=selected and tab.window.current==tab
 page.underline.Visible=selected
-Theme.tweenTo(page.button,"TextColor3",selected and"accent"or"text",0.12)
+local header=tab.window.pagesInHeader and tab.window.current==tab
+Theme.tweenTo(page.button,"TextColor3",selected and(header and"heading"or"accent")or(header and"muted"or"text"),0.12)
 end
 tab.window:_updateLocation()
 end
@@ -10562,6 +10569,7 @@ for index,item in ipairs(self.Pages)do
 item.button.Position=UDim2.new((index-1)/count,0,0,0)
 item.button.Size=UDim2.new(1/count,0,1,0)
 end
+if self.window.current==self then self.window:_layoutBody()end
 if not self.current then self.current=page end
 if self.window.current==self then self:Select()end
 return page
@@ -11686,6 +11694,8 @@ Tabs={},flags={},binds={},maid=Util.maid(),
 width=size.X,height=size.Y,
 minSize=cfg.MinSize or Vector2.new(400,300),maxSize=cfg.MaxSize or Vector2.new(920,660),
 key=cfg.ToggleKey or Enum.KeyCode.RightShift,visible=true,folded=false,alive=true,
+dockSide=cfg.DockSide=="Bottom"and"Bottom"or"Right",
+pageTabs=cfg.PageTabs=="Header"and"Header"or"Row",
 },Window)
 require("loader").setTitle(self.Title)
 task.delay(3,function()self._keysSettled=true end)
@@ -11881,11 +11891,13 @@ Theme.bind(stroke(dock),"Color","line")
 self.dock=dock
 self.dockScale=create("UIScale",{Scale=1,Parent=dock})
 local dockGrip=create("TextButton",{Name="DragHandle",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.fromOffset(5,6),Size=UDim2.fromOffset(30,28),ZIndex=42,Parent=dock})
+local gripBars={}
 for _,lineY in ipairs({9,13,17})do
 local bar=create("Frame",{Position=UDim2.fromOffset(9,lineY),Size=UDim2.fromOffset(12,1),BorderSizePixel=0,ZIndex=43,Parent=dockGrip})
 Theme.bind(bar,"BackgroundColor3","muted")
+gripBars[#gripBars+1]=bar
 end
-self.dockGrip,self.dockDividers=dockGrip,{}
+self.dockGrip,self.dockGripBars,self.dockDividers=dockGrip,gripBars,{}
 local tip=create("Frame",{Name="Tooltip",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,22),BorderSizePixel=0,Visible=false,ZIndex=300,Parent=gui})
 Theme.bind(tip,"BackgroundColor3","card")
 corner(tip,6)
@@ -12008,36 +12020,115 @@ end
 function Window:_layout()
 if not self.alive then return end
 local viewport=Util.viewport()
-local total=self.width+DOCK_GAP+DOCK_WIDTH
-local s=math.clamp(math.min(self.uiScale or 1,(viewport.X-24)/total,(viewport.Y-24)/self.height),0.4,1.5)
+local total,tall=self:_extent()
+local s=math.clamp(math.min(self.uiScale or 1,(viewport.X-24)/total,(viewport.Y-24)/tall),0.4,1.5)
 self.scale.Scale,self.dockScale.Scale=s,s
 local height=self.folded and HEADER or self.height
 self.main.Size=UDim2.fromOffset(self.width,height)
 if not self.topLeft then
 local saved=self.memory and self.memory.window
 if type(saved)=="table"and tonumber(saved.x)and tonumber(saved.y)then
-local room=Vector2.new(viewport.X-total*s,viewport.Y-self.height*s)
+local room=Vector2.new(viewport.X-total*s,viewport.Y-tall*s)
 self.topLeft=Vector2.new(tonumber(saved.x)*room.X,tonumber(saved.y)*room.Y)
 else
-self.topLeft=Vector2.new((viewport.X-total*s)/2,(viewport.Y-self.height*s)/2)
+self.topLeft=Vector2.new((viewport.X-total*s)/2,(viewport.Y-tall*s)/2)
 end
 end
 local x=math.clamp(self.topLeft.X,8,math.max(8,viewport.X-total*s-8))
-local y=math.clamp(self.topLeft.Y,8,math.max(8,viewport.Y-height*s-8))
+local y=math.clamp(self.topLeft.Y,8,math.max(8,viewport.Y-(self.folded and height or tall)*s-8))
 self.topLeft=Vector2.new(x,y)
 self.main.Position=UDim2.fromOffset(x,y)
-self.dock.Size=UDim2.fromOffset(DOCK_WIDTH,self.dockHeight or DOCK_TOP)
+local length=self.dockHeight or DOCK_TOP
+if self.dockSide=="Bottom"then
+self.dock.Size=UDim2.fromOffset(length,DOCK_WIDTH)
+self.dock.Position=UDim2.fromOffset(x+(self.width-length)/2*s,y+(self.height+DOCK_GAP)*s)
+else
+self.dock.Size=UDim2.fromOffset(DOCK_WIDTH,length)
 self.dock.Position=UDim2.fromOffset(x+(self.width+DOCK_GAP)*s,y)
+end
 self.dock.Visible=self.main.Visible and not self.folded and#self.Tabs>0
 self.grip.Visible=not self.folded
 for _,tab in ipairs(self.Tabs)do for _,page in ipairs(tab.Pages)do page:_columns(self.width)end end
+self:_placePageTabs()
 self:_updateLocation()
+end
+function Window:_extent()
+if self.dockSide=="Bottom"then
+return math.max(self.width,self.dockHeight or DOCK_TOP),self.height+DOCK_GAP+DOCK_WIDTH
+end
+return self.width+DOCK_GAP+DOCK_WIDTH,self.height
+end
+function Window:SetDockSide(side)
+side=side=="Bottom"and"Bottom"or"Right"
+if side==self.dockSide then return end
+self.dockSide=side
+self:_layoutDock()
+self:_layout()
+self:_saveMemory()
+end
+function Window:SetPageTabs(mode)
+self.pageTabs=mode=="Header"and"Header"or"Row"
+self:_placePageTabs()
+self:_layoutBody()
+self:_updateLocation()
+end
+local PAGE_GAP=14
+function Window:_pageTabWidths(tab)
+local widths,total={},0
+for index,page in ipairs(tab.Pages)do
+widths[index]=Util.textWidth(page.Name,11,Enum.Font.GothamMedium)+PAGE_GAP
+total=total+widths[index]
+end
+return widths,total
+end
+function Window:_placePageTabs()
+local holder,tab=self.stripHolder,self.current
+if not holder then return end
+local inHeader=false
+if self.pageTabs=="Header"and tab and#tab.Pages>1 then
+local _,total=self:_pageTabWidths(tab)
+local room=self.width-(self.headerRight or 90)-16-self:_titleWidth()-16
+inHeader=total<=room
+end
+self.pagesInHeader=inHeader
+for _,other in ipairs(self.Tabs)do
+local header=inHeader and other==tab
+local widths=header and self:_pageTabWidths(other)or nil
+local x,count=0,#other.Pages
+for index,page in ipairs(other.Pages)do
+local button,underline=page.button,page.underline
+if header then
+button.Position,button.Size=UDim2.fromOffset(x,0),UDim2.fromOffset(widths[index],HEADER)
+button.TextSize=11
+underline.Size=UDim2.new(1,-14,0,2)
+x=x+widths[index]
+else
+button.Position,button.Size=UDim2.new((index-1)/count,0,0,0),UDim2.new(1/count,0,1,0)
+button.TextSize=10
+underline.Size=UDim2.fromOffset(math.max(12,Util.textWidth(page.Name,10,Enum.Font.GothamMedium)),1)
+end
+Theme.bind(button,"TextColor3",(other.current==page)and(header and"heading"or"accent")or(header and"muted"or"text"))
+end
+end
+if inHeader then
+local _,total=self:_pageTabWidths(tab)
+holder.Parent=self.main
+holder.AnchorPoint=Vector2.new(1,0)
+holder.Position=UDim2.new(1,-(self.headerRight or 90),0,0)
+holder.Size=UDim2.fromOffset(total,HEADER)
+else
+holder.Parent=self.body
+holder.AnchorPoint=Vector2.new(0,0)
+holder.Position=UDim2.fromOffset(16,6)
+holder.Size=UDim2.new(1,-32,0,26)
+end
 end
 function Window:_saveMemory()
 if self.cfg.SaveWindow==false or not self.alive then return end
 local viewport=Util.viewport()
 local s=self.scale.Scale
-local room=Vector2.new(math.max(1,viewport.X-(self.width+DOCK_GAP+DOCK_WIDTH)*s),math.max(1,viewport.Y-self.height*s))
+local total,tall=self:_extent()
+local room=Vector2.new(math.max(1,viewport.X-total*s),math.max(1,viewport.Y-tall*s))
 self.memory.window={
 x=math.clamp(self.topLeft.X/room.X,0,1),y=math.clamp(self.topLeft.Y/room.Y,0,1),w=self.width,h=self.height,
 }
@@ -12060,28 +12151,44 @@ local popup=self._popup
 self._popup=nil
 if popup then Util.safe(popup.close)end
 end
+function Window:_dockSpot(object,along,across)
+if self.dockSide=="Bottom"then object.Position=UDim2.fromOffset(along,across)
+else object.Position=UDim2.fromOffset(across,along)end
+end
+function Window:_dockLine(line,along)
+line.Size=self.dockSide=="Bottom"and UDim2.fromOffset(1,22)or UDim2.fromOffset(22,1)
+self:_dockSpot(line,along,9)
+end
 function Window:_layoutDock()
 for _,divider in ipairs(self.dockDividers)do divider:Destroy()end
 self.dockDividers={}
+local bottom=self.dockSide=="Bottom"
+self.dockGrip.Size=bottom and UDim2.fromOffset(28,30)or UDim2.fromOffset(30,28)
+self:_dockSpot(self.dockGrip,6,5)
+for index,bar in ipairs(self.dockGripBars)do
+bar.Position=UDim2.fromOffset(bottom and 8 or 9,(bottom and 10 or 9)+(index-1)*4)
+end
 local cursor=DOCK_TOP
 for _,tab in ipairs(self.Tabs)do
 if tab.Hidden then tab.button.Visible=false continue end
 tab.button.Visible=true
 if tab.Divider then
-local divider=create("Frame",{Name="Divider",Position=UDim2.fromOffset(9,cursor+1),Size=UDim2.fromOffset(22,1),BorderSizePixel=0,ZIndex=42,Parent=self.dock})
+local divider=create("Frame",{Name="Divider",BorderSizePixel=0,ZIndex=42,Parent=self.dock})
 Theme.bind(divider,"BackgroundColor3","line")
+self:_dockLine(divider,cursor+1)
 self.dockDividers[#self.dockDividers+1]=divider
 cursor=cursor+8
 end
 tab.y=cursor
-tab.button.Position=UDim2.fromOffset(5,cursor)
+self:_dockSpot(tab.button,cursor,5)
 cursor=cursor+DOCK_STEP
 end
 self.dockHeight=cursor+8
 end
 function Window:_layoutBody()
 local tab=self.current
-local top=(tab and#tab.Pages>1)and 38 or 6
+self:_placePageTabs()
+local top=(tab and#tab.Pages>1 and not self.pagesInHeader)and 38 or 6
 local bottom=self.hintBar.Visible and HINTS or 0
 self.pages.Position=UDim2.fromOffset(0,top)
 self.pages.Size=UDim2.new(1,0,1,-(top+bottom))
@@ -12122,7 +12229,7 @@ local full=(page and#tab.Pages>1)and(tab.Title.." › "..page.Name)or tab.Title
 local short=(page and#tab.Pages>1)and page.Name or tab.Title
 local function fits(text)return Util.textWidth(text,label.TextSize,label.Font)<=width end
 label.Text=fits(full)and full or short
-label.Visible=room>=40 and fits(label.Text)and not self.headerTabs.Visible
+label.Visible=room>=40 and fits(label.Text)and not self.headerTabs.Visible and not self.pagesInHeader
 label.Size=UDim2.fromOffset(width,20)
 end
 function Window:_addHeaderTab(tab)
@@ -12144,7 +12251,10 @@ local s=self.scale.Scale
 local dockX=self.dock.Position.X.Offset
 local top=self.dock.Position.Y.Offset+(y+5)*s
 self.tipText.Text=text
-if dockX+(DOCK_WIDTH+8)*s+150>Util.viewport().X then
+if self.dockSide=="Bottom"then
+self.tip.AnchorPoint=Vector2.new(0,1)
+self.tip.Position=UDim2.fromOffset(dockX+(y-2)*s,self.dock.Position.Y.Offset-6)
+elseif dockX+(DOCK_WIDTH+8)*s+150>Util.viewport().X then
 self.tip.AnchorPoint=Vector2.new(1,0)
 self.tip.Position=UDim2.fromOffset(dockX-8,top)
 else
@@ -12675,6 +12785,7 @@ self._slotX=(self._slotX or-74)-SLOT
 self.headerRight=-self._slotX+16
 if self.locationLabel then self.locationLabel.Position=UDim2.new(1,-self.headerRight,0,12)end
 if self.headerTabs then self.headerTabs.Position=UDim2.new(1,-self.headerRight,0,0)end
+if self._placePageTabs then self:_placePageTabs()end
 return self._slotX
 end
 function Window:HeaderButton(cfg)
@@ -12747,10 +12858,10 @@ local layoutDock=Window._layoutDock
 function Window:_layoutDock()
 layoutDock(self)
 if self._profile and self._profile.Visible then
-local y=self.dockHeight-2
-self._profileLine.Position=UDim2.fromOffset(9,y)
-self._profile.Position=UDim2.fromOffset(5,y+7)
-self.dockHeight=y+7+30+8
+local at=self.dockHeight-2
+self:_dockLine(self._profileLine,at)
+self:_dockSpot(self._profile,at+7,5)
+self.dockHeight=at+7+30+8
 end
 end
 function Window:SetMouseUnlock(on)
@@ -12836,7 +12947,8 @@ if mask then mask.Visible=on end
 Theme.tweenTo(ring,"Color",on and"accent"or"buttonEdge",0.12)
 end)
 button.MouseEnter:Connect(function()
-self:_dockTip(self.anonymous and"Anonymous · click to show"or(player.DisplayName.." · click to hide"),button.Position.Y.Offset)
+self:_dockTip(self.anonymous and"Anonymous · click to show"or(player.DisplayName.." · click to hide"),
+self.dockSide=="Bottom"and button.Position.X.Offset or button.Position.Y.Offset)
 end)
 button.MouseLeave:Connect(function()self:_hideTip()end)
 button.Activated:Connect(function()self:SetAnonymous(not self.anonymous)end)

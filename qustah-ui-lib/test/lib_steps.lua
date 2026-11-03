@@ -2348,6 +2348,36 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         check("interrupted fade ends shown and outside the CanvasGroup", window.main.Visible and window.main.Parent == window.gui)
     end
 
+    -- dock under the window, page names in the title row
+    do
+        local tab = Lib.Windows[1].Tabs[1]
+        local w = Lib.Windows[1]
+        local three
+        for _, t in ipairs(w.Tabs) do if #t.Pages == 3 then three = three or t end end
+        w:SetDockSide("Bottom") wait(0.2)
+        local d, m = w.dock, w.main
+        local under = d.Position.Y.Offset > m.Position.Y.Offset + m.Size.Y.Offset * w.scale.Scale - 1
+        local row = true
+        local lastX = -1
+        for _, t in ipairs(w.Tabs) do
+            if t.button.Visible then
+                if t.button.Position.Y.Offset ~= 5 or t.button.Position.X.Offset <= lastX then row = false end
+                lastX = t.button.Position.X.Offset
+            end
+        end
+        check("dock bottom: under the window, the tab buttons in a row", under and d.Size.Y.Offset == 40 and row)
+        w:SetDockSide("Right") wait(0.2)
+        check("dock right again: beside the window", w.dock.Size.X.Offset == 40 and w.dock.Position.X.Offset > m.Position.X.Offset)
+        if three then
+            three:Select() wait(0.2)
+            w:SetPageTabs("Header") wait(0.2)
+            check("page tabs in the title row: the row over the cards goes, the location too",
+                w.stripHolder.Parent == w.main and w.pagesInHeader and not w.locationLabel.Visible and w.pages.Position.Y.Offset == 6)
+            w:SetPageTabs("Row") wait(0.2)
+            check("page tabs back in their row", w.stripHolder.Parent == w.body and not w.pagesInHeader and w.pages.Position.Y.Offset == 38)
+        end
+        tab:Select() wait(0.1)
+    end
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
     check("old window destroyed on re-run", window.alive == false and gui.Parent == nil)
