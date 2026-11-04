@@ -157,7 +157,7 @@ return function(window, cfg)
             button.MouseEnter:Connect(function()
                 Theme.tweenTo(edge, "Color", "accentEdge", 0.1)
                 -- (small tiles show no state word: it comes up here)
-                if columns == 3 then
+                if columns == 3 and tileHeight < 42 then
                     local _, modules = window:GetModules()
                     local module = modules[name]
                     if module then window:_tip(name .. " · " .. module.state .. (module.detail and module.detail ~= "" and (" · " .. tostring(module.detail)) or "")) end
@@ -176,7 +176,35 @@ return function(window, cfg)
             local order, modules = window:GetModules()
             empty:SetVisible(#order == 0)
             columns = tonumber(cfg.ModuleColumns) or (#order > 6 and 3 or 2)
-            tileHeight = columns == 3 and 30 or 38
+            tileHeight = 38
+            if columns == 3 then
+                -- three a row: as tall as fills the card beside them (Session), so no empty space is left under them
+                local rowsWanted = math.max(1, math.ceil(#order / 3))
+                tileHeight = 30
+                -- a card's own height: its children (not the spacer MatchHeights adds) and the gaps between them
+                local scale = window.scale and window.scale.Scale or 1
+                local function natural(card, skip)
+                    local layout = card.frame:FindFirstChildOfClass("UIListLayout")
+                    local gap = layout and layout.Padding.Offset or 4
+                    local total, count = 0, 0
+                    for _, child in ipairs(card.frame:GetChildren()) do
+                        if child:IsA("GuiObject") and child.Visible and child.Name ~= "MatchSpacer" and child ~= skip then
+                            total = total + child.AbsoluteSize.Y / scale
+                            count = count + 1
+                        end
+                    end
+                    return total + math.max(0, count - 1) * gap
+                end
+                local sessionHeight = natural(session)
+                -- (the modules card without its grid)
+                local withoutGrid = natural(modulesCard)
+                local gridHeight = grid.AbsoluteSize.Y / scale
+                if sessionHeight > 0 and gridHeight > 0 then
+                    local free = sessionHeight - (withoutGrid - gridHeight)
+                    local fit = math.floor((free - (rowsWanted - 1) * 6 - 2) / rowsWanted)
+                    tileHeight = math.clamp(fit, 30, 58)
+                end
+            end
             -- (the grid's height set from its rows, not AutomaticSize: Session next to it matches it at once)
             local rows = math.ceil(#order / columns)
             grid.Size = UDim2.new(1, 0, 0, rows > 0 and rows * tileHeight + (rows - 1) * 6 or 0)
@@ -193,7 +221,18 @@ return function(window, cfg)
                 if hasIcon then Theme.bind(t.icon, "ImageColor3", module.state == "Off" and "muted" or "heading") end
                 local role = COLORS[module.state] or "muted"
                 t.pill.Text = string.upper(module.state)
-                if columns == 3 then
+                if columns == 3 and tileHeight >= 42 then
+                    -- name, the state under it (a dot and the word), centred in the tile's height
+                    t.icon.Visible = false
+                    t.pill.Visible = true
+                    t.title.TextSize = 10
+                    t.title.TextTruncate = Enum.TextTruncate.AtEnd
+                    t.title.Position = UDim2.new(0, 9, 0.5, -15)
+                    t.title.Size = UDim2.new(1, -14, 0, 15)
+                    t.dot.Position = UDim2.new(0, 9, 0.5, 6)
+                    t.pill.Position = UDim2.new(0, 18, 0.5, 0)
+                    t.pill.Size = UDim2.new(1, -22, 0, 12)
+                elseif columns == 3 then
                     -- one line: [dot] name, centred in the tile's height (no icon, no state word)
                     t.icon.Visible = false
                     t.pill.Visible = false
@@ -221,6 +260,16 @@ return function(window, cfg)
         window:OnStatusChanged(update)
         update()
         page:MatchHeights(session, modulesCard) -- (side by side, the same height)
+        -- (three a row fill the height of Session: measured again when it changes size)
+        local queued = false
+        local function remeasure()
+            if queued or columns ~= 3 then return end
+            queued = true
+            task.defer(function() queued = false update() end)
+        end
+        local sessionLayout = session.frame:FindFirstChildOfClass("UIListLayout")
+        if sessionLayout then sessionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(remeasure) end
+        session.frame:GetPropertyChangedSignal("Visible"):Connect(remeasure)
     end
 
     ------------------------------------------------------------ live values (only while the dashboard is open)

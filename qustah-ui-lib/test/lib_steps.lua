@@ -2384,8 +2384,9 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         for i = 1, 7 do w:SetModule("Extra" .. i, i % 2 == 0 and "On" or "Off") end
         wait(0.2)
         local tile = findIn("Modules", "Tile_Extra1")
-        check("modules: three tiles a row past six", tile and math.abs(tile.Size.X.Scale - 1 / 3) < 0.01 and tile.Parent.Size.Y.Offset == 30
-            and not tile:FindFirstChild("State").Visible and tile:FindFirstChild("StateDot") ~= nil)
+        local h = tile and tile.Parent.Size.Y.Offset or 0
+        check("modules: three tiles a row past six, as tall as fills the card (30 - 58)", tile and math.abs(tile.Size.X.Scale - 1 / 3) < 0.01 and h >= 30 and h <= 58
+            and tile:FindFirstChild("State").Visible == (h >= 42) and tile:FindFirstChild("StateDot") ~= nil)
     end
     -- Settings › Keys: every bound key, a key used twice in red, a click opens the setting
     do
