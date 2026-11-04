@@ -481,7 +481,8 @@ function Window:_placePageTabs()
     local holder, tab = self.stripHolder, self.current
     if not holder then return end
     local inHeader = false
-    if self.pageTabs == "Header" and tab and #tab.Pages > 1 then
+    -- (a header tab - Dashboard / Settings - has the header tabs up there: its pages keep the row)
+    if self.pageTabs == "Header" and tab and #tab.Pages > 1 and not (tab.Header and self.cfg.HeaderTabs ~= false) then
         local _, total = self:_pageTabWidths(tab)
         local room = self.width - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
         inHeader = total <= room

@@ -2,6 +2,7 @@
 --     Title = "Players", Height = 160, Search = false, Sortable = true,
 --     Columns = { "Name", { Title = "Kills", Width = 0.2, Align = "Right" }, { Title = "Team", Width = 0.25 } },
 --     Items = { { "Player1", 12, "Red" }, ... },
+--     RowColor = function(row, index) return row[2] > 10 and "success" or nil end, -- the first cell's theme role
 --     OnRowClick = function(row, index) end,
 -- })
 -- A scrolling table. Click a column header to sort by it (again for the other direction); numbers sort as
@@ -159,7 +160,9 @@ return function(card, cfg)
                 line.BackgroundTransparency = stripe
                 for index = 1, #columns do
                     local object = cell(line, index, item.row[index], x[index], index == 1)
-                    Theme.bind(object, "TextColor3", index == 1 and "heading" or "text")
+                    -- RowColor(row, index) -> a theme role ("danger"...) for the row's first cell
+                    local role = index == 1 and cfg.RowColor and cfg.RowColor(item.row, item.index) or nil
+                    Theme.bind(object, "TextColor3", role or (index == 1 and "heading" or "text"))
                 end
                 line.MouseEnter:Connect(function() Theme.tweenTo(line, "BackgroundColor3", "hover", 0.08) line.BackgroundTransparency = 0 end)
                 line.MouseLeave:Connect(function() Theme.tweenTo(line, "BackgroundColor3", "card", 0.08) line.BackgroundTransparency = stripe end)

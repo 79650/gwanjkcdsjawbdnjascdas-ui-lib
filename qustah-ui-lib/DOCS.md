@@ -690,6 +690,8 @@ Window:SettingsTab()                                                            
 
 **Settings › Profiles:** the saved profiles are cards (ItemCards: Load on each, ACTIVE / AUTO / LOCKED tags); a card's "..." opens its tools under the cards (note, rename, duplicate, overwrite, autoload, share, delete). See [Configs and profiles](#configs-and-profiles).
 
+**Settings › Keys:** every key the menu listens to (switch / button binds, keybinds, key hints, the menu key) with the setting and where it is; a key used twice is red with a `!`, and a click on a row opens that setting.
+
 **Settings › Info:** About (versions, secure mode, link buttons, "Show the tour"), kick list, Modules (each module's state over the last 15 minutes), Executor (which functions it has and what they are needed for), "What's new" (the `Changelog` and its history as open-on-click notes), Errors (a Debug switch in the card's title, Copy debug info, Clear) and This session (uptime, errors caught, your `Window:Count` counters, Lua memory).
 
 ## Overlays
@@ -796,7 +798,7 @@ Window:ReportError("ESP", "attempt to index nil")
 Window:GetErrorReport()   Window:ClearErrors()
 ```
 
-Modules are shown on the Dashboard and in Settings › Info. The footer updates by itself: `Connected` / `Limited` / `Errors: N`.
+Modules are shown on the Dashboard (two tiles a row; past six, three smaller ones with the state on hover - `DashboardTab({ ModuleColumns = 2 })` keeps two) and in Settings › Info. The footer updates by itself: `Connected` / `Limited` / `Errors: N`.
 
 **Kick watcher**
 - When the game disconnects you, the reason and error code are recorded.

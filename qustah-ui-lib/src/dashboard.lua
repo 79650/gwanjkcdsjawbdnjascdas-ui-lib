@@ -123,22 +123,26 @@ return function(window, cfg)
         local grid = create("Frame", { Name = "ModuleGrid", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = modulesCard:_order(), Parent = modulesCard.body })
         Util.list(grid, 6)
         local tiles, gridRows = {}, {}
-        -- two tiles per row (plain rows: they size with the card at any width / UI scale)
+        -- two tiles per row; past six modules three smaller ones (name and a state dot, the state on hover)
+        -- (plain rows: they size with the card at any width / UI scale). ModuleColumns = 2 | 3 fixes it.
+        local columns, tileHeight = 2, 38
         local function rowFor(index)
-            local number = math.ceil(index / 2)
-            if not gridRows[number] then
-                local holder = create("Frame", { Name = "Row" .. number, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 38), LayoutOrder = number, Parent = grid })
+            local number = math.ceil(index / columns)
+            local holder = gridRows[number]
+            if not holder then
+                holder = create("Frame", { Name = "Row" .. number, BackgroundTransparency = 1, LayoutOrder = number, Parent = grid })
                 Util.list(holder, 6, Enum.FillDirection.Horizontal)
                 gridRows[number] = holder
             end
-            return gridRows[number]
+            holder.Size = UDim2.new(1, 0, 0, tileHeight)
+            return holder
         end
         local COLORS = { On = "success", Limited = "warning", Error = "danger" }
         local function tabNamed(name)
             for _, t in ipairs(window.Tabs) do if t.Title == name then return t end end
         end
         local function tile(name, index)
-            local button = create("TextButton", { Name = "Tile_" .. name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, Size = UDim2.new(0.5, -3, 1, 0), LayoutOrder = index, Parent = rowFor(index) })
+            local button = create("TextButton", { Name = "Tile_" .. name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, Size = UDim2.new(0.5, -3, 1, 0), LayoutOrder = index, Parent = grid })
             Theme.bind(button, "BackgroundColor3", "input")
             corner(button, 7)
             local edge = stroke(button)
@@ -150,8 +154,16 @@ return function(window, cfg)
             local pill = label(button, "", 8, { Name = "State", Position = UDim2.fromOffset(20, 20), Size = UDim2.new(1, -28, 0, 12), Font = Enum.Font.GothamBold })
             local stateDot = create("Frame", { Name = "StateDot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromOffset(10, 26), Size = UDim2.fromOffset(5, 5), BorderSizePixel = 0, Parent = button })
             corner(stateDot, 3)
-            button.MouseEnter:Connect(function() Theme.tweenTo(edge, "Color", "accentEdge", 0.1) end)
-            button.MouseLeave:Connect(function() Theme.tweenTo(edge, "Color", "line", 0.1) end)
+            button.MouseEnter:Connect(function()
+                Theme.tweenTo(edge, "Color", "accentEdge", 0.1)
+                -- (small tiles show no state word: it comes up here)
+                if columns == 3 then
+                    local _, modules = window:GetModules()
+                    local module = modules[name]
+                    if module then window:_tip(name .. " · " .. module.state .. (module.detail and module.detail ~= "" and (" · " .. tostring(module.detail)) or "")) end
+                end
+            end)
+            button.MouseLeave:Connect(function() Theme.tweenTo(edge, "Color", "line", 0.1) window:_hideTip() end)
             button.Activated:Connect(function()
                 local meta = window.moduleMeta and window.moduleMeta[name]
                 local target = meta and meta.Tab and tabNamed(meta.Tab)
@@ -163,11 +175,17 @@ return function(window, cfg)
         local function update()
             local order, modules = window:GetModules()
             empty:SetVisible(#order == 0)
+            columns = tonumber(cfg.ModuleColumns) or (#order > 6 and 3 or 2)
+            tileHeight = columns == 3 and 30 or 38
             -- (the grid's height set from its rows, not AutomaticSize: Session next to it matches it at once)
-            local rows = math.ceil(#order / 2)
-            grid.Size = UDim2.new(1, 0, 0, rows > 0 and rows * 38 + (rows - 1) * 6 or 0)
+            local rows = math.ceil(#order / columns)
+            grid.Size = UDim2.new(1, 0, 0, rows > 0 and rows * tileHeight + (rows - 1) * 6 or 0)
+            for number, holder in pairs(gridRows) do holder.Visible = number <= rows end
             for index, name in ipairs(order) do
                 local t = tiles[name] or tile(name, index)
+                t.button.Parent = rowFor(index)
+                t.button.LayoutOrder = index
+                t.button.Size = UDim2.new(1 / columns, columns == 3 and -4 or -3, 1, 0)
                 local module = modules[name]
                 local meta = window.moduleMeta and window.moduleMeta[name]
                 local hasIcon = meta and meta.Icon and Icons.Apply(t.icon, meta.Icon) or false
@@ -175,12 +193,25 @@ return function(window, cfg)
                 if hasIcon then Theme.bind(t.icon, "ImageColor3", module.state == "Off" and "muted" or "heading") end
                 local role = COLORS[module.state] or "muted"
                 t.pill.Text = string.upper(module.state)
-                local lead = hasIcon and 31 or 10
-                t.title.Position = UDim2.fromOffset(lead, 5)
-                t.title.Size = UDim2.new(1, -lead - 8, 0, 15)
-                t.dot.Position = UDim2.fromOffset(lead, 26)
-                t.pill.Position = UDim2.fromOffset(lead + 9, 20)
-                t.pill.Size = UDim2.new(1, -lead - 17, 0, 12)
+                if columns == 3 then
+                    -- one line: [dot] name, centred in the tile's height (no icon, no state word)
+                    t.icon.Visible = false
+                    t.pill.Visible = false
+                    t.dot.Position = UDim2.new(0, 7, 0.5, 0)
+                    t.title.Position = UDim2.new(0, 16, 0.5, -8)
+                    t.title.Size = UDim2.new(1, -19, 0, 16)
+                    t.title.TextSize = 9
+                    t.title.TextTruncate = Enum.TextTruncate.AtEnd
+                else
+                    local lead = hasIcon and 31 or 10
+                    t.pill.Visible = true
+                    t.title.TextSize = 10
+                    t.title.Position = UDim2.fromOffset(lead, 5)
+                    t.title.Size = UDim2.new(1, -lead - 8, 0, 15)
+                    t.dot.Position = UDim2.fromOffset(lead, 26)
+                    t.pill.Position = UDim2.fromOffset(lead + 9, 20)
+                    t.pill.Size = UDim2.new(1, -lead - 17, 0, 12)
+                end
                 Theme.bind(t.pill, "TextColor3", role)
                 Theme.bind(t.dot, "BackgroundColor3", role)
                 Theme.bind(t.title, "TextColor3", module.state == "Off" and "muted" or "text")

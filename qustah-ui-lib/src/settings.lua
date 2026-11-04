@@ -2,6 +2,7 @@
 --   Interface  theme pack, accent presets + custom colour, font, text glow, menu key, overlays (watermark,
 --              keybind list, session bar, performance monitor), window reset / unload
 --   Profiles   see profiles.lua (active profile + unsaved changes, share codes, notes, search...)
+--   Keys       every bound key, the ones used twice in red; a click opens the setting
 --   Info       versions, modules, error list with Copy report / Clear
 local Util = require("util")
 local Theme = require("theme")
@@ -17,6 +18,7 @@ return function(window, cfg)
     local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = cfg.Icon or "settings", Divider = cfg.Divider ~= false, Header = cfg.Header ~= false })
     local interface = tab:Page("Interface")
     local profiles = tab:Page("Profiles", { Columns = 1 })
+    local keysPage = tab:Page("Keys", { Columns = 1 })
     local infoPage = tab:Page("Info")
 
     ------------------------------------------------------------ interface
@@ -278,6 +280,73 @@ return function(window, cfg)
     Profiles(window, profiles, window.Config.Defaults)
 
     ------------------------------------------------------------ info
+    ------------------------------------------------------------ keys
+    -- every key the menu listens to: switches / buttons with a bind, keybinds, key hints and the menu key. A key
+    -- used twice is marked (!); a click on a row opens the setting it belongs to.
+    do
+        local card = keysPage:Card({ Title = "Keys", Icon = "keyboard", Wide = true, Desc = "Every bound key" })
+        local list
+        local rows = {}
+        local function where(element)
+            local page = element.Card and element.Card.page
+            local owner = page and page.tab
+            if not owner then return "" end
+            return #owner.Pages > 1 and (owner.Title .. " › " .. page.Name) or owner.Title
+        end
+        local function refresh()
+            local conflicts = window:GetKeyConflicts()
+            table.clear(rows)
+            rows[#rows + 1] = { key = Util.keyName(window.key), title = "Open / close the menu", place = "Settings › Interface" }
+            for element, key in pairs(window.binds) do
+                if key ~= nil and element.Row and element.Row.Parent and not (type(element.Flag) == "string" and element.Flag:sub(1, 2) == "__") then
+                    local name = Util.keyName(key)
+                    if element.Chord and element.Chord[1] ~= nil and element.Chord[2] ~= nil then
+                        name = Util.keyName(element.Chord[1]) .. " + " .. Util.keyName(element.Chord[2])
+                    end
+                    if name ~= "None" then
+                        -- (the card's title in front when the element's own one says little: "Click to Teleport › Keys")
+                        local title = tostring(element.Title or element.Type or "Key")
+                        local cardTitle = element.Card and element.Card.title
+                        if type(cardTitle) == "string" and cardTitle ~= "" and cardTitle ~= title and #title <= 8 then title = cardTitle .. " › " .. title end
+                        rows[#rows + 1] = { key = name, title = title, place = where(element), element = element,
+                            clash = conflicts[name] ~= nil }
+                    end
+                end
+            end
+            if conflicts[Util.keyName(window.key)] then rows[1].clash = true end
+            table.sort(rows, function(a, b) if a.key ~= b.key then return a.key < b.key end return a.title < b.title end)
+            local items, clashes = {}, {}
+            for _, row in ipairs(rows) do
+                items[#items + 1] = { (row.clash and "! " or "") .. row.key, row.title, row.place }
+                if row.clash then clashes[row.key] = true end
+            end
+            local count = 0
+            for _ in pairs(clashes) do count = count + 1 end
+            card:SetDesc(#rows .. " keys" .. (count > 0 and (" · " .. count .. " used twice (!)") or " · no key used twice"))
+            list:SetItems(items)
+        end
+        list = card:Table({
+            Height = 230, Search = true, Columns = { { Title = "Key", Width = 0.26 }, { Title = "Setting", Width = 0.4 }, "Where" },
+            Items = {},
+            RowColor = function(row) return tostring(row[1]):sub(1, 2) == "! " and "danger" or nil end,
+            OnRowClick = function(_, index)
+                local row = rows[index]
+                local element = row and row.element
+                local page = element and element.Card and element.Card.page
+                if not page then return end
+                page.tab:Select() page:Select()
+                task.defer(function() pcall(element.Flash, element) end)
+            end,
+        })
+        -- (filled when the page opens, and again after a key changes while it is open)
+        keysPage.frame:GetPropertyChangedSignal("Visible"):Connect(function() if keysPage.frame.Visible then refresh() end end)
+        local check = window._checkKeys
+        window._checkKeys = function(self, ...)
+            check(self, ...)
+            if keysPage.frame.Visible then refresh() end
+        end
+    end
+
     local about = infoPage:Card({ Title = "About", Side = "Left", Icon = "info" })
     if window.Version ~= "" then about:Info({ Title = window.Title, Value = window.Version }) end
     about:Info({ Title = "qustah-ui-lib", Value = "v" .. tostring(window.Lib.Version) })

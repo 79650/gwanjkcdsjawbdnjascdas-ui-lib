@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.11.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.12.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1154,22 +1154,26 @@ return function(window, cfg)
         local grid = create("Frame", { Name = "ModuleGrid", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = modulesCard:_order(), Parent = modulesCard.body })
         Util.list(grid, 6)
         local tiles, gridRows = {}, {}
-        -- two tiles per row (plain rows: they size with the card at any width / UI scale)
+        -- two tiles per row; past six modules three smaller ones (name and a state dot, the state on hover)
+        -- (plain rows: they size with the card at any width / UI scale). ModuleColumns = 2 | 3 fixes it.
+        local columns, tileHeight = 2, 38
         local function rowFor(index)
-            local number = math.ceil(index / 2)
-            if not gridRows[number] then
-                local holder = create("Frame", { Name = "Row" .. number, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 38), LayoutOrder = number, Parent = grid })
+            local number = math.ceil(index / columns)
+            local holder = gridRows[number]
+            if not holder then
+                holder = create("Frame", { Name = "Row" .. number, BackgroundTransparency = 1, LayoutOrder = number, Parent = grid })
                 Util.list(holder, 6, Enum.FillDirection.Horizontal)
                 gridRows[number] = holder
             end
-            return gridRows[number]
+            holder.Size = UDim2.new(1, 0, 0, tileHeight)
+            return holder
         end
         local COLORS = { On = "success", Limited = "warning", Error = "danger" }
         local function tabNamed(name)
             for _, t in ipairs(window.Tabs) do if t.Title == name then return t end end
         end
         local function tile(name, index)
-            local button = create("TextButton", { Name = "Tile_" .. name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, Size = UDim2.new(0.5, -3, 1, 0), LayoutOrder = index, Parent = rowFor(index) })
+            local button = create("TextButton", { Name = "Tile_" .. name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, Size = UDim2.new(0.5, -3, 1, 0), LayoutOrder = index, Parent = grid })
             Theme.bind(button, "BackgroundColor3", "input")
             corner(button, 7)
             local edge = stroke(button)
@@ -1181,8 +1185,16 @@ return function(window, cfg)
             local pill = label(button, "", 8, { Name = "State", Position = UDim2.fromOffset(20, 20), Size = UDim2.new(1, -28, 0, 12), Font = Enum.Font.GothamBold })
             local stateDot = create("Frame", { Name = "StateDot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromOffset(10, 26), Size = UDim2.fromOffset(5, 5), BorderSizePixel = 0, Parent = button })
             corner(stateDot, 3)
-            button.MouseEnter:Connect(function() Theme.tweenTo(edge, "Color", "accentEdge", 0.1) end)
-            button.MouseLeave:Connect(function() Theme.tweenTo(edge, "Color", "line", 0.1) end)
+            button.MouseEnter:Connect(function()
+                Theme.tweenTo(edge, "Color", "accentEdge", 0.1)
+                -- (small tiles show no state word: it comes up here)
+                if columns == 3 then
+                    local _, modules = window:GetModules()
+                    local module = modules[name]
+                    if module then window:_tip(name .. " · " .. module.state .. (module.detail and module.detail ~= "" and (" · " .. tostring(module.detail)) or "")) end
+                end
+            end)
+            button.MouseLeave:Connect(function() Theme.tweenTo(edge, "Color", "line", 0.1) window:_hideTip() end)
             button.Activated:Connect(function()
                 local meta = window.moduleMeta and window.moduleMeta[name]
                 local target = meta and meta.Tab and tabNamed(meta.Tab)
@@ -1194,11 +1206,17 @@ return function(window, cfg)
         local function update()
             local order, modules = window:GetModules()
             empty:SetVisible(#order == 0)
+            columns = tonumber(cfg.ModuleColumns) or (#order > 6 and 3 or 2)
+            tileHeight = columns == 3 and 30 or 38
             -- (the grid's height set from its rows, not AutomaticSize: Session next to it matches it at once)
-            local rows = math.ceil(#order / 2)
-            grid.Size = UDim2.new(1, 0, 0, rows > 0 and rows * 38 + (rows - 1) * 6 or 0)
+            local rows = math.ceil(#order / columns)
+            grid.Size = UDim2.new(1, 0, 0, rows > 0 and rows * tileHeight + (rows - 1) * 6 or 0)
+            for number, holder in pairs(gridRows) do holder.Visible = number <= rows end
             for index, name in ipairs(order) do
                 local t = tiles[name] or tile(name, index)
+                t.button.Parent = rowFor(index)
+                t.button.LayoutOrder = index
+                t.button.Size = UDim2.new(1 / columns, columns == 3 and -4 or -3, 1, 0)
                 local module = modules[name]
                 local meta = window.moduleMeta and window.moduleMeta[name]
                 local hasIcon = meta and meta.Icon and Icons.Apply(t.icon, meta.Icon) or false
@@ -1206,12 +1224,25 @@ return function(window, cfg)
                 if hasIcon then Theme.bind(t.icon, "ImageColor3", module.state == "Off" and "muted" or "heading") end
                 local role = COLORS[module.state] or "muted"
                 t.pill.Text = string.upper(module.state)
-                local lead = hasIcon and 31 or 10
-                t.title.Position = UDim2.fromOffset(lead, 5)
-                t.title.Size = UDim2.new(1, -lead - 8, 0, 15)
-                t.dot.Position = UDim2.fromOffset(lead, 26)
-                t.pill.Position = UDim2.fromOffset(lead + 9, 20)
-                t.pill.Size = UDim2.new(1, -lead - 17, 0, 12)
+                if columns == 3 then
+                    -- one line: [dot] name, centred in the tile's height (no icon, no state word)
+                    t.icon.Visible = false
+                    t.pill.Visible = false
+                    t.dot.Position = UDim2.new(0, 7, 0.5, 0)
+                    t.title.Position = UDim2.new(0, 16, 0.5, -8)
+                    t.title.Size = UDim2.new(1, -19, 0, 16)
+                    t.title.TextSize = 9
+                    t.title.TextTruncate = Enum.TextTruncate.AtEnd
+                else
+                    local lead = hasIcon and 31 or 10
+                    t.pill.Visible = true
+                    t.title.TextSize = 10
+                    t.title.Position = UDim2.fromOffset(lead, 5)
+                    t.title.Size = UDim2.new(1, -lead - 8, 0, 15)
+                    t.dot.Position = UDim2.fromOffset(lead, 26)
+                    t.pill.Position = UDim2.fromOffset(lead + 9, 20)
+                    t.pill.Size = UDim2.new(1, -lead - 17, 0, 12)
+                end
                 Theme.bind(t.pill, "TextColor3", role)
                 Theme.bind(t.dot, "BackgroundColor3", role)
                 Theme.bind(t.title, "TextColor3", module.state == "Off" and "muted" or "text")
@@ -7293,6 +7324,7 @@ __modules["elements/table"] = function()
 --     Title = "Players", Height = 160, Search = false, Sortable = true,
 --     Columns = { "Name", { Title = "Kills", Width = 0.2, Align = "Right" }, { Title = "Team", Width = 0.25 } },
 --     Items = { { "Player1", 12, "Red" }, ... },
+--     RowColor = function(row, index) return row[2] > 10 and "success" or nil end, -- the first cell's theme role
 --     OnRowClick = function(row, index) end,
 -- })
 -- A scrolling table. Click a column header to sort by it (again for the other direction); numbers sort as
@@ -7450,7 +7482,9 @@ return function(card, cfg)
                 line.BackgroundTransparency = stripe
                 for index = 1, #columns do
                     local object = cell(line, index, item.row[index], x[index], index == 1)
-                    Theme.bind(object, "TextColor3", index == 1 and "heading" or "text")
+                    -- RowColor(row, index) -> a theme role ("danger"...) for the row's first cell
+                    local role = index == 1 and cfg.RowColor and cfg.RowColor(item.row, item.index) or nil
+                    Theme.bind(object, "TextColor3", role or (index == 1 and "heading" or "text"))
                 end
                 line.MouseEnter:Connect(function() Theme.tweenTo(line, "BackgroundColor3", "hover", 0.08) line.BackgroundTransparency = 0 end)
                 line.MouseLeave:Connect(function() Theme.tweenTo(line, "BackgroundColor3", "card", 0.08) line.BackgroundTransparency = stripe end)
@@ -9717,7 +9751,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.11.0",
+    Version = "1.12.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -10883,6 +10917,7 @@ __modules["settings"] = function()
 --   Interface  theme pack, accent presets + custom colour, font, text glow, menu key, overlays (watermark,
 --              keybind list, session bar, performance monitor), window reset / unload
 --   Profiles   see profiles.lua (active profile + unsaved changes, share codes, notes, search...)
+--   Keys       every bound key, the ones used twice in red; a click opens the setting
 --   Info       versions, modules, error list with Copy report / Clear
 local Util = require("util")
 local Theme = require("theme")
@@ -10898,6 +10933,7 @@ return function(window, cfg)
     local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = cfg.Icon or "settings", Divider = cfg.Divider ~= false, Header = cfg.Header ~= false })
     local interface = tab:Page("Interface")
     local profiles = tab:Page("Profiles", { Columns = 1 })
+    local keysPage = tab:Page("Keys", { Columns = 1 })
     local infoPage = tab:Page("Info")
 
     ------------------------------------------------------------ interface
@@ -11159,6 +11195,73 @@ return function(window, cfg)
     Profiles(window, profiles, window.Config.Defaults)
 
     ------------------------------------------------------------ info
+    ------------------------------------------------------------ keys
+    -- every key the menu listens to: switches / buttons with a bind, keybinds, key hints and the menu key. A key
+    -- used twice is marked (!); a click on a row opens the setting it belongs to.
+    do
+        local card = keysPage:Card({ Title = "Keys", Icon = "keyboard", Wide = true, Desc = "Every bound key" })
+        local list
+        local rows = {}
+        local function where(element)
+            local page = element.Card and element.Card.page
+            local owner = page and page.tab
+            if not owner then return "" end
+            return #owner.Pages > 1 and (owner.Title .. " › " .. page.Name) or owner.Title
+        end
+        local function refresh()
+            local conflicts = window:GetKeyConflicts()
+            table.clear(rows)
+            rows[#rows + 1] = { key = Util.keyName(window.key), title = "Open / close the menu", place = "Settings › Interface" }
+            for element, key in pairs(window.binds) do
+                if key ~= nil and element.Row and element.Row.Parent and not (type(element.Flag) == "string" and element.Flag:sub(1, 2) == "__") then
+                    local name = Util.keyName(key)
+                    if element.Chord and element.Chord[1] ~= nil and element.Chord[2] ~= nil then
+                        name = Util.keyName(element.Chord[1]) .. " + " .. Util.keyName(element.Chord[2])
+                    end
+                    if name ~= "None" then
+                        -- (the card's title in front when the element's own one says little: "Click to Teleport › Keys")
+                        local title = tostring(element.Title or element.Type or "Key")
+                        local cardTitle = element.Card and element.Card.title
+                        if type(cardTitle) == "string" and cardTitle ~= "" and cardTitle ~= title and #title <= 8 then title = cardTitle .. " › " .. title end
+                        rows[#rows + 1] = { key = name, title = title, place = where(element), element = element,
+                            clash = conflicts[name] ~= nil }
+                    end
+                end
+            end
+            if conflicts[Util.keyName(window.key)] then rows[1].clash = true end
+            table.sort(rows, function(a, b) if a.key ~= b.key then return a.key < b.key end return a.title < b.title end)
+            local items, clashes = {}, {}
+            for _, row in ipairs(rows) do
+                items[#items + 1] = { (row.clash and "! " or "") .. row.key, row.title, row.place }
+                if row.clash then clashes[row.key] = true end
+            end
+            local count = 0
+            for _ in pairs(clashes) do count = count + 1 end
+            card:SetDesc(#rows .. " keys" .. (count > 0 and (" · " .. count .. " used twice (!)") or " · no key used twice"))
+            list:SetItems(items)
+        end
+        list = card:Table({
+            Height = 230, Search = true, Columns = { { Title = "Key", Width = 0.26 }, { Title = "Setting", Width = 0.4 }, "Where" },
+            Items = {},
+            RowColor = function(row) return tostring(row[1]):sub(1, 2) == "! " and "danger" or nil end,
+            OnRowClick = function(_, index)
+                local row = rows[index]
+                local element = row and row.element
+                local page = element and element.Card and element.Card.page
+                if not page then return end
+                page.tab:Select() page:Select()
+                task.defer(function() pcall(element.Flash, element) end)
+            end,
+        })
+        -- (filled when the page opens, and again after a key changes while it is open)
+        keysPage.frame:GetPropertyChangedSignal("Visible"):Connect(function() if keysPage.frame.Visible then refresh() end end)
+        local check = window._checkKeys
+        window._checkKeys = function(self, ...)
+            check(self, ...)
+            if keysPage.frame.Visible then refresh() end
+        end
+    end
+
     local about = infoPage:Card({ Title = "About", Side = "Left", Icon = "info" })
     if window.Version ~= "" then about:Info({ Title = window.Title, Value = window.Version }) end
     about:Info({ Title = "qustah-ui-lib", Value = "v" .. tostring(window.Lib.Version) })
@@ -13800,7 +13903,8 @@ function Window:_placePageTabs()
     local holder, tab = self.stripHolder, self.current
     if not holder then return end
     local inHeader = false
-    if self.pageTabs == "Header" and tab and #tab.Pages > 1 then
+    -- (a header tab - Dashboard / Settings - has the header tabs up there: its pages keep the row)
+    if self.pageTabs == "Header" and tab and #tab.Pages > 1 and not (tab.Header and self.cfg.HeaderTabs ~= false) then
         local _, total = self:_pageTabWidths(tab)
         local room = self.width - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
         inHeader = total <= room

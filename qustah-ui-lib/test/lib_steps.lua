@@ -734,7 +734,7 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("default restores start values", F.espRange == 1500 and store.Active == nil)
 
     -- info page
-    settingsTab.Pages[3]:Select() wait(0.1)
+    settingsTab.Pages[4]:Select() wait(0.1)
     window:ReportError("ESP", "render failed") wait(0.1)
     check("info lists errors", findIn("Errors", "Content").Text:find("render failed") ~= nil)
     MOCK.click(find("Copy debug info"):FindFirstChild("Button")) wait(0.1)
@@ -2377,6 +2377,48 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
             check("page tabs back in their row", w.stripHolder.Parent == w.body and not w.pagesInHeader and w.pages.Position.Y.Offset == 38)
         end
         tab:Select() wait(0.1)
+    end
+    -- more than six modules: three smaller tiles a row (name and a state dot)
+    do
+        local w = Lib.Windows[1]
+        for i = 1, 7 do w:SetModule("Extra" .. i, i % 2 == 0 and "On" or "Off") end
+        wait(0.2)
+        local tile = findIn("Modules", "Tile_Extra1")
+        check("modules: three tiles a row past six", tile and math.abs(tile.Size.X.Scale - 1 / 3) < 0.01 and tile.Parent.Size.Y.Offset == 30
+            and not tile:FindFirstChild("State").Visible and tile:FindFirstChild("StateDot") ~= nil)
+    end
+    -- Settings › Keys: every bound key, a key used twice in red, a click opens the setting
+    do
+        local w = Lib.Windows[1]
+        local settings
+        for _, t in ipairs(w.Tabs) do if t.Title == "Settings" then settings = t end end
+        local keys
+        for _, p in ipairs(settings.Pages) do if p.Name == "Keys" then keys = p end end
+        local a, b
+        for _, t in ipairs(w.Tabs) do
+            if t ~= settings and t.Pages[1] and not a then
+                local c = t.Pages[1]:Card({ Title = "KeyTestCard" })
+                a = c:Toggle({ Title = "KeyTestA", Flag = "keyTestA", Bind = Enum.KeyCode.F7 })
+                b = c:Button({ Title = "KeyTestB", Bind = Enum.KeyCode.F7, Callback = function() end })
+            end
+        end
+        wait(0.2)
+        settings:Select() keys:Select() wait(0.3)
+        local table_ = keys.frame:FindFirstChild("Table", true)
+        local found, red = false, false
+        for _, d in ipairs(keys.frame:GetDescendants()) do
+            if d:IsA("TextLabel") and d.Text == "! F7" then found = true red = d.TextColor3 == Lib.Theme.get("danger") end
+        end
+        check("keys page: a key used twice is listed in red", found and red)
+        local row
+        for _, d in ipairs(keys.frame:GetDescendants()) do
+            if d:IsA("TextButton") and d.Name:match("^Row") then
+                for _, c in ipairs(d:GetChildren()) do if c:IsA("TextLabel") and c.Text:find("KeyTestA", 1, true) then row = d end end
+            end
+        end
+        if row then MOCK.click(row) wait(0.2) end
+        check("keys page: a click opens the setting's tab", row ~= nil and w.current ~= settings)
+        a:Destroy() b:Destroy()
     end
     -- re-creating a window with the same title replaces the old one
     local second = Lib:CreateWindow({ Title = "Qustāh" }) wait(0.1)
