@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.12.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.12.2 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1165,7 +1165,8 @@ return function(window, cfg)
                 Util.list(holder, 6, Enum.FillDirection.Horizontal)
                 gridRows[number] = holder
             end
-            holder.Size = UDim2.new(1, 0, 0, tileHeight)
+            local size = UDim2.new(1, 0, 0, tileHeight)
+            if holder.Size ~= size then holder.Size = size end
             return holder
         end
         local COLORS = { On = "success", Limited = "warning", Error = "danger" }
@@ -1211,7 +1212,7 @@ return function(window, cfg)
             if columns == 3 then
                 -- three a row: as tall as fills the card beside them (Session), so no empty space is left under them
                 local rowsWanted = math.max(1, math.ceil(#order / 3))
-                tileHeight = 30
+                tileHeight = 46 -- (until it can be measured)
                 -- a card's own height: its children (not the spacer MatchHeights adds) and the gaps between them
                 local scale = window.scale and window.scale.Scale or 1
                 local function natural(card, skip)
@@ -1238,7 +1239,8 @@ return function(window, cfg)
             end
             -- (the grid's height set from its rows, not AutomaticSize: Session next to it matches it at once)
             local rows = math.ceil(#order / columns)
-            grid.Size = UDim2.new(1, 0, 0, rows > 0 and rows * tileHeight + (rows - 1) * 6 or 0)
+            local gridSize = UDim2.new(1, 0, 0, rows > 0 and rows * tileHeight + (rows - 1) * 6 or 0)
+            if grid.Size ~= gridSize then grid.Size = gridSize end
             for number, holder in pairs(gridRows) do holder.Visible = number <= rows end
             for index, name in ipairs(order) do
                 local t = tiles[name] or tile(name, index)
@@ -1298,9 +1300,15 @@ return function(window, cfg)
             queued = true
             task.defer(function() queued = false update() end)
         end
+        -- (in game the first measure can come before the cards have a size: measured again whenever one of them,
+        -- the grid or the page changes size or shows; the same result changes nothing, so this settles at once)
         local sessionLayout = session.frame:FindFirstChildOfClass("UIListLayout")
         if sessionLayout then sessionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(remeasure) end
-        session.frame:GetPropertyChangedSignal("Visible"):Connect(remeasure)
+        for _, object in ipairs({ session.frame, modulesCard.frame, grid, page.frame }) do
+            object:GetPropertyChangedSignal("AbsoluteSize"):Connect(remeasure)
+            object:GetPropertyChangedSignal("Visible"):Connect(remeasure)
+        end
+        task.delay(1, remeasure)
     end
 
     ------------------------------------------------------------ live values (only while the dashboard is open)
@@ -9800,7 +9808,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.12.1",
+    Version = "1.12.2",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
