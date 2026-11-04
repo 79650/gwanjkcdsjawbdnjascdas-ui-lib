@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.12.2 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.12.3 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -1019,8 +1019,6 @@ holder=create("Frame",{Name="Row"..number,BackgroundTransparency=1,LayoutOrder=n
 Util.list(holder,6,Enum.FillDirection.Horizontal)
 gridRows[number]=holder
 end
-local size=UDim2.new(1,0,0,tileHeight)
-if holder.Size~=size then holder.Size=size end
 return holder
 end
 local COLORS={On="success",Limited="warning",Error="danger"}
@@ -1056,7 +1054,9 @@ end)
 tiles[name]={button=button,icon=icon,title=title,pill=pill,dot=stateDot}
 return tiles[name]
 end
+local exactGrid,lastExtra=nil,0
 local function update()
+exactGrid=nil
 local order,modules=window:GetModules()
 empty:SetVisible(#order==0)
 columns=tonumber(cfg.ModuleColumns)or(#order>6 and 3 or 2)
@@ -1081,15 +1081,24 @@ local sessionHeight=natural(session)
 local withoutGrid=natural(modulesCard)
 local gridHeight=grid.AbsoluteSize.Y/scale
 if sessionHeight>0 and gridHeight>0 then
-local free=sessionHeight-(withoutGrid-gridHeight)
-local fit=math.floor((free-(rowsWanted-1)*6-2)/rowsWanted)
+local free=math.floor(sessionHeight-(withoutGrid-gridHeight)+0.5)
+local fit=math.floor((free-(rowsWanted-1)*6)/rowsWanted)
 tileHeight=math.clamp(fit,30,58)
+if fit==tileHeight then exactGrid=free end
 end
 end
 local rows=math.ceil(#order/columns)
-local gridSize=UDim2.new(1,0,0,rows>0 and rows*tileHeight+(rows-1)*6 or 0)
+local natural=rows>0 and rows*tileHeight+(rows-1)*6 or 0
+local height=exactGrid or natural
+lastExtra=height-natural
+local gridSize=UDim2.new(1,0,0,height)
 if grid.Size~=gridSize then grid.Size=gridSize end
-for number,holder in pairs(gridRows)do holder.Visible=number<=rows end
+for index=1,#order do rowFor(index)end
+for number,holder in pairs(gridRows)do
+holder.Visible=number<=rows
+local size=UDim2.new(1,0,0,tileHeight+(number==rows and lastExtra or 0))
+if holder.Size~=size then holder.Size=size end
+end
 for index,name in ipairs(order)do
 local t=tiles[name]or tile(name,index)
 t.button.Parent=rowFor(index)
@@ -8638,7 +8647,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.12.2",
+Version="1.12.3",
 Flags={},
 Windows={},
 Theme=Theme,
