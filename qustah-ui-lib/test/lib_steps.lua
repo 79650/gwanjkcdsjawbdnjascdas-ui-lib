@@ -770,7 +770,13 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     -- info page
     settingsTab.Pages[4]:Select() wait(0.1)
     window:ReportError("ESP", "render failed") wait(0.1)
-    check("info lists errors", findIn("Errors", "Content").Text:find("render failed") ~= nil)
+    check("info lists errors", findIn("Errors", "Code").Text:find("render failed") ~= nil)
+    window:ReportError("ESP", "render failed\nstack traceback:\n  esp:12", true) wait(0.1)
+    local same = {}
+    for _, entry in ipairs(window:GetErrors()) do
+        if entry.source == "ESP" and entry.message:find("render failed", 1, true) then same[#same + 1] = entry end
+    end
+    check("one entry per error (trace kept, status repeat not counted)", #same == 1 and same[1].count == 1 and same[1].message:find("traceback", 1, true) ~= nil)
     MOCK.click(find("Copy debug info"):FindFirstChild("Button")) wait(0.1)
     check("copy debug info", type(MOCK.clipboard) == "string" and MOCK.clipboard:find("render failed") ~= nil and MOCK.clipboard:find("executor:", 1, true) ~= nil)
     local dbg = W.__ui_debug

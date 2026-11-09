@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.13.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.14.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -9844,7 +9844,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.13.1",
+    Version = "1.14.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -11496,7 +11496,8 @@ return function(window, cfg)
     errorsCard:HeaderSwitch({ Title = "Debug", Flag = "__ui_debug", Default = window.cfg.Debug == true, Tooltip = "A notification for every new error",
         Callback = function(on) window.debug = on end })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
-    local errorText = errorsCard:Paragraph({ Content = "" })
+    -- the newest errors as a code block (its Copy button copies them all)
+    local errorText = errorsCard:Code({ Title = "Last errors", Code = "", MaxHeight = 180 })
     local errorButtons = errorsCard:Row()
     errorButtons:Button({ Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report", Callback = copyDebug })
     local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
@@ -11514,14 +11515,15 @@ return function(window, cfg)
         local lines = {}
         for index, entry in ipairs(errors) do
             total = total + entry.count
-            if index <= 8 then
-                lines[#lines + 1] = string.format("<font color=\"#%s\">%s</font>%s  %s", Util.toHex(Theme.get("danger")), entry.source, entry.count > 1 and (" ×" .. entry.count) or "", (tostring(entry.message):gsub("<", "&lt;")))
+            if index > #errors - 8 then
+                local head = string.format("[%s] %s%s", os.date("%H:%M:%S", entry.last or os.time()), entry.source, entry.count > 1 and (" ×" .. entry.count) or "")
+                table.insert(lines, 1, head .. "\n" .. tostring(entry.message))
             end
         end
-        if #errors > 8 then lines[#lines + 1] = "+" .. (#errors - 8) .. " more (Copy debug info)" end
+        if #errors > 8 then lines[#lines + 1] = "-- +" .. (#errors - 8) .. " older (Copy debug info)" end
         errorCount:Set(#errors == 0 and "0" or (#errors .. (total > #errors and (" (" .. total .. "×)") or "")))
         errorCount:SetColor(#errors > 0 and RED or "text")
-        errorText:Set(table.concat(lines, "\n"))
+        errorText:Set(table.concat(lines, "\n\n"))
         errorText:SetVisible(#lines > 0) -- (none: the count above says 0)
         clearErrors:SetVisible(#errors > 0)
     end
@@ -11703,7 +11705,7 @@ return function(Window)
         self.moduleOrder = self.moduleOrder or {}
         if not self.modules[name] then table.insert(self.moduleOrder, name) end
         self.modules[name] = { state = tostring(state or "Off"), detail = detail }
-        if state == "Error" then self:ReportError(name, detail or "Module stopped with an error") return end
+        if state == "Error" then self:ReportError(name, detail or "Module stopped with an error", true) return end
         changed(self)
     end
     function Window:GetModules() return self.moduleOrder or {}, self.modules or {} end
@@ -11724,24 +11726,31 @@ return function(Window)
         table.insert(self._countListeners, callback)
     end
 
-    function Window:ReportError(source, message)
+    -- (the same error is one entry: same source and first line; the longest text is kept, with its trace. quiet: a
+    -- status that repeats an error already counted - Window:SetModule "Error" - adds no count)
+    function Window:ReportError(source, message, quiet)
         source, message = tostring(source or "Script"), tostring(message or "Unknown error")
         self.errors = self.errors or {}
         self._errorIndex = self._errorIndex or {}
-        local key = source .. "\0" .. message
+        local key = source .. "\0" .. (message:match("[^\r\n]+") or message)
         local entry = self._errorIndex[key]
         if entry then
-            entry.count = entry.count + 1
-            entry.last = os.time()
+            if #message > #entry.message then entry.message = message end
+            if entry.fromStatus and not quiet then
+                entry.fromStatus = nil -- (the report the status already counted)
+            elseif not quiet then
+                entry.count = entry.count + 1
+                entry.last = os.time()
+            end
         else
-            entry = { source = source, message = message, count = 1, first = os.time(), last = os.time() }
+            entry = { source = source, message = message, count = 1, first = os.time(), last = os.time(), fromStatus = quiet or nil }
             self._errorIndex[key] = entry
             table.insert(self.errors, entry)
             Util.log(string.format("[%s / %s] %s", self.Title, source, message))
             -- Debug mode (CreateWindow{ Debug = true } or Settings › Info): a toast for every new error
             if self.debug == nil then self.debug = self.cfg.Debug == true end
             if self.debug and self.Notify then
-                local short = message:gsub("^.-:%d+: ", "")
+                local short = (message:match("[^\r\n]+") or message):gsub("^.-:%d+: ", "")
                 self:Notify({
                     Title = "Error · " .. source, Content = short, Icon = "triangle-alert", Color = RED, Duration = 6,
                     Buttons = { { Title = "Copy", Callback = function()

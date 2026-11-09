@@ -31,7 +31,7 @@ return function(Window)
         self.moduleOrder = self.moduleOrder or {}
         if not self.modules[name] then table.insert(self.moduleOrder, name) end
         self.modules[name] = { state = tostring(state or "Off"), detail = detail }
-        if state == "Error" then self:ReportError(name, detail or "Module stopped with an error") return end
+        if state == "Error" then self:ReportError(name, detail or "Module stopped with an error", true) return end
         changed(self)
     end
     function Window:GetModules() return self.moduleOrder or {}, self.modules or {} end
@@ -52,24 +52,31 @@ return function(Window)
         table.insert(self._countListeners, callback)
     end
 
-    function Window:ReportError(source, message)
+    -- (the same error is one entry: same source and first line; the longest text is kept, with its trace. quiet: a
+    -- status that repeats an error already counted - Window:SetModule "Error" - adds no count)
+    function Window:ReportError(source, message, quiet)
         source, message = tostring(source or "Script"), tostring(message or "Unknown error")
         self.errors = self.errors or {}
         self._errorIndex = self._errorIndex or {}
-        local key = source .. "\0" .. message
+        local key = source .. "\0" .. (message:match("[^\r\n]+") or message)
         local entry = self._errorIndex[key]
         if entry then
-            entry.count = entry.count + 1
-            entry.last = os.time()
+            if #message > #entry.message then entry.message = message end
+            if entry.fromStatus and not quiet then
+                entry.fromStatus = nil -- (the report the status already counted)
+            elseif not quiet then
+                entry.count = entry.count + 1
+                entry.last = os.time()
+            end
         else
-            entry = { source = source, message = message, count = 1, first = os.time(), last = os.time() }
+            entry = { source = source, message = message, count = 1, first = os.time(), last = os.time(), fromStatus = quiet or nil }
             self._errorIndex[key] = entry
             table.insert(self.errors, entry)
             Util.log(string.format("[%s / %s] %s", self.Title, source, message))
             -- Debug mode (CreateWindow{ Debug = true } or Settings › Info): a toast for every new error
             if self.debug == nil then self.debug = self.cfg.Debug == true end
             if self.debug and self.Notify then
-                local short = message:gsub("^.-:%d+: ", "")
+                local short = (message:match("[^\r\n]+") or message):gsub("^.-:%d+: ", "")
                 self:Notify({
                     Title = "Error · " .. source, Content = short, Icon = "triangle-alert", Color = RED, Duration = 6,
                     Buttons = { { Title = "Copy", Callback = function()

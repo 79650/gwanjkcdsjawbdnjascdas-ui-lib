@@ -471,7 +471,8 @@ return function(window, cfg)
     errorsCard:HeaderSwitch({ Title = "Debug", Flag = "__ui_debug", Default = window.cfg.Debug == true, Tooltip = "A notification for every new error",
         Callback = function(on) window.debug = on end })
     local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
-    local errorText = errorsCard:Paragraph({ Content = "" })
+    -- the newest errors as a code block (its Copy button copies them all)
+    local errorText = errorsCard:Code({ Title = "Last errors", Code = "", MaxHeight = 180 })
     local errorButtons = errorsCard:Row()
     errorButtons:Button({ Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report", Callback = copyDebug })
     local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
@@ -489,14 +490,15 @@ return function(window, cfg)
         local lines = {}
         for index, entry in ipairs(errors) do
             total = total + entry.count
-            if index <= 8 then
-                lines[#lines + 1] = string.format("<font color=\"#%s\">%s</font>%s  %s", Util.toHex(Theme.get("danger")), entry.source, entry.count > 1 and (" ×" .. entry.count) or "", (tostring(entry.message):gsub("<", "&lt;")))
+            if index > #errors - 8 then
+                local head = string.format("[%s] %s%s", os.date("%H:%M:%S", entry.last or os.time()), entry.source, entry.count > 1 and (" ×" .. entry.count) or "")
+                table.insert(lines, 1, head .. "\n" .. tostring(entry.message))
             end
         end
-        if #errors > 8 then lines[#lines + 1] = "+" .. (#errors - 8) .. " more (Copy debug info)" end
+        if #errors > 8 then lines[#lines + 1] = "-- +" .. (#errors - 8) .. " older (Copy debug info)" end
         errorCount:Set(#errors == 0 and "0" or (#errors .. (total > #errors and (" (" .. total .. "×)") or "")))
         errorCount:SetColor(#errors > 0 and RED or "text")
-        errorText:Set(table.concat(lines, "\n"))
+        errorText:Set(table.concat(lines, "\n\n"))
         errorText:SetVisible(#lines > 0) -- (none: the count above says 0)
         clearErrors:SetVisible(#errors > 0)
     end
