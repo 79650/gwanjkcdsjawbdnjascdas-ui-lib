@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.13.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.13.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7583,11 +7583,15 @@ return function(card, cfg)
         end
     end
 
-    -- (by column count, so a nil in the middle of a row doesn't cut it short)
+    -- (by column count, so a nil in the middle of a row doesn't cut it short; named fields such as row.key are
+    -- kept too, for RowColor / OnRowClick)
     local function copy(row)
         local out = {}
         row = row or {}
         for index = 1, math.max(#columns, #row) do out[index] = row[index] end
+        for key, value in pairs(row) do
+            if type(key) ~= "number" then out[key] = value end
+        end
         return out
     end
     function element:SetItems(list)
@@ -9840,7 +9844,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.13.0",
+    Version = "1.13.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

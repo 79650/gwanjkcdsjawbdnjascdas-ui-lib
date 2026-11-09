@@ -189,11 +189,15 @@ return function(card, cfg)
         end
     end
 
-    -- (by column count, so a nil in the middle of a row doesn't cut it short)
+    -- (by column count, so a nil in the middle of a row doesn't cut it short; named fields such as row.key are
+    -- kept too, for RowColor / OnRowClick)
     local function copy(row)
         local out = {}
         row = row or {}
         for index = 1, math.max(#columns, #row) do out[index] = row[index] end
+        for key, value in pairs(row) do
+            if type(key) ~= "number" then out[key] = value end
+        end
         return out
     end
     function element:SetItems(list)

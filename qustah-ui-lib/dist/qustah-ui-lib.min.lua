@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.13.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.13.1 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6682,6 +6682,9 @@ local function copy(row)
 local out={}
 row=row or{}
 for index=1,math.max(#columns,#row)do out[index]=row[index]end
+for key,value in pairs(row)do
+if type(key)~="number"then out[key]=value end
+end
 return out
 end
 function element:SetItems(list)
@@ -8661,7 +8664,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.13.0",
+Version="1.13.1",
 Flags={},
 Windows={},
 Theme=Theme,
