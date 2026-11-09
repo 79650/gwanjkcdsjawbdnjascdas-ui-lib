@@ -10,12 +10,10 @@ local Base = require("elements/base")
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 
 local PRESETS = {
-    { "Neutral", Color3.fromRGB(177, 178, 183) }, { "Blue", Color3.fromRGB(61, 151, 219) },
-    { "Red", Color3.fromRGB(220, 110, 110) }, { "Purple", Color3.fromRGB(165, 125, 230) },
-    { "Pink", Color3.fromRGB(225, 120, 180) }, { "Green", Color3.fromRGB(110, 200, 130) },
-    { "Orange", Color3.fromRGB(215, 170, 105) }, { "Cyan", Color3.fromRGB(100, 200, 210) },
+    { "Neutral", Color3.fromRGB(177, 178, 183) }, { "Blue", Color3.fromRGB(124, 156, 255) },
+    { "Crimson", Color3.fromRGB(240, 36, 90) }, { "Violet", Color3.fromRGB(180, 140, 242) },
+    { "Mint", Color3.fromRGB(61, 180, 136) }, { "Gold", Color3.fromRGB(242, 179, 61) },
 }
-
 return function(card, cfg)
     local colors = cfg.Items or PRESETS
     local dots = cfg.Style == "Dots"

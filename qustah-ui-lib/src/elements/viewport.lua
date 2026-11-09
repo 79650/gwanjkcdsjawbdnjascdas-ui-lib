@@ -1,5 +1,6 @@
--- card:Viewport({ Object = workspace.Model | BasePart, Height = 170, Interactive = true, Spin = false, Distance })
--- A 3D preview of a clone of the object (an avatar, a weapon...). Drag to turn it, wheel to zoom.
+-- card:Viewport({ Object = workspace.Model | BasePart, Height = 170, Interactive = true, Spin = false, Distance, Lower = 0 })
+-- A 3D preview of a clone of the object (an avatar, a weapon...). Drag to turn it, wheel to zoom (the page doesn't
+-- scroll while the pointer is over it). The clone has no scripts and no Animator (nothing plays on it).
 -- :SetObject(obj) swaps the model; :SetSpin(true) turns it slowly. element.Model is the clone on show,
 -- element.Camera / element.View its camera and ViewportFrame.
 local Util = require("util")
@@ -37,8 +38,10 @@ return function(card, cfg)
     local function place()
         local distance = (tonumber(cfg.Distance) or radius / math.tan(math.rad(camera.FieldOfView / 2)) * 1.15) * zoom
         local rotation = CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
-        camera.CFrame = CFrame.new(center) * rotation * CFrame.new(0, 0, distance)
-        camera.Focus = CFrame.new(center)
+        -- (Lower: the model sits that share of its size under the middle, room for what is drawn over it)
+        local aim = center + (rotation * Vector3.new(0, 1, 0)) * radius * (tonumber(cfg.Lower) or 0)
+        camera.CFrame = CFrame.new(aim) * rotation * CFrame.new(0, 0, distance)
+        camera.Focus = CFrame.new(aim)
     end
     function element:SetObject(object)
         world:ClearAllChildren()
@@ -55,7 +58,8 @@ return function(card, cfg)
         if not ok or not copy then empty.Text = "Cannot preview" empty.Visible = true return end
         -- scripts out, physics off
         for _, d in ipairs(copy:GetDescendants()) do
-            if d:IsA("LuaSourceContainer") then d:Destroy() elseif d:IsA("BasePart") then d.Anchored = true end
+            -- (an Animator left in the clone can play the character's animations on it: a dash pose stuck in the preview)
+            if d:IsA("LuaSourceContainer") or d:IsA("Animator") then d:Destroy() elseif d:IsA("BasePart") then d.Anchored = true end
         end
         if copy:IsA("BasePart") then copy.Anchored = true end
         copy.Parent = world
@@ -93,6 +97,16 @@ return function(card, cfg)
                 pitch = math.clamp(pitch - delta.Y * 0.01, -1.3, 1.3)
                 place()
             end)
+        end)
+        -- (the wheel zooms here: the page's own scrolling waits while the pointer is over the preview)
+        local scroller
+        hit.MouseEnter:Connect(function()
+            local node = holder.Parent
+            while node and not node:IsA("ScrollingFrame") do node = node.Parent end
+            if node and node.ScrollingEnabled ~= false then scroller = node node.ScrollingEnabled = false end
+        end)
+        hit.MouseLeave:Connect(function()
+            if scroller then scroller.ScrollingEnabled = true scroller = nil end
         end)
         hit.InputChanged:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseWheel then

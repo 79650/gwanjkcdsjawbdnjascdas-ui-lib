@@ -47,7 +47,7 @@ local Info = Overview:Card({ Title = "Player Info", Icon = "id-card" })
 Info:Toggle({ Title = "Display Name", Desc = "The player's visible name", Flag = "showDisplay", Default = true })
 Info:Toggle({ Title = "Username", Desc = "The player's account name", Flag = "showUser" })
 Info:Toggle({ Title = "Distance", Desc = "Show distance to players.", Flag = "showDistance", Default = true })
-Info:Dropdown({ Title = "Show", Flag = "parts", Multi = true, Options = { "Name", "Health", "Distance", "Weapon" }, Default = { "Name", "Health" } })
+Info:Dropdown({ Title = "Show", Flag = "parts", Multi = true, Items = { "Name", "Health", "Distance", "Weapon" }, Default = { "Name", "Health" } })
 
 local Colors = Appearance:Card({ Title = "Colors", Icon = "palette" })
 Colors:ColorPicker({ Title = "Fill color", Flag = "fillColor", Default = Color3.fromRGB(215, 120, 120) })          -- Rainbow button inside
@@ -60,7 +60,7 @@ Colors:Slider({ Title = "Fill transparency", Flag = "fill", Min = 0, Max = 100, 
     Icons = { From = "sun-dim", To = "sun" } })   -- icons at the ends (click = one step); a bubble shows the value while dragging
 local Text = Appearance:Card({ Title = "Text", Icon = "type" })
 Text:Swatches({ Title = "Name color", Flag = "nameColor", Default = "Blue", Callback = function(color, name) print("name color", name) end })
-Text:Dropdown({ Title = "Font", Flag = "font", Options = { "Gotham", "Code", "Ubuntu", "Arcade" }, Default = "Gotham" })
+Text:Dropdown({ Title = "Font", Flag = "font", Items = { "Gotham", "Code", "Ubuntu", "Arcade" }, Default = "Gotham" })
 Text:Slider({ Title = "Text size", Flag = "textSize", Min = 8, Max = 24, Default = 13, Suffix = "px" })
 
 ------------------------------------------------------------------------ Combat: one page (no strip), risky + locked elements, presets
@@ -75,11 +75,11 @@ silentToggle:OnChanged(function(on) if on then prediction:Unlock() else predicti
 Aim:Slider({ Title = "Hit chance", Flag = "hitChance", Min = 0, Max = 100, Default = 100, Suffix = "%" })
 Aim:Checkbox({ Title = "Visible only", Flag = "visibleOnly", DependsOn = "silentAim",   -- locked until Silent Aim is on
     Tooltip = "Skips targets behind walls" })
-Aim:Segment({ Title = "Aim part", Flag = "aimPart", Options = { "Head", "Body", "Closest" }, Default = "Head" })
+Aim:Segment({ Title = "Aim part", Flag = "aimPart", Items = { "Head", "Body", "Closest" }, Default = "Head" })
 -- presets: chips in the card header that set several flags at once ("Custom" lights up after a manual change)
 Aim:Presets({ { "Legit", { hitChance = 70, aimPart = "Body" } }, { "Rage", { hitChance = 100, aimPart = "Head" } } })
 -- dropdown options can carry an icon, a description, or be locked; AllowNone lets it be cleared
-Aim:Dropdown({ Title = "Target priority", Flag = "priority", AllowNone = true, Default = "Closest", Options = {
+Aim:Dropdown({ Title = "Target priority", Flag = "priority", AllowNone = true, Default = "Closest", Items = {
     { Title = "Closest", Icon = "footprints", Desc = "Nearest to you" },
     { Title = "Crosshair", Icon = "crosshair", Desc = "Nearest to the mouse" },
     { Title = "Lowest HP", Icon = "heart", Desc = "Finish weak targets" },
@@ -99,7 +99,7 @@ local sections = Targets:Tabs({ "Players", "Filters" })
 sections.Players:PlayerList({ Title = "Whitelist", Flag = "whitelist", Height = 120, Callback = function(ids) print(#ids, "whitelisted") end })
 sections.Filters:Toggle({ Title = "Ignore squad", Flag = "ignoreSquad", Default = true })
 sections.Filters:Toggle({ Title = "Ignore friends", Flag = "ignoreFriends" })
-sections.Filters:Radio({ Title = "When two are close", Flag = "tieBreak", Options = { "Lower health", "Closer to mouse", { Title = "Random", Desc = "Harder to spot" } } })
+sections.Filters:Radio({ Title = "When two are close", Flag = "tieBreak", Items = { "Lower health", "Closer to mouse", { Title = "Random", Desc = "Harder to spot" } } })
 
 ------------------------------------------------------------------------ Player: movement, character, 3D preview
 local Player = Window:Tab({ Title = "Player", Icon = "person-standing" })
@@ -138,7 +138,7 @@ local pingStat = Session:Stat({ Title = "Ping", Icon = "wifi", Value = 48, Suffi
 Session:Progress({ Title = "Daily quests", Steps = 5, Value = 2 })   -- 5 segments
 local log = Session:Console({ Title = "Log", Height = 130, MaxLines = 100 })
 Session:Table({ Title = "Top players", Height = 120, Columns = { "Name", { Title = "Kills", Align = "Right", Width = 0.25 }, { Title = "Team", Width = 0.25 } },
-    Rows = { { "Nova", 31, "Red" }, { "Kite", 24, "Blue" }, { "Ash", 12, "Red" } }, SortBy = "Kills", Descending = true,
+    Items = { { "Nova", 31, "Red" }, { "Kite", 24, "Blue" }, { "Ash", 12, "Red" } }, SortBy = "Kills", Descending = true,
     OnRowClick = function(row) print("spectate", row[1]) end })   -- click a header to sort
 log:Append("Script loaded", "success")
 task.spawn(function()
@@ -191,9 +191,9 @@ advanced:Toggle({ Title = "Bypass checks", Flag = "bypass" })
 advanced:Slider({ Title = "Delay", Flag = "delay", Min = 0, Max = 1, Step = 0.05, Default = 0.2, Suffix = "s" })
 local Pick = InputsPage:Card({ Title = "Pick", Icon = "list-checks", Side = "Right" })
 Pick:ImagePicker({ Title = "Crosshair style", Flag = "crosshair", Columns = 4,   -- asset ids ("rbxassetid://...") or icon names
-    Images = { "crosshair", "locate-fixed", "scan", "plus" } })
+    Items = { "crosshair", "locate-fixed", "scan", "plus" } })
 Pick:Checkbox({ Title = "Remember choice", Flag = "remember", Default = true })
-Pick:Radio({ Title = "Quality", Flag = "quality", Options = { "Low", "Medium", "High" }, Default = "Medium" })
+Pick:Radio({ Title = "Quality", Flag = "quality", Items = { "Low", "Medium", "High" }, Default = "Medium" })
 
 local Notes = ContentPage:Card({ Title = "Messages", Icon = "bell" })
 Notes:Button({ Title = "Notify", Icon = "bell", Callback = function() Window:Notify({ Title = "Hello", Content = "This is a notification", Icon = "bell" }) end }) -- time follows the text, hover pauses

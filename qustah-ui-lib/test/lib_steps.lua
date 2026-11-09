@@ -22,6 +22,9 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     local function find(name, root)
         for _, object in ipairs((root or gui):GetDescendants()) do if object.Name == name then return object end end
     end
+    local function sameRGB(a, b)
+        return a and b and math.abs(a.R - b.R) < 0.003 and math.abs(a.G - b.G) < 0.003 and math.abs(a.B - b.B) < 0.003
+    end
     local function findIn(rowName, childName)
         for _, object in ipairs(gui:GetDescendants()) do
             if object.Name == rowName then
@@ -187,9 +190,9 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("settings / hint follow SetToggleKey", menuBadge.Text == "RSHIFT" and window.flags.__ui_menu_key.Value == Enum.KeyCode.RightShift)
 
     -- accent
-    Lib:SetAccent(E.Color3.fromRGB(61, 151, 219)) wait(0.1)
+    Lib:SetAccent(E.Color3.fromRGB(124, 156, 255)) wait(0.1)
     local glowStroke = window.titleLabel:FindFirstChild("Glow")
-    check("accent recolours title (glow)", glowStroke and glowStroke.Color == E.Color3.fromRGB(61, 151, 219))
+    check("accent recolours title (glow)", glowStroke and glowStroke.Color == E.Color3.fromRGB(124, 156, 255))
 
     -- menu key hides / shows, minimize
     MOCK.press(Enum.KeyCode.RightShift) wait(0.4)
@@ -245,8 +248,8 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("toggle badge", findIn("Highlight", "Badge") ~= nil)
     -- swatches
     visuals:Select() visuals.Pages[2]:Select() wait(0.1)
-    MOCK.click(findIn("Name color", "Red")) wait(0.1)
-    check("swatch click", F.nameColor == "Red")
+    MOCK.click(findIn("Name color", "Crimson")) wait(0.1)
+    check("swatch click", F.nameColor == "Crimson")
     -- colour picker rainbow / apply
     local fill = W.fillColor
     local before = fill.Value
@@ -580,22 +583,22 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("glow off", not window.titleLabel:FindFirstChild("Glow").Enabled)
     W.__ui_glow:Set(true)
     MOCK.click(findIn("Accent", "Blue")) wait(0.3)
-    check("accent swatch", Lib.Theme.get("accent") == E.Color3.fromRGB(61, 151, 219))
+    check("accent swatch", sameRGB(Lib.Theme.get("accent"), E.Color3.fromRGB(124, 156, 255)))
 
     -- theme packs / font
     W.__ui_theme:Set("Light") wait(0.2)
     check("light pack", Lib.Theme.get("base") == E.Color3.fromRGB(238, 238, 241) and Lib.Theme.pack == "Light")
-    check("custom accent kept on pack change", Lib.Theme.get("accentUser") == E.Color3.fromRGB(61, 151, 219))
+    check("custom accent kept on pack change", sameRGB(Lib.Theme.get("accentUser"), E.Color3.fromRGB(124, 156, 255)))
     check("light pack darkens a pale accent to 3:1", Lib.Theme.contrast(Lib.Theme.get("accent"), Lib.Theme.get("card")) >= 3)
     check("light status colours", Lib.Theme.get("success") == E.Color3.fromRGB(30, 135, 70))
     check("neutral swatch follows pack", findIn("Accent", "Neutral"):FindFirstChild("Dot").BackgroundColor3 == E.Color3.fromRGB(70, 70, 80))
-    W.__ui_theme:Set("Dark") wait(0.2)
-    check("dark pack back", Lib.Theme.get("base") == E.Color3.fromRGB(15, 15, 16))
+    W.__ui_theme:Set("Graphite") wait(0.2)
+    check("graphite pack back", Lib.Theme.get("base") == E.Color3.fromRGB(15, 15, 16))
     MOCK.click(findIn("Accent", "Neutral")) wait(0.1)
     W.__ui_theme:Set("Light") wait(0.1)
     check("neutral accent follows pack", Lib.Theme.get("accent") == E.Color3.fromRGB(70, 70, 80) and W.__ui_accent.Value == E.Color3.fromRGB(70, 70, 80))
-    W.__ui_theme:Set("Dark") wait(0.1)
-    check("neutral back on dark", Lib.Theme.get("accent") == E.Color3.fromRGB(177, 178, 183))
+    W.__ui_theme:Set("Graphite") wait(0.1)
+    check("neutral back on graphite", Lib.Theme.get("accent") == E.Color3.fromRGB(177, 178, 183))
     W.__ui_font:Set("Quicksand") wait(0.2)
     check("font option set", F.__ui_font == "Quicksand")
     W.__ui_font:Set("Gotham") wait(0.1)
@@ -637,8 +640,39 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     end
     for _, issue in ipairs(packIssues) do print("PACK ISSUE " .. issue) end
     check("all " .. #T.packOrder .. " packs readable", #packIssues == 0)
-    check("palette pack brings its accent", (function() W.__ui_accent:Set(T.neutral("Dark")) W.__ui_theme:Set("Dracula") return T.get("accentUser") == T.hex("#bd93f9") end)())
-    W.__ui_theme:Set("Dark")
+    -- Glass: see-through window / cards, the game blurred; all back on another pack
+    W.__ui_theme:Set("Glass") wait(0.2)
+    local cardSeen
+    for _, d in ipairs(window.main:GetDescendants()) do
+        local b = T._binding(d)
+        if b and b.BackgroundColor3 == "card" and d.BackgroundTransparency == 0.55 then cardSeen = d break end
+    end
+    check("glass: window and cards see-through, the game blurred", window.main.BackgroundTransparency == 0.3 and cardSeen ~= nil and window.blur == true)
+    W.__ui_theme:Set("Graphite") wait(0.2)
+    check("glass off: solid again, blur off", window.main.BackgroundTransparency == 0 and cardSeen.BackgroundTransparency == 0 and window.blur == false)
+    check("five themes", #T.packOrder == 5 and T.packOrder[1] == "Midnight")
+    -- Glass reaches only inside the window and the dock: popups over the game stay solid (their text reads)
+    do
+        W.__ui_theme:Set("Glass") wait(0.2)
+        local popup = Instance.new("Frame") popup.Parent = window.gui
+        T.bind(popup, "BackgroundColor3", "card")
+        local inner = Instance.new("Frame")
+        T.bind(inner, "BackgroundColor3", "card")
+        inner.Parent = window.main wait(0.1)
+        check("glass: a popup over the game stays solid, a part placed in the window later turns see-through", popup.BackgroundTransparency == 0 and inner.BackgroundTransparency == 0.55)
+        popup:Destroy() inner:Destroy()
+        W.__ui_theme:Set("Graphite") wait(0.2)
+    end
+    -- a theme change while a colour tween runs: the tween must not put the old theme's colour back
+    do
+        local probe = Instance.new("TextLabel") probe.Parent = window.main
+        T.tweenTo(probe, "TextColor3", "heading", 0.3)
+        W.__ui_theme:Set("Light") wait(0.6)
+        check("theme change beats a running tween", probe.TextColor3 == T.get("heading"))
+        probe:Destroy()
+        W.__ui_theme:Set("Graphite") wait(0.2)
+    end
+    W.__ui_theme:Set("Graphite")
     check("accent back to neutral", T.get("accentUser") == E.Color3.fromRGB(177, 178, 183))
     -- theme editor: save, list, export, import, delete
     local saveBox = findIn("SaveTheme", "Box")
@@ -652,12 +686,12 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("theme code", type(themeCode) == "string" and themeCode:sub(1, 8) == "QTHEME1:")
     MOCK.click(find("Delete", find("Theme editor")):FindFirstChild("Button")) wait(0.1)
     MOCK.click(findIn("Dialog", "Delete")) wait(0.1)
-    check("custom theme deleted", T.packs.Grape == nil and F.__ui_theme == "Dark")
+    check("custom theme deleted", T.packs.Grape == nil and F.__ui_theme == "Midnight")
     local importBox = findIn("ImportTheme", "Box")
     importBox.Text = themeCode wait(0.1)
     MOCK.click(findIn("ImportTheme", "Action")) wait(0.1)
     check("theme imported", T.packs.Grape ~= nil and F.__ui_theme == "Grape" and T.get("base") == E.Color3.fromRGB(20, 10, 30))
-    W.__ui_theme:Set("Dark")
+    W.__ui_theme:Set("Graphite")
 
     -- profiles
     settingsTab.Pages[2]:Select() wait(0.1)
@@ -908,6 +942,22 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     MOCK.click(find("loader.lua"):FindFirstChild("Copy", true)) wait(0.1)
     check("code copy", MOCK.clipboard and MOCK.clipboard:find("HttpGet") ~= nil)
     check("viewport", find("Viewport") ~= nil and find("Viewport"):FindFirstChild("View") ~= nil)
+    do
+        -- no Animator in the clone; the page doesn't scroll over the preview
+        local rig = Instance.new("Model") rig.Name = "Rig"
+        local root = Instance.new("Part") root.Name = "HumanoidRootPart" root.Parent = rig
+        local hum = Instance.new("Humanoid") hum.Parent = rig
+        Instance.new("Animator").Parent = hum
+        local card = tabNamed("Live").Pages[1]:Card({ Title = "Pose" })
+        local still = card:Viewport({ Name = "RigView", Object = rig })
+        check("viewport clone has no Animator", still.Model:FindFirstChildWhichIsA("Animator", true) == nil and rig:FindFirstChildWhichIsA("Animator", true) ~= nil)
+        local scroller = still.Row
+        while scroller and not scroller:IsA("ScrollingFrame") do scroller = scroller.Parent end
+        local drag = still.Row:FindFirstChild("Drag")
+        MOCK.fire(drag, "MouseEnter") local off = scroller and scroller.ScrollingEnabled == false
+        MOCK.fire(drag, "MouseLeave")
+        check("viewport holds the page's scrolling while hovered", off and scroller.ScrollingEnabled == true)
+    end
     local img = tabNamed("Live").Pages[1]:Card({ Title = "Pics" }):Image({ Image = "rbxassetid://123", Caption = "logo" })
     check("image element", find("Picture", img.Row).Image == "rbxassetid://123" and findIn("Pics", "Caption").Text == "logo")
 
@@ -1521,13 +1571,13 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
     check("bindings dropped on destroy", Lib.Theme._boundCount() < afterCount)
     -- every bound outline / box follows a theme switch (Light: no Dark input colour left anywhere in the editor)
     W.__ui_theme:Set("Light") wait()
-    local darkInput, stale = Lib.Theme.packs and Lib.Theme.packs.Dark and Lib.Theme.packs.Dark.input, 0
+    local darkInput, stale = Lib.Theme.defaults.input, 0
     local editorCard = find("Theme editor")
     for _, object in ipairs(editorCard and editorCard:GetDescendants() or {}) do
         if object:IsA("GuiObject") and darkInput and object.BackgroundColor3 == darkInput and object.BackgroundTransparency < 1 then stale = stale + 1 end
     end
     check("theme editor follows Light", editorCard ~= nil and stale == 0)
-    W.__ui_theme:Set("Dark") wait()
+    W.__ui_theme:Set("Graphite") wait()
 
     -- notifications fit a small screen
     MOCK.setViewport(640, 300) wait(0.2)
@@ -1924,7 +1974,10 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         local strip = Lib.Loader.visible
         local stripText = stripGui and stripGui:FindFirstChild("Text", true)
         check("download strip shows while files are fetched", strip == true and (stripText == nil or stripText.Text == "Downloading icons"))
-        wait(1.5)
+        check("the bar moves while a file is still coming", Lib.Loader.share() > 0.02 and Lib.Loader.share() < 1)
+        wait(0.6)
+        check("the files download at the same time (two 0.6 s files done in under 1 s)", #Lib.Loader.jobs == 0)
+        wait(0.9)
         check("download strip hides when done", Lib.Loader.visible == false and #Lib.Loader.jobs == 0)
         U.cacheFiles({ { path = "QustahUI/test/s1.png", url = "https://example.com/s1.png" } }, function() end, nil, "icons")
         check("no strip when everything is on disk", Lib.Loader.visible == false)
@@ -1952,6 +2005,16 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         Lib.Loader.clear()
         check("Loader.clear hides the strip", #Lib.Loader.jobs == 0 and Lib.Loader.visible == false)
         check("Icons.Preload exists", type(Lib.Icons.Preload) == "function")
+        -- Settings › Info: the window's size (what CreateWindow's Size takes), following a resize
+        local sizeValue
+        for _, d in ipairs(window.gui:GetDescendants()) do
+            if d:IsA("TextLabel") and d.Text == "Window size" then sizeValue = d.Parent:FindFirstChild("Value", true) end
+        end
+        local wasW, wasH = window.width, window.height
+        check("Info shows the window size", sizeValue ~= nil and sizeValue.Text:find(("%d × %d"):format(wasW, wasH), 1, true) ~= nil)
+        window.width = wasW + 20 window:_layout() wait(0.1)
+        check("the size row follows a resize", sizeValue ~= nil and sizeValue.Text:find(("%d × %d"):format(wasW + 20, wasH), 1, true) ~= nil)
+        window.width = wasW window:_layout()
         -- two web images with links of the same length get two files
         local i1 = Lib.Icons.Image("https://example.com/logo1.png", { Size = UDim2.fromOffset(20, 20) })
         local i2 = Lib.Icons.Image("https://example.com/logo2.png", { Size = UDim2.fromOffset(20, 20) }) wait(0.2)

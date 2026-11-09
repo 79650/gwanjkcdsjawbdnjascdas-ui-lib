@@ -14,10 +14,9 @@ local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stro
 local Tabs = require("tabs") -- Tab and Page
 local Tab = Tabs.Tab
 
-local HEADER, FOOTER = 44, 26
+local HEADER, FOOTER = 44, 30
 local DOCK_WIDTH, DOCK_GAP, DOCK_STEP = 40, 12, 37
 local DOCK_TOP = Tabs.DOCK_TOP
-local HINTS = 34 -- height taken by the key hint bar
 
 local Window = {}
 Window.__index = Window
@@ -54,6 +53,8 @@ function Window.new(Lib, cfg)
     end
     env.__QustahUIWindows[self.Title] = self
 
+    -- CreateWindow({ Theme = "Glass" }): the pack it starts with (Midnight otherwise; Settings › Theme changes it)
+    Theme.applyPack(Theme.packs[cfg.Theme] and cfg.Theme or Theme.defaultPack)
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
     if cfg.Secure then Util.secure = true end
     if cfg.ConsoleLog == false then Util.quiet = true end
@@ -103,6 +104,7 @@ function Window:_build()
         Name = "Window", Size = UDim2.fromOffset(self.width, self.height), BorderSizePixel = 0,
         ClipsDescendants = true, Parent = gui,
     })
+    main:SetAttribute("ThemeGlass", true) -- (a see-through theme reaches inside: see Theme alpha)
     Theme.bind(main, "BackgroundColor3", "base")
     corner(main, 12)
     self.mainStroke = stroke(main)
@@ -202,13 +204,6 @@ function Window:_build()
     self.body = body
     self.stripHolder = create("Frame", { Name = "Strip", BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 6), Size = UDim2.new(1, -32, 0, 26), Parent = body })
     self.pages = create("Frame", { Name = "Pages", BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, 0, 1, -6), Parent = body })
-    -- key hints: [NUM 8] • ESP / SILENT AIM ............ MENU • [RSHIFT]
-    self.hintBar = create("Frame", { Name = "KeyHints", BackgroundTransparency = 1, Position = UDim2.new(0, 20, 1, -30), Size = UDim2.new(1, -40, 0, 26), Visible = false, Parent = body })
-    self.hintLeft = create("Frame", { Name = "Left", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = self.hintBar })
-    Util.list(self.hintLeft, 8, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
-    self.hintRight = create("Frame", { Name = "Right", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = self.hintBar })
-    Util.list(self.hintRight, 8, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Center)
-    self.hints = {}
 
     ---------------------------------------------------------------- footer
     local footer = create("Frame", { Name = "Footer", Position = UDim2.new(0, 0, 1, -FOOTER), Size = UDim2.new(1, 0, 0, FOOTER), BorderSizePixel = 0, Parent = main })
@@ -217,22 +212,45 @@ function Window:_build()
     corner(footer, 12)
     local footerFill = create("Frame", { Name = "TopFill", Size = UDim2.new(1, 0, 0, 13), BorderSizePixel = 0, ZIndex = 0, Parent = footer })
     Theme.bind(footerFill, "BackgroundColor3", "footer")
-    local footerLine = create("Frame", { Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.45, Parent = footer })
+    local footerLine = create("Frame", { Name = "Line", Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.35, Parent = footer })
     Theme.bind(footerLine, "BackgroundColor3", "line")
     -- status mark: solar "record-bold" (a filled dot) in the status colour; asset id inlined so the solar set is not downloaded
     local dot = create("ImageLabel", {
         Name = "StatusDot", Image = "rbxassetid://122485335253573", BackgroundTransparency = 1, BorderSizePixel = 0,
-        AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 19, 0.5, 0), Size = UDim2.fromOffset(10, 10), Parent = footer,
+        AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 16, 0.5, 0), Size = UDim2.fromOffset(9, 9), Parent = footer,
     })
     Theme.bind(dot, "ImageColor3", "success")
-    local status = label(footer, "Connected", 9, { Name = "Status", Position = UDim2.fromOffset(34, 0), Size = UDim2.new(0, 160, 1, 0) })
-    Theme.bind(status, "TextColor3", "muted")
-    Glow.add(status, { Base = "muted", Shine = "heading", GlowTransparency = 0.92 })
-    local centre = label(footer, tostring(self.cfg.Footer or ""), 9, {
-        Name = "Centre", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0), Size = UDim2.new(1, -240, 1, 0),
-        TextXAlignment = Enum.TextXAlignment.Center,
-    })
+    -- one status bar: [dot] Connected   Mock Place ........ [NUM 8] ESP / SILENT AIM   [RSHIFT] MENU
+    local status = label(footer, "Connected", 10, { Name = "Status", Position = UDim2.fromOffset(31, 0), Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None })
+    Theme.bind(status, "TextColor3", "text")
+    Glow.add(status, { Base = "text", Shine = "heading", GlowTransparency = 0.92 })
+    local centre = label(footer, tostring(self.cfg.Footer or ""), 10, { Name = "Centre", Size = UDim2.new(0, 100, 1, 0) })
     Theme.bind(centre, "TextColor3", "muted")
+    -- key hints on the right of the status bar (Left hints first, then Right ones)
+    self.hintBar = create("Frame", {
+        Name = "KeyHints", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -26, 0, 0),
+        Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, Visible = false, Parent = footer,
+    })
+    local hintLayout = Util.list(self.hintBar, 14, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    for index, name in ipairs({ "Left", "Right" }) do
+        local side = create("Frame", { Name = name, BackgroundTransparency = 1, Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = index, Parent = self.hintBar })
+        Util.list(side, 14, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+        self["hint" .. name] = side
+    end
+    self.hints = {}
+    -- the place name takes the room between the status and the hints
+    local function placeCentre()
+        local s = self.scale and self.scale.Scale or 1
+        local left = 31 + Util.textWidth(status.Text, 10, Enum.Font.Gotham) + 12
+        local right = (self.hintBar.Visible and hintLayout.AbsoluteContentSize.X / s + 26 + 14) or 26
+        centre.Position = UDim2.fromOffset(left, 0)
+        centre.Size = UDim2.new(1, -(left + right), 1, 0)
+    end
+    maid:connect(status:GetPropertyChangedSignal("Text"), placeCentre)
+    maid:connect(hintLayout:GetPropertyChangedSignal("AbsoluteContentSize"), placeCentre)
+    maid:connect(self.hintBar:GetPropertyChangedSignal("Visible"), placeCentre)
+    self._placeCentre = placeCentre
+    placeCentre()
     self.footer, self.statusDot, self.statusLabel, self.footerText = footer, dot, status, centre
     if self.cfg.Footer == nil then
         task.spawn(function()
@@ -255,6 +273,7 @@ function Window:_build()
 
     ---------------------------------------------------------------- dock
     local dock = create("Frame", { Name = "Dock", Size = UDim2.fromOffset(DOCK_WIDTH, DOCK_TOP), BorderSizePixel = 0, BackgroundTransparency = 0.03, ZIndex = 40, ClipsDescendants = true, Parent = gui })
+    dock:SetAttribute("ThemeGlass", true)
     Theme.bind(dock, "BackgroundColor3", "dock")
     corner(dock, 20)
     Theme.bind(stroke(dock), "Color", "line")
@@ -595,9 +614,8 @@ function Window:_layoutBody()
     local tab = self.current
     self:_placePageTabs()
     local top = (tab and #tab.Pages > 1 and not self.pagesInHeader) and 38 or 6
-    local bottom = self.hintBar.Visible and HINTS or 0
     self.pages.Position = UDim2.fromOffset(0, top)
-    self.pages.Size = UDim2.new(1, 0, 1, -(top + bottom))
+    self.pages.Size = UDim2.new(1, 0, 1, -top)
 end
 
 -- Header right side: the header tabs while one of them is open, otherwise "Tab › Page".
@@ -894,25 +912,25 @@ function Window:KeyHint(cfg)
         Name = tostring(cfg.Title or "Hint"), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.X,
         Size = UDim2.fromOffset(0, 26), LayoutOrder = #self.hints + 1, Parent = right and self.hintRight or self.hintLeft,
     })
-    Util.list(group, 8, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    Util.list(group, 6, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    -- [KEY] Caption: a small key cap, then its caption
     local badge = create("TextButton", {
-        Name = "Key", AutoButtonColor = false, BackgroundTransparency = 1, BorderSizePixel = 0, Text = "", TextSize = 10,
-        Font = Enum.Font.GothamMedium, Size = UDim2.fromOffset(48, 22), LayoutOrder = right and 3 or 1, Parent = group,
+        Name = "Key", AutoButtonColor = false, BorderSizePixel = 0, Text = "", TextSize = 9,
+        Font = Enum.Font.GothamMedium, Size = UDim2.fromOffset(40, 18), LayoutOrder = 1, Parent = group,
     })
     Theme.bind(badge, "TextColor3", "text")
-    corner(badge, 6)
-    local outline = stroke(badge, nil, 0.25)
-    Theme.bind(outline, "Color", "line")
-    local dot = label(group, "•", 10, { Name = "Dot", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 20), LayoutOrder = 2, TextTruncate = Enum.TextTruncate.None })
-    Theme.bind(dot, "TextColor3", "muted")
-    local caption = label(group, tostring(cfg.Title or ""), 9, { Name = "Caption", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 20), LayoutOrder = right and 1 or 3, TextTruncate = Enum.TextTruncate.None })
+    Theme.bind(badge, "BackgroundColor3", "input")
+    corner(badge, 5)
+    local outline = stroke(badge, nil, 0.3)
+    Theme.bind(outline, "Color", "buttonEdge")
+    local caption = label(group, tostring(cfg.Title or ""), 10, { Name = "Caption", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 20), LayoutOrder = 2, TextTruncate = Enum.TextTruncate.None })
     Theme.bind(caption, "TextColor3", "muted")
 
     local window = self
     local hint = { Type = "KeyHint", Title = cfg.Title, Row = group, Flag = cfg.Flag }
     local function show(text)
         badge.Text = text
-        badge.Size = UDim2.fromOffset(math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18), 22)
+        badge.Size = UDim2.fromOffset(math.max(28, Util.textWidth(text, 9, Enum.Font.GothamMedium) + 12), 18)
     end
     function hint:Set(key, silent)
         key = Util.toKey(key)
@@ -934,8 +952,8 @@ function Window:KeyHint(cfg)
     end
     function hint:_save() return self.Value and self.Value.Name or "None" end
     function hint:_load(value) self:Set(value) end
-    badge.MouseEnter:Connect(function() Util.tween(outline, 0.12, { Transparency = 0.1 }) end)
-    badge.MouseLeave:Connect(function() Util.tween(outline, 0.12, { Transparency = 0.25 }) end)
+    badge.MouseEnter:Connect(function() Util.tween(outline, 0.12, { Transparency = 0 }) end)
+    badge.MouseLeave:Connect(function() Util.tween(outline, 0.12, { Transparency = 0.3 }) end)
     badge.Activated:Connect(function()
         show("...")
         window._capture = function(key)

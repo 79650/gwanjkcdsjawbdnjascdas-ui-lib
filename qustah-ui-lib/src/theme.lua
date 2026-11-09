@@ -55,7 +55,8 @@ local function derive()
         local black = Color3.new(0, 0, 0)
         for _ = 1, 16 do
             local deep = colors.base:Lerp(accent, 0.12)
-            if contrast(accent, colors.card) >= 3 and contrast(accent, deep) >= 3 and contrast(accent, colors.dock or colors.base) >= 3 then break end
+            if contrast(accent, colors.card) >= 3 and contrast(accent, deep) >= 3 and contrast(accent, colors.dock or colors.base) >= 3
+                and contrast(accent, colors.selected or colors.card) >= 3 then break end
             accent = accent:Lerp(black, 0.08)
         end
     end
@@ -95,6 +96,19 @@ local function track(object)
     return entry
 end
 function Theme._binding(object) return bound[object] end
+
+-- A data colour (a profile's colour, a series...) made readable on a theme colour: darkened on light packs,
+-- lightened on dark ones until it reaches `ratio` (3:1). Theme.readable(color, "card", 3.5) -> Color3
+function Theme.readable(color, role, ratio)
+    local back = Theme.get(role or "card")
+    local toward = luminance(back) > 0.5 and Color3.new(0, 0, 0) or Color3.new(1, 1, 1)
+    for _ = 1, 14 do
+        if contrast(color, back) >= (ratio or 3) then break end
+        color = color:Lerp(toward, 0.1)
+    end
+    return color
+end
+function Theme._bound() return bound end
 function Theme._boundCount()
     local count = 0
     for _ in pairs(bound) do count = count + 1 end
@@ -111,6 +125,10 @@ function Theme.bind(object, property, role)
     local entry = bound[object] or track(object)
     entry[property] = role
     object[property] = Theme.get(role)
+    if property == "BackgroundColor3" and (Theme.alpha[role] or entry.__alpha ~= nil) then
+        -- (not in its place yet: once it is)
+        if object.Parent then Theme._alphaOf(object, entry) else task.defer(function() if object.Parent then pcall(Theme._alphaOf, object, entry) end end) end
+    end
     -- a text box's placeholder follows the theme too (muted) unless something else was chosen for it
     if property == "TextColor3" and entry.PlaceholderColor3 == nil and object:IsA("TextBox") then
         entry.PlaceholderColor3 = "muted"
@@ -125,6 +143,9 @@ function Theme.tweenTo(object, property, role, duration)
     entry[property] = role
     if duration and duration > 0 then
         Util.tween(object, duration, { [property] = Theme.get(role) })
+        -- a theme change while this runs must not be undone by it (see recolour)
+        entry.__until = entry.__until or {}
+        entry.__until[property] = os.clock() + duration
     else
         object[property] = Theme.get(role)
     end
@@ -141,7 +162,15 @@ local function recolour(before)
     for object, properties in pairs(bound) do
         if object.Parent then
             for property, boundRole in pairs(properties) do
-                if changed[boundRole] then pcall(function() object[property] = Theme.get(boundRole) end) end
+                if changed[boundRole] then
+                    local running = properties.__until and properties.__until[property]
+                    if running and running > os.clock() then
+                        -- a tween to the old colour is still running: a new one (ending just after it) replaces it
+                        pcall(Util.tween, object, running - os.clock() + 0.02, { [property] = Theme.get(boundRole) })
+                    else
+                        pcall(function() object[property] = Theme.get(boundRole) end)
+                    end
+                end
             end
         end
     end
@@ -168,19 +197,32 @@ function Theme.setMany(colors)
     for _, listener in ipairs(listeners) do Util.safe(listener, "*", nil) end
 end
 
--- Theme packs: background / text roles only (the accent stays the user's).
--- Light also has its own neutral accent (see Theme.neutral).
+-- Theme packs: the background / text roles (the accent stays the user's), and what else the pack brings to the
+-- window (Theme.packs[name].extras: see Theme.extras). Five built in:
+--   Midnight  deep blue-black, the default        Graphite  neutral grey (Qustah 1.x)
+--   Glass     see-through window and cards, light edges, the game blurred behind
+--   OLED      true black                          Light     light
 Theme.packs = {
-    Dark = {},
     Midnight = {
-        base = rgb(12, 14, 22), footer = rgb(9, 11, 18), dock = rgb(13, 15, 24), selected = rgb(30, 34, 50), icon = rgb(180, 188, 210),
-        card = rgb(16, 19, 29), input = rgb(22, 26, 39), hover = rgb(30, 35, 52), line = rgb(33, 38, 55), edge = rgb(28, 32, 46),
-        buttonEdge = rgb(45, 51, 72), text = rgb(165, 172, 192), muted = rgb(110, 118, 140), heading = rgb(208, 214, 232), knob = rgb(196, 202, 220),
+        base = rgb(13, 14, 17), footer = rgb(11, 12, 15), dock = rgb(13, 14, 17), selected = rgb(30, 32, 39), icon = rgb(150, 155, 168),
+        card = rgb(20, 21, 26), input = rgb(25, 26, 32), hover = rgb(30, 32, 39), line = rgb(33, 35, 42), edge = rgb(31, 33, 40),
+        buttonEdge = rgb(44, 46, 55), text = rgb(196, 199, 207), muted = rgb(110, 115, 128), heading = rgb(238, 240, 244), knob = rgb(255, 255, 255),
     },
-    AMOLED = {
+    Graphite = {},
+    Glass = {
+        base = rgb(14, 15, 19), footer = rgb(14, 15, 19), dock = rgb(14, 15, 19), selected = rgb(52, 55, 66), icon = rgb(170, 175, 188),
+        card = rgb(40, 43, 52), input = rgb(48, 51, 61), hover = rgb(55, 58, 69), line = rgb(78, 82, 95), edge = rgb(92, 96, 110),
+        buttonEdge = rgb(70, 74, 86), text = rgb(206, 209, 216), muted = rgb(140, 145, 158), heading = rgb(245, 246, 250), knob = rgb(255, 255, 255),
+        extras = {
+            -- (BackgroundTransparency per role: the window and dock let the game through, cards are lighter panes)
+            alpha = { base = 0.3, footer = 1, dock = 0.3, card = 0.55, input = 0.45 },
+            blur = true,
+        },
+    },
+    OLED = {
         base = rgb(0, 0, 0), footer = rgb(0, 0, 0), dock = rgb(0, 0, 0), selected = rgb(26, 26, 28), icon = rgb(190, 190, 190),
-        card = rgb(8, 8, 9), input = rgb(16, 16, 18), hover = rgb(26, 26, 28), line = rgb(30, 30, 33), edge = rgb(28, 28, 28),
-        buttonEdge = rgb(42, 42, 46), text = rgb(170, 170, 174), muted = rgb(115, 115, 120), heading = rgb(215, 215, 220), knob = rgb(195, 195, 200),
+        card = rgb(9, 9, 10), input = rgb(17, 17, 19), hover = rgb(26, 26, 28), line = rgb(34, 34, 37), edge = rgb(36, 36, 38),
+        buttonEdge = rgb(46, 46, 50), text = rgb(176, 176, 180), muted = rgb(118, 118, 124), heading = rgb(225, 225, 230), knob = rgb(255, 255, 255),
     },
     Light = {
         base = rgb(238, 238, 241), footer = rgb(229, 229, 233), dock = rgb(234, 234, 238), selected = rgb(216, 216, 222), icon = rgb(85, 85, 95),
@@ -192,9 +234,9 @@ Theme.packs = {
         codeComment = rgb(135, 135, 145), codeGlobal = rgb(35, 95, 200), codeCall = rgb(150, 100, 0),
     },
 }
--- Palette themes: a few colours from the original palette, the rest derived with the same steps as Qustah's own
--- Dark (card / input / hover / outline sit at fixed distances between the background and the text), then checked:
--- text at least 4.5:1 and muted text 3:1 on cards.
+-- Custom themes (Settings › Theme editor): a few colours, the rest derived with the same steps as Graphite (card /
+-- input / hover / outline at fixed distances between the background and the text), then checked: text at least
+-- 4.5:1 and muted text 3:1 on cards.
 local hex = function(text) return Color3.fromRGB(tonumber(text:sub(2, 3), 16), tonumber(text:sub(4, 5), 16), tonumber(text:sub(6, 7), 16)) end
 Theme.hex = hex
 function Theme.makePack(p)
@@ -213,60 +255,84 @@ function Theme.makePack(p)
     for _ = 1, 10 do if contrast(pack.buttonEdge, pack.card) >= 1.35 then break end pack.buttonEdge = pack.buttonEdge:Lerp(text, 0.08) end
     return pack
 end
-local PALETTES = {
-    { "Tokyo Night", { base = "#1a1b26", card = "#1f2131", input = "#272a3d", text = "#a9b1d6", muted = "#6a7299", heading = "#c0caf5", accent = "#7aa2f7" } },
-    { "Catppuccin", { base = "#1e1e2e", card = "#232334", input = "#2b2b3e", text = "#bac2de", muted = "#7f849c", heading = "#cdd6f4", accent = "#cba6f7" } },
-    { "Dracula", { base = "#21222c", card = "#282a36", input = "#30323f", text = "#d6d6d0", muted = "#7484b8", heading = "#f8f8f2", accent = "#bd93f9" } },
-    { "Nord", { base = "#2e3440", card = "#343b49", input = "#3b4252", text = "#d8dee9", muted = "#8892a6", heading = "#eceff4", accent = "#88c0d0" } },
-    { "Gruvbox", { base = "#1d2021", card = "#252525", input = "#2e2c2b", text = "#d5c4a1", muted = "#928374", heading = "#fbf1c7", accent = "#fabd2f" } },
-    { "One Dark", { base = "#21252b", card = "#282c34", input = "#2f343e", text = "#abb2bf", muted = "#727a87", heading = "#d7dae0", accent = "#61afef" } },
-    { "Monokai", { base = "#1e1f1c", card = "#272822", input = "#30312a", text = "#d6d6cf", muted = "#8a8571", heading = "#f8f8f2", accent = "#a6e22e" } },
-    { "Rose Pine", { base = "#191724", card = "#1f1d2e", input = "#26233a", text = "#d2cfea", muted = "#7f7a99", heading = "#e0def4", accent = "#c4a7e7" } },
-    { "Everforest", { base = "#272e33", card = "#2d353b", input = "#343f44", text = "#d3c6aa", muted = "#859289", heading = "#e6dcc0", accent = "#a7c080" } },
-    { "Kanagawa", { base = "#1a1a22", card = "#1f1f28", input = "#2a2a37", text = "#dcd7ba", muted = "#7a7970", heading = "#f2ecbc", accent = "#7e9cd8" } },
-    { "Solarized", { base = "#00212b", card = "#002b36", input = "#073642", text = "#93a1a1", muted = "#657b83", heading = "#eee8d5", accent = "#268bd2" } },
-    { "Oceanic", { base = "#17252d", card = "#1b2b34", input = "#22343e", text = "#c0c5ce", muted = "#6f7d88", heading = "#d8dee9", accent = "#6699cc" } },
-    { "Fatality", { base = "#140f2b", card = "#1a1436", input = "#221a44", text = "#c9c2e6", muted = "#7f76a6", heading = "#efeaff", accent = "#f0024f" } },
-    { "Mint", { base = "#141615", card = "#191c1a", input = "#202422", text = "#c2ccc6", muted = "#7c8781", heading = "#e3ebe6", accent = "#3db488" } },
-    { "Cyberpunk", { base = "#0d0a17", card = "#130f21", input = "#1b152d", text = "#c9c1e8", muted = "#7d74a0", heading = "#f0e9ff", accent = "#f72585" } },
-}
-for _, entry in ipairs(PALETTES) do Theme.packs[entry[1]] = Theme.makePack(entry[2]) end
--- Latte: the light Catppuccin
-Theme.packs.Latte = {
-    base = rgb(230, 233, 239), footer = rgb(220, 224, 232), dock = rgb(230, 233, 239), selected = rgb(204, 208, 218), icon = rgb(76, 79, 105),
-    card = rgb(239, 241, 245), input = rgb(220, 224, 232), hover = rgb(210, 214, 224), line = rgb(204, 208, 218), edge = rgb(188, 192, 204),
-    buttonEdge = rgb(172, 176, 190), text = rgb(76, 79, 105), muted = rgb(124, 127, 147), heading = rgb(48, 52, 70), knob = rgb(255, 255, 255),
-    accent = rgb(136, 57, 239),
-    success = rgb(40, 130, 40), warning = rgb(170, 100, 10), danger = rgb(200, 40, 70),
-    dangerDeep = rgb(250, 225, 230), dangerEdge = rgb(230, 150, 165), dangerText = rgb(180, 30, 60),
-    codeKeyword = rgb(136, 57, 239), codeString = rgb(64, 160, 43), codeNumber = rgb(254, 100, 11),
-    codeComment = rgb(140, 143, 161), codeGlobal = rgb(30, 102, 245), codeCall = rgb(223, 142, 29),
-}
-Theme.packOrder = { "Dark", "Midnight", "AMOLED", "Light", "Latte" }
-for _, entry in ipairs(PALETTES) do table.insert(Theme.packOrder, entry[1]) end
+Theme.packOrder = { "Midnight", "Graphite", "Glass", "OLED", "Light" }
+Theme.defaultPack = "Midnight"
 local DEFAULTS = {}
 for role, color in pairs(Theme.colors) do DEFAULTS[role] = color end
 Theme.defaults = DEFAULTS
--- the pack's own accent ("Neutral" preset): palette themes bring theirs, Light a dark grey, the rest Qustah grey
+-- The accent a pack starts with ("Neutral" preset): Light a dark grey, the others Qustah grey.
 function Theme.neutral(pack)
     local data = Theme.packs[pack]
     if data and data.accent then return data.accent end
     return pack == "Light" and rgb(70, 70, 80) or rgb(177, 178, 183)
 end
+
+-- Transparency per role (Glass): a surface bound to one of these roles takes its BackgroundTransparency (only
+-- surfaces that show a background at all; their own value comes back when the pack has none).
+Theme.alpha = {}
+-- (only inside the window and the dock - a frame marked with the ThemeGlass attribute: popups, notifications and
+-- the HUD over the game stay solid so their text reads on any background)
+local function inGlass(object)
+    local parent = object
+    while parent do
+        if parent:GetAttribute("ThemeGlass") then return true end
+        parent = parent.Parent
+    end
+    return false
+end
+local function alphaOf(object, entry)
+    local role = entry.BackgroundColor3
+    local wanted = role and Theme.alpha[role]
+    if wanted and not inGlass(object) then wanted = nil end
+    if wanted then
+        if entry.__alpha == nil then
+            if object.BackgroundTransparency >= 1 then return end
+            entry.__alpha = object.BackgroundTransparency
+        end
+        if object.BackgroundTransparency ~= wanted then object.BackgroundTransparency = wanted end
+    elseif entry.__alpha ~= nil then
+        object.BackgroundTransparency = entry.__alpha
+        entry.__alpha = nil
+    end
+end
+Theme._alphaOf = alphaOf
+local function applyAlpha()
+    for object, entry in pairs(Theme._bound()) do
+        if object.Parent and entry.BackgroundColor3 then pcall(alphaOf, object, entry) end
+    end
+end
+
+-- What the pack brings besides colours: { alpha = { role = transparency }, blur = true }. Windows listen with
+-- Theme.onExtras(fn(extras)) (the blur).
+Theme.extras = {}
+local extrasListeners = {}
+-- returns a function that removes the listener (a window gives it to its maid)
+function Theme.onExtras(callback)
+    extrasListeners[#extrasListeners + 1] = callback
+    return function()
+        local index = table.find(extrasListeners, callback)
+        if index then table.remove(extrasListeners, index) end
+    end
+end
+
 function Theme.applyPack(name)
     local pack = Theme.packs[name]
     if not pack then return false end
     local colors = {}
     for role, color in pairs(DEFAULTS) do if role ~= "accent" and role ~= "accentUser" then colors[role] = color end end
-    for role, color in pairs(pack) do if role ~= "accent" then colors[role] = color end end
+    for role, color in pairs(pack) do if role ~= "accent" and typeof(color) == "Color3" then colors[role] = color end end
     -- the pack's own accent follows the pack; an accent the user picked is kept
     local accent = Theme.colors.accentUser
-    if accent == Theme.neutral(Theme.pack) or accent == Theme.neutral("Dark") or accent == Theme.neutral("Light") then colors.accentUser = Theme.neutral(name) end
+    if accent == Theme.neutral(Theme.pack) or accent == Theme.neutral("Graphite") or accent == Theme.neutral("Light") then colors.accentUser = Theme.neutral(name) end
     Theme.pack = name
+    Theme.extras = pack.extras or {}
+    Theme.alpha = Theme.extras.alpha or {}
     Theme.setMany(colors)
+    applyAlpha()
+    for _, listener in ipairs(extrasListeners) do Util.safe(listener, Theme.extras) end
     return true
 end
-Theme.pack = "Dark"
+Theme.pack = "Graphite"
 
 -- Custom themes: { base = "#101010", card = ..., accent = ... } (hex per role) <-> packs
 Theme.EDITABLE = { "base", "card", "input", "line", "text", "muted", "heading", "dock", "icon", "accent" }
@@ -308,8 +374,13 @@ function Theme.removeCustom(name)
     return true
 end
 
+-- returns a function that removes the listener
 function Theme.onChange(callback)
     listeners[#listeners + 1] = callback
+    return function()
+        local index = table.find(listeners, callback)
+        if index then table.remove(listeners, index) end
+    end
 end
 
 return Theme

@@ -7,7 +7,7 @@ local Board = W:Tab({ Title = "Board", Icon = "layout-dashboard" })
 local A, B, C = Board:Page("Overview"), Board:Page("Health"), Board:Page("Activity")
 A:Card({ Wide = true }):Hero({ Title = "Tester", Desc = "@Tester · #101", Label = "SESSION", Value = "00:12:44",
     Chips = { { "60 FPS", "activity" }, { "40 ms", "wifi" }, { "2 / 50", "users" } } })
-A:Card({ Wide = true }):StatTiles({ Tiles = {
+A:Card({ Wide = true }):StatTiles({ Items = {
     { Title = "FPS", Value = "60", Sub = "avg 59.8", History = { 58, 60, 61, 59, 60, 57, 60, 62, 60, 59, 60, 61 } },
     { Title = "Ping", Value = "40 ms", Sub = "peak 52", History = { 42, 40, 41, 45, 39, 40, 52, 44, 40, 41 }, Color = "warning" },
     { Title = "Players", Value = "2 / 50", Sub = "server", History = { 2, 2, 3, 3, 2, 2, 2 }, Color = Color3.fromRGB(127, 180, 232) },
@@ -23,7 +23,7 @@ for _, e in ipairs({ { "Qustah loaded", "success" }, { "Mechanics on", "success"
     feed:Add({ Title = e[1], Kind = e[2], Time = "19:19" })
 end
 
-B:Card({ Title = "Health", Icon = "gauge", Wide = true }):Gauges({ Gauges = {
+B:Card({ Title = "Health", Icon = "gauge", Wide = true }):Gauges({ Items = {
     { Title = "FPS", Value = 60, Max = 60, Sub = "of 60" }, { Title = "Ping", Value = 40, Max = 150, Sub = "ms", Color = "warning" },
     { Title = "Players", Value = 2, Max = 50, Sub = "of 50", Color = Color3.fromRGB(127, 180, 232) }, { Title = "Memory", Value = 26, Max = 50, Sub = "MB", Color = Color3.fromRGB(180, 139, 232) },
 } })
@@ -73,9 +73,9 @@ g2:ListItem({ Title = "UI sounds", Icon = "volume-2", Toggle = true, Flag = "dem
 local nav = L3:Card({ Wide = true }):SideNav({ Items = { { "Appearance", "palette" }, { "Behaviour", "sliders-horizontal" }, { "Window", "app-window" }, { "Overlays", "layers" } },
     Footer = function(part) part:Button({ Title = "Unload", Danger = true }) end })
 local look = nav:Section("Appearance")
-look:Dropdown({ Title = "Theme", Options = { "Dark", "Light" }, Default = "Dark" })
+look:Dropdown({ Title = "Theme", Items = { "Dark", "Light" }, Default = "Dark" })
 look:Swatches({ Title = "Accent", Style = "Dots" })
-look:Segment({ Title = "Text size", Options = { "Small", "Normal", "Large" }, Default = "Normal" })
+look:Segment({ Title = "Text size", Items = { "Small", "Normal", "Large" }, Default = "Normal" })
 look:Toggle({ Title = "Text glow", Desc = "Shine on the title and highlights", Default = true })
 nav:Section("Behaviour"):Toggle({ Title = "Free mouse", Default = true })
 
@@ -88,7 +88,7 @@ D1:Card({ Title = "Profiles", Icon = "folder", Wide = true }):ItemCards({ AddNew
     { Title = "Ranked", Sub = "2 days ago · 51 settings", Desc = "Tight FOV, no ESP fade", Color = Color3.fromRGB(74, 157, 224), Action = "Load" },
     { Title = "Farm", Sub = "last week · 38 settings", Desc = "Anti-AFK, auto reset", Color = Color3.fromRGB(94, 196, 110), Badges = { "LOCKED" }, Action = "Load" },
 } })
-D1:Card({ Title = "Unsaved changes", Icon = "git-compare", Wide = true }):DiffList({ OnRevert = function() end, Rows = {
+D1:Card({ Title = "Unsaved changes", Icon = "git-compare", Wide = true }):DiffList({ OnRevert = function() end, Items = {
     { Tag = "ESP", Title = "Max distance", Old = "1000", New = "1500" }, { Tag = "Silent Aim", Title = "FOV radius", Old = "100 px", New = "60 px" },
     { Tag = "Misc", Title = "Click TP keys", Old = "LCTRL + M1", New = "LCTRL + M2" },
 } })
@@ -97,7 +97,7 @@ D2:Card({ Title = "Executor", Icon = "terminal-square", Side = "Left" }):Checkli
     { Title = "File access", Ok = true, Note = "profiles" }, { Title = "getcustomasset", Ok = true, Note = "icons" },
     { Title = "gethui", Ok = true, Note = "hidden ESP" }, { Title = "getconnections", Ok = false, Note = "Anti-AFK" },
 } })
-D2:Card({ Title = "What's new", Icon = "sparkles", Side = "Right" }):Changelog({ Entries = {
+D2:Card({ Title = "What's new", Icon = "sparkles", Side = "Right" }):Changelog({ Items = {
     { Version = "V1.00 · rev 571", Time = "now", Items = { "Click TP: the game's own teleport", "ESP: bars under the feet", "FOV preview at real size" } },
     { Version = "rev 560", Time = "3 days ago", Items = { "Crosshair from the library" } },
     { Version = "rev 541", Time = "last week", Items = { "Icon sheets redrawn" } },

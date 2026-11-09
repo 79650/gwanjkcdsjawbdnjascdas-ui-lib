@@ -236,7 +236,6 @@ function Notify.show(Lib, cfg)
             if remaining <= 0 then dismiss() end
         end)
     end
-    handle.Paused = function() return hovered end
     function handle:GetCount() return entry.count end
     entry.handle = setmetatable(handle, {
         __index = function(_, key)

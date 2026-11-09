@@ -47,8 +47,11 @@ return function(card, cfg)
             local badge = create("Frame", { Name = "Letter", Position = UDim2.fromOffset(9, 9), Size = UDim2.fromOffset(26, 26), BorderSizePixel = 0, BackgroundColor3 = color, BackgroundTransparency = 0.82, Parent = box })
             corner(badge, 7)
             Util.stroke(badge, color, 0.55)
-            local letter = label(badge, string.upper(string.sub(tostring(item.Letter or item.Title or "?"), 1, 1)), 12, { Name = "Text", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold, TextColor3 = color })
-            letter.TextColor3 = color
+            local letter = label(badge, string.upper(string.sub(tostring(item.Letter or item.Title or "?"), 1, 1)), 12, { Name = "Text", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold })
+            -- (the item's colour, made readable on the card for the current theme: a white profile on Light)
+            local function paintLetter() letter.TextColor3 = Theme.readable(color, "card", 3.8) end
+            letter.Destroying:Connect(Theme.onChange(paintLetter))
+            paintLetter()
             local title = label(box, tostring(item.Title or ""), 11, { Name = "Title", Position = UDim2.fromOffset(42, 8), Size = UDim2.new(1, -70, 0, 15), Font = Enum.Font.GothamMedium })
             Theme.bind(title, "TextColor3", "heading")
             local sub = label(box, tostring(item.Sub or ""), 8, { Name = "Sub", Position = UDim2.fromOffset(42, 23), Size = UDim2.new(1, -70, 0, 11) })

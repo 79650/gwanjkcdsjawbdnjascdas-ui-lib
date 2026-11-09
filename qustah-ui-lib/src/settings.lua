@@ -36,7 +36,7 @@ return function(window, cfg)
     local customThemes = window.Config:ReadJSON("themes")
     for name, data in pairs(customThemes) do Theme.registerCustom(name, data) end
     local themeDropdown = look:Dropdown({
-        Title = "Theme", Items = Theme.packOrder, Default = "Dark", Flag = "__ui_theme",
+        Title = "Theme", Items = Theme.packOrder, Default = Theme.pack, Flag = "__ui_theme",
         Callback = function(name)
             Theme.applyPack(name)
             -- the pack may swap the neutral accent: keep the picker / presets in step
@@ -251,7 +251,7 @@ return function(window, cfg)
             customThemes[name] = nil
             Theme.removeCustom(name)
             saveThemes()
-            refreshThemeList("Dark")
+            refreshThemeList(Theme.defaultPack)
         end, "Delete", true)
     end })
     editor:ActionInput({ Name = "ImportTheme", Icon = "import", Placeholder = "Paste a theme code", Button = "Import",
@@ -354,6 +354,18 @@ return function(window, cfg)
     local files = type(writefile) == "function" and type(readfile) == "function"
     about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
     about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
+    -- the window's size as CreateWindow({ Size = Vector2.new(w, h) }) takes it (drag the corner and read it here),
+    -- and the UI scale it is drawn at
+    local sizeRow = about:Info({ Title = "Window size", Value = "",
+        Copy = function() return ("Vector2.new(%d, %d)"):format(window.width or 0, window.height or 0) end,
+        Help = "Drag the bottom-right corner to resize; this is the value for CreateWindow({ Size = Vector2.new(w, h) })" })
+    local function showSize()
+        local scale = window.scale and window.scale.Scale or 1
+        sizeRow:Set(("%d × %d · %d%%"):format(window.width or 0, window.height or 0, math.floor(scale * 100 + 0.5)))
+    end
+    window.maid:connect(window.main:GetPropertyChangedSignal("Size"), showSize)
+    window.maid:connect(window.scale:GetPropertyChangedSignal("Scale"), showSize)
+    showSize()
     -- (the release notes are in the "What's new" card)
     local aboutButtons = about
     if window.cfg.Tour then

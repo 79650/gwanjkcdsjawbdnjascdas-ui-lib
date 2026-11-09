@@ -113,7 +113,7 @@ return function(Window)
             string.format("%s %s · qustah-ui-lib v%s", self.Title, self.Version ~= "" and self.Version or "-", tostring(self.Lib and self.Lib.Version or "?")),
             "executor: " .. executor,
             string.format("game: %s · place %s · job %s", tostring(game.GameId), tostring(game.PlaceId), game.JobId ~= "" and game.JobId or "studio"),
-            string.format("screen: %dx%d · ui scale %d%% · theme %s", screen.X, screen.Y, math.floor((self.GetUIScale and self:GetUIScale() or 1) * 100 + 0.5), tostring(require("theme").pack or "Dark")),
+            string.format("screen: %dx%d · ui scale %d%% · theme %s", screen.X, screen.Y, math.floor((self.GetUIScale and self:GetUIScale() or 1) * 100 + 0.5), tostring(require("theme").pack or "?")),
             string.format("files: %s · secure: %s", (type(writefile) == "function" and type(readfile) == "function") and "yes" or "no", Util.secure and "on" or "off"),
             "",
         }

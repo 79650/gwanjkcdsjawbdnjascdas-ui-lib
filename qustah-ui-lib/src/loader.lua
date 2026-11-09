@@ -51,9 +51,7 @@ local function render()
     if active and not ui then build() end
     if not ui then return end
     if active then
-        local done, total = 0, 0
-        for _, job in ipairs(Loader.jobs) do done, total = done + job.done, total + job.total end
-        local share = total > 0 and done / total or 0
+        local share = Loader.share()
         local newest = Loader.jobs[#Loader.jobs]
         ui.title.Text = Loader.title or "Loading"
         ui.text.Text = "Downloading " .. newest.label
@@ -65,7 +63,14 @@ local function render()
         end
         if not spin then
             spin = Util.Services.RunService.Heartbeat:Connect(function(dt)
-                if ui and ui.spinner then ui.spinner.Rotation = (ui.spinner.Rotation + dt * 360) % 360 end
+                if not ui then return end
+                if ui.spinner then ui.spinner.Rotation = (ui.spinner.Rotation + dt * 360) % 360 end
+                -- (the bar keeps moving while a file is still coming)
+                if #Loader.jobs > 0 then
+                    local now = Loader.share()
+                    ui.percent.Text = math.floor(now * 100 + 0.5) .. "%"
+                    ui.fill.Size = UDim2.fromScale(math.max(now, 0.04), 1)
+                end
             end)
         end
     else
@@ -82,9 +87,22 @@ local function render()
     Loader.visible = true
 end
 
+-- How far the downloads are (0-1): the files done, plus a guess for the ones still coming that grows with time
+-- (up to 90% of a file) - one big file no longer sits at 0% until it is all there.
+function Loader.share()
+    local done, total = 0, 0
+    local now = os.clock()
+    for _, job in ipairs(Loader.jobs) do
+        local coming = job.total - job.done
+        local guess = coming > 0 and coming * 0.9 * (1 - math.exp(-(now - job.began) / 4)) or 0
+        done, total = done + job.done + guess, total + job.total
+    end
+    return total > 0 and math.min(done / total, 1) or 0
+end
+
 -- A download of `total` files: job:step() after each one, job:finish() at the end (done or failed).
 function Loader.start(what, total)
-    local job = { label = tostring(what), total = math.max(1, total or 1), done = 0 }
+    local job = { label = tostring(what), total = math.max(1, total or 1), done = 0, began = os.clock() }
     function job.step() job.done = math.min(job.total, job.done + 1) render() end
     function job.finish()
         local index = table.find(Loader.jobs, job)

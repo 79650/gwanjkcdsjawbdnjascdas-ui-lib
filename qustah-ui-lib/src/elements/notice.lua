@@ -19,15 +19,18 @@ return function(card, cfg)
     local tint = create("Frame", { Name = "Tint", BorderSizePixel = 0, BackgroundTransparency = 0.88, Size = UDim2.fromScale(1, 1), Parent = holder })
     corner(tint, 8)
     local edge = Util.stroke(holder, nil, 0.55)
-    local title = label(holder, "", 11, { Name = "Title", Position = UDim2.fromOffset(34, cfg.Desc and 7 or 0), Size = UDim2.new(1, -150, 0, cfg.Desc and 16 or 34), Font = Enum.Font.GothamMedium })
-    local desc = label(holder, "", 9, { Name = "Desc", Position = UDim2.fromOffset(34, 23), Size = UDim2.new(1, -150, 0, 13) })
+    -- (the text takes the width left of the button, or all of it without one)
+    local buttonWidth = cfg.Button and (Util.textWidth(tostring(cfg.Button.Title or "OK"), 10, Enum.Font.GothamMedium) + (cfg.Button.Icon and 34 or 20)) or nil
+    local reserve = 34 + (buttonWidth and buttonWidth + 16 or 10)
+    local title = label(holder, "", 11, { Name = "Title", Position = UDim2.fromOffset(34, cfg.Desc and 7 or 0), Size = UDim2.new(1, -reserve, 0, cfg.Desc and 16 or 34), Font = Enum.Font.GothamMedium })
+    local desc = label(holder, "", 9, { Name = "Desc", Position = UDim2.fromOffset(34, 23), Size = UDim2.new(1, -reserve, 0, 13) })
     local element = Base.element(card, "Notice", { Title = cfg.Title }, holder, title, desc)
     local icon
     local state = { Kind = cfg.Kind or "info", Title = cfg.Title, Desc = cfg.Desc, Icon = cfg.Icon }
     if cfg.Button then
         local b = cfg.Button
         local text = tostring(b.Title or "OK")
-        local width = Util.textWidth(text, 10, Enum.Font.GothamMedium) + (b.Icon and 34 or 20)
+        local width = buttonWidth
         local button = create("TextButton", { Name = "Button", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(width, 24), Parent = holder })
         corner(button, 6)
         Theme.bind(button, "BackgroundColor3", "card")

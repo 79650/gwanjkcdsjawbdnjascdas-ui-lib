@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.12.3 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.13.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -5110,8 +5110,11 @@ return function(card, cfg)
             local badge = create("Frame", { Name = "Letter", Position = UDim2.fromOffset(9, 9), Size = UDim2.fromOffset(26, 26), BorderSizePixel = 0, BackgroundColor3 = color, BackgroundTransparency = 0.82, Parent = box })
             corner(badge, 7)
             Util.stroke(badge, color, 0.55)
-            local letter = label(badge, string.upper(string.sub(tostring(item.Letter or item.Title or "?"), 1, 1)), 12, { Name = "Text", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold, TextColor3 = color })
-            letter.TextColor3 = color
+            local letter = label(badge, string.upper(string.sub(tostring(item.Letter or item.Title or "?"), 1, 1)), 12, { Name = "Text", Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamBold })
+            -- (the item's colour, made readable on the card for the current theme: a white profile on Light)
+            local function paintLetter() letter.TextColor3 = Theme.readable(color, "card", 3.8) end
+            letter.Destroying:Connect(Theme.onChange(paintLetter))
+            paintLetter()
             local title = label(box, tostring(item.Title or ""), 11, { Name = "Title", Position = UDim2.fromOffset(42, 8), Size = UDim2.new(1, -70, 0, 15), Font = Enum.Font.GothamMedium })
             Theme.bind(title, "TextColor3", "heading")
             local sub = label(box, tostring(item.Sub or ""), 8, { Name = "Sub", Position = UDim2.fromOffset(42, 23), Size = UDim2.new(1, -70, 0, 11) })
@@ -5415,15 +5418,18 @@ return function(card, cfg)
     local tint = create("Frame", { Name = "Tint", BorderSizePixel = 0, BackgroundTransparency = 0.88, Size = UDim2.fromScale(1, 1), Parent = holder })
     corner(tint, 8)
     local edge = Util.stroke(holder, nil, 0.55)
-    local title = label(holder, "", 11, { Name = "Title", Position = UDim2.fromOffset(34, cfg.Desc and 7 or 0), Size = UDim2.new(1, -150, 0, cfg.Desc and 16 or 34), Font = Enum.Font.GothamMedium })
-    local desc = label(holder, "", 9, { Name = "Desc", Position = UDim2.fromOffset(34, 23), Size = UDim2.new(1, -150, 0, 13) })
+    -- (the text takes the width left of the button, or all of it without one)
+    local buttonWidth = cfg.Button and (Util.textWidth(tostring(cfg.Button.Title or "OK"), 10, Enum.Font.GothamMedium) + (cfg.Button.Icon and 34 or 20)) or nil
+    local reserve = 34 + (buttonWidth and buttonWidth + 16 or 10)
+    local title = label(holder, "", 11, { Name = "Title", Position = UDim2.fromOffset(34, cfg.Desc and 7 or 0), Size = UDim2.new(1, -reserve, 0, cfg.Desc and 16 or 34), Font = Enum.Font.GothamMedium })
+    local desc = label(holder, "", 9, { Name = "Desc", Position = UDim2.fromOffset(34, 23), Size = UDim2.new(1, -reserve, 0, 13) })
     local element = Base.element(card, "Notice", { Title = cfg.Title }, holder, title, desc)
     local icon
     local state = { Kind = cfg.Kind or "info", Title = cfg.Title, Desc = cfg.Desc, Icon = cfg.Icon }
     if cfg.Button then
         local b = cfg.Button
         local text = tostring(b.Title or "OK")
-        local width = Util.textWidth(text, 10, Enum.Font.GothamMedium) + (b.Icon and 34 or 20)
+        local width = buttonWidth
         local button = create("TextButton", { Name = "Button", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(width, 24), Parent = holder })
         corner(button, 6)
         Theme.bind(button, "BackgroundColor3", "card")
@@ -7109,12 +7115,10 @@ local Base = require("elements/base")
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 
 local PRESETS = {
-    { "Neutral", Color3.fromRGB(177, 178, 183) }, { "Blue", Color3.fromRGB(61, 151, 219) },
-    { "Red", Color3.fromRGB(220, 110, 110) }, { "Purple", Color3.fromRGB(165, 125, 230) },
-    { "Pink", Color3.fromRGB(225, 120, 180) }, { "Green", Color3.fromRGB(110, 200, 130) },
-    { "Orange", Color3.fromRGB(215, 170, 105) }, { "Cyan", Color3.fromRGB(100, 200, 210) },
+    { "Neutral", Color3.fromRGB(177, 178, 183) }, { "Blue", Color3.fromRGB(124, 156, 255) },
+    { "Crimson", Color3.fromRGB(240, 36, 90) }, { "Violet", Color3.fromRGB(180, 140, 242) },
+    { "Mint", Color3.fromRGB(61, 180, 136) }, { "Gold", Color3.fromRGB(242, 179, 61) },
 }
-
 return function(card, cfg)
     local colors = cfg.Items or PRESETS
     local dots = cfg.Style == "Dots"
@@ -7427,7 +7431,10 @@ return function(card, cfg)
         title = label(holder, tostring(cfg.Title), 11, { Name = "Title", Size = UDim2.new(1, -80, 0, 20) })
         Theme.bind(title, "TextColor3", "text")
     end
-    local count = label(holder, "", 9, { Name = "Count", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(80, 20), TextXAlignment = Enum.TextXAlignment.Right })
+    -- the row count: right of the title; with no title inside the search box's right end; with neither, not shown
+    -- (it would sit on the header row)
+    local count = label(holder, "", 9, { Name = "Count", AnchorPoint = Vector2.new(1, 0), Position = cfg.Title and UDim2.new(1, 0, 0, 0) or UDim2.new(1, -8, 0, 2),
+        Size = UDim2.fromOffset(80, 20), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 2, Visible = cfg.Title ~= nil or cfg.Search == true })
     Theme.bind(count, "TextColor3", "muted")
     local search
     if cfg.Search then
@@ -7441,7 +7448,7 @@ return function(card, cfg)
         Theme.bind(search, "PlaceholderColor3", "muted")
         corner(search, 6)
         Theme.bind(stroke(search), "Color", "buttonEdge")
-        Util.padding(search, 8, 8, 0, 0)
+        Util.padding(search, 8, cfg.Title and 8 or 70, 0, 0)
     end
     local box = create("Frame", { Name = "Box", Position = UDim2.fromOffset(0, top), Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, ClipsDescendants = true, Parent = holder })
     Theme.bind(box, "BackgroundColor3", "base")
@@ -8097,8 +8104,9 @@ end
 end
 
 __modules["elements/viewport"] = function()
--- card:Viewport({ Object = workspace.Model | BasePart, Height = 170, Interactive = true, Spin = false, Distance })
--- A 3D preview of a clone of the object (an avatar, a weapon...). Drag to turn it, wheel to zoom.
+-- card:Viewport({ Object = workspace.Model | BasePart, Height = 170, Interactive = true, Spin = false, Distance, Lower = 0 })
+-- A 3D preview of a clone of the object (an avatar, a weapon...). Drag to turn it, wheel to zoom (the page doesn't
+-- scroll while the pointer is over it). The clone has no scripts and no Animator (nothing plays on it).
 -- :SetObject(obj) swaps the model; :SetSpin(true) turns it slowly. element.Model is the clone on show,
 -- element.Camera / element.View its camera and ViewportFrame.
 local Util = require("util")
@@ -8136,8 +8144,10 @@ return function(card, cfg)
     local function place()
         local distance = (tonumber(cfg.Distance) or radius / math.tan(math.rad(camera.FieldOfView / 2)) * 1.15) * zoom
         local rotation = CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
-        camera.CFrame = CFrame.new(center) * rotation * CFrame.new(0, 0, distance)
-        camera.Focus = CFrame.new(center)
+        -- (Lower: the model sits that share of its size under the middle, room for what is drawn over it)
+        local aim = center + (rotation * Vector3.new(0, 1, 0)) * radius * (tonumber(cfg.Lower) or 0)
+        camera.CFrame = CFrame.new(aim) * rotation * CFrame.new(0, 0, distance)
+        camera.Focus = CFrame.new(aim)
     end
     function element:SetObject(object)
         world:ClearAllChildren()
@@ -8154,7 +8164,8 @@ return function(card, cfg)
         if not ok or not copy then empty.Text = "Cannot preview" empty.Visible = true return end
         -- scripts out, physics off
         for _, d in ipairs(copy:GetDescendants()) do
-            if d:IsA("LuaSourceContainer") then d:Destroy() elseif d:IsA("BasePart") then d.Anchored = true end
+            -- (an Animator left in the clone can play the character's animations on it: a dash pose stuck in the preview)
+            if d:IsA("LuaSourceContainer") or d:IsA("Animator") then d:Destroy() elseif d:IsA("BasePart") then d.Anchored = true end
         end
         if copy:IsA("BasePart") then copy.Anchored = true end
         copy.Parent = world
@@ -8192,6 +8203,16 @@ return function(card, cfg)
                 pitch = math.clamp(pitch - delta.Y * 0.01, -1.3, 1.3)
                 place()
             end)
+        end)
+        -- (the wheel zooms here: the page's own scrolling waits while the pointer is over the preview)
+        local scroller
+        hit.MouseEnter:Connect(function()
+            local node = holder.Parent
+            while node and not node:IsA("ScrollingFrame") do node = node.Parent end
+            if node and node.ScrollingEnabled ~= false then scroller = node node.ScrollingEnabled = false end
+        end)
+        hit.MouseLeave:Connect(function()
+            if scroller then scroller.ScrollingEnabled = true scroller = nil end
         end)
         hit.InputChanged:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseWheel then
@@ -9819,7 +9840,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.12.3",
+    Version = "1.13.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -10017,9 +10038,7 @@ local function render()
     if active and not ui then build() end
     if not ui then return end
     if active then
-        local done, total = 0, 0
-        for _, job in ipairs(Loader.jobs) do done, total = done + job.done, total + job.total end
-        local share = total > 0 and done / total or 0
+        local share = Loader.share()
         local newest = Loader.jobs[#Loader.jobs]
         ui.title.Text = Loader.title or "Loading"
         ui.text.Text = "Downloading " .. newest.label
@@ -10031,7 +10050,14 @@ local function render()
         end
         if not spin then
             spin = Util.Services.RunService.Heartbeat:Connect(function(dt)
-                if ui and ui.spinner then ui.spinner.Rotation = (ui.spinner.Rotation + dt * 360) % 360 end
+                if not ui then return end
+                if ui.spinner then ui.spinner.Rotation = (ui.spinner.Rotation + dt * 360) % 360 end
+                -- (the bar keeps moving while a file is still coming)
+                if #Loader.jobs > 0 then
+                    local now = Loader.share()
+                    ui.percent.Text = math.floor(now * 100 + 0.5) .. "%"
+                    ui.fill.Size = UDim2.fromScale(math.max(now, 0.04), 1)
+                end
             end)
         end
     else
@@ -10048,9 +10074,22 @@ local function render()
     Loader.visible = true
 end
 
+-- How far the downloads are (0-1): the files done, plus a guess for the ones still coming that grows with time
+-- (up to 90% of a file) - one big file no longer sits at 0% until it is all there.
+function Loader.share()
+    local done, total = 0, 0
+    local now = os.clock()
+    for _, job in ipairs(Loader.jobs) do
+        local coming = job.total - job.done
+        local guess = coming > 0 and coming * 0.9 * (1 - math.exp(-(now - job.began) / 4)) or 0
+        done, total = done + job.done + guess, total + job.total
+    end
+    return total > 0 and math.min(done / total, 1) or 0
+end
+
 -- A download of `total` files: job:step() after each one, job:finish() at the end (done or failed).
 function Loader.start(what, total)
-    local job = { label = tostring(what), total = math.max(1, total or 1), done = 0 }
+    local job = { label = tostring(what), total = math.max(1, total or 1), done = 0, began = os.clock() }
     function job.step() job.done = math.min(job.total, job.done + 1) render() end
     function job.finish()
         local index = table.find(Loader.jobs, job)
@@ -10435,7 +10474,6 @@ function Notify.show(Lib, cfg)
             if remaining <= 0 then dismiss() end
         end)
     end
-    handle.Paused = function() return hovered end
     function handle:GetCount() return entry.count end
     entry.handle = setmetatable(handle, {
         __index = function(_, key)
@@ -11019,7 +11057,7 @@ return function(window, cfg)
     local customThemes = window.Config:ReadJSON("themes")
     for name, data in pairs(customThemes) do Theme.registerCustom(name, data) end
     local themeDropdown = look:Dropdown({
-        Title = "Theme", Items = Theme.packOrder, Default = "Dark", Flag = "__ui_theme",
+        Title = "Theme", Items = Theme.packOrder, Default = Theme.pack, Flag = "__ui_theme",
         Callback = function(name)
             Theme.applyPack(name)
             -- the pack may swap the neutral accent: keep the picker / presets in step
@@ -11234,7 +11272,7 @@ return function(window, cfg)
             customThemes[name] = nil
             Theme.removeCustom(name)
             saveThemes()
-            refreshThemeList("Dark")
+            refreshThemeList(Theme.defaultPack)
         end, "Delete", true)
     end })
     editor:ActionInput({ Name = "ImportTheme", Icon = "import", Placeholder = "Paste a theme code", Button = "Import",
@@ -11337,6 +11375,18 @@ return function(window, cfg)
     local files = type(writefile) == "function" and type(readfile) == "function"
     about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
     about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
+    -- the window's size as CreateWindow({ Size = Vector2.new(w, h) }) takes it (drag the corner and read it here),
+    -- and the UI scale it is drawn at
+    local sizeRow = about:Info({ Title = "Window size", Value = "",
+        Copy = function() return ("Vector2.new(%d, %d)"):format(window.width or 0, window.height or 0) end,
+        Help = "Drag the bottom-right corner to resize; this is the value for CreateWindow({ Size = Vector2.new(w, h) })" })
+    local function showSize()
+        local scale = window.scale and window.scale.Scale or 1
+        sizeRow:Set(("%d × %d · %d%%"):format(window.width or 0, window.height or 0, math.floor(scale * 100 + 0.5)))
+    end
+    window.maid:connect(window.main:GetPropertyChangedSignal("Size"), showSize)
+    window.maid:connect(window.scale:GetPropertyChangedSignal("Scale"), showSize)
+    showSize()
     -- (the release notes are in the "What's new" card)
     local aboutButtons = about
     if window.cfg.Tour then
@@ -11731,7 +11781,7 @@ return function(Window)
             string.format("%s %s · qustah-ui-lib v%s", self.Title, self.Version ~= "" and self.Version or "-", tostring(self.Lib and self.Lib.Version or "?")),
             "executor: " .. executor,
             string.format("game: %s · place %s · job %s", tostring(game.GameId), tostring(game.PlaceId), game.JobId ~= "" and game.JobId or "studio"),
-            string.format("screen: %dx%d · ui scale %d%% · theme %s", screen.X, screen.Y, math.floor((self.GetUIScale and self:GetUIScale() or 1) * 100 + 0.5), tostring(require("theme").pack or "Dark")),
+            string.format("screen: %dx%d · ui scale %d%% · theme %s", screen.X, screen.Y, math.floor((self.GetUIScale and self:GetUIScale() or 1) * 100 + 0.5), tostring(require("theme").pack or "?")),
             string.format("files: %s · secure: %s", (type(writefile) == "function" and type(readfile) == "function") and "yes" or "no", Util.secure and "on" or "off"),
             "",
         }
@@ -12293,7 +12343,8 @@ local function derive()
         local black = Color3.new(0, 0, 0)
         for _ = 1, 16 do
             local deep = colors.base:Lerp(accent, 0.12)
-            if contrast(accent, colors.card) >= 3 and contrast(accent, deep) >= 3 and contrast(accent, colors.dock or colors.base) >= 3 then break end
+            if contrast(accent, colors.card) >= 3 and contrast(accent, deep) >= 3 and contrast(accent, colors.dock or colors.base) >= 3
+                and contrast(accent, colors.selected or colors.card) >= 3 then break end
             accent = accent:Lerp(black, 0.08)
         end
     end
@@ -12333,6 +12384,19 @@ local function track(object)
     return entry
 end
 function Theme._binding(object) return bound[object] end
+
+-- A data colour (a profile's colour, a series...) made readable on a theme colour: darkened on light packs,
+-- lightened on dark ones until it reaches `ratio` (3:1). Theme.readable(color, "card", 3.5) -> Color3
+function Theme.readable(color, role, ratio)
+    local back = Theme.get(role or "card")
+    local toward = luminance(back) > 0.5 and Color3.new(0, 0, 0) or Color3.new(1, 1, 1)
+    for _ = 1, 14 do
+        if contrast(color, back) >= (ratio or 3) then break end
+        color = color:Lerp(toward, 0.1)
+    end
+    return color
+end
+function Theme._bound() return bound end
 function Theme._boundCount()
     local count = 0
     for _ in pairs(bound) do count = count + 1 end
@@ -12349,6 +12413,10 @@ function Theme.bind(object, property, role)
     local entry = bound[object] or track(object)
     entry[property] = role
     object[property] = Theme.get(role)
+    if property == "BackgroundColor3" and (Theme.alpha[role] or entry.__alpha ~= nil) then
+        -- (not in its place yet: once it is)
+        if object.Parent then Theme._alphaOf(object, entry) else task.defer(function() if object.Parent then pcall(Theme._alphaOf, object, entry) end end) end
+    end
     -- a text box's placeholder follows the theme too (muted) unless something else was chosen for it
     if property == "TextColor3" and entry.PlaceholderColor3 == nil and object:IsA("TextBox") then
         entry.PlaceholderColor3 = "muted"
@@ -12363,6 +12431,9 @@ function Theme.tweenTo(object, property, role, duration)
     entry[property] = role
     if duration and duration > 0 then
         Util.tween(object, duration, { [property] = Theme.get(role) })
+        -- a theme change while this runs must not be undone by it (see recolour)
+        entry.__until = entry.__until or {}
+        entry.__until[property] = os.clock() + duration
     else
         object[property] = Theme.get(role)
     end
@@ -12379,7 +12450,15 @@ local function recolour(before)
     for object, properties in pairs(bound) do
         if object.Parent then
             for property, boundRole in pairs(properties) do
-                if changed[boundRole] then pcall(function() object[property] = Theme.get(boundRole) end) end
+                if changed[boundRole] then
+                    local running = properties.__until and properties.__until[property]
+                    if running and running > os.clock() then
+                        -- a tween to the old colour is still running: a new one (ending just after it) replaces it
+                        pcall(Util.tween, object, running - os.clock() + 0.02, { [property] = Theme.get(boundRole) })
+                    else
+                        pcall(function() object[property] = Theme.get(boundRole) end)
+                    end
+                end
             end
         end
     end
@@ -12406,19 +12485,32 @@ function Theme.setMany(colors)
     for _, listener in ipairs(listeners) do Util.safe(listener, "*", nil) end
 end
 
--- Theme packs: background / text roles only (the accent stays the user's).
--- Light also has its own neutral accent (see Theme.neutral).
+-- Theme packs: the background / text roles (the accent stays the user's), and what else the pack brings to the
+-- window (Theme.packs[name].extras: see Theme.extras). Five built in:
+--   Midnight  deep blue-black, the default        Graphite  neutral grey (Qustah 1.x)
+--   Glass     see-through window and cards, light edges, the game blurred behind
+--   OLED      true black                          Light     light
 Theme.packs = {
-    Dark = {},
     Midnight = {
-        base = rgb(12, 14, 22), footer = rgb(9, 11, 18), dock = rgb(13, 15, 24), selected = rgb(30, 34, 50), icon = rgb(180, 188, 210),
-        card = rgb(16, 19, 29), input = rgb(22, 26, 39), hover = rgb(30, 35, 52), line = rgb(33, 38, 55), edge = rgb(28, 32, 46),
-        buttonEdge = rgb(45, 51, 72), text = rgb(165, 172, 192), muted = rgb(110, 118, 140), heading = rgb(208, 214, 232), knob = rgb(196, 202, 220),
+        base = rgb(13, 14, 17), footer = rgb(11, 12, 15), dock = rgb(13, 14, 17), selected = rgb(30, 32, 39), icon = rgb(150, 155, 168),
+        card = rgb(20, 21, 26), input = rgb(25, 26, 32), hover = rgb(30, 32, 39), line = rgb(33, 35, 42), edge = rgb(31, 33, 40),
+        buttonEdge = rgb(44, 46, 55), text = rgb(196, 199, 207), muted = rgb(110, 115, 128), heading = rgb(238, 240, 244), knob = rgb(255, 255, 255),
     },
-    AMOLED = {
+    Graphite = {},
+    Glass = {
+        base = rgb(14, 15, 19), footer = rgb(14, 15, 19), dock = rgb(14, 15, 19), selected = rgb(52, 55, 66), icon = rgb(170, 175, 188),
+        card = rgb(40, 43, 52), input = rgb(48, 51, 61), hover = rgb(55, 58, 69), line = rgb(78, 82, 95), edge = rgb(92, 96, 110),
+        buttonEdge = rgb(70, 74, 86), text = rgb(206, 209, 216), muted = rgb(140, 145, 158), heading = rgb(245, 246, 250), knob = rgb(255, 255, 255),
+        extras = {
+            -- (BackgroundTransparency per role: the window and dock let the game through, cards are lighter panes)
+            alpha = { base = 0.3, footer = 1, dock = 0.3, card = 0.55, input = 0.45 },
+            blur = true,
+        },
+    },
+    OLED = {
         base = rgb(0, 0, 0), footer = rgb(0, 0, 0), dock = rgb(0, 0, 0), selected = rgb(26, 26, 28), icon = rgb(190, 190, 190),
-        card = rgb(8, 8, 9), input = rgb(16, 16, 18), hover = rgb(26, 26, 28), line = rgb(30, 30, 33), edge = rgb(28, 28, 28),
-        buttonEdge = rgb(42, 42, 46), text = rgb(170, 170, 174), muted = rgb(115, 115, 120), heading = rgb(215, 215, 220), knob = rgb(195, 195, 200),
+        card = rgb(9, 9, 10), input = rgb(17, 17, 19), hover = rgb(26, 26, 28), line = rgb(34, 34, 37), edge = rgb(36, 36, 38),
+        buttonEdge = rgb(46, 46, 50), text = rgb(176, 176, 180), muted = rgb(118, 118, 124), heading = rgb(225, 225, 230), knob = rgb(255, 255, 255),
     },
     Light = {
         base = rgb(238, 238, 241), footer = rgb(229, 229, 233), dock = rgb(234, 234, 238), selected = rgb(216, 216, 222), icon = rgb(85, 85, 95),
@@ -12430,9 +12522,9 @@ Theme.packs = {
         codeComment = rgb(135, 135, 145), codeGlobal = rgb(35, 95, 200), codeCall = rgb(150, 100, 0),
     },
 }
--- Palette themes: a few colours from the original palette, the rest derived with the same steps as Qustah's own
--- Dark (card / input / hover / outline sit at fixed distances between the background and the text), then checked:
--- text at least 4.5:1 and muted text 3:1 on cards.
+-- Custom themes (Settings › Theme editor): a few colours, the rest derived with the same steps as Graphite (card /
+-- input / hover / outline at fixed distances between the background and the text), then checked: text at least
+-- 4.5:1 and muted text 3:1 on cards.
 local hex = function(text) return Color3.fromRGB(tonumber(text:sub(2, 3), 16), tonumber(text:sub(4, 5), 16), tonumber(text:sub(6, 7), 16)) end
 Theme.hex = hex
 function Theme.makePack(p)
@@ -12451,60 +12543,84 @@ function Theme.makePack(p)
     for _ = 1, 10 do if contrast(pack.buttonEdge, pack.card) >= 1.35 then break end pack.buttonEdge = pack.buttonEdge:Lerp(text, 0.08) end
     return pack
 end
-local PALETTES = {
-    { "Tokyo Night", { base = "#1a1b26", card = "#1f2131", input = "#272a3d", text = "#a9b1d6", muted = "#6a7299", heading = "#c0caf5", accent = "#7aa2f7" } },
-    { "Catppuccin", { base = "#1e1e2e", card = "#232334", input = "#2b2b3e", text = "#bac2de", muted = "#7f849c", heading = "#cdd6f4", accent = "#cba6f7" } },
-    { "Dracula", { base = "#21222c", card = "#282a36", input = "#30323f", text = "#d6d6d0", muted = "#7484b8", heading = "#f8f8f2", accent = "#bd93f9" } },
-    { "Nord", { base = "#2e3440", card = "#343b49", input = "#3b4252", text = "#d8dee9", muted = "#8892a6", heading = "#eceff4", accent = "#88c0d0" } },
-    { "Gruvbox", { base = "#1d2021", card = "#252525", input = "#2e2c2b", text = "#d5c4a1", muted = "#928374", heading = "#fbf1c7", accent = "#fabd2f" } },
-    { "One Dark", { base = "#21252b", card = "#282c34", input = "#2f343e", text = "#abb2bf", muted = "#727a87", heading = "#d7dae0", accent = "#61afef" } },
-    { "Monokai", { base = "#1e1f1c", card = "#272822", input = "#30312a", text = "#d6d6cf", muted = "#8a8571", heading = "#f8f8f2", accent = "#a6e22e" } },
-    { "Rose Pine", { base = "#191724", card = "#1f1d2e", input = "#26233a", text = "#d2cfea", muted = "#7f7a99", heading = "#e0def4", accent = "#c4a7e7" } },
-    { "Everforest", { base = "#272e33", card = "#2d353b", input = "#343f44", text = "#d3c6aa", muted = "#859289", heading = "#e6dcc0", accent = "#a7c080" } },
-    { "Kanagawa", { base = "#1a1a22", card = "#1f1f28", input = "#2a2a37", text = "#dcd7ba", muted = "#7a7970", heading = "#f2ecbc", accent = "#7e9cd8" } },
-    { "Solarized", { base = "#00212b", card = "#002b36", input = "#073642", text = "#93a1a1", muted = "#657b83", heading = "#eee8d5", accent = "#268bd2" } },
-    { "Oceanic", { base = "#17252d", card = "#1b2b34", input = "#22343e", text = "#c0c5ce", muted = "#6f7d88", heading = "#d8dee9", accent = "#6699cc" } },
-    { "Fatality", { base = "#140f2b", card = "#1a1436", input = "#221a44", text = "#c9c2e6", muted = "#7f76a6", heading = "#efeaff", accent = "#f0024f" } },
-    { "Mint", { base = "#141615", card = "#191c1a", input = "#202422", text = "#c2ccc6", muted = "#7c8781", heading = "#e3ebe6", accent = "#3db488" } },
-    { "Cyberpunk", { base = "#0d0a17", card = "#130f21", input = "#1b152d", text = "#c9c1e8", muted = "#7d74a0", heading = "#f0e9ff", accent = "#f72585" } },
-}
-for _, entry in ipairs(PALETTES) do Theme.packs[entry[1]] = Theme.makePack(entry[2]) end
--- Latte: the light Catppuccin
-Theme.packs.Latte = {
-    base = rgb(230, 233, 239), footer = rgb(220, 224, 232), dock = rgb(230, 233, 239), selected = rgb(204, 208, 218), icon = rgb(76, 79, 105),
-    card = rgb(239, 241, 245), input = rgb(220, 224, 232), hover = rgb(210, 214, 224), line = rgb(204, 208, 218), edge = rgb(188, 192, 204),
-    buttonEdge = rgb(172, 176, 190), text = rgb(76, 79, 105), muted = rgb(124, 127, 147), heading = rgb(48, 52, 70), knob = rgb(255, 255, 255),
-    accent = rgb(136, 57, 239),
-    success = rgb(40, 130, 40), warning = rgb(170, 100, 10), danger = rgb(200, 40, 70),
-    dangerDeep = rgb(250, 225, 230), dangerEdge = rgb(230, 150, 165), dangerText = rgb(180, 30, 60),
-    codeKeyword = rgb(136, 57, 239), codeString = rgb(64, 160, 43), codeNumber = rgb(254, 100, 11),
-    codeComment = rgb(140, 143, 161), codeGlobal = rgb(30, 102, 245), codeCall = rgb(223, 142, 29),
-}
-Theme.packOrder = { "Dark", "Midnight", "AMOLED", "Light", "Latte" }
-for _, entry in ipairs(PALETTES) do table.insert(Theme.packOrder, entry[1]) end
+Theme.packOrder = { "Midnight", "Graphite", "Glass", "OLED", "Light" }
+Theme.defaultPack = "Midnight"
 local DEFAULTS = {}
 for role, color in pairs(Theme.colors) do DEFAULTS[role] = color end
 Theme.defaults = DEFAULTS
--- the pack's own accent ("Neutral" preset): palette themes bring theirs, Light a dark grey, the rest Qustah grey
+-- The accent a pack starts with ("Neutral" preset): Light a dark grey, the others Qustah grey.
 function Theme.neutral(pack)
     local data = Theme.packs[pack]
     if data and data.accent then return data.accent end
     return pack == "Light" and rgb(70, 70, 80) or rgb(177, 178, 183)
 end
+
+-- Transparency per role (Glass): a surface bound to one of these roles takes its BackgroundTransparency (only
+-- surfaces that show a background at all; their own value comes back when the pack has none).
+Theme.alpha = {}
+-- (only inside the window and the dock - a frame marked with the ThemeGlass attribute: popups, notifications and
+-- the HUD over the game stay solid so their text reads on any background)
+local function inGlass(object)
+    local parent = object
+    while parent do
+        if parent:GetAttribute("ThemeGlass") then return true end
+        parent = parent.Parent
+    end
+    return false
+end
+local function alphaOf(object, entry)
+    local role = entry.BackgroundColor3
+    local wanted = role and Theme.alpha[role]
+    if wanted and not inGlass(object) then wanted = nil end
+    if wanted then
+        if entry.__alpha == nil then
+            if object.BackgroundTransparency >= 1 then return end
+            entry.__alpha = object.BackgroundTransparency
+        end
+        if object.BackgroundTransparency ~= wanted then object.BackgroundTransparency = wanted end
+    elseif entry.__alpha ~= nil then
+        object.BackgroundTransparency = entry.__alpha
+        entry.__alpha = nil
+    end
+end
+Theme._alphaOf = alphaOf
+local function applyAlpha()
+    for object, entry in pairs(Theme._bound()) do
+        if object.Parent and entry.BackgroundColor3 then pcall(alphaOf, object, entry) end
+    end
+end
+
+-- What the pack brings besides colours: { alpha = { role = transparency }, blur = true }. Windows listen with
+-- Theme.onExtras(fn(extras)) (the blur).
+Theme.extras = {}
+local extrasListeners = {}
+-- returns a function that removes the listener (a window gives it to its maid)
+function Theme.onExtras(callback)
+    extrasListeners[#extrasListeners + 1] = callback
+    return function()
+        local index = table.find(extrasListeners, callback)
+        if index then table.remove(extrasListeners, index) end
+    end
+end
+
 function Theme.applyPack(name)
     local pack = Theme.packs[name]
     if not pack then return false end
     local colors = {}
     for role, color in pairs(DEFAULTS) do if role ~= "accent" and role ~= "accentUser" then colors[role] = color end end
-    for role, color in pairs(pack) do if role ~= "accent" then colors[role] = color end end
+    for role, color in pairs(pack) do if role ~= "accent" and typeof(color) == "Color3" then colors[role] = color end end
     -- the pack's own accent follows the pack; an accent the user picked is kept
     local accent = Theme.colors.accentUser
-    if accent == Theme.neutral(Theme.pack) or accent == Theme.neutral("Dark") or accent == Theme.neutral("Light") then colors.accentUser = Theme.neutral(name) end
+    if accent == Theme.neutral(Theme.pack) or accent == Theme.neutral("Graphite") or accent == Theme.neutral("Light") then colors.accentUser = Theme.neutral(name) end
     Theme.pack = name
+    Theme.extras = pack.extras or {}
+    Theme.alpha = Theme.extras.alpha or {}
     Theme.setMany(colors)
+    applyAlpha()
+    for _, listener in ipairs(extrasListeners) do Util.safe(listener, Theme.extras) end
     return true
 end
-Theme.pack = "Dark"
+Theme.pack = "Graphite"
 
 -- Custom themes: { base = "#101010", card = ..., accent = ... } (hex per role) <-> packs
 Theme.EDITABLE = { "base", "card", "input", "line", "text", "muted", "heading", "dock", "icon", "accent" }
@@ -12546,8 +12662,13 @@ function Theme.removeCustom(name)
     return true
 end
 
+-- returns a function that removes the listener
 function Theme.onChange(callback)
     listeners[#listeners + 1] = callback
+    return function()
+        local index = table.find(listeners, callback)
+        if index then table.remove(listeners, index) end
+    end
 end
 
 return Theme
@@ -13105,38 +13226,46 @@ function Util.cacheFiles(files, done, fail, what)
     if #missing == 0 then finish() return end
     -- (required here, not at the top: the strip itself is built from util)
     local job = what and require("loader").start(what, #missing)
-    task.spawn(function()
-        local ok, reason = pcall(function()
-            for _, file in ipairs(missing) do
-                -- an http request reaches any host (raw.githubusercontent.com works with HttpGet too). A request
-                -- that never answers would keep the strip (and whoever waits for it) forever: given up after
-                -- Util.downloadTimeout seconds, the caller falls back (plain icons).
-                local request = (syn and syn.request) or http_request or request
-                local body, finished, failure = nil, false, nil
-                local worker = task.spawn(function()
-                    local got, value = pcall(function()
-                        if request and not file.url:find("githubusercontent", 1, true) then
-                            return request({ Url = file.url, Method = "GET" }).Body
-                        end
-                        return game:HttpGet(file.url)
-                    end)
-                    if got then body = value else failure = value end
-                    finished = true
+    -- every missing file at once (one after the other, the strip sat at 0% through the whole first sheet). An http
+    -- request reaches any host (raw.githubusercontent.com works with HttpGet too). A request that never answers
+    -- would keep the strip (and whoever waits for it) forever: given up after Util.downloadTimeout seconds, the
+    -- caller falls back (plain icons).
+    local request = (syn and syn.request) or http_request or request
+    local left, failed = #missing, nil
+    local function settle(reason)
+        if reason ~= nil and failed == nil then failed = reason end
+        left = left - 1
+        if left > 0 then return end
+        if job then job.finish() end
+        if failed == nil then finish() else fail(tostring(failed)) end
+    end
+    for _, file in ipairs(missing) do
+        task.spawn(function()
+            local body, finished, failure = nil, false, nil
+            local worker = task.spawn(function()
+                local got, value = pcall(function()
+                    if request and not file.url:find("githubusercontent", 1, true) then
+                        return request({ Url = file.url, Method = "GET" }).Body
+                    end
+                    return game:HttpGet(file.url)
                 end)
-                local started = os.clock()
-                while not finished and os.clock() - started < Util.downloadTimeout do task.wait(0.1) end
+                if got then body = value else failure = value end
+                finished = true
+            end)
+            local started = os.clock()
+            while not finished and os.clock() - started < Util.downloadTimeout do task.wait(0.1) end
+            local ok, reason = pcall(function()
                 if not finished then pcall(task.cancel, worker) error("timed out", 0) end
                 if failure ~= nil then error(failure, 0) end
                 assert(type(body) == "string" and #body > 0, "empty response")
                 if file.check then assert(file.check(body), "unexpected file") end
                 makeFolders(file.path)
                 writefile(file.path, body)
-                if job then job.step() end
-            end
+            end)
+            if ok and job then job.step() end
+            settle(not ok and reason or nil)
         end)
-        if job then job.finish() end
-        if ok then finish() else fail(tostring(reason)) end
-    end)
+    end
 end
 
 -- Runs a user callback; an error is reported but never breaks the UI.
@@ -13504,10 +13633,9 @@ local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stro
 local Tabs = require("tabs") -- Tab and Page
 local Tab = Tabs.Tab
 
-local HEADER, FOOTER = 44, 26
+local HEADER, FOOTER = 44, 30
 local DOCK_WIDTH, DOCK_GAP, DOCK_STEP = 40, 12, 37
 local DOCK_TOP = Tabs.DOCK_TOP
-local HINTS = 34 -- height taken by the key hint bar
 
 local Window = {}
 Window.__index = Window
@@ -13544,6 +13672,8 @@ function Window.new(Lib, cfg)
     end
     env.__QustahUIWindows[self.Title] = self
 
+    -- CreateWindow({ Theme = "Glass" }): the pack it starts with (Midnight otherwise; Settings › Theme changes it)
+    Theme.applyPack(Theme.packs[cfg.Theme] and cfg.Theme or Theme.defaultPack)
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
     if cfg.Secure then Util.secure = true end
     if cfg.ConsoleLog == false then Util.quiet = true end
@@ -13593,6 +13723,7 @@ function Window:_build()
         Name = "Window", Size = UDim2.fromOffset(self.width, self.height), BorderSizePixel = 0,
         ClipsDescendants = true, Parent = gui,
     })
+    main:SetAttribute("ThemeGlass", true) -- (a see-through theme reaches inside: see Theme alpha)
     Theme.bind(main, "BackgroundColor3", "base")
     corner(main, 12)
     self.mainStroke = stroke(main)
@@ -13692,13 +13823,6 @@ function Window:_build()
     self.body = body
     self.stripHolder = create("Frame", { Name = "Strip", BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 6), Size = UDim2.new(1, -32, 0, 26), Parent = body })
     self.pages = create("Frame", { Name = "Pages", BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, 0, 1, -6), Parent = body })
-    -- key hints: [NUM 8] • ESP / SILENT AIM ............ MENU • [RSHIFT]
-    self.hintBar = create("Frame", { Name = "KeyHints", BackgroundTransparency = 1, Position = UDim2.new(0, 20, 1, -30), Size = UDim2.new(1, -40, 0, 26), Visible = false, Parent = body })
-    self.hintLeft = create("Frame", { Name = "Left", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = self.hintBar })
-    Util.list(self.hintLeft, 8, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
-    self.hintRight = create("Frame", { Name = "Right", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = self.hintBar })
-    Util.list(self.hintRight, 8, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Center)
-    self.hints = {}
 
     ---------------------------------------------------------------- footer
     local footer = create("Frame", { Name = "Footer", Position = UDim2.new(0, 0, 1, -FOOTER), Size = UDim2.new(1, 0, 0, FOOTER), BorderSizePixel = 0, Parent = main })
@@ -13707,22 +13831,45 @@ function Window:_build()
     corner(footer, 12)
     local footerFill = create("Frame", { Name = "TopFill", Size = UDim2.new(1, 0, 0, 13), BorderSizePixel = 0, ZIndex = 0, Parent = footer })
     Theme.bind(footerFill, "BackgroundColor3", "footer")
-    local footerLine = create("Frame", { Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.45, Parent = footer })
+    local footerLine = create("Frame", { Name = "Line", Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.35, Parent = footer })
     Theme.bind(footerLine, "BackgroundColor3", "line")
     -- status mark: solar "record-bold" (a filled dot) in the status colour; asset id inlined so the solar set is not downloaded
     local dot = create("ImageLabel", {
         Name = "StatusDot", Image = "rbxassetid://122485335253573", BackgroundTransparency = 1, BorderSizePixel = 0,
-        AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 19, 0.5, 0), Size = UDim2.fromOffset(10, 10), Parent = footer,
+        AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 16, 0.5, 0), Size = UDim2.fromOffset(9, 9), Parent = footer,
     })
     Theme.bind(dot, "ImageColor3", "success")
-    local status = label(footer, "Connected", 9, { Name = "Status", Position = UDim2.fromOffset(34, 0), Size = UDim2.new(0, 160, 1, 0) })
-    Theme.bind(status, "TextColor3", "muted")
-    Glow.add(status, { Base = "muted", Shine = "heading", GlowTransparency = 0.92 })
-    local centre = label(footer, tostring(self.cfg.Footer or ""), 9, {
-        Name = "Centre", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0), Size = UDim2.new(1, -240, 1, 0),
-        TextXAlignment = Enum.TextXAlignment.Center,
-    })
+    -- one status bar: [dot] Connected   Mock Place ........ [NUM 8] ESP / SILENT AIM   [RSHIFT] MENU
+    local status = label(footer, "Connected", 10, { Name = "Status", Position = UDim2.fromOffset(31, 0), Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None })
+    Theme.bind(status, "TextColor3", "text")
+    Glow.add(status, { Base = "text", Shine = "heading", GlowTransparency = 0.92 })
+    local centre = label(footer, tostring(self.cfg.Footer or ""), 10, { Name = "Centre", Size = UDim2.new(0, 100, 1, 0) })
     Theme.bind(centre, "TextColor3", "muted")
+    -- key hints on the right of the status bar (Left hints first, then Right ones)
+    self.hintBar = create("Frame", {
+        Name = "KeyHints", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -26, 0, 0),
+        Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, Visible = false, Parent = footer,
+    })
+    local hintLayout = Util.list(self.hintBar, 14, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    for index, name in ipairs({ "Left", "Right" }) do
+        local side = create("Frame", { Name = name, BackgroundTransparency = 1, Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = index, Parent = self.hintBar })
+        Util.list(side, 14, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+        self["hint" .. name] = side
+    end
+    self.hints = {}
+    -- the place name takes the room between the status and the hints
+    local function placeCentre()
+        local s = self.scale and self.scale.Scale or 1
+        local left = 31 + Util.textWidth(status.Text, 10, Enum.Font.Gotham) + 12
+        local right = (self.hintBar.Visible and hintLayout.AbsoluteContentSize.X / s + 26 + 14) or 26
+        centre.Position = UDim2.fromOffset(left, 0)
+        centre.Size = UDim2.new(1, -(left + right), 1, 0)
+    end
+    maid:connect(status:GetPropertyChangedSignal("Text"), placeCentre)
+    maid:connect(hintLayout:GetPropertyChangedSignal("AbsoluteContentSize"), placeCentre)
+    maid:connect(self.hintBar:GetPropertyChangedSignal("Visible"), placeCentre)
+    self._placeCentre = placeCentre
+    placeCentre()
     self.footer, self.statusDot, self.statusLabel, self.footerText = footer, dot, status, centre
     if self.cfg.Footer == nil then
         task.spawn(function()
@@ -13745,6 +13892,7 @@ function Window:_build()
 
     ---------------------------------------------------------------- dock
     local dock = create("Frame", { Name = "Dock", Size = UDim2.fromOffset(DOCK_WIDTH, DOCK_TOP), BorderSizePixel = 0, BackgroundTransparency = 0.03, ZIndex = 40, ClipsDescendants = true, Parent = gui })
+    dock:SetAttribute("ThemeGlass", true)
     Theme.bind(dock, "BackgroundColor3", "dock")
     corner(dock, 20)
     Theme.bind(stroke(dock), "Color", "line")
@@ -14085,9 +14233,8 @@ function Window:_layoutBody()
     local tab = self.current
     self:_placePageTabs()
     local top = (tab and #tab.Pages > 1 and not self.pagesInHeader) and 38 or 6
-    local bottom = self.hintBar.Visible and HINTS or 0
     self.pages.Position = UDim2.fromOffset(0, top)
-    self.pages.Size = UDim2.new(1, 0, 1, -(top + bottom))
+    self.pages.Size = UDim2.new(1, 0, 1, -top)
 end
 
 -- Header right side: the header tabs while one of them is open, otherwise "Tab › Page".
@@ -14384,25 +14531,25 @@ function Window:KeyHint(cfg)
         Name = tostring(cfg.Title or "Hint"), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.X,
         Size = UDim2.fromOffset(0, 26), LayoutOrder = #self.hints + 1, Parent = right and self.hintRight or self.hintLeft,
     })
-    Util.list(group, 8, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    Util.list(group, 6, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    -- [KEY] Caption: a small key cap, then its caption
     local badge = create("TextButton", {
-        Name = "Key", AutoButtonColor = false, BackgroundTransparency = 1, BorderSizePixel = 0, Text = "", TextSize = 10,
-        Font = Enum.Font.GothamMedium, Size = UDim2.fromOffset(48, 22), LayoutOrder = right and 3 or 1, Parent = group,
+        Name = "Key", AutoButtonColor = false, BorderSizePixel = 0, Text = "", TextSize = 9,
+        Font = Enum.Font.GothamMedium, Size = UDim2.fromOffset(40, 18), LayoutOrder = 1, Parent = group,
     })
     Theme.bind(badge, "TextColor3", "text")
-    corner(badge, 6)
-    local outline = stroke(badge, nil, 0.25)
-    Theme.bind(outline, "Color", "line")
-    local dot = label(group, "•", 10, { Name = "Dot", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 20), LayoutOrder = 2, TextTruncate = Enum.TextTruncate.None })
-    Theme.bind(dot, "TextColor3", "muted")
-    local caption = label(group, tostring(cfg.Title or ""), 9, { Name = "Caption", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 20), LayoutOrder = right and 1 or 3, TextTruncate = Enum.TextTruncate.None })
+    Theme.bind(badge, "BackgroundColor3", "input")
+    corner(badge, 5)
+    local outline = stroke(badge, nil, 0.3)
+    Theme.bind(outline, "Color", "buttonEdge")
+    local caption = label(group, tostring(cfg.Title or ""), 10, { Name = "Caption", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 20), LayoutOrder = 2, TextTruncate = Enum.TextTruncate.None })
     Theme.bind(caption, "TextColor3", "muted")
 
     local window = self
     local hint = { Type = "KeyHint", Title = cfg.Title, Row = group, Flag = cfg.Flag }
     local function show(text)
         badge.Text = text
-        badge.Size = UDim2.fromOffset(math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18), 22)
+        badge.Size = UDim2.fromOffset(math.max(28, Util.textWidth(text, 9, Enum.Font.GothamMedium) + 12), 18)
     end
     function hint:Set(key, silent)
         key = Util.toKey(key)
@@ -14424,8 +14571,8 @@ function Window:KeyHint(cfg)
     end
     function hint:_save() return self.Value and self.Value.Name or "None" end
     function hint:_load(value) self:Set(value) end
-    badge.MouseEnter:Connect(function() Util.tween(outline, 0.12, { Transparency = 0.1 }) end)
-    badge.MouseLeave:Connect(function() Util.tween(outline, 0.12, { Transparency = 0.25 }) end)
+    badge.MouseEnter:Connect(function() Util.tween(outline, 0.12, { Transparency = 0 }) end)
+    badge.MouseLeave:Connect(function() Util.tween(outline, 0.12, { Transparency = 0.3 }) end)
     badge.Activated:Connect(function()
         show("...")
         window._capture = function(key)
@@ -14505,10 +14652,12 @@ local Theme = require("theme")
 local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
 
 -- relative luminance (WCAG) -> black or white text
+-- the text colour on a tag's fill: dark or white, whichever reads better
 local function readableOn(color)
     local function channel(c) return c <= 0.03928 and c / 12.92 or ((c + 0.055) / 1.055) ^ 2.4 end
     local luminance = 0.2126 * channel(color.R) + 0.7152 * channel(color.G) + 0.0722 * channel(color.B)
-    return luminance > 0.36 and Color3.fromRGB(18, 18, 22) or Color3.new(1, 1, 1)
+    local dark = 0.2126 * channel(18 / 255) + 0.7152 * channel(18 / 255) + 0.0722 * channel(22 / 255)
+    return (luminance + 0.05) / (dark + 0.05) > 1.05 / (luminance + 0.05) and Color3.fromRGB(18, 18, 22) or Color3.new(1, 1, 1)
 end
 
 return function(Window)
@@ -14746,6 +14895,17 @@ return function(Window)
         if blur == nil then blur = cfg.Blur == true end
         if blur then self:SetBlur(true, tonumber(cfg.BlurSize)) end
         self.maid:give(function() self.blur = false self:_applyBlur() end)
+        -- a theme that blurs the game (Glass): on with it; off again after it unless the Blur game switch is on
+        self._themeBlur = Theme.extras.blur == true
+        if self._themeBlur then self:SetBlur(true) end
+        self.maid:give(Theme.onExtras(function(extras)
+            if not self.alive then return end
+            local themed = extras.blur == true
+            if themed == self._themeBlur then return end
+            self._themeBlur = themed
+            local own = self.flags.__ui_blur and self.flags.__ui_blur.Value == true
+            self:SetBlur(themed or own)
+        end))
         self:_welcome()
         self:_changelog()
         if self._autoTour then self:_autoTour() end

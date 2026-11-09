@@ -14,10 +14,12 @@ local Theme = require("theme")
 local create, corner, stroke, label, tween = Util.create, Util.corner, Util.stroke, Util.label, Util.tween
 
 -- relative luminance (WCAG) -> black or white text
+-- the text colour on a tag's fill: dark or white, whichever reads better
 local function readableOn(color)
     local function channel(c) return c <= 0.03928 and c / 12.92 or ((c + 0.055) / 1.055) ^ 2.4 end
     local luminance = 0.2126 * channel(color.R) + 0.7152 * channel(color.G) + 0.0722 * channel(color.B)
-    return luminance > 0.36 and Color3.fromRGB(18, 18, 22) or Color3.new(1, 1, 1)
+    local dark = 0.2126 * channel(18 / 255) + 0.7152 * channel(18 / 255) + 0.0722 * channel(22 / 255)
+    return (luminance + 0.05) / (dark + 0.05) > 1.05 / (luminance + 0.05) and Color3.fromRGB(18, 18, 22) or Color3.new(1, 1, 1)
 end
 
 return function(Window)
@@ -255,6 +257,17 @@ return function(Window)
         if blur == nil then blur = cfg.Blur == true end
         if blur then self:SetBlur(true, tonumber(cfg.BlurSize)) end
         self.maid:give(function() self.blur = false self:_applyBlur() end)
+        -- a theme that blurs the game (Glass): on with it; off again after it unless the Blur game switch is on
+        self._themeBlur = Theme.extras.blur == true
+        if self._themeBlur then self:SetBlur(true) end
+        self.maid:give(Theme.onExtras(function(extras)
+            if not self.alive then return end
+            local themed = extras.blur == true
+            if themed == self._themeBlur then return end
+            self._themeBlur = themed
+            local own = self.flags.__ui_blur and self.flags.__ui_blur.Value == true
+            self:SetBlur(themed or own)
+        end))
         self:_welcome()
         self:_changelog()
         if self._autoTour then self:_autoTour() end

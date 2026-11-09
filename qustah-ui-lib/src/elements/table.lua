@@ -37,7 +37,10 @@ return function(card, cfg)
         title = label(holder, tostring(cfg.Title), 11, { Name = "Title", Size = UDim2.new(1, -80, 0, 20) })
         Theme.bind(title, "TextColor3", "text")
     end
-    local count = label(holder, "", 9, { Name = "Count", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(80, 20), TextXAlignment = Enum.TextXAlignment.Right })
+    -- the row count: right of the title; with no title inside the search box's right end; with neither, not shown
+    -- (it would sit on the header row)
+    local count = label(holder, "", 9, { Name = "Count", AnchorPoint = Vector2.new(1, 0), Position = cfg.Title and UDim2.new(1, 0, 0, 0) or UDim2.new(1, -8, 0, 2),
+        Size = UDim2.fromOffset(80, 20), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 2, Visible = cfg.Title ~= nil or cfg.Search == true })
     Theme.bind(count, "TextColor3", "muted")
     local search
     if cfg.Search then
@@ -51,7 +54,7 @@ return function(card, cfg)
         Theme.bind(search, "PlaceholderColor3", "muted")
         corner(search, 6)
         Theme.bind(stroke(search), "Color", "buttonEdge")
-        Util.padding(search, 8, 8, 0, 0)
+        Util.padding(search, 8, cfg.Title and 8 or 70, 0, 0)
     end
     local box = create("Frame", { Name = "Box", Position = UDim2.fromOffset(0, top), Size = UDim2.new(1, 0, 0, height), BorderSizePixel = 0, ClipsDescendants = true, Parent = holder })
     Theme.bind(box, "BackgroundColor3", "base")
