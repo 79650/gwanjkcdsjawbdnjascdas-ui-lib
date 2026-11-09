@@ -2397,24 +2397,17 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         check("card icon replaces the dot", head(cd2):FindFirstChild("CardIcon") ~= nil and head(cd2):FindFirstChild("Dot") == nil)
         check("Dot = false: plain title at the edge", head(cd3):FindFirstChild("Dot") == nil and cd3.titleLabel.Position.X.Offset == 0)
         cd1.frame:Destroy() cd2.frame:Destroy() cd3.frame:Destroy()
-        -- the window and dock fade through a CanvasGroup only while fading (its texture blurs icons in game);
-        -- their outlines sit inside it, so they fade together with the inside
+        -- the window and dock show and hide at once (no fade: moving the whole menu into a CanvasGroup hitched)
         window:SetAccentGlow(false)
         local function inGroup(frame) local p = frame.Parent while p do if p:IsA("CanvasGroup") then return true end p = p.Parent end return false end
         check("shown: window and dock are not inside a CanvasGroup", not inGroup(window.main) and not inGroup(window.dock) and window.main:IsA("Frame"))
         window:SetVisible(false)
-        check("hiding: window fades inside a CanvasGroup", inGroup(window.main) and inGroup(window.dock))
-        wait(0.3)
-        check("hidden: window and dock hidden, back in the ScreenGui", not window.main.Visible and not window.dock.Visible and window.main.Parent == window.gui and window.dock.Parent == window.gui)
+        check("hidden at once: window and dock, still in the ScreenGui", not window.main.Visible and not window.dock.Visible and window.main.Parent == window.gui and window.dock.Parent == window.gui)
         window:SetVisible(true)
-        check("showing: fades in from transparent", inGroup(window.main) and window.main.Parent.GroupTransparency > 0.5 or window.main.Parent == window.gui)
-        wait(0.3)
-        check("shown again: out of the CanvasGroup, outline at rest", window.main.Visible and window.main.Parent == window.gui and not inGroup(window.dock) and window.mainStroke.Transparency <= 0.01)
-        local dockEdge = window.dock:FindFirstChildWhichIsA("UIStroke")
-        check("dock outline back too", dockEdge and dockEdge.Transparency <= 0.01)
-        -- hide then show again before the fade ends
-        window:SetVisible(false) wait(0.05) window:SetVisible(true) wait(0.3)
-        check("interrupted fade ends shown and outside the CanvasGroup", window.main.Visible and window.main.Parent == window.gui)
+        check("shown again at once, with the dock", window.main.Visible and window.dock.Visible and window.main.Parent == window.gui and not inGroup(window.main))
+        check("outlines at rest", window.mainStroke.Transparency <= 0.01)
+        window:SetVisible(false) window:SetVisible(true)
+        check("hide then show right away ends shown", window.main.Visible and window.dock.Visible)
     end
 
     -- dock under the window, page names in the title row

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.14.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.14.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -9844,7 +9844,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.14.0",
+    Version = "1.14.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -13118,39 +13118,6 @@ function Util.tween(object, duration, props, style, direction)
     return tween
 end
 
--- Fades a window-sized frame in / out through a CanvasGroup that only exists while the fade runs. A CanvasGroup
--- draws everything inside it into a texture first, and in game that texture can come out softer than the screen
--- (thin icons and small text look blurry), so the frame sits outside one whenever it is simply shown.
-local fadeLayers = setmetatable({}, { __mode = "k" })
-function Util.fadeFrame(frame, duration, target)
-    local state = fadeLayers[frame]
-    if not state then
-        state = { token = 0, hidden = not frame.Visible }
-        state.layer = create("CanvasGroup", {
-            Name = frame.Name .. "Fade", BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), GroupTransparency = 0,
-        })
-        fadeLayers[frame] = state
-    end
-    state.token = state.token + 1
-    local token, layer = state.token, state.layer
-    if frame.Parent ~= layer then
-        state.home = frame.Parent
-        layer.ZIndex = frame.ZIndex
-        layer.GroupTransparency = state.hidden and 1 or 0
-        layer.Parent = state.home
-        frame.Parent = layer
-    end
-    local tween = Util.tween(layer, duration, { GroupTransparency = target })
-    tween.Completed:Connect(function()
-        if state.token ~= token or frame.Parent ~= layer then return end
-        state.hidden = target >= 1
-        if state.hidden then frame.Visible = false end
-        frame.Parent = state.home
-        layer.Parent = nil
-    end)
-    return tween
-end
-
 -- Fades a small piece of UI (toast, pill, key screen) by tweening each part's own transparency, so nothing is
 -- drawn through a CanvasGroup texture (sharp text and icons) and it can stay inside a list layout. Each part's
 -- resting transparency is remembered the first time. fromHidden: start everything invisible (a new toast).
@@ -13730,8 +13697,7 @@ function Window:_build()
     self.gui = gui
     UIFont.register(gui, maid)
 
-    -- a plain Frame: a CanvasGroup would draw the whole menu into a texture (softer icons and text in game);
-    -- Util.fadeFrame puts it in one only while it fades in or out
+    -- a plain Frame: a CanvasGroup would draw the whole menu into a texture (softer icons and text in game)
     local main = create("Frame", {
         Name = "Window", Size = UDim2.fromOffset(self.width, self.height), BorderSizePixel = 0,
         ClipsDescendants = true, Parent = gui,
@@ -14492,23 +14458,15 @@ function Window:SetVisible(visible)
     self:_closePopup()
     if not visible and self._dialog then self._dialog:Close() end
     self:_hideTip()
-    self._token = (self._token or 0) + 1
-    local token = self._token
+    -- (shown and hidden at once: a fade put the whole menu - thousands of objects - into a CanvasGroup and back on
+    -- every toggle, a visible hitch in game)
     if visible then
         self.main.Visible = true
-        Util.fadeFrame(self.main, 0.14, 0)
-        Util.fadeFrame(self.dock, 0.14, 0)
-        self:_layout()
+        self:_layout() -- (the dock shows again here, unless folded or without tabs)
     else
         self._drag = nil
-        Util.fadeFrame(self.main, 0.12, 1)
-        Util.fadeFrame(self.dock, 0.12, 1)
-        task.delay(0.13, function()
-            if self.alive and token == self._token and not self.visible then
-                self.main.Visible = false
-                self.dock.Visible = false
-            end
-        end)
+        self.main.Visible = false
+        self.dock.Visible = false
     end
 end
 function Window:Toggle() self:SetVisible(not self.visible) end

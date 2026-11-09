@@ -98,8 +98,7 @@ function Window:_build()
     self.gui = gui
     UIFont.register(gui, maid)
 
-    -- a plain Frame: a CanvasGroup would draw the whole menu into a texture (softer icons and text in game);
-    -- Util.fadeFrame puts it in one only while it fades in or out
+    -- a plain Frame: a CanvasGroup would draw the whole menu into a texture (softer icons and text in game)
     local main = create("Frame", {
         Name = "Window", Size = UDim2.fromOffset(self.width, self.height), BorderSizePixel = 0,
         ClipsDescendants = true, Parent = gui,
@@ -860,23 +859,15 @@ function Window:SetVisible(visible)
     self:_closePopup()
     if not visible and self._dialog then self._dialog:Close() end
     self:_hideTip()
-    self._token = (self._token or 0) + 1
-    local token = self._token
+    -- (shown and hidden at once: a fade put the whole menu - thousands of objects - into a CanvasGroup and back on
+    -- every toggle, a visible hitch in game)
     if visible then
         self.main.Visible = true
-        Util.fadeFrame(self.main, 0.14, 0)
-        Util.fadeFrame(self.dock, 0.14, 0)
-        self:_layout()
+        self:_layout() -- (the dock shows again here, unless folded or without tabs)
     else
         self._drag = nil
-        Util.fadeFrame(self.main, 0.12, 1)
-        Util.fadeFrame(self.dock, 0.12, 1)
-        task.delay(0.13, function()
-            if self.alive and token == self._token and not self.visible then
-                self.main.Visible = false
-                self.dock.Visible = false
-            end
-        end)
+        self.main.Visible = false
+        self.dock.Visible = false
     end
 end
 function Window:Toggle() self:SetVisible(not self.visible) end

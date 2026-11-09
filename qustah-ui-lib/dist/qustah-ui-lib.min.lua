@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.14.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.14.1 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8664,7 +8664,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.14.0",
+Version="1.14.1",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -11494,35 +11494,6 @@ TweenInfo.new(duration,style or Enum.EasingStyle.Quad,direction or Enum.EasingDi
 tween:Play()
 return tween
 end
-local fadeLayers=setmetatable({},{__mode="k"})
-function Util.fadeFrame(frame,duration,target)
-local state=fadeLayers[frame]
-if not state then
-state={token=0,hidden=not frame.Visible}
-state.layer=create("CanvasGroup",{
-Name=frame.Name.."Fade",BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.fromScale(1,1),GroupTransparency=0,
-})
-fadeLayers[frame]=state
-end
-state.token=state.token+1
-local token,layer=state.token,state.layer
-if frame.Parent~=layer then
-state.home=frame.Parent
-layer.ZIndex=frame.ZIndex
-layer.GroupTransparency=state.hidden and 1 or 0
-layer.Parent=state.home
-frame.Parent=layer
-end
-local tween=Util.tween(layer,duration,{GroupTransparency=target})
-tween.Completed:Connect(function()
-if state.token~=token or frame.Parent~=layer then return end
-state.hidden=target>=1
-if state.hidden then frame.Visible=false end
-frame.Parent=state.home
-layer.Parent=nil
-end)
-return tween
-end
 local FADE_PROPS={
 {"GuiObject","BackgroundTransparency"},{"TextLabel","TextTransparency"},{"TextButton","TextTransparency"},
 {"TextBox","TextTransparency"},{"ImageLabel","ImageTransparency"},{"ImageButton","ImageTransparency"},
@@ -12673,23 +12644,13 @@ self.visible=visible
 self:_closePopup()
 if not visible and self._dialog then self._dialog:Close()end
 self:_hideTip()
-self._token=(self._token or 0)+1
-local token=self._token
 if visible then
 self.main.Visible=true
-Util.fadeFrame(self.main,0.14,0)
-Util.fadeFrame(self.dock,0.14,0)
 self:_layout()
 else
 self._drag=nil
-Util.fadeFrame(self.main,0.12,1)
-Util.fadeFrame(self.dock,0.12,1)
-task.delay(0.13,function()
-if self.alive and token==self._token and not self.visible then
 self.main.Visible=false
 self.dock.Visible=false
-end
-end)
 end
 end
 function Window:Toggle()self:SetVisible(not self.visible)end
