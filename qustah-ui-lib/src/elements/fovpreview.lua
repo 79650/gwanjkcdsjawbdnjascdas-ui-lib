@@ -2,7 +2,7 @@
 -- whatever the UI scale); one too big for the box is shrunk to fit and the corner says so ("300 px · shown at 40 %").
 -- element:Update(settings):
 --   Radius (px on the real screen), Sides (under 16: drawn as the polygon it is), Thickness, Color,
---   Transparency (0 - 1, the outline), Filled, FillColor, FillTransparency (0 - 1), Visible (false: shown faint).
+--   Transparency (0 - 1, the outline), Filled, FillColor, FillTransparency (0 - 1), Visible (false: shown faint), HiddenReason (the note then, default "hidden").
 -- Drawn again on its own when the UI scale changes.
 local Util = require("util")
 local Theme = require("theme")
@@ -107,7 +107,7 @@ return function(card, cfg)
                 line.Visible = false
             end
         end
-        note.Text = (shown and "" or "hidden · ") .. math.floor(realRadius) .. " px"
+        note.Text = (shown and "" or (tostring(s.HiddenReason or "hidden") .. " · ")) .. math.floor(realRadius) .. " px"
             .. (fit < 0.995 and " · shown at " .. math.floor(fit * 100 + 0.5) .. " %" or " · real size")
     end
     function element:Update(changes)

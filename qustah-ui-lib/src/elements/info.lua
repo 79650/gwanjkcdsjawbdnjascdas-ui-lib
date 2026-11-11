@@ -1,5 +1,6 @@
 -- card:Info({ Title = "User ID", Value = "#123", Copy = true | "text to copy" | function() return ... end })
--- A read-only "name ........ value" row; :Set(value) updates it. With Copy a small Copy button copies the value.
+-- A read-only "name ........ value" row; :Set(value) updates it. With Copy a small Copy button right after the
+-- value copies it.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -12,7 +13,7 @@ return function(card, cfg)
     Theme.bind(title, "TextColor3", "muted")
     local copyWidth = cfg.Copy and 40 or 0
     local value = label(row, "", 10, {
-        Name = "Value", Position = UDim2.new(0.42, copyWidth, 0, 0), Size = UDim2.new(0.58, -copyWidth, 1, 0),
+        Name = "Value", Position = UDim2.new(0.42, 0, 0, 0), Size = UDim2.new(0.58, -copyWidth, 1, 0),
         TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium,
     })
     Theme.bind(value, "TextColor3", "text")
@@ -47,7 +48,7 @@ return function(card, cfg)
     if cfg.Copy then
         local copy = create("TextButton", {
             Name = "Copy", Text = "Copy", TextSize = 8, Font = Enum.Font.Gotham, AutoButtonColor = false, BorderSizePixel = 0,
-            AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0.42, 0, 0.5, 0), Size = UDim2.fromOffset(34, 16), Parent = row,
+            AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(34, 16), Parent = row,
         })
         Theme.bind(copy, "BackgroundColor3", "input")
         Theme.bind(copy, "TextColor3", "text")

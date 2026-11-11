@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.14.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.14.2 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -3562,7 +3562,7 @@ return function(card, cfg)
         for key, value in pairs(changes or {}) do self.Settings[key] = value end
         local settings = self.Settings
         drawn.layout(settings, cfg.Scale or 2)
-        caption.Text = (settings.Enabled == false and "off · " or "") .. tostring(settings.Style)
+        caption.Text = (settings.Enabled == false and "Off · " or "") .. "Style: " .. tostring(settings.Style)
         if settings.Spin and not spinConnection then
             spinConnection = Util.Services.RunService.RenderStepped:Connect(function(dt)
                 if not box.Parent then stopSpin() return end
@@ -4057,7 +4057,7 @@ __modules["elements/fovpreview"] = function()
 -- whatever the UI scale); one too big for the box is shrunk to fit and the corner says so ("300 px · shown at 40 %").
 -- element:Update(settings):
 --   Radius (px on the real screen), Sides (under 16: drawn as the polygon it is), Thickness, Color,
---   Transparency (0 - 1, the outline), Filled, FillColor, FillTransparency (0 - 1), Visible (false: shown faint).
+--   Transparency (0 - 1, the outline), Filled, FillColor, FillTransparency (0 - 1), Visible (false: shown faint), HiddenReason (the note then, default "hidden").
 -- Drawn again on its own when the UI scale changes.
 local Util = require("util")
 local Theme = require("theme")
@@ -4162,7 +4162,7 @@ return function(card, cfg)
                 line.Visible = false
             end
         end
-        note.Text = (shown and "" or "hidden · ") .. math.floor(realRadius) .. " px"
+        note.Text = (shown and "" or (tostring(s.HiddenReason or "hidden") .. " · ")) .. math.floor(realRadius) .. " px"
             .. (fit < 0.995 and " · shown at " .. math.floor(fit * 100 + 0.5) .. " %" or " · real size")
     end
     function element:Update(changes)
@@ -4856,7 +4856,8 @@ end
 
 __modules["elements/info"] = function()
 -- card:Info({ Title = "User ID", Value = "#123", Copy = true | "text to copy" | function() return ... end })
--- A read-only "name ........ value" row; :Set(value) updates it. With Copy a small Copy button copies the value.
+-- A read-only "name ........ value" row; :Set(value) updates it. With Copy a small Copy button right after the
+-- value copies it.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -4869,7 +4870,7 @@ return function(card, cfg)
     Theme.bind(title, "TextColor3", "muted")
     local copyWidth = cfg.Copy and 40 or 0
     local value = label(row, "", 10, {
-        Name = "Value", Position = UDim2.new(0.42, copyWidth, 0, 0), Size = UDim2.new(0.58, -copyWidth, 1, 0),
+        Name = "Value", Position = UDim2.new(0.42, 0, 0, 0), Size = UDim2.new(0.58, -copyWidth, 1, 0),
         TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.GothamMedium,
     })
     Theme.bind(value, "TextColor3", "text")
@@ -4904,7 +4905,7 @@ return function(card, cfg)
     if cfg.Copy then
         local copy = create("TextButton", {
             Name = "Copy", Text = "Copy", TextSize = 8, Font = Enum.Font.Gotham, AutoButtonColor = false, BorderSizePixel = 0,
-            AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0.42, 0, 0.5, 0), Size = UDim2.fromOffset(34, 16), Parent = row,
+            AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(34, 16), Parent = row,
         })
         Theme.bind(copy, "BackgroundColor3", "input")
         Theme.bind(copy, "TextColor3", "text")
@@ -9844,7 +9845,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.14.1",
+    Version = "1.14.2",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -10755,9 +10756,9 @@ return function(window, page, defaults)
     ------------------------------------------------------------ new / import
     -- one card, two tabs in its header; each tab is a single field with the action inside it
     local newCard = page:Card({ Title = "New profile", Icon = "plus" })
-    local sections = newCard:Tabs({ "Create", "Import" })
+    local sections = newCard:Tabs({ "From current", "From code" })
     local function count(flags) local n = 0 for _ in pairs(flags or {}) do n = n + 1 end return n end
-    sections.Create:ActionInput({
+    sections["From current"]:ActionInput({
         Name = "CreateProfile", Icon = "plus", Placeholder = "Profile name", Button = "Create",
         Hint = "Saves your current settings as a new profile",
         Validate = function(name)
@@ -10774,7 +10775,7 @@ return function(window, page, defaults)
             end
         end,
     })
-    sections.Import:ActionInput({
+    sections["From code"]:ActionInput({
         Name = "ImportProfile", Icon = "import", Placeholder = "Paste a QUSTAH1: code", Button = "Import",
         Hint = "Get a code with Share on any profile",
         Validate = function(code)
@@ -11313,6 +11314,7 @@ return function(window, cfg)
         local list
         local rows = {}
         local function where(element)
+            if element.Type == "KeyHint" then return "Footer" end
             local page = element.Card and element.Card.page
             local owner = page and page.tab
             if not owner then return "" end
@@ -11330,7 +11332,7 @@ return function(window, cfg)
                     end
                     if name ~= "None" then
                         -- (the card's title in front when the element's own one says little: "Click to Teleport › Keys")
-                        local title = tostring(element.Title or element.Type or "Key")
+                        local title = tostring(element.ListTitle or element.Title or element.Type or "Key")
                         local cardTitle = element.Card and element.Card.title
                         if type(cardTitle) == "string" and cardTitle ~= "" and cardTitle ~= title and #title <= 8 then title = cardTitle .. " › " .. title end
                         rows[#rows + 1] = { key = name, title = title, place = where(element), element = element,
@@ -14493,7 +14495,8 @@ function Window:Minimize()
 end
 
 -- Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Side = "Left" | "Right",
---                  Pressed = function(key) end, Callback = function(newKey) end, Flag })
+--                  Pressed = function(key) end, Callback = function(newKey) end, Flag, ListTitle = "ESP / Silent Aim" })
+-- (ListTitle: its name in Settings › Keys, when the caption is shouted)
 -- A key badge with a caption above the footer; click the badge to rebind (Backspace clears, Escape cancels).
 function Window:KeyHint(cfg)
     cfg = cfg or {}
@@ -14517,7 +14520,7 @@ function Window:KeyHint(cfg)
     Theme.bind(caption, "TextColor3", "muted")
 
     local window = self
-    local hint = { Type = "KeyHint", Title = cfg.Title, Row = group, Flag = cfg.Flag }
+    local hint = { Type = "KeyHint", Title = cfg.Title, ListTitle = cfg.ListTitle, Row = group, Flag = cfg.Flag }
     local function show(text)
         badge.Text = text
         badge.Size = UDim2.fromOffset(math.max(28, Util.textWidth(text, 9, Enum.Font.GothamMedium) + 12), 18)

@@ -179,9 +179,9 @@ return function(window, page, defaults)
     ------------------------------------------------------------ new / import
     -- one card, two tabs in its header; each tab is a single field with the action inside it
     local newCard = page:Card({ Title = "New profile", Icon = "plus" })
-    local sections = newCard:Tabs({ "Create", "Import" })
+    local sections = newCard:Tabs({ "From current", "From code" })
     local function count(flags) local n = 0 for _ in pairs(flags or {}) do n = n + 1 end return n end
-    sections.Create:ActionInput({
+    sections["From current"]:ActionInput({
         Name = "CreateProfile", Icon = "plus", Placeholder = "Profile name", Button = "Create",
         Hint = "Saves your current settings as a new profile",
         Validate = function(name)
@@ -198,7 +198,7 @@ return function(window, page, defaults)
             end
         end,
     })
-    sections.Import:ActionInput({
+    sections["From code"]:ActionInput({
         Name = "ImportProfile", Icon = "import", Placeholder = "Paste a QUSTAH1: code", Button = "Import",
         Hint = "Get a code with Share on any profile",
         Validate = function(code)

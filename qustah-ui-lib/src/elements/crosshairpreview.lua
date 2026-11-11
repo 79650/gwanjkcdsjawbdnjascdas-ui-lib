@@ -34,7 +34,7 @@ return function(card, cfg)
         for key, value in pairs(changes or {}) do self.Settings[key] = value end
         local settings = self.Settings
         drawn.layout(settings, cfg.Scale or 2)
-        caption.Text = (settings.Enabled == false and "off · " or "") .. tostring(settings.Style)
+        caption.Text = (settings.Enabled == false and "Off · " or "") .. "Style: " .. tostring(settings.Style)
         if settings.Spin and not spinConnection then
             spinConnection = Util.Services.RunService.RenderStepped:Connect(function(dt)
                 if not box.Parent then stopSpin() return end

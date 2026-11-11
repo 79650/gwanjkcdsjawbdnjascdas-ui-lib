@@ -894,7 +894,8 @@ function Window:Minimize()
 end
 
 -- Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Side = "Left" | "Right",
---                  Pressed = function(key) end, Callback = function(newKey) end, Flag })
+--                  Pressed = function(key) end, Callback = function(newKey) end, Flag, ListTitle = "ESP / Silent Aim" })
+-- (ListTitle: its name in Settings › Keys, when the caption is shouted)
 -- A key badge with a caption above the footer; click the badge to rebind (Backspace clears, Escape cancels).
 function Window:KeyHint(cfg)
     cfg = cfg or {}
@@ -918,7 +919,7 @@ function Window:KeyHint(cfg)
     Theme.bind(caption, "TextColor3", "muted")
 
     local window = self
-    local hint = { Type = "KeyHint", Title = cfg.Title, Row = group, Flag = cfg.Flag }
+    local hint = { Type = "KeyHint", Title = cfg.Title, ListTitle = cfg.ListTitle, Row = group, Flag = cfg.Flag }
     local function show(text)
         badge.Text = text
         badge.Size = UDim2.fromOffset(math.max(28, Util.textWidth(text, 9, Enum.Font.GothamMedium) + 12), 18)

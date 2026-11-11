@@ -288,6 +288,7 @@ return function(window, cfg)
         local list
         local rows = {}
         local function where(element)
+            if element.Type == "KeyHint" then return "Footer" end
             local page = element.Card and element.Card.page
             local owner = page and page.tab
             if not owner then return "" end
@@ -305,7 +306,7 @@ return function(window, cfg)
                     end
                     if name ~= "None" then
                         -- (the card's title in front when the element's own one says little: "Click to Teleport › Keys")
-                        local title = tostring(element.Title or element.Type or "Key")
+                        local title = tostring(element.ListTitle or element.Title or element.Type or "Key")
                         local cardTitle = element.Card and element.Card.title
                         if type(cardTitle) == "string" and cardTitle ~= "" and cardTitle ~= title and #title <= 8 then title = cardTitle .. " › " .. title end
                         rows[#rows + 1] = { key = name, title = title, place = where(element), element = element,
