@@ -25,6 +25,7 @@ SUPER = 16           # drawn this many times larger, then averaged down
 STEPS = 4            # hinting: quarter-pixel positions per axis
 MARGIN = 1           # a free pixel round every icon in the hi-res render (room to move)
 PAGE = 1024
+THIN_UNTIL = int(os.environ.get("THIN_UNTIL", "17"))
 
 icons_dir, sheet_id, version, names_arg, sizes_arg, out_dir = sys.argv[1:7]
 split = int(sys.argv[7]) if len(sys.argv) > 7 else None
@@ -50,9 +51,9 @@ tmp = tempfile.mkdtemp()
 jobs = []
 for size in sizes:
     cell = size + 2 * MARGIN
-    # whole-pixel strokes up to 17 px: a 1 px line that the hinting puts on the pixel grid is solid white; a 1.25 px
-    # one always leaves a grey band beside it. From 18 px on lucide's own weight (size / 12).
-    stroke = (1.0 if size <= 17 else size / 12) * 24 / size
+    # whole-pixel strokes up to THIN_UNTIL px (env, default 17): a 1 px line that the hinting puts on the pixel grid
+    # is solid white; a 1.25 px one always leaves a grey band beside it. Above it lucide's own weight (size / 12).
+    stroke = (1.0 if size <= THIN_UNTIL else size / 12) * 24 / size
     cells = []
     for i, (_, src) in enumerate(order):
         svg = svgs[src].replace('width="24"', f'width="{size}"').replace('height="24"', f'height="{size}"')
