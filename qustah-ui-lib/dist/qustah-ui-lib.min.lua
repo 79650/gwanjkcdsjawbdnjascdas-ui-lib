@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.14.2 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.14.3 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8119,7 +8119,26 @@ local size=image.AbsoluteSize
 if size and size.Y>0 then return math.max(size.X,size.Y)end
 return math.max(image.Size.X.Offset,image.Size.Y.Offset)
 end
+local function snapToPixels(image)
+local size=image.Size
+if size.X.Scale~=0 or size.Y.Scale~=0 then return end
+local base=image:GetAttribute("QIconSize")or size.X.Offset
+if base<=0 or size.X.Offset~=size.Y.Offset then return end
+local absolute=image.AbsoluteSize
+if not absolute or absolute.X<=0 then return end
+local scale=absolute.X/size.X.Offset
+if scale<=0 or math.abs(scale-1)<0.001 then
+if image:GetAttribute("QIconSize")and size.X.Offset~=base then image.Size=UDim2.fromOffset(base,base)end
+return
+end
+local snapped=math.max(1,math.floor(base*scale+0.5))/scale
+if math.abs(snapped-size.X.Offset)>0.001 then
+image:SetAttribute("QIconSize",base)
+image.Size=UDim2.fromOffset(snapped,snapped)
+end
+end
 applySharp=function(image,name)
+pcall(snapToPixels,image)
 local pixels=pixelsOf(image)
 local picture,offset,size=sheetRect(name,pixels)
 if not picture then
@@ -8664,7 +8683,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.14.2",
+Version="1.14.3",
 Flags={},
 Windows={},
 Theme=Theme,

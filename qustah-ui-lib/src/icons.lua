@@ -241,7 +241,30 @@ local function pixelsOf(image)
     return math.max(image.Size.X.Offset, image.Size.Y.Offset)
 end
 
+-- A square icon sized in pixels lands on whole screen pixels: at a UI scale like 110 % a 14 px icon would be 15.4
+-- px and Roblox would stretch the 15 px cell over it (a slight blur). Its size becomes round(14 * 1.1) / 1.1 (the
+-- original size is kept in the QIconSize attribute, so a later scale starts from it again).
+local function snapToPixels(image)
+    local size = image.Size
+    if size.X.Scale ~= 0 or size.Y.Scale ~= 0 then return end
+    local base = image:GetAttribute("QIconSize") or size.X.Offset
+    if base <= 0 or size.X.Offset ~= size.Y.Offset then return end
+    local absolute = image.AbsoluteSize
+    if not absolute or absolute.X <= 0 then return end
+    local scale = absolute.X / size.X.Offset
+    if scale <= 0 or math.abs(scale - 1) < 0.001 then
+        if image:GetAttribute("QIconSize") and size.X.Offset ~= base then image.Size = UDim2.fromOffset(base, base) end
+        return
+    end
+    local snapped = math.max(1, math.floor(base * scale + 0.5)) / scale
+    if math.abs(snapped - size.X.Offset) > 0.001 then
+        image:SetAttribute("QIconSize", base)
+        image.Size = UDim2.fromOffset(snapped, snapped)
+    end
+end
+
 applySharp = function(image, name)
+    pcall(snapToPixels, image)
     local pixels = pixelsOf(image)
     local picture, offset, size = sheetRect(name, pixels)
     if not picture then
