@@ -51,6 +51,7 @@ return function(Window)
             end
         end
         paint()
+        require("words").Apply(caption)
         local alive = true
         Theme.onChange(function() if alive and tag.Parent then paint() end end)
         local handle = { Frame = tag }

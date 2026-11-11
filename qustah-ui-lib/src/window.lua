@@ -123,6 +123,7 @@ function Window:_build()
     pcall(function() title.FontFace = Font.new(Font.fromEnum(Enum.Font.Gotham).Family, Enum.FontWeight.SemiBold) end)
     Theme.bind(title, "TextColor3", "accent")
     Glow.add(title, { Base = "accent", Period = 3.6, GlowTransparency = 0.8 })
+    require("words").Apply(title)
     -- CreateWindow({ Icon = "swords" }): a logo before the title
     if self.cfg.Icon then
         local logo = Icons.themed(titleRow, self.cfg.Icon, 18, "accent", { Name = "Logo", LayoutOrder = 0 })
@@ -139,6 +140,7 @@ function Window:_build()
             TextTruncate = Enum.TextTruncate.None,
         })
         Theme.bind(text, "TextColor3", "accent")
+        require("words").Apply(text)
     end
     self.titleLabel, self.titleRow = title, titleRow
 

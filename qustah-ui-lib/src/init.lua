@@ -19,7 +19,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.15.0",
+    Version = "1.16.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -27,6 +27,7 @@ local Lib = {
     Sounds = Sounds, -- Lib.Sounds.Enabled = true, Lib.Sounds.Set("click", id)
     Haptics = require("haptics"), -- Lib.Haptics.Enabled (on for touch screens)
     Fonts = require("font"), -- Lib.Fonts.set("Quicksand"), Lib.Fonts.available()
+    Words = require("words"), -- Lib.Words.Use(manifest, url): the header's name / version / tags as pictures
     Loader = require("loader"), -- the download strip; Lib.Loader.enabled = false hides it
     Crosshair = require("crosshair"), -- Lib.Crosshair.Overlay({ Style = "X" }) - a crosshair on screen; card:CrosshairPreview()
     _glow = require("glow"), -- (tests)

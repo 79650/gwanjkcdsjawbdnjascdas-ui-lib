@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.15.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.16.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8760,7 +8760,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.15.0",
+Version="1.16.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -8768,6 +8768,7 @@ Icons=Icons,
 Sounds=Sounds,
 Haptics=require("haptics"),
 Fonts=require("font"),
+Words=require("words"),
 Loader=require("loader"),
 Crosshair=require("crosshair"),
 _glow=require("glow"),
@@ -12119,6 +12120,7 @@ TextTruncate=Enum.TextTruncate.None,LayoutOrder=1,
 pcall(function()title.FontFace=Font.new(Font.fromEnum(Enum.Font.Gotham).Family,Enum.FontWeight.SemiBold)end)
 Theme.bind(title,"TextColor3","accent")
 Glow.add(title,{Base="accent",Period=3.6,GlowTransparency=0.8})
+require("words").Apply(title)
 if self.cfg.Icon then
 local logo=Icons.themed(titleRow,self.cfg.Icon,18,"accent",{Name="Logo",LayoutOrder=0})
 if logo then self.logo=logo end
@@ -12134,6 +12136,7 @@ AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromScale(0,1),TextXAlignment=Enum
 TextTruncate=Enum.TextTruncate.None,
 })
 Theme.bind(text,"TextColor3","accent")
+require("words").Apply(text)
 end
 self.titleLabel,self.titleRow=title,titleRow
 local function windowButton(name,offset,cross,bare)
@@ -12938,6 +12941,7 @@ caption.TextColor3,edge.Color,edge.Transparency=readableOn(fill),fill,1
 end
 end
 paint()
+require("words").Apply(caption)
 local alive=true
 Theme.onChange(function()if alive and tag.Parent then paint()end end)
 local handle={Frame=tag}
@@ -13326,5 +13330,86 @@ end
 if cfg.Anonymous then self:SetAnonymous(true)end
 end
 end
+end
+__modules["words"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Words={sheet=nil,image=nil,waiting={}}
+local function entry(label)
+local sheet=Words.sheet
+local text=label:GetAttribute("QWord")or label.Text
+return sheet and sheet.Words[tostring(text).."|"..tostring(label.TextSize)],text
+end
+local function attach(label)
+if label:FindFirstChild("Word")then return true end
+local place,text=entry(label)
+if not place or not Words.image then return false end
+local x,y,w,h,ink,line,glowX=place[1],place[2],place[3],place[4],place[5],place[6],place[7]
+local pad=Words.sheet.Pad or 8
+label:SetAttribute("QWord",text)
+label.AutomaticSize=Enum.AutomaticSize.None
+label.Size=UDim2.new(0,ink,label.Size.Y.Scale,label.Size.Y.Offset)
+label.Text=""
+local function picture(name,offsetX,z)
+return Util.create("ImageLabel",{
+Name=name,BackgroundTransparency=1,Image=Words.image,ImageRectOffset=Vector2.new(offsetX,y),
+ImageRectSize=Vector2.new(w,h),Size=UDim2.fromOffset(w,h),
+Position=UDim2.new(0,-pad,0.5,-math.floor(line/2)-pad),
+ZIndex=label.ZIndex,Parent=label,
+})
+end
+local glow=glowX and picture("WordGlow",glowX,math.max(1,label.ZIndex-1))or nil
+local word=picture("Word",x,label.ZIndex)
+local shine=label:FindFirstChildOfClass("UIGradient")
+if shine then shine.Parent=word end
+local outline=label:FindFirstChild("Glow")
+local function follow()
+if not word.Parent then return end
+word.ImageColor3=label.TextColor3
+word.ImageTransparency=label.TextTransparency
+if glow then
+local on=outline==nil or outline.Enabled
+glow.Visible=on
+glow.ImageColor3=outline and outline.Color or label.TextColor3
+glow.ImageTransparency=1-(1-label.TextTransparency)*0.55
+end
+end
+label:GetPropertyChangedSignal("TextColor3"):Connect(follow)
+label:GetPropertyChangedSignal("TextTransparency"):Connect(follow)
+if outline then
+outline.Enabled=false
+outline:GetPropertyChangedSignal("Color"):Connect(follow)
+local busy=false
+outline:GetPropertyChangedSignal("Enabled"):Connect(function()
+if busy then return end
+busy=true
+local on=outline.Enabled
+outline.Enabled=false
+if glow then glow.Visible=on end
+busy=false
+end)
+end
+follow()
+return true
+end
+function Words.Apply(label)
+if not(label and label:IsA("TextLabel"))then return false end
+if attach(label)then return true end
+if Words.sheet and not Words.image then Words.waiting[#Words.waiting+1]=label end
+return false
+end
+function Words.Use(manifest,source)
+if type(manifest)~="table"or type(source)~="string"then return end
+Words.sheet=manifest
+local path="QustahUI/words/"..tostring(manifest.Id).."-"..tostring(manifest.File)
+Util.cacheFiles({{path=path,url=source..manifest.File,check=function(body)return body:sub(2,4)=="PNG"end}},
+function(ids)
+Words.image=ids[path]
+local list=Words.waiting
+Words.waiting={}
+for _,label in ipairs(list)do if label.Parent then pcall(attach,label)end end
+end,function()end,"words")
+end
+return Words
 end
 return require("init")
