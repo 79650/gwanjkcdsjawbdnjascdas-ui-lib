@@ -53,10 +53,20 @@ local function build()
     ui = { gui = gui, pill = pill, title = title, text = text, fill = fill, percent = percent, spinner = spinner }
 end
 
+local building = false
 local function render()
     if not Loader.enabled then return end
     local active = #Loader.jobs > 0
-    if active and not ui then build() end
+    -- (building the strip draws its spinner icon, which can start the lucide sheets' download: a second job that
+    -- renders again. Built twice, the first strip was destroyed but kept as `ui`, and the second one sat on screen
+    -- at 0 % forever. The inner render now waits for the build; the outer one shows both jobs.)
+    if active and not ui then
+        if building then return end
+        building = true
+        local ok, err = pcall(build)
+        building = false
+        if not ok then Util.log("[qustah-ui-lib] download strip: " .. tostring(err)) return end
+    end
     if not ui then return end
     if active then
         local share = Loader.share()

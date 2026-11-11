@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.14.4 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.14.5 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8683,7 +8683,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.14.4",
+Version="1.14.5",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -8843,10 +8843,17 @@ Theme.bind(percent,"TextColor3","muted")
 pill.Visible=false
 ui={gui=gui,pill=pill,title=title,text=text,fill=fill,percent=percent,spinner=spinner}
 end
+local building=false
 local function render()
 if not Loader.enabled then return end
 local active=#Loader.jobs>0
-if active and not ui then build()end
+if active and not ui then
+if building then return end
+building=true
+local ok,err=pcall(build)
+building=false
+if not ok then Util.log("[qustah-ui-lib] download strip: "..tostring(err))return end
+end
 if not ui then return end
 if active then
 local share=Loader.share()
