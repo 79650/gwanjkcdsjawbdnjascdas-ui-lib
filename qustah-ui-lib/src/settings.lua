@@ -106,10 +106,12 @@ return function(window, cfg)
         local value = tonumber(text:match("%d+"))
         if math.abs(value - percent) < math.abs(nearest - percent) then nearest = value end
     end
-    scaleDropdown = menu:Dropdown({
-        Title = "UI scale", Desc = "Bigger or smaller menu", Items = SCALES, Default = nearest .. "%",
-        Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
-    })
+    if window.cfg.UIScale ~= false then
+        scaleDropdown = menu:Dropdown({
+            Title = "UI scale", Desc = "Bigger or smaller menu", Items = SCALES, Default = nearest .. "%",
+            Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
+        })
+    end
     window._scaleDropdown = scaleDropdown
     -- where the tab icons and the page names sit
     menu:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",

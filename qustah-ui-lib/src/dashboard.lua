@@ -34,7 +34,7 @@ return function(window, cfg)
     Glow.add(hero.Value, { Base = "accent", Phase = 0.45 })
     Stats.start(window.Lib.maid)
     -- rbxthumb content: shows at once, no web request (fine in secure mode)
-    local avatarImage = Util.avatar(player.UserId, 150)
+    local avatarImage = Util.avatar(player.UserId, 60) -- (shown at 56 px: about 1:1, 150 shrunk 2.7x looked jagged)
     if not window.anonymous then hero:SetImage(avatarImage) end
     -- anonymous mode (dock profile button): no name, no id, no avatar
     if window.OnAnonymousChanged then

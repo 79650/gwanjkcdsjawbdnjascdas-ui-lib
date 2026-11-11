@@ -78,7 +78,8 @@ function Window.new(Lib, cfg)
         self.width = math.clamp(tonumber(saved.w), self.minSize.X, self.maxSize.X)
         self.height = math.clamp(tonumber(saved.h), self.minSize.Y, self.maxSize.Y)
     end
-    self.uiScale = math.clamp(tonumber(self.memory.uiScale or cfg.Scale) or 1, 0.6, 1.5)
+    -- UIScale = false: no UI scale choice (Settings) and always 100 % (the sharpest: whole pixels everywhere)
+    self.uiScale = cfg.UIScale == false and 1 or math.clamp(tonumber(self.memory.uiScale or cfg.Scale) or 1, 0.6, 1.5)
     Glow.start(Lib.maid)
     self:_build()
     if self._buildExtras then self:_buildExtras() end
@@ -440,17 +441,18 @@ function Window:_layout()
             self.topLeft = Vector2.new((viewport.X - total * s) / 2, (viewport.Y - tall * s) / 2)
         end
     end
-    local x = math.clamp(self.topLeft.X, 8, math.max(8, viewport.X - total * s - 8))
-    local y = math.clamp(self.topLeft.Y, 8, math.max(8, viewport.Y - (self.folded and height or tall) * s - 8))
+    -- (on whole pixels: a window at y = 96.5 puts every icon and line inside it between two pixels, a little blurred)
+    local x = math.floor(math.clamp(self.topLeft.X, 8, math.max(8, viewport.X - total * s - 8)) + 0.5)
+    local y = math.floor(math.clamp(self.topLeft.Y, 8, math.max(8, viewport.Y - (self.folded and height or tall) * s - 8)) + 0.5)
     self.topLeft = Vector2.new(x, y)
     self.main.Position = UDim2.fromOffset(x, y)
     local length = self.dockHeight or DOCK_TOP
     if self.dockSide == "Bottom" then
         self.dock.Size = UDim2.fromOffset(length, DOCK_WIDTH)
-        self.dock.Position = UDim2.fromOffset(x + (self.width - length) / 2 * s, y + (self.height + DOCK_GAP) * s)
+        self.dock.Position = UDim2.fromOffset(math.floor(x + (self.width - length) / 2 * s + 0.5), math.floor(y + (self.height + DOCK_GAP) * s + 0.5))
     else
         self.dock.Size = UDim2.fromOffset(DOCK_WIDTH, length)
-        self.dock.Position = UDim2.fromOffset(x + (self.width + DOCK_GAP) * s, y)
+        self.dock.Position = UDim2.fromOffset(math.floor(x + (self.width + DOCK_GAP) * s + 0.5), y)
     end
     self.dock.Visible = self.main.Visible and not self.folded and #self.Tabs > 0
     self.grip.Visible = not self.folded
@@ -875,6 +877,7 @@ function Window:Toggle() self:SetVisible(not self.visible) end
 -- Window:SetUIScale(1.1): the whole menu bigger / smaller (0.6 - 1.5); remembered on this PC.
 function Window:SetUIScale(value)
     value = math.clamp(tonumber(value) or 1, 0.6, 1.5)
+    if self.cfg and self.cfg.UIScale == false then value = 1 end
     self.uiScale = value
     self:_closePopup()
     self:_layout()

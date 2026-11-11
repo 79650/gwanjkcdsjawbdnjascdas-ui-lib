@@ -19,7 +19,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.14.5",
+    Version = "1.14.6",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -35,6 +35,7 @@ local Lib = {
 Lib.maid = Util.maid()
 
 -- Lib:CreateWindow({ Title, Version, Size = Vector2, ToggleKey = Enum.KeyCode, Accent = Color3, Folder, Footer, OnClose })
+-- UIScale = false: no UI scale choice in Settings, always 100 % (sharpest).
 -- With KeySystem the call waits until a key is accepted; closing the key screen stops the script.
 function Lib:CreateWindow(cfg)
     cfg = cfg or {}

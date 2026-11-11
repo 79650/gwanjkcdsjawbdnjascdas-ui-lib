@@ -122,6 +122,7 @@ local Atlas = require("icons_atlas")
 local atlas = { started = false, ready = false, index = nil, pages = {} }
 local sharpImages = setmetatable({}, { __mode = "k" }) -- image -> lucide name, so they switch sheets / get re-drawn
 local applySharp
+local queueSnap
 
 -- name -> place in the sheets: lucide's order without the names lucide no longer has
 local function atlasIndex()
@@ -263,8 +264,67 @@ local function snapToPixels(image)
     end
 end
 
+-- A pixel-exact icon between two pixels is blurred again (an 11 px icon centred in a 16 px box sits at 2.5): it is
+-- moved by under half a pixel onto whole pixels. An icon its parent lays out (a list: a button's icon and text)
+-- can't move itself, so that parent moves instead, when nothing lays the parent out. The original position stays
+-- in QIconX / QIconY; a position someone else sets later becomes the new one.
+local function laidOut(object)
+    local parent = object.Parent
+    return parent == nil or parent:FindFirstChildWhichIsA("UIGridStyleLayout") ~= nil
+end
+local function snapPosition(image)
+    if Icons.SnapPosition == false then return end
+    local target = image
+    if laidOut(image) then
+        target = image.Parent
+        if not (target and target:IsA("GuiObject")) or target:IsA("ScrollingFrame") or laidOut(target) then return end
+    end
+    local position = target.Position
+    local mine = target:GetAttribute("QIconSet")
+    local baseX, baseY = target:GetAttribute("QIconX"), target:GetAttribute("QIconY")
+    if baseX == nil or (mine and (math.abs(position.X.Offset - mine.X) > 0.001 or math.abs(position.Y.Offset - mine.Y) > 0.001)) then
+        baseX, baseY = position.X.Offset, position.Y.Offset -- (first time, or moved by someone else)
+    end
+    local absolute, size = image.AbsolutePosition, image.AbsoluteSize
+    if not absolute or not size or size.X <= 0 or image.Size.X.Offset <= 0 then return end
+    local scale = size.X / image.Size.X.Offset
+    -- (where the icon would be with the target at its own position, then how far that is from whole pixels)
+    local atX = absolute.X + (baseX - position.X.Offset) * scale
+    local atY = absolute.Y + (baseY - position.Y.Offset) * scale
+    local dx, dy = math.floor(atX + 0.5) - atX, math.floor(atY + 0.5) - atY
+    local x, y = baseX + dx / scale, baseY + dy / scale
+    target:SetAttribute("QIconX", baseX)
+    target:SetAttribute("QIconY", baseY)
+    target:SetAttribute("QIconSet", Vector2.new(x, y))
+    if math.abs(x - position.X.Offset) > 0.001 or math.abs(y - position.Y.Offset) > 0.001 then
+        target.Position = UDim2.new(position.X.Scale, x, position.Y.Scale, y)
+    end
+end
+
+-- (gathered and done once a frame: a card that opens resizes many boxes, each icon is placed once; an icon that
+-- will not settle - something keeps resizing its box - is left alone after a few tries a second)
+local queued, queueRunning = {}, false
+local tries = setmetatable({}, { __mode = "k" })
+queueSnap = function(image)
+    local now = os.clock()
+    local t = tries[image]
+    if not t or now - t.since > 1 then t = { since = now, count = 0 } tries[image] = t end
+    if t.count >= 6 then return end
+    t.count = t.count + 1
+    queued[image] = true
+    if queueRunning then return end
+    queueRunning = true
+    task.defer(function()
+        queueRunning = false
+        local list = queued
+        queued = {}
+        for icon in pairs(list) do if icon.Parent then pcall(snapPosition, icon) end end
+    end)
+end
+
 applySharp = function(image, name)
     pcall(snapToPixels, image)
+    pcall(snapPosition, image)
     local pixels = pixelsOf(image)
     local picture, offset, size = sheetRect(name, pixels)
     if not picture then
@@ -290,6 +350,22 @@ function Icons.Apply(image, name)
                 local current = sharpImages[image]
                 if current then applySharp(image, current) end
             end)
+            -- (its box laid out or resized: onto whole pixels again. Not on every move: the window and the pages
+            -- only move by whole pixels, and thousands of icons listening to every move would cost a drag)
+            local boxWatch
+            local function watchBox()
+                if boxWatch then boxWatch:Disconnect() boxWatch = nil end
+                local parent = image.Parent
+                if parent and parent:IsA("GuiObject") then
+                    boxWatch = parent:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                        if sharpImages[image] then queueSnap(image) end
+                    end)
+                end
+                if sharpImages[image] then queueSnap(image) end
+            end
+            -- (an icon gets its parent after it is made: Icons.Image, then .Parent)
+            image:GetPropertyChangedSignal("Parent"):Connect(watchBox)
+            watchBox()
         end
         sharpImages[image] = sharp
         if applySharp(image, sharp) then return true end

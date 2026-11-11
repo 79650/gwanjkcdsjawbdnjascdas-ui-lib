@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.14.5 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.14.6 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1065,7 +1065,7 @@ return function(window, cfg)
     Glow.add(hero.Value, { Base = "accent", Phase = 0.45 })
     Stats.start(window.Lib.maid)
     -- rbxthumb content: shows at once, no web request (fine in secure mode)
-    local avatarImage = Util.avatar(player.UserId, 150)
+    local avatarImage = Util.avatar(player.UserId, 60) -- (shown at 56 px: about 1:1, 150 shrunk 2.7x looked jagged)
     if not window.anonymous then hero:SetImage(avatarImage) end
     -- anonymous mode (dock profile button): no name, no id, no avatar
     if window.OnAnonymousChanged then
@@ -9151,6 +9151,7 @@ local Atlas = require("icons_atlas")
 local atlas = { started = false, ready = false, index = nil, pages = {} }
 local sharpImages = setmetatable({}, { __mode = "k" }) -- image -> lucide name, so they switch sheets / get re-drawn
 local applySharp
+local queueSnap
 
 -- name -> place in the sheets: lucide's order without the names lucide no longer has
 local function atlasIndex()
@@ -9292,8 +9293,67 @@ local function snapToPixels(image)
     end
 end
 
+-- A pixel-exact icon between two pixels is blurred again (an 11 px icon centred in a 16 px box sits at 2.5): it is
+-- moved by under half a pixel onto whole pixels. An icon its parent lays out (a list: a button's icon and text)
+-- can't move itself, so that parent moves instead, when nothing lays the parent out. The original position stays
+-- in QIconX / QIconY; a position someone else sets later becomes the new one.
+local function laidOut(object)
+    local parent = object.Parent
+    return parent == nil or parent:FindFirstChildWhichIsA("UIGridStyleLayout") ~= nil
+end
+local function snapPosition(image)
+    if Icons.SnapPosition == false then return end
+    local target = image
+    if laidOut(image) then
+        target = image.Parent
+        if not (target and target:IsA("GuiObject")) or target:IsA("ScrollingFrame") or laidOut(target) then return end
+    end
+    local position = target.Position
+    local mine = target:GetAttribute("QIconSet")
+    local baseX, baseY = target:GetAttribute("QIconX"), target:GetAttribute("QIconY")
+    if baseX == nil or (mine and (math.abs(position.X.Offset - mine.X) > 0.001 or math.abs(position.Y.Offset - mine.Y) > 0.001)) then
+        baseX, baseY = position.X.Offset, position.Y.Offset -- (first time, or moved by someone else)
+    end
+    local absolute, size = image.AbsolutePosition, image.AbsoluteSize
+    if not absolute or not size or size.X <= 0 or image.Size.X.Offset <= 0 then return end
+    local scale = size.X / image.Size.X.Offset
+    -- (where the icon would be with the target at its own position, then how far that is from whole pixels)
+    local atX = absolute.X + (baseX - position.X.Offset) * scale
+    local atY = absolute.Y + (baseY - position.Y.Offset) * scale
+    local dx, dy = math.floor(atX + 0.5) - atX, math.floor(atY + 0.5) - atY
+    local x, y = baseX + dx / scale, baseY + dy / scale
+    target:SetAttribute("QIconX", baseX)
+    target:SetAttribute("QIconY", baseY)
+    target:SetAttribute("QIconSet", Vector2.new(x, y))
+    if math.abs(x - position.X.Offset) > 0.001 or math.abs(y - position.Y.Offset) > 0.001 then
+        target.Position = UDim2.new(position.X.Scale, x, position.Y.Scale, y)
+    end
+end
+
+-- (gathered and done once a frame: a card that opens resizes many boxes, each icon is placed once; an icon that
+-- will not settle - something keeps resizing its box - is left alone after a few tries a second)
+local queued, queueRunning = {}, false
+local tries = setmetatable({}, { __mode = "k" })
+queueSnap = function(image)
+    local now = os.clock()
+    local t = tries[image]
+    if not t or now - t.since > 1 then t = { since = now, count = 0 } tries[image] = t end
+    if t.count >= 6 then return end
+    t.count = t.count + 1
+    queued[image] = true
+    if queueRunning then return end
+    queueRunning = true
+    task.defer(function()
+        queueRunning = false
+        local list = queued
+        queued = {}
+        for icon in pairs(list) do if icon.Parent then pcall(snapPosition, icon) end end
+    end)
+end
+
 applySharp = function(image, name)
     pcall(snapToPixels, image)
+    pcall(snapPosition, image)
     local pixels = pixelsOf(image)
     local picture, offset, size = sheetRect(name, pixels)
     if not picture then
@@ -9319,6 +9379,22 @@ function Icons.Apply(image, name)
                 local current = sharpImages[image]
                 if current then applySharp(image, current) end
             end)
+            -- (its box laid out or resized: onto whole pixels again. Not on every move: the window and the pages
+            -- only move by whole pixels, and thousands of icons listening to every move would cost a drag)
+            local boxWatch
+            local function watchBox()
+                if boxWatch then boxWatch:Disconnect() boxWatch = nil end
+                local parent = image.Parent
+                if parent and parent:IsA("GuiObject") then
+                    boxWatch = parent:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                        if sharpImages[image] then queueSnap(image) end
+                    end)
+                end
+                if sharpImages[image] then queueSnap(image) end
+            end
+            -- (an icon gets its parent after it is made: Icons.Image, then .Parent)
+            image:GetPropertyChangedSignal("Parent"):Connect(watchBox)
+            watchBox()
         end
         sharpImages[image] = sharp
         if applySharp(image, sharp) then return true end
@@ -9868,7 +9944,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.14.5",
+    Version = "1.14.6",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -9884,6 +9960,7 @@ local Lib = {
 Lib.maid = Util.maid()
 
 -- Lib:CreateWindow({ Title, Version, Size = Vector2, ToggleKey = Enum.KeyCode, Accent = Color3, Folder, Footer, OnClose })
+-- UIScale = false: no UI scale choice in Settings, always 100 % (sharpest).
 -- With KeySystem the call waits until a key is accepted; closing the key screen stops the script.
 function Lib:CreateWindow(cfg)
     cfg = cfg or {}
@@ -11184,10 +11261,12 @@ return function(window, cfg)
         local value = tonumber(text:match("%d+"))
         if math.abs(value - percent) < math.abs(nearest - percent) then nearest = value end
     end
-    scaleDropdown = menu:Dropdown({
-        Title = "UI scale", Desc = "Bigger or smaller menu", Items = SCALES, Default = nearest .. "%",
-        Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
-    })
+    if window.cfg.UIScale ~= false then
+        scaleDropdown = menu:Dropdown({
+            Title = "UI scale", Desc = "Bigger or smaller menu", Items = SCALES, Default = nearest .. "%",
+            Callback = function(text) window:SetUIScale((tonumber(text:match("%d+")) or 100) / 100) end,
+        })
+    end
     window._scaleDropdown = scaleDropdown
     -- where the tab icons and the page names sit
     menu:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",
@@ -13731,7 +13810,8 @@ function Window.new(Lib, cfg)
         self.width = math.clamp(tonumber(saved.w), self.minSize.X, self.maxSize.X)
         self.height = math.clamp(tonumber(saved.h), self.minSize.Y, self.maxSize.Y)
     end
-    self.uiScale = math.clamp(tonumber(self.memory.uiScale or cfg.Scale) or 1, 0.6, 1.5)
+    -- UIScale = false: no UI scale choice (Settings) and always 100 % (the sharpest: whole pixels everywhere)
+    self.uiScale = cfg.UIScale == false and 1 or math.clamp(tonumber(self.memory.uiScale or cfg.Scale) or 1, 0.6, 1.5)
     Glow.start(Lib.maid)
     self:_build()
     if self._buildExtras then self:_buildExtras() end
@@ -14093,17 +14173,18 @@ function Window:_layout()
             self.topLeft = Vector2.new((viewport.X - total * s) / 2, (viewport.Y - tall * s) / 2)
         end
     end
-    local x = math.clamp(self.topLeft.X, 8, math.max(8, viewport.X - total * s - 8))
-    local y = math.clamp(self.topLeft.Y, 8, math.max(8, viewport.Y - (self.folded and height or tall) * s - 8))
+    -- (on whole pixels: a window at y = 96.5 puts every icon and line inside it between two pixels, a little blurred)
+    local x = math.floor(math.clamp(self.topLeft.X, 8, math.max(8, viewport.X - total * s - 8)) + 0.5)
+    local y = math.floor(math.clamp(self.topLeft.Y, 8, math.max(8, viewport.Y - (self.folded and height or tall) * s - 8)) + 0.5)
     self.topLeft = Vector2.new(x, y)
     self.main.Position = UDim2.fromOffset(x, y)
     local length = self.dockHeight or DOCK_TOP
     if self.dockSide == "Bottom" then
         self.dock.Size = UDim2.fromOffset(length, DOCK_WIDTH)
-        self.dock.Position = UDim2.fromOffset(x + (self.width - length) / 2 * s, y + (self.height + DOCK_GAP) * s)
+        self.dock.Position = UDim2.fromOffset(math.floor(x + (self.width - length) / 2 * s + 0.5), math.floor(y + (self.height + DOCK_GAP) * s + 0.5))
     else
         self.dock.Size = UDim2.fromOffset(DOCK_WIDTH, length)
-        self.dock.Position = UDim2.fromOffset(x + (self.width + DOCK_GAP) * s, y)
+        self.dock.Position = UDim2.fromOffset(math.floor(x + (self.width + DOCK_GAP) * s + 0.5), y)
     end
     self.dock.Visible = self.main.Visible and not self.folded and #self.Tabs > 0
     self.grip.Visible = not self.folded
@@ -14528,6 +14609,7 @@ function Window:Toggle() self:SetVisible(not self.visible) end
 -- Window:SetUIScale(1.1): the whole menu bigger / smaller (0.6 - 1.5); remembered on this PC.
 function Window:SetUIScale(value)
     value = math.clamp(tonumber(value) or 1, 0.6, 1.5)
+    if self.cfg and self.cfg.UIScale == false then value = 1 end
     self.uiScale = value
     self:_closePopup()
     self:_layout()
@@ -15133,7 +15215,7 @@ return function(Window)
             Theme.bind(ring, "Color", "buttonEdge")
             local mask = Icons.themed(button, "hat-glasses", 14, "muted", { Name = "Anon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 43, Visible = false })
             -- rbxthumb content: no web request (also fine in secure mode)
-            local avatar = Util.avatar(player.UserId)
+            local avatar = Util.avatar(player.UserId, 60) -- (shown at 30 px: a clean 2x)
             button.Image = avatar
             self._profile, self._profileLine = button, line
             self:OnAnonymousChanged(function(on)

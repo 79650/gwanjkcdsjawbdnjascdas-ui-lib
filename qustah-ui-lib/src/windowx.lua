@@ -191,7 +191,7 @@ return function(Window)
             Theme.bind(ring, "Color", "buttonEdge")
             local mask = Icons.themed(button, "hat-glasses", 14, "muted", { Name = "Anon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 43, Visible = false })
             -- rbxthumb content: no web request (also fine in secure mode)
-            local avatar = Util.avatar(player.UserId)
+            local avatar = Util.avatar(player.UserId, 60) -- (shown at 30 px: a clean 2x)
             button.Image = avatar
             self._profile, self._profileLine = button, line
             self:OnAnonymousChanged(function(on)
