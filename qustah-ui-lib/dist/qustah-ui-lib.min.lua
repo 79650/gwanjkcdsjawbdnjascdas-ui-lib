@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.14.3 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.14.4 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8683,7 +8683,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.14.3",
+Version="1.14.4",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -8806,6 +8806,11 @@ local Loader={jobs={},title=nil,enabled=true}
 local ui
 local spin
 local genv=(getgenv and getgenv())or _G
+if genv.__QustahLoaderGui then
+pcall(function()genv.__QustahLoaderGui:Destroy()end)
+genv.__QustahLoaderGui=nil
+end
+local JOB_LIMIT=45
 local function build()
 if genv.__QustahLoaderGui then pcall(function()genv.__QustahLoaderGui:Destroy()end)end
 local gui=Util.screenGui("QustahUI_Loading",65)
@@ -8854,10 +8859,18 @@ if not ui.pill.Visible or ui.pill:GetAttribute("QFadedOut")then
 ui.pill.Visible=true
 Util.fadeTree(ui.pill,0.18,0)
 end
+if spin and not spin.Connected then spin=nil end
 if not spin then
 spin=Util.Services.RunService.Heartbeat:Connect(function(dt)
 if not ui then return end
 if ui.spinner then ui.spinner.Rotation=(ui.spinner.Rotation+dt*360)%360 end
+for index=#Loader.jobs,1,-1 do
+if os.clock()-Loader.jobs[index].began>JOB_LIMIT then table.remove(Loader.jobs,index)end
+end
+if#Loader.jobs==0 then
+task.defer(render)
+return
+end
 if#Loader.jobs>0 then
 local now=Loader.share()
 ui.percent.Text=math.floor(now*100+0.5).."%"

@@ -11,6 +11,14 @@ local ui -- { gui, pill, title, text, fill, percent, spinner }
 local spin
 
 local genv = (getgenv and getgenv()) or _G
+-- a strip an earlier run left on screen (it was unloaded or broke mid-download) goes at once, not only when this
+-- run downloads something: with every file already on disk this run never builds one and the old one stayed
+if genv.__QustahLoaderGui then
+    pcall(function() genv.__QustahLoaderGui:Destroy() end)
+    genv.__QustahLoaderGui = nil
+end
+-- a job never ends later than this (a download that hangs past Util.downloadTimeout, a callback that broke)
+local JOB_LIMIT = 45
 local function build()
     -- a strip left by an earlier run of the script (a download that never finished there) goes first
     if genv.__QustahLoaderGui then pcall(function() genv.__QustahLoaderGui:Destroy() end) end
@@ -61,10 +69,21 @@ local function render()
             ui.pill.Visible = true
             Util.fadeTree(ui.pill, 0.18, 0)
         end
+        -- (a connection something else cut - a reused library whose earlier window took its connections along - is
+        -- made again, or the bar would sit frozen at 0 %)
+        if spin and not spin.Connected then spin = nil end
         if not spin then
             spin = Util.Services.RunService.Heartbeat:Connect(function(dt)
                 if not ui then return end
                 if ui.spinner then ui.spinner.Rotation = (ui.spinner.Rotation + dt * 360) % 360 end
+                -- jobs past their limit are dropped; with none left the strip goes (even if a finish was missed)
+                for index = #Loader.jobs, 1, -1 do
+                    if os.clock() - Loader.jobs[index].began > JOB_LIMIT then table.remove(Loader.jobs, index) end
+                end
+                if #Loader.jobs == 0 then
+                    task.defer(render)
+                    return
+                end
                 -- (the bar keeps moving while a file is still coming)
                 if #Loader.jobs > 0 then
                     local now = Loader.share()

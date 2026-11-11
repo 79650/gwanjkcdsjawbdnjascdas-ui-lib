@@ -2010,6 +2010,12 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         U.cacheFiles({ { path = "QustahUI/test/c1.png", url = "https://example.com/c1.png" } }, function() end, nil, "icons")
         Lib.Loader.clear()
         check("Loader.clear hides the strip", #Lib.Loader.jobs == 0 and Lib.Loader.visible == false)
+        -- a job nobody finishes (a broken caller): dropped, the strip goes by itself
+        Lib.Loader.start("icons", 3)
+        wait(1)
+        local stuckShown = Lib.Loader.visible == true
+        wait(50)
+        check("a job never finished is dropped and the strip hides", stuckShown and #Lib.Loader.jobs == 0 and Lib.Loader.visible == false)
         check("Icons.Preload exists", type(Lib.Icons.Preload) == "function")
         -- Settings › Info: the window's size (what CreateWindow's Size takes), following a resize
         local sizeValue
