@@ -7340,8 +7340,10 @@ end)
 end
 if sharpImages[image]then queueSnap(image)end
 end
+if Icons.SnapPosition~=false then
 image:GetPropertyChangedSignal("Parent"):Connect(watchBox)
 watchBox()
+end
 end
 sharpImages[image]=sharp
 if applySharp(image,sharp)then return true end

@@ -364,8 +364,10 @@ function Icons.Apply(image, name)
                 if sharpImages[image] then queueSnap(image) end
             end
             -- (an icon gets its parent after it is made: Icons.Image, then .Parent)
-            image:GetPropertyChangedSignal("Parent"):Connect(watchBox)
-            watchBox()
+            if Icons.SnapPosition ~= false then
+                image:GetPropertyChangedSignal("Parent"):Connect(watchBox)
+                watchBox()
+            end
         end
         sharpImages[image] = sharp
         if applySharp(image, sharp) then return true end
