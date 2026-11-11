@@ -114,3 +114,32 @@ minified = DIST / "qustah-ui-lib.min.lua"
 body = "\n".join(out[2:]) + "\n"
 minified.write_text(f"-- qustah-ui-lib v{VERSION} (minified build of dist/qustah-ui-lib.lua)\n" + minify(body))
 print(f"built {minified.relative_to(ROOT)}: {minified.stat().st_size // 1024} KB")
+
+
+# Slim build: the same library without the elements nothing in Qustah uses (calling one of those errors with a clear
+# message). dist/qustah-ui-lib.slim.min.lua - for scripts that only need the common elements; the full build stays.
+SLIM_DROP = ["DiffList", "Gallery", "Gauges", "Graph", "Image", "ImagePicker", "Radio", "Search", "SwitchGrid", "TextArea", "ThemePreview"]
+dropped = {f"elements/{name.lower()}" for name in SLIM_DROP}
+slim_text, skip = [], False
+for path in modules:
+    name = names[path]
+    if name in dropped:
+        continue
+    source = path.read_text().rstrip("\n")
+    if name == "card":
+        for element in SLIM_DROP:
+            source, count = re.subn(
+                r'^(\s*)' + element + r'(\s*)= require\("elements/' + element.lower() + r'"\),',
+                lambda m, e=element: f'{m.group(1)}{e}{m.group(2)}= function() error("[qustah-ui-lib] {e} is not in the slim build: load qustah-ui-lib.min.lua", 3) end,',
+                source, flags=re.M)
+            if count != 1:
+                sys.exit(f"slim build: {element} not found in card.lua's element list")
+    slim_text += [f"__modules[{json.dumps(name)}] = function()", source, "end", ""]
+head = out[2:out.index("")+1]
+slim_body = "\n".join(head + slim_text + ['return require("init")']) + "\n"
+for name in dropped:
+    if re.search(r'require\("' + name + r'"\)', slim_body):
+        sys.exit(f"slim build: something still requires {name}")
+slim_target = DIST / "qustah-ui-lib.slim.min.lua"
+slim_target.write_text(f"-- qustah-ui-lib v{VERSION} slim (no {', '.join(SLIM_DROP)}; minified)\n" + minify(slim_body))
+print(f"built {slim_target.relative_to(ROOT)}: {slim_target.stat().st_size // 1024} KB")
