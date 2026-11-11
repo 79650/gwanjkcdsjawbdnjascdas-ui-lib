@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.14.6 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.15.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -7250,7 +7250,14 @@ end
 end
 __modules["font"]=function()
 local UIFont={current="Gotham",guis={}}
-UIFont.order={"Gotham","Work Sans","Quicksand","Fuzzy Bubbles","Silkscreen","Sono Mono"}
+UIFont.order={
+"Gotham","Montserrat","Ubuntu","Work Sans","Josefin Sans","Builder Mono","Arcade","Michroma",
+"Quicksand","Fuzzy Bubbles","Silkscreen","Sono Mono",
+}
+UIFont.Enums={["Josefin Sans"]="JosefinSans",Montserrat="Montserrat",Ubuntu="Ubuntu",Arcade="Arcade",Michroma="Michroma"}
+UIFont.Files={["Builder Mono"]="rbxasset://fonts/families/BuilderMono.json"}
+UIFont.Fit={Michroma=1.12,["Builder Mono"]=1.08,Arcade=0.9,["Josefin Sans"]=0.96}
+UIFont.codeFonts={"Sono Mono","Builder Mono"}
 UIFont.Library={
 ["Work Sans"]=12187373327,Quicksand=12187371324,["Fuzzy Bubbles"]=11322590111,Silkscreen=12187371840,
 ["Sono Mono"]=12187362578,
@@ -7264,7 +7271,9 @@ end
 local function familyOf(name)
 name=tostring(name)
 if UIFont.Library[name]then return"rbxassetid://"..UIFont.Library[name]end
-local ok,face=pcall(function()return Font.fromEnum(Enum.Font[name])end)
+if UIFont.Files[name]then return UIFont.Files[name]end
+local enumName=UIFont.Enums[name]or name
+local ok,face=pcall(function()return Font.fromEnum(Enum.Font[enumName])end)
 return ok and face and face.Family or nil
 end
 local function targetFor(object,uiTarget)
@@ -7274,13 +7283,15 @@ return uiTarget
 end
 local function scaleText(object)
 if object:GetAttribute("QNoScale")then return end
+local fit=object:GetAttribute("QCode")and 1 or(UIFont.Fit[UIFont.current]or 1)
+if object:GetAttribute("QFixedFont")then fit=1 end
 local base=object:GetAttribute("QBaseSize")
 if base==nil then
-if UIFont.textScale==1 or object.TextSize<=9 then return end
+if(UIFont.textScale==1 and fit==1)or object.TextSize<=9 then return end
 base=object.TextSize
 object:SetAttribute("QBaseSize",base)
 end
-local size=math.max(6,math.floor(base*UIFont.textScale+0.5))
+local size=math.max(6,math.floor(base*UIFont.textScale/fit+0.5))
 if object.TextSize~=size then object.TextSize=size end
 end
 local function apply(object,uiTarget)
@@ -8747,7 +8758,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.14.6",
+Version="1.15.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9864,7 +9875,15 @@ if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not a
 end,
 })
 if startFont~="Gotham"then UIFont.set(startFont)end
-if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont)end
+local codeItems={}
+for _,name in ipairs(UIFont.codeFonts)do codeItems[#codeItems+1]=name end
+local startCode=table.find(codeItems,tostring(window.cfg.CodeFont))and tostring(window.cfg.CodeFont)or"Sono Mono"
+look:Segment({
+Title="Code font",Desc="Errors and code blocks",Flag="__ui_codefont",Items=codeItems,Default=startCode,
+Callback=function(name)UIFont.setCode(name)end,
+})
+if startCode~="Sono Mono"then UIFont.setCode(startCode)end
+if window.cfg.CodeFont and not table.find(codeItems,tostring(window.cfg.CodeFont))then UIFont.setCode(window.cfg.CodeFont)end
 local TEXT_SIZES={Small=0.9,Normal=1,Large=1.1}
 look:Segment({
 Title="Text size",Flag="__ui_textsize",Items={"Small","Normal","Large"},Default="Normal",
@@ -9939,7 +9958,7 @@ Callback=function()
 window:Confirm("Unload "..window.Title.."?","The menu and everything it runs will be removed.",function()window:Destroy()end,"Unload",true)
 end,
 })
-local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_textsize","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
+local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_codefont","__ui_textsize","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
 "__ui_live","__ui_edge_glow","__ui_blur","__ui_hud_watermark","__ui_hud_keys","__ui_hud_session","__ui_hud_stats","__ui_dock","__ui_pagetabs"}
 menu:Button({Title="Reset interface",Icon="paintbrush",Style="Ghost",Callback=function()
 window:Confirm("Reset the interface?","Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.",function()

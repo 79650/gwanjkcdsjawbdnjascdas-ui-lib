@@ -2042,14 +2042,15 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         check("textWidth: no font given works", ok2 and w2 > 0)
     end
 
-    -- fonts: Gotham + 5 more from Roblox's font library, all by asset id (nothing downloaded)
+    -- fonts: Gotham + 11 more from Roblox (library ids, Enum.Font names, a family file), nothing downloaded
     do
         local fontFlag = window.flags.__ui_font
-        check("fonts: six in the list", #fontFlag.Items == 6 and fontFlag.Items[1] == "Gotham" and table.find(fontFlag.Items, "Silkscreen") ~= nil and table.find(fontFlag.Items, "Fuzzy Bubbles") ~= nil)
-        check("fonts: every one but Gotham has a library id", (function()
-            for _, name in ipairs(Lib.Fonts.order) do if name ~= "Gotham" and not Lib.Fonts.Library[name] then return false end end
+        check("fonts: twelve in the list", #fontFlag.Items == 12 and fontFlag.Items[1] == "Gotham" and table.find(fontFlag.Items, "Michroma") ~= nil and table.find(fontFlag.Items, "Builder Mono") ~= nil)
+        check("fonts: every one has a family", (function()
+            for _, name in ipairs(Lib.Fonts.order) do if not Lib.Fonts.family(name) then return false end end
             return true
         end)())
+        check("fonts: Builder Mono from Roblox's font folder", Lib.Fonts.family("Builder Mono") == "rbxasset://fonts/families/BuilderMono.json")
         local function using(id)
             local hit, faces = 0, 0
             for _, o in ipairs(window.gui:GetDescendants()) do
@@ -2069,7 +2070,19 @@ getfenv(0).SMOKE_STEPS = function(MOCK)
         for _, o in ipairs(window.gui:GetDescendants()) do if o:IsA("TextLabel") and o.FontFace and not o:GetAttribute("QCode") and not o:GetAttribute("QFixedFont") and tostring(o.FontFace.Family):find("rbxassetid") then back = back + 1 end end
         check("fonts: Gotham puts the library font back", back == 0)
         check("fonts: an unknown name is refused", Lib.Fonts.set("Comic Sans") == false)
-        check("fonts: nothing to download", Lib.Fonts.Downloadable == nil and #Lib.Fonts.available() == 6)
+        check("fonts: nothing to download", Lib.Fonts.Downloadable == nil and #Lib.Fonts.available() == 12)
+        -- a wide font draws smaller, Gotham back to the sizes it had
+        local probe
+        for _, o in ipairs(window.gui:GetDescendants()) do if o:IsA("TextLabel") and o.TextSize == 11 and not o:GetAttribute("QCode") then probe = o break end end
+        fontFlag:Set("Michroma") wait(0.2)
+        local wide = probe and probe.TextSize
+        fontFlag:Set("Gotham") wait(0.2)
+        check("fonts: Michroma draws smaller, Gotham puts the size back", probe ~= nil and wide == 10 and probe.TextSize == 11)
+        local codeFlag = window.flags.__ui_codefont
+        check("fonts: a code font choice", codeFlag ~= nil and table.find(codeFlag.Items, "Builder Mono") ~= nil)
+        codeFlag:Set("Builder Mono") wait(0.2)
+        check("fonts: the code font is used", Lib.Fonts.code == "Builder Mono")
+        codeFlag:Set("Sono Mono") wait(0.2)
         fontFlag:Set("Gotham") wait(0.2)
     end
 

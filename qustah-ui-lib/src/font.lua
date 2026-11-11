@@ -4,7 +4,18 @@
 -- by asset id, like WindUI does: nothing to download, they work in every executor.
 local UIFont = { current = "Gotham", guis = {} }
 
-UIFont.order = { "Gotham", "Work Sans", "Quicksand", "Fuzzy Bubbles", "Silkscreen", "Sono Mono" }
+UIFont.order = {
+    "Gotham", "Montserrat", "Ubuntu", "Work Sans", "Josefin Sans", "Builder Mono", "Arcade", "Michroma",
+    "Quicksand", "Fuzzy Bubbles", "Silkscreen", "Sono Mono",
+}
+-- Roblox's own fonts by their Enum.Font name, and families that are only a file in Roblox's font folder
+UIFont.Enums = { ["Josefin Sans"] = "JosefinSans", Montserrat = "Montserrat", Ubuntu = "Ubuntu", Arcade = "Arcade", Michroma = "Michroma" }
+UIFont.Files = { ["Builder Mono"] = "rbxasset://fonts/families/BuilderMono.json" }
+-- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
+-- doesn't push labels out of their rows and a small one (Arcade's pixels) stays readable. Code text has its own font.
+UIFont.Fit = { Michroma = 1.12, ["Builder Mono"] = 1.08, Arcade = 0.9, ["Josefin Sans"] = 0.96 }
+-- The code fonts the settings offer (Code, Console, Log)
+UIFont.codeFonts = { "Sono Mono", "Builder Mono" }
 UIFont.Library = {
     ["Work Sans"] = 12187373327, Quicksand = 12187371324, ["Fuzzy Bubbles"] = 11322590111, Silkscreen = 12187371840,
     ["Sono Mono"] = 12187362578,
@@ -26,7 +37,9 @@ end
 local function familyOf(name)
     name = tostring(name)
     if UIFont.Library[name] then return "rbxassetid://" .. UIFont.Library[name] end
-    local ok, face = pcall(function() return Font.fromEnum(Enum.Font[name]) end)
+    if UIFont.Files[name] then return UIFont.Files[name] end
+    local enumName = UIFont.Enums[name] or name
+    local ok, face = pcall(function() return Font.fromEnum(Enum.Font[enumName]) end)
     return ok and face and face.Family or nil
 end
 
@@ -41,13 +54,15 @@ end
 -- range values) keep their size; everything else grows or shrinks with the setting.
 local function scaleText(object)
     if object:GetAttribute("QNoScale") then return end
+    local fit = object:GetAttribute("QCode") and 1 or (UIFont.Fit[UIFont.current] or 1)
+    if object:GetAttribute("QFixedFont") then fit = 1 end
     local base = object:GetAttribute("QBaseSize")
     if base == nil then
-        if UIFont.textScale == 1 or object.TextSize <= 9 then return end
+        if (UIFont.textScale == 1 and fit == 1) or object.TextSize <= 9 then return end
         base = object.TextSize
         object:SetAttribute("QBaseSize", base)
     end
-    local size = math.max(6, math.floor(base * UIFont.textScale + 0.5))
+    local size = math.max(6, math.floor(base * UIFont.textScale / fit + 0.5))
     if object.TextSize ~= size then object.TextSize = size end
 end
 
