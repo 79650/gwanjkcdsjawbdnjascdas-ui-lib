@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.16.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.16.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -3107,6 +3107,8 @@ __modules["elements/colorpicker"] = function()
 -- Rainbow = true / :SetRainbow(on): cycles the hue (RainbowSpeed = seconds per cycle, default 5); saved with the config.
 -- Alpha = true (or Transparency = 0.3): a transparency bar under the hue; Callback(color, transparency),
 -- element.Transparency, :SetTransparency(0-1). Saved with the colour.
+-- The open panel is only redrawn while it is visible; changes made while it is closed (Rainbow, :Set) are drawn when
+-- it opens again, so a closed picker with Rainbow on costs almost nothing.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -3146,17 +3148,20 @@ return function(card, cfg)
     local black = create("Frame", { Size = UDim2.fromScale(1, 1), BorderSizePixel = 0, BackgroundColor3 = Color3.new(0, 0, 0), Parent = square })
     corner(black, 6)
     create("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(1, 0), Parent = black })
-    local cursor = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(8, 8), BackgroundTransparency = 1, ZIndex = 3, Parent = square })
-    corner(cursor, 4)
-    stroke(cursor, Color3.new(1, 1, 1), 0, 1.5)
+    -- ring cursor: hollow, 2 px edge in the theme's text colour
+    local cursor = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(10, 10), BackgroundTransparency = 1, ZIndex = 3, Parent = square })
+    corner(cursor, 6)
+    Theme.bind(stroke(cursor, nil, 0.05, 2), "Color", "text")
     local hueBar = create("TextButton", {
         Name = "Hue", Text = "", AutoButtonColor = false, BorderSizePixel = 0, BackgroundColor3 = Color3.new(1, 1, 1),
         Position = UDim2.fromOffset(0, 116), Size = UDim2.new(1, -104, 0, 10), Parent = panel,
     })
     corner(hueBar, 5)
     create("UIGradient", { Color = HUE, Parent = hueBar })
-    local hueCursor = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(4, 14), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 3, Parent = hueBar })
-    corner(hueCursor, 2)
+    local hueCursor = create("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(4, 14), BorderSizePixel = 0, ZIndex = 3, Parent = hueBar })
+    corner(hueCursor, 3)
+    Theme.bind(hueCursor, "BackgroundColor3", "text")
+    Theme.bind(stroke(hueCursor, nil, 0.2), "Color", "base")
     -- transparency bar: the colour fading out to the right, over a dark / light split so the fade shows
     local alphaMode = cfg.Alpha == true or tonumber(cfg.Transparency) ~= nil
     local alphaBar, alphaCursor
@@ -3218,9 +3223,15 @@ return function(card, cfg)
     local alpha = math.clamp(tonumber(cfg.Transparency) or 0, 0, 1)
     element.Transparency = alpha
 
+    -- the swatch on the row is always kept current; the panel only while it is open (dirty = redraw on open)
+    local dirty = false
     local function render()
         local color = Color3.fromHSV(h, s, v)
-        swatch.BackgroundColor3, preview.BackgroundColor3 = color, color
+        swatch.BackgroundColor3 = color
+        if alphaMode then swatch.BackgroundTransparency = alpha * 0.85 end
+        if not panel.Visible then dirty = true return end
+        dirty = false
+        preview.BackgroundColor3 = color
         square.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
         cursor.Position = UDim2.fromScale(s, 1 - v)
         hueCursor.Position = UDim2.fromScale(h, 0.5)
@@ -3229,7 +3240,6 @@ return function(card, cfg)
             alphaBar.BackgroundColor3 = color
             alphaCursor.Position = UDim2.fromScale(alpha, 0.5)
             preview.BackgroundTransparency = alpha
-            swatch.BackgroundTransparency = alpha * 0.85
         end
     end
     local applyMode = cfg.Apply == true
@@ -3277,8 +3287,12 @@ return function(card, cfg)
     function element:SetOpen(open)
         if not open then revert() end
         panel.Visible = open == true
+        if open and dirty then render() end
         Base.trackPanel(window, self, open == true)
     end
+    panel:GetPropertyChangedSignal("Visible"):Connect(function()      -- opened some other way (trackPanel etc.)
+        if panel.Visible and dirty then render() end
+    end)
 
     -- rainbow: hue walks around the wheel; callbacks are throttled to ~20 per second
     element.Rainbow = false
@@ -9961,7 +9975,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.16.0",
+    Version = "1.16.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.16.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.16.1 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -2756,17 +2756,19 @@ create("UIGradient",{Transparency=NumberSequence.new(0,1),Parent=white})
 local black=create("Frame",{Size=UDim2.fromScale(1,1),BorderSizePixel=0,BackgroundColor3=Color3.new(0,0,0),Parent=square})
 corner(black,6)
 create("UIGradient",{Rotation=90,Transparency=NumberSequence.new(1,0),Parent=black})
-local cursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(8,8),BackgroundTransparency=1,ZIndex=3,Parent=square})
-corner(cursor,4)
-stroke(cursor,Color3.new(1,1,1),0,1.5)
+local cursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(10,10),BackgroundTransparency=1,ZIndex=3,Parent=square})
+corner(cursor,6)
+Theme.bind(stroke(cursor,nil,0.05,2),"Color","text")
 local hueBar=create("TextButton",{
 Name="Hue",Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundColor3=Color3.new(1,1,1),
 Position=UDim2.fromOffset(0,116),Size=UDim2.new(1,-104,0,10),Parent=panel,
 })
 corner(hueBar,5)
 create("UIGradient",{Color=HUE,Parent=hueBar})
-local hueCursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(4,14),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0,ZIndex=3,Parent=hueBar})
-corner(hueCursor,2)
+local hueCursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(4,14),BorderSizePixel=0,ZIndex=3,Parent=hueBar})
+corner(hueCursor,3)
+Theme.bind(hueCursor,"BackgroundColor3","text")
+Theme.bind(stroke(hueCursor,nil,0.2),"Color","base")
 local alphaMode=cfg.Alpha==true or tonumber(cfg.Transparency)~=nil
 local alphaBar,alphaCursor
 if alphaMode then
@@ -2824,9 +2826,14 @@ local element=Base.element(card,"ColorPicker",cfg,row,title,desc)
 local h,s,v=0,0,1
 local alpha=math.clamp(tonumber(cfg.Transparency)or 0,0,1)
 element.Transparency=alpha
+local dirty=false
 local function render()
 local color=Color3.fromHSV(h,s,v)
-swatch.BackgroundColor3,preview.BackgroundColor3=color,color
+swatch.BackgroundColor3=color
+if alphaMode then swatch.BackgroundTransparency=alpha*0.85 end
+if not panel.Visible then dirty=true return end
+dirty=false
+preview.BackgroundColor3=color
 square.BackgroundColor3=Color3.fromHSV(h,1,1)
 cursor.Position=UDim2.fromScale(s,1-v)
 hueCursor.Position=UDim2.fromScale(h,0.5)
@@ -2835,7 +2842,6 @@ if alphaMode then
 alphaBar.BackgroundColor3=color
 alphaCursor.Position=UDim2.fromScale(alpha,0.5)
 preview.BackgroundTransparency=alpha
-swatch.BackgroundTransparency=alpha*0.85
 end
 end
 local applyMode=cfg.Apply==true
@@ -2883,8 +2889,12 @@ element._panel=panel
 function element:SetOpen(open)
 if not open then revert()end
 panel.Visible=open==true
+if open and dirty then render()end
 Base.trackPanel(window,self,open==true)
 end
+panel:GetPropertyChangedSignal("Visible"):Connect(function()
+if panel.Visible and dirty then render()end
+end)
 element.Rainbow=false
 local rainbowConnection
 local function renderRainbow()
@@ -8760,7 +8770,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.16.0",
+Version="1.16.1",
 Flags={},
 Windows={},
 Theme=Theme,
