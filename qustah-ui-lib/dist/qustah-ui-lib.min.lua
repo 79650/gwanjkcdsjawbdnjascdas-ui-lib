@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.16.1 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.17.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -2741,13 +2741,15 @@ Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(34,18),Parent=row,
 })
 corner(swatch,5)
 Theme.bind(stroke(swatch,nil,0.2),"Color","buttonEdge")
+local alphaMode=cfg.Alpha==true or tonumber(cfg.Transparency)~=nil
+local y=4
 local panel=create("Frame",{
-Name="Picker",BackgroundTransparency=1,Size=UDim2.new(1,0,0,158),LayoutOrder=row.LayoutOrder+1,
+Name="Picker",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),LayoutOrder=row.LayoutOrder+1,
 Visible=false,Parent=card.body,
 })
 local square=create("TextButton",{
-Name="Square",Text="",AutoButtonColor=false,BorderSizePixel=0,Position=UDim2.fromOffset(0,4),
-Size=UDim2.new(1,-104,0,104),Parent=panel,
+Name="Square",Text="",AutoButtonColor=false,BorderSizePixel=0,Position=UDim2.fromOffset(0,y),
+Size=UDim2.new(1,0,0,96),Parent=panel,
 })
 corner(square,6)
 local white=create("Frame",{Size=UDim2.fromScale(1,1),BorderSizePixel=0,BackgroundColor3=Color3.new(1,1,1),Parent=square})
@@ -2756,23 +2758,31 @@ create("UIGradient",{Transparency=NumberSequence.new(0,1),Parent=white})
 local black=create("Frame",{Size=UDim2.fromScale(1,1),BorderSizePixel=0,BackgroundColor3=Color3.new(0,0,0),Parent=square})
 corner(black,6)
 create("UIGradient",{Rotation=90,Transparency=NumberSequence.new(1,0),Parent=black})
-local cursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(10,10),BackgroundTransparency=1,ZIndex=3,Parent=square})
-corner(cursor,6)
-Theme.bind(stroke(cursor,nil,0.05,2),"Color","text")
+local cursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(12,12),BackgroundTransparency=1,ZIndex=3,Parent=square})
+corner(cursor,7)
+stroke(cursor,Color3.new(0,0,0),0.45,1)
+local ring=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(10,10),BackgroundTransparency=1,ZIndex=3,Parent=cursor})
+corner(ring,6)
+Theme.bind(stroke(ring,nil,0.05,2),"Color","text")
+y=y+104
+local function barCursor(parent)
+local c=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(4,14),BorderSizePixel=0,ZIndex=3,Parent=parent})
+corner(c,3)
+Theme.bind(c,"BackgroundColor3","text")
+stroke(c,Color3.new(0,0,0),0.4,1)
+return c
+end
 local hueBar=create("TextButton",{
 Name="Hue",Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundColor3=Color3.new(1,1,1),
-Position=UDim2.fromOffset(0,116),Size=UDim2.new(1,-104,0,10),Parent=panel,
+Position=UDim2.fromOffset(0,y),Size=UDim2.new(1,0,0,10),Parent=panel,
 })
 corner(hueBar,5)
 create("UIGradient",{Color=HUE,Parent=hueBar})
-local hueCursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(4,14),BorderSizePixel=0,ZIndex=3,Parent=hueBar})
-corner(hueCursor,3)
-Theme.bind(hueCursor,"BackgroundColor3","text")
-Theme.bind(stroke(hueCursor,nil,0.2),"Color","base")
-local alphaMode=cfg.Alpha==true or tonumber(cfg.Transparency)~=nil
+local hueCursor=barCursor(hueBar)
+y=y+16
 local alphaBar,alphaCursor
 if alphaMode then
-local backing=create("Frame",{Name="AlphaBacking",BorderSizePixel=0,Position=UDim2.fromOffset(0,134),Size=UDim2.new(1,-104,0,10),Parent=panel})
+local backing=create("Frame",{Name="AlphaBacking",BorderSizePixel=0,Position=UDim2.fromOffset(0,y),Size=UDim2.new(1,0,0,10),Parent=panel})
 Theme.bind(backing,"BackgroundColor3","input")
 corner(backing,5)
 local light=create("Frame",{BorderSizePixel=0,Position=UDim2.fromScale(0,0),Size=UDim2.fromScale(1,0.5),BackgroundColor3=Color3.fromRGB(205,205,210),BackgroundTransparency=0.55,Parent=backing})
@@ -2781,47 +2791,56 @@ alphaBar=create("TextButton",{Name="Alpha",Text="",AutoButtonColor=false,BorderS
 corner(alphaBar,5)
 create("UIGradient",{Transparency=NumberSequence.new(0,1),Parent=alphaBar})
 Theme.bind(stroke(backing,nil,0.3),"Color","buttonEdge")
-alphaCursor=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(4,14),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0,ZIndex=3,Parent=backing})
-corner(alphaCursor,2)
-Theme.bind(stroke(alphaCursor,nil,0.2),"Color","base")
+alphaCursor=barCursor(backing)
+y=y+16
 end
-local side=create("Frame",{Name="Side",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,4),Size=UDim2.fromOffset(92,150),Parent=panel})
-local preview=create("Frame",{Name="Preview",Size=UDim2.new(1,0,0,26),BorderSizePixel=0,Parent=side})
-corner(preview,6)
-Theme.bind(stroke(preview,nil,0.2),"Color","buttonEdge")
-local hex=create("TextBox",{
-Name="Hex",Position=UDim2.fromOffset(0,32),Size=UDim2.new(1,0,0,24),BorderSizePixel=0,Text="",
-TextSize=10,Font=Enum.Font.GothamMedium,ClearTextOnFocus=false,Parent=side,
+local function field(parent,props)
+local box=create("TextBox",{
+BorderSizePixel=0,Text="",TextSize=10,Font=Enum.Font.GothamMedium,ClearTextOnFocus=false,Parent=parent,
 })
-Theme.bind(hex,"BackgroundColor3","input")
-Theme.bind(hex,"TextColor3","text")
-corner(hex,6)
-Theme.bind(stroke(hex),"Color","buttonEdge")
-local random=create("TextButton",{
-Name="Random",Position=UDim2.fromOffset(0,62),Size=UDim2.new(1,0,0,24),BorderSizePixel=0,
-Text="Random",TextSize=10,Font=Enum.Font.Gotham,AutoButtonColor=false,Parent=side,
+for k,v in pairs(props)do box[k]=v end
+Theme.bind(box,"BackgroundColor3","input")
+Theme.bind(box,"TextColor3","text")
+corner(box,6)
+Theme.bind(stroke(box),"Color","buttonEdge")
+return box
+end
+local valuesLabel=Util.label(panel,"VALUES",8,{Position=UDim2.fromOffset(0,y+2),Size=UDim2.new(1,0,0,12)})
+Theme.bind(valuesLabel,"TextColor3","muted")
+y=y+16
+local channels={}
+for i,name in ipairs({"R","G","B"})do
+local box=field(panel,{
+Name=name,Position=UDim2.new((i-1)/3,i==1 and 0 or 3,0,y),Size=UDim2.new(1/3,-4,0,22),
+TextXAlignment=Enum.TextXAlignment.Right,
 })
-Theme.bind(random,"BackgroundColor3","input")
-Theme.bind(random,"TextColor3","text")
-corner(random,6)
-Theme.bind(stroke(random),"Color","buttonEdge")
-local rainbow=create("TextButton",{
-Name="Rainbow",Position=UDim2.fromOffset(0,92),Size=UDim2.new(1,0,0,24),BorderSizePixel=0,
-Text="Rainbow",TextSize=10,Font=Enum.Font.Gotham,AutoButtonColor=false,Parent=side,
+create("UIPadding",{PaddingLeft=UDim.new(0,8),PaddingRight=UDim.new(0,8),Parent=box})
+local letter=Util.label(box,name,9,{Size=UDim2.new(0,12,1,0)})
+Theme.bind(letter,"TextColor3","muted")
+channels[i]=box
+end
+y=y+27
+local hex=field(panel,{Name="Hex",Position=UDim2.fromOffset(0,y),Size=UDim2.new(1,0,0,22),TextXAlignment=Enum.TextXAlignment.Left})
+create("UIPadding",{PaddingLeft=UDim.new(0,8),Parent=hex})
+y=y+28
+local function footerButton(name,text,i,primary)
+local b=create("TextButton",{
+Name=name,Position=UDim2.new((i-1)/3,i==1 and 0 or 3,0,y),Size=UDim2.new(1/3,-4,0,24),
+BorderSizePixel=0,Text=text,TextSize=10,Font=primary and Enum.Font.GothamMedium or Enum.Font.Gotham,
+AutoButtonColor=false,Parent=panel,
 })
-Theme.bind(rainbow,"BackgroundColor3","input")
-Theme.bind(rainbow,"TextColor3","text")
-corner(rainbow,6)
-local rainbowEdge=stroke(rainbow)
-Theme.bind(rainbowEdge,"Color","buttonEdge")
-local done=create("TextButton",{
-Name="Done",Position=UDim2.fromOffset(0,122),Size=UDim2.new(1,0,0,24),BorderSizePixel=0,
-Text=cfg.Apply and"Apply"or"Done",TextSize=10,Font=Enum.Font.GothamMedium,AutoButtonColor=false,Parent=side,
-})
-Theme.bind(done,"BackgroundColor3","accentDeep")
-Theme.bind(done,"TextColor3","accent")
-corner(done,6)
-Theme.bind(stroke(done,nil,0.45),"Color","accent")
+Theme.bind(b,"BackgroundColor3",primary and"accentDeep"or"input")
+Theme.bind(b,"TextColor3",primary and"accent"or"text")
+corner(b,6)
+local edge=stroke(b,nil,primary and 0.45 or nil)
+Theme.bind(edge,"Color",primary and"accent"or"buttonEdge")
+return b,edge
+end
+local random=footerButton("Random","Random",1)
+local rainbow,rainbowEdge=footerButton("Rainbow","Rainbow",2)
+local done=footerButton("Done",cfg.Apply and"Apply"or"Done",3,true)
+y=y+28
+panel.Size=UDim2.new(1,0,0,y)
 local element=Base.element(card,"ColorPicker",cfg,row,title,desc)
 local h,s,v=0,0,1
 local alpha=math.clamp(tonumber(cfg.Transparency)or 0,0,1)
@@ -2833,15 +2852,17 @@ swatch.BackgroundColor3=color
 if alphaMode then swatch.BackgroundTransparency=alpha*0.85 end
 if not panel.Visible then dirty=true return end
 dirty=false
-preview.BackgroundColor3=color
 square.BackgroundColor3=Color3.fromHSV(h,1,1)
 cursor.Position=UDim2.fromScale(s,1-v)
 hueCursor.Position=UDim2.fromScale(h,0.5)
 hex.Text="#"..Util.toHex(color)
+local rgb={color.R,color.G,color.B}
+for i,box in ipairs(channels)do
+if not box:IsFocused()then box.Text=tostring(math.floor(rgb[i]*255+0.5))end
+end
 if alphaMode then
 alphaBar.BackgroundColor3=color
 alphaCursor.Position=UDim2.fromScale(alpha,0.5)
-preview.BackgroundTransparency=alpha
 end
 end
 local applyMode=cfg.Apply==true
@@ -2939,8 +2960,19 @@ drag(hueBar,function(x)h=math.min(x,0.999)end)
 if alphaBar then drag(alphaBar,function(x)alpha=math.floor(x*100+0.5)/100 end)end
 hex.FocusLost:Connect(function()
 local color=Util.fromHex(hex.Text)
-if color then h,s,v=color:ToHSV()commit()else render()end
+if color and not element.Locked then h,s,v=color:ToHSV()commit()else render()end
 end)
+for i,box in ipairs(channels)do
+box.FocusLost:Connect(function()
+local n=tonumber(box.Text)
+if not n or element.Locked then render()return end
+local color=Color3.fromHSV(h,s,v)
+local rgb={color.R,color.G,color.B}
+rgb[i]=math.clamp(math.floor(n+0.5),0,255)/255
+h,s,v=Color3.new(rgb[1],rgb[2],rgb[3]):ToHSV()
+commit()
+end)
+end
 random.Activated:Connect(function()if not element.Locked then h,s,v=math.random(),0.45+math.random()*0.5,0.6+math.random()*0.4 commit()end end)
 rainbow.Activated:Connect(function()if not element.Locked then element:SetRainbow(not element.Rainbow)end end)
 done.Activated:Connect(function()
@@ -8770,7 +8802,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.16.1",
+Version="1.17.0",
 Flags={},
 Windows={},
 Theme=Theme,

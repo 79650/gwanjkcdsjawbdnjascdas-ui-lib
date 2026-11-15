@@ -288,7 +288,7 @@ Card:Swatches({ Title = "Name color", Flag = "nameColor", Default = "Blue",
 Card:Swatches({ Title = "Accent", Style = "Dots", Custom = function(open) end })   -- one row of round dots, the last for "any colour"
 ```
 
-The picker has a saturation square, a hue bar, a HEX box, Random and Rainbow. It also accepts `"RRGGBB"` strings.
+The picker has a saturation square, a hue bar, a transparency bar (with `Alpha`), R / G / B fields (0-255), a HEX box and Random · Rainbow · Done. It also accepts `"RRGGBB"` strings.
 
 Only one colour panel is open at a time: opening a picker or gradient closes the one that was open (a gradient's own Start / End pickers open inside it). `picker:SetOpen(true)` opens one from code. `CreateWindow({ OnePickerOpen = false })` lets several stay open.
 
