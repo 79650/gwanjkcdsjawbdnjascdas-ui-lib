@@ -15,7 +15,7 @@ local RED = "danger" -- theme role
 return function(window, cfg)
     cfg = cfg or {}
     local defaultSize = Vector2.new(window.width, window.height)
-    local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = cfg.Icon or "settings", Divider = cfg.Divider ~= false, Header = cfg.Header ~= false })
+    local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = cfg.Icon or "settings", Divider = cfg.Divider ~= false, Header = cfg.Header ~= false, Compact = cfg.Compact == true })
     local interface = tab:Page("Interface")
     local profiles = tab:Page("Profiles", { Columns = 1 })
     local keysPage = tab:Page("Keys", { Columns = 1 })

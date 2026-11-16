@@ -16,7 +16,7 @@ return function(card, cfg)
     local options = {}
     for _, option in ipairs(cfg.Items or {}) do options[#options + 1] = tostring(option) end
     local row, title, desc = Base.row(card, cfg, 40, {})
-    title.Size = UDim2.new(0, 110, 0, cfg.Desc and 18 or 40)
+    title.Size = UDim2.new(0, 110, 0, cfg.Desc and 18 or row.Size.Y.Offset)
     if desc then desc.Size = UDim2.new(0, 110, 0, 14) end
     local strip = create("Frame", {
         Name = "Segments", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 120, 0.5, 0),

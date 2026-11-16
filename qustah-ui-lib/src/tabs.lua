@@ -288,6 +288,7 @@ function Tab.new(window, cfg)
     self.strip = create("Frame", { Name = self.Title, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, Parent = window.stripHolder })
 
     self.Header = cfg.Header == true -- also shown as a text tab in the header (Overview / Settings)
+    self.Compact = cfg.Compact == true -- denser cards on every page of this tab (a page or card can still say Compact = false)
     -- Build = function(tab) ... end: the tab's content is made the first time it opens (faster start for big scripts)
     -- (it also builds itself a moment after start, so its key binds work without opening it; BuildDelay = false: only on open)
     self._build = type(cfg.Build) == "function" and cfg.Build or nil

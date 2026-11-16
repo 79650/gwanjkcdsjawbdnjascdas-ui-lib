@@ -81,6 +81,8 @@ end
 -- opts.right: pixels kept free on the right for the control; opts.button: the whole row is clickable.
 function Base.row(card, cfg, height, opts)
     opts = opts or {}
+    -- compact cards: plain rows lose 6 px (rows that lay out their own parts under the title keep their height)
+    if card.compact and not opts.titleHeight and not opts.keepHeight then height = height - 6 end
     local row = create(opts.button and "TextButton" or "Frame", {
         Name = tostring(cfg.Title or "Row"), BackgroundTransparency = 1, BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, height), LayoutOrder = card:_order(), Parent = card.body,
@@ -88,7 +90,7 @@ function Base.row(card, cfg, height, opts)
     if opts.button then row.Text = "" row.AutoButtonColor = false end
     local right = opts.right or 0
     local title = label(row, tostring(cfg.Title or ""), 11, {
-        Name = "Title", Position = UDim2.fromOffset(0, cfg.Desc and 3 or 0),
+        Name = "Title", Position = UDim2.fromOffset(0, cfg.Desc and (card.compact and 1 or 3) or 0),
         Size = UDim2.new(1, -right, 0, cfg.Desc and 18 or (opts.titleHeight or height)),
     })
     -- Risky = true: the title is red (a feature that can get you flagged); Risky = "text" also explains it on hover
@@ -96,16 +98,16 @@ function Base.row(card, cfg, height, opts)
     if type(cfg.Risky) == "string" and not cfg.Help then cfg.Help = cfg.Risky end
     local desc
     if cfg.Desc then
-        desc = label(row, tostring(cfg.Desc), 9, { Name = "Desc", Position = UDim2.fromOffset(0, 23), Size = UDim2.new(1, -right, 0, 14) })
+        desc = label(row, tostring(cfg.Desc), 9, { Name = "Desc", Position = UDim2.fromOffset(0, card.compact and 19 or 23), Size = UDim2.new(1, -right, 0, 14) })
         Theme.bind(desc, "TextColor3", "muted")
     end
     -- Icon = "name": a small icon before the title (title / description move right)
     if cfg.Icon and not opts.noIcon then
-        local icon = Icons.themed(row, cfg.Icon, 14, "muted", { Name = "RowIcon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, cfg.Desc and 12 or (opts.titleHeight or height) / 2) })
+        local icon = Icons.themed(row, cfg.Icon, 14, "muted", { Name = "RowIcon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, cfg.Desc and (card.compact and 10 or 12) or (opts.titleHeight or height) / 2) })
         if icon then
             title.Position = UDim2.new(0, 22, 0, title.Position.Y.Offset)
             title.Size = UDim2.new(1, title.Size.X.Offset - 22, 0, title.Size.Y.Offset)
-            if desc then desc.Position = UDim2.fromOffset(22, 23) desc.Size = UDim2.new(1, desc.Size.X.Offset - 22, 0, 14) end
+            if desc then desc.Position = UDim2.fromOffset(22, desc.Position.Y.Offset) desc.Size = UDim2.new(1, desc.Size.X.Offset - 22, 0, 14) end
         end
     end
     -- Help = "text": a small (i) icon left of the control; hover (or tap) shows the text next to the pointer.

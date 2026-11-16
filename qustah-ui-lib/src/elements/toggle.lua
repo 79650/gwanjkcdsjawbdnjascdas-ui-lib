@@ -11,15 +11,28 @@ local create, corner = Util.create, Util.corner
 return function(card, cfg)
     local window = card.window
     local bindable = cfg.Bindable or cfg.Bind ~= nil
-    local row, title, desc = Base.row(card, cfg, cfg.Desc and 46 or 36, { button = true, right = 50, helpRight = 44 })
+    -- compact cards: a check box in place of the switch (same element, same flag)
+    local box = card.compact == true
+    local row, title, desc = Base.row(card, cfg, cfg.Desc and 46 or 36, { button = true, right = box and 30 or 50, helpRight = box and 24 or 44 })
     local switch = create("TextButton", {
         Name = "Switch", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(34, 18), Parent = row,
+        Position = UDim2.new(1, 0, 0.5, 0), Size = box and UDim2.fromOffset(14, 14) or UDim2.fromOffset(34, 18), Parent = row,
     })
-    corner(switch, 9)
+    corner(switch, box and 4 or 9)
     local rim = Util.stroke(switch, nil, 0.18)
-    local knob = create("Frame", { Name = "Knob", Position = UDim2.fromOffset(2, 2), Size = UDim2.fromOffset(14, 14), BorderSizePixel = 0, Parent = switch })
+    local knob = create("Frame", { Name = "Knob", Position = UDim2.fromOffset(2, 2), Size = UDim2.fromOffset(14, 14), BorderSizePixel = 0, Visible = not box, Parent = switch })
     corner(knob, 7)
+    local tick                                                    -- the check mark: a short and a long stroke
+    if box then
+        tick = create("Frame", { Name = "Tick", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = switch })
+        for _, part in ipairs({ { 4.5, 7.5, 5, 45 }, { 8, 6.5, 8, -50 } }) do
+            local stroke = create("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(part[1], part[2]), Size = UDim2.fromOffset(part[3], 1.75),
+                Rotation = part[4], BorderSizePixel = 0, Parent = tick,
+            })
+            Theme.bind(stroke, "BackgroundColor3", "base")
+        end
+    end
 
     -- Marker = true: accent bar on the left (a featured setting); Badge = "ANTI BB": small tag after the title
     if cfg.Marker then
@@ -54,6 +67,14 @@ return function(card, cfg)
         local on = element.Value
         local duration = animate and 0.15 or nil
         -- Qustah switch: on = input tinted with the accent, knob always light grey, accent rim when on
+        if box then
+            -- check box: filled with the accent and ticked when on, an empty outlined square when off
+            Theme.tweenTo(switch, "BackgroundColor3", on and "accent" or "input", duration)
+            Theme.tweenTo(rim, "Color", on and "accent" or "buttonEdge", duration)
+            rim.Transparency = on and 0.2 or 0
+            tick.Visible = on
+            return
+        end
         Theme.tweenTo(switch, "BackgroundColor3", on and "toggleOn" or "buttonEdge", duration)
         Theme.bind(knob, "BackgroundColor3", "knob")
         Theme.tweenTo(rim, "Color", on and "accent" or "line", duration)
@@ -81,7 +102,7 @@ return function(card, cfg)
             tag.Text = key and Util.keyName(key) or ""
             tag.Visible = key ~= nil
             -- make room for the key tag only while a key is bound
-            local reserve = (key and 100 or 50) + (cfg.Help and 16 or 0)
+            local reserve = (key and 100 or 50) - (box and 20 or 0) + (cfg.Help and 16 or 0)
             title.Size = UDim2.new(1, -reserve, 0, title.Size.Y.Offset)
             if desc then desc.Size = UDim2.new(1, -reserve, 0, 14) end
         end
@@ -98,7 +119,7 @@ return function(card, cfg)
     if bindable then
         -- the bound key: a small key cap left of the switch (same look as the Keybind element, smaller)
         tag = Util.label(row, "", 9, {
-            Name = "Bind", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, cfg.Help and -64 or -44, 0.5, 0), Size = UDim2.fromOffset(0, 16),
+            Name = "Bind", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, (cfg.Help and -20 or 0) - (box and 24 or 44), 0.5, 0), Size = UDim2.fromOffset(0, 16),
             AutomaticSize = Enum.AutomaticSize.X, TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamMedium, Visible = false,
         })
         Util.corner(tag, 4)
@@ -110,7 +131,7 @@ return function(card, cfg)
         row.MouseButton2Click:Connect(function()
             if element.Locked then return end
             tag.Text, tag.Visible = "...", true
-            title.Size = UDim2.new(1, -(100 + (cfg.Help and 16 or 0)), 0, title.Size.Y.Offset)
+            title.Size = UDim2.new(1, -(100 - (box and 20 or 0) + (cfg.Help and 16 or 0)), 0, title.Size.Y.Offset)
             window._capture = function(key)
                 if key == Enum.KeyCode.Escape or key == window.key then element:SetBind(element.BindKey) -- (the menu key stays the menu key)
                 elseif key == Enum.KeyCode.Backspace then element:SetBind(nil)

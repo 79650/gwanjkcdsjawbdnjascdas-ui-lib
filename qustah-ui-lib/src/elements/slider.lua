@@ -17,7 +17,7 @@ return function(card, cfg)
     local step = tonumber(cfg.Step) or 1
     local suffix = cfg.Suffix and (" " .. tostring(cfg.Suffix)) or ""
     local decimals = Util.decimals(step)
-    local top = cfg.Desc and 38 or 22
+    local top = card.compact and (cfg.Desc and 34 or 18) or (cfg.Desc and 38 or 22)   -- compact cards: 4 px tighter
     local row, title, desc = Base.row(card, cfg, top + 18, { right = 90, titleHeight = 22, helpRight = 84, helpY = 11 })
 
     if desc then desc.Size = UDim2.new(1, 0, 0, 14) end -- the value sits on the title line only

@@ -494,6 +494,15 @@ fov:Update({ Radius = 140, Sides = 6, Thickness = 1, Color = Color3.new(1, 1, 1)
 
 Bigger building blocks for dashboards, info and settings pages. `test/widgets_demo.lua` uses every one of them (`test/widgets.sh` renders it).
 
+**Compact cards**
+```lua
+Window:Tab({ Title = "Combat", Icon = "crosshair", Compact = true })   -- every page of the tab
+Tab:Page("Movement", { Compact = true })                               -- one page
+Page:Card({ Title = "FOV", Compact = false })                          -- a card can opt out (or in)
+Window:SettingsTab({ Compact = true })
+```
+Compact cards have tighter padding, a line under the title, 6 px shorter rows, slimmer buttons and sliders, and a check box in place of each toggle's switch (same element, same flag).
+
 **Numbers and health**
 ```lua
 local tiles = Card:StatTiles({ Columns = 4, Items = {

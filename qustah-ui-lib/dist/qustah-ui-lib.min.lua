@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.18.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.19.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -82,18 +82,25 @@ return nil
 end
 function Card.new(page,column,cfg,order)
 local self=setmetatable({page=page,window=page.window,order=0,title=cfg.Title},Card)
+local compact=cfg.Compact
+if compact==nil and page.cfg then compact=page.cfg.Compact end
+if compact==nil and page.tab then compact=page.tab.Compact end
+self.compact=compact==true
 local frame=create("Frame",{
 Name=cfg.Title or"Card",Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
 BorderSizePixel=0,LayoutOrder=order or 0,Parent=column,
 })
 Theme.bind(frame,"BackgroundColor3","card")
-corner(frame,8)
+corner(frame,self.compact and 6 or 8)
 Theme.bind(stroke(frame),"Color","line")
-Util.padding(frame,14,14,8,10)
-Util.list(frame,4)
+if self.compact then Util.padding(frame,10,10,6,6)Util.list(frame,1)else Util.padding(frame,14,14,8,10)Util.list(frame,4)end
 if cfg.Title then
-local head=create("Frame",{Name="Heading",BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=0,Parent=frame})
-local icon=cfg.Icon and Icons.themed(head,cfg.Icon,14,"accent",{Name="CardIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,-1,0.5,0)})
+local head=create("Frame",{Name="Heading",BackgroundTransparency=1,Size=UDim2.new(1,0,0,self.compact and 24 or 20),LayoutOrder=0,Parent=frame})
+if self.compact then
+local rule=create("Frame",{Name="Rule",AnchorPoint=Vector2.new(0,1),Position=UDim2.new(0,0,1,0),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,Parent=head})
+Theme.bind(rule,"BackgroundColor3","line")
+end
+local icon=cfg.Icon and Icons.themed(head,cfg.Icon,14,"accent",{Name="CardIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,-1,0,10)})
 local dotted=cfg.Dot
 if dotted==nil then dotted=not(page.window and page.window.cfg and page.window.cfg.CardDots==false)end
 local lead=icon and 18 or(dotted and 13 or 0)
@@ -106,7 +113,7 @@ Theme.bind(dot,"BackgroundColor3","accent")
 corner(dot,ring==0 and 3 or 6)
 end
 local collapsible=cfg.Collapsible~=false
-local title=label(head,tostring(cfg.Title),10,{Position=UDim2.fromOffset(lead,0),Size=UDim2.new(1,-lead-(collapsible and 22 or 0),1,0),Font=Enum.Font.GothamMedium})
+local title=label(head,tostring(cfg.Title),10,{Position=UDim2.fromOffset(lead,0),Size=UDim2.new(1,-lead-(collapsible and 22 or 0),0,20),Font=Enum.Font.GothamMedium})
 Theme.bind(title,"TextColor3","heading")
 self.titleLabel=title
 if cfg.Desc then
@@ -1429,6 +1436,7 @@ end
 end
 function Base.row(card,cfg,height,opts)
 opts=opts or{}
+if card.compact and not opts.titleHeight and not opts.keepHeight then height=height-6 end
 local row=create(opts.button and"TextButton"or"Frame",{
 Name=tostring(cfg.Title or"Row"),BackgroundTransparency=1,BorderSizePixel=0,
 Size=UDim2.new(1,0,0,height),LayoutOrder=card:_order(),Parent=card.body,
@@ -1436,22 +1444,22 @@ Size=UDim2.new(1,0,0,height),LayoutOrder=card:_order(),Parent=card.body,
 if opts.button then row.Text=""row.AutoButtonColor=false end
 local right=opts.right or 0
 local title=label(row,tostring(cfg.Title or""),11,{
-Name="Title",Position=UDim2.fromOffset(0,cfg.Desc and 3 or 0),
+Name="Title",Position=UDim2.fromOffset(0,cfg.Desc and(card.compact and 1 or 3)or 0),
 Size=UDim2.new(1,-right,0,cfg.Desc and 18 or(opts.titleHeight or height)),
 })
 Theme.bind(title,"TextColor3",cfg.Risky and"danger"or"text")
 if type(cfg.Risky)=="string"and not cfg.Help then cfg.Help=cfg.Risky end
 local desc
 if cfg.Desc then
-desc=label(row,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(0,23),Size=UDim2.new(1,-right,0,14)})
+desc=label(row,tostring(cfg.Desc),9,{Name="Desc",Position=UDim2.fromOffset(0,card.compact and 19 or 23),Size=UDim2.new(1,-right,0,14)})
 Theme.bind(desc,"TextColor3","muted")
 end
 if cfg.Icon and not opts.noIcon then
-local icon=Icons.themed(row,cfg.Icon,14,"muted",{Name="RowIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,cfg.Desc and 12 or(opts.titleHeight or height)/2)})
+local icon=Icons.themed(row,cfg.Icon,14,"muted",{Name="RowIcon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,cfg.Desc and(card.compact and 10 or 12)or(opts.titleHeight or height)/2)})
 if icon then
 title.Position=UDim2.new(0,22,0,title.Position.Y.Offset)
 title.Size=UDim2.new(1,title.Size.X.Offset-22,0,title.Size.Y.Offset)
-if desc then desc.Position=UDim2.fromOffset(22,23)desc.Size=UDim2.new(1,desc.Size.X.Offset-22,0,14)end
+if desc then desc.Position=UDim2.fromOffset(22,desc.Position.Y.Offset)desc.Size=UDim2.new(1,desc.Size.X.Offset-22,0,14)end
 end
 end
 if cfg.Help then
@@ -1839,6 +1847,7 @@ return function(card,cfg)
 local window=card.window
 local sizeName=tostring(cfg.Size or"Default")
 local size=SIZES[sizeName:sub(1,1):upper()..sizeName:sub(2):lower()]or SIZES.Default
+if card.compact and not cfg.Size then size={24,10,13}end
 local buttonHeight,textSize,iconSize=size[1],size[2],size[3]
 local height=cfg.Desc and buttonHeight+16 or buttonHeight
 local title=cfg.Title~=nil and tostring(cfg.Title)or(cfg.Icon and""or"Button")
@@ -2439,7 +2448,7 @@ local edge=stroke(box)
 local tick=Icons.themed(box,"check",12,"onAccent",{Name="Tick",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
 title.Position=UDim2.new(0,26,0,title.Position.Y.Offset)
 title.Size=UDim2.new(1,-26-(cfg.Help and 16 or 0),0,title.Size.Y.Offset)
-if desc then desc.Position=UDim2.fromOffset(26,23)desc.Size=UDim2.new(1,-26,0,14)end
+if desc then desc.Position=UDim2.fromOffset(26,desc.Position.Y.Offset)desc.Size=UDim2.new(1,-26,0,14)end
 local element=Base.element(card,"Checkbox",cfg,row,title,desc)
 element.Value=cfg.Default==true
 local hovered=false
@@ -5583,7 +5592,7 @@ return function(card,cfg)
 local options={}
 for _,option in ipairs(cfg.Items or{})do options[#options+1]=tostring(option)end
 local row,title,desc=Base.row(card,cfg,40,{})
-title.Size=UDim2.new(0,110,0,cfg.Desc and 18 or 40)
+title.Size=UDim2.new(0,110,0,cfg.Desc and 18 or row.Size.Y.Offset)
 if desc then desc.Size=UDim2.new(0,110,0,14)end
 local strip=create("Frame",{
 Name="Segments",BackgroundTransparency=1,AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,120,0.5,0),
@@ -5834,7 +5843,7 @@ if max<min then min,max=max,min end
 local step=tonumber(cfg.Step)or 1
 local suffix=cfg.Suffix and(" "..tostring(cfg.Suffix))or""
 local decimals=Util.decimals(step)
-local top=cfg.Desc and 38 or 22
+local top=card.compact and(cfg.Desc and 34 or 18)or(cfg.Desc and 38 or 22)
 local row,title,desc=Base.row(card,cfg,top+18,{right=90,titleHeight=22,helpRight=84,helpY=11})
 if desc then desc.Size=UDim2.new(1,0,0,14)end
 local box=create("TextBox",{
@@ -7108,15 +7117,27 @@ local create,corner=Util.create,Util.corner
 return function(card,cfg)
 local window=card.window
 local bindable=cfg.Bindable or cfg.Bind~=nil
-local row,title,desc=Base.row(card,cfg,cfg.Desc and 46 or 36,{button=true,right=50,helpRight=44})
+local box=card.compact==true
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 46 or 36,{button=true,right=box and 30 or 50,helpRight=box and 24 or 44})
 local switch=create("TextButton",{
 Name="Switch",Text="",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),
-Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(34,18),Parent=row,
+Position=UDim2.new(1,0,0.5,0),Size=box and UDim2.fromOffset(14,14)or UDim2.fromOffset(34,18),Parent=row,
 })
-corner(switch,9)
+corner(switch,box and 4 or 9)
 local rim=Util.stroke(switch,nil,0.18)
-local knob=create("Frame",{Name="Knob",Position=UDim2.fromOffset(2,2),Size=UDim2.fromOffset(14,14),BorderSizePixel=0,Parent=switch})
+local knob=create("Frame",{Name="Knob",Position=UDim2.fromOffset(2,2),Size=UDim2.fromOffset(14,14),BorderSizePixel=0,Visible=not box,Parent=switch})
 corner(knob,7)
+local tick
+if box then
+tick=create("Frame",{Name="Tick",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Parent=switch})
+for _,part in ipairs({{4.5,7.5,5,45},{8,6.5,8,-50}})do
+local stroke=create("Frame",{
+AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromOffset(part[1],part[2]),Size=UDim2.fromOffset(part[3],1.75),
+Rotation=part[4],BorderSizePixel=0,Parent=tick,
+})
+Theme.bind(stroke,"BackgroundColor3","base")
+end
+end
 if cfg.Marker then
 local marker=create("Frame",{Name="Marker",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0.5,0),Size=UDim2.fromOffset(3,24),BorderSizePixel=0,BackgroundTransparency=0.15,Parent=row})
 Theme.bind(marker,"BackgroundColor3","accent")
@@ -7145,6 +7166,13 @@ element.Value=cfg.Default==true
 local function render(animate)
 local on=element.Value
 local duration=animate and 0.15 or nil
+if box then
+Theme.tweenTo(switch,"BackgroundColor3",on and"accent"or"input",duration)
+Theme.tweenTo(rim,"Color",on and"accent"or"buttonEdge",duration)
+rim.Transparency=on and 0.2 or 0
+tick.Visible=on
+return
+end
 Theme.tweenTo(switch,"BackgroundColor3",on and"toggleOn"or"buttonEdge",duration)
 Theme.bind(knob,"BackgroundColor3","knob")
 Theme.tweenTo(rim,"Color",on and"accent"or"line",duration)
@@ -7168,7 +7196,7 @@ window:_bind(self,key)
 if tag then
 tag.Text=key and Util.keyName(key)or""
 tag.Visible=key~=nil
-local reserve=(key and 100 or 50)+(cfg.Help and 16 or 0)
+local reserve=(key and 100 or 50)-(box and 20 or 0)+(cfg.Help and 16 or 0)
 title.Size=UDim2.new(1,-reserve,0,title.Size.Y.Offset)
 if desc then desc.Size=UDim2.new(1,-reserve,0,14)end
 end
@@ -7184,7 +7212,7 @@ if self.BindMode=="Hold"and self._held then self._held=false self:Set(false)end
 end
 if bindable then
 tag=Util.label(row,"",9,{
-Name="Bind",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,cfg.Help and-64 or-44,0.5,0),Size=UDim2.fromOffset(0,16),
+Name="Bind",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,(cfg.Help and-20 or 0)-(box and 24 or 44),0.5,0),Size=UDim2.fromOffset(0,16),
 AutomaticSize=Enum.AutomaticSize.X,TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamMedium,Visible=false,
 })
 Util.corner(tag,4)
@@ -7196,7 +7224,7 @@ element._keyLabel,element._keyStroke=tag,tagEdge
 row.MouseButton2Click:Connect(function()
 if element.Locked then return end
 tag.Text,tag.Visible="...",true
-title.Size=UDim2.new(1,-(100+(cfg.Help and 16 or 0)),0,title.Size.Y.Offset)
+title.Size=UDim2.new(1,-(100-(box and 20 or 0)+(cfg.Help and 16 or 0)),0,title.Size.Y.Offset)
 window._capture=function(key)
 if key==Enum.KeyCode.Escape or key==window.key then element:SetBind(element.BindKey)
 elseif key==Enum.KeyCode.Backspace then element:SetBind(nil)
@@ -8840,7 +8868,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.18.0",
+Version="1.19.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9906,7 +9934,7 @@ local RED="danger"
 return function(window,cfg)
 cfg=cfg or{}
 local defaultSize=Vector2.new(window.width,window.height)
-local tab=window:Tab({Title=cfg.Title or"Settings",Icon=cfg.Icon or"settings",Divider=cfg.Divider~=false,Header=cfg.Header~=false})
+local tab=window:Tab({Title=cfg.Title or"Settings",Icon=cfg.Icon or"settings",Divider=cfg.Divider~=false,Header=cfg.Header~=false,Compact=cfg.Compact==true})
 local interface=tab:Page("Interface")
 local profiles=tab:Page("Profiles",{Columns=1})
 local keysPage=tab:Page("Keys",{Columns=1})
@@ -10860,6 +10888,7 @@ local index=#window.Tabs+1
 local self=setmetatable({window=window,Title=cfg.Title or("Tab "..index),Pages={},index=index},Tab)
 self.strip=create("Frame",{Name=self.Title,BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Visible=false,Parent=window.stripHolder})
 self.Header=cfg.Header==true
+self.Compact=cfg.Compact==true
 self._build=type(cfg.Build)=="function"and cfg.Build or nil
 if self._build and cfg.BuildDelay~=false then
 task.delay(tonumber(cfg.BuildDelay)or 1.5,function()

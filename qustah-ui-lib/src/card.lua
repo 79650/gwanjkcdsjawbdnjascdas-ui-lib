@@ -74,19 +74,28 @@ end
 
 function Card.new(page, column, cfg, order)
     local self = setmetatable({ page = page, window = page.window, order = 0, title = cfg.Title }, Card)
+    -- Compact = true (on the card, its page or its tab): tighter padding and rows, a line under the title,
+    -- check boxes instead of switches
+    local compact = cfg.Compact
+    if compact == nil and page.cfg then compact = page.cfg.Compact end
+    if compact == nil and page.tab then compact = page.tab.Compact end
+    self.compact = compact == true
     local frame = create("Frame", {
         Name = cfg.Title or "Card", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0, LayoutOrder = order or 0, Parent = column,
     })
     Theme.bind(frame, "BackgroundColor3", "card")
-    corner(frame, 8)
+    corner(frame, self.compact and 6 or 8)
     Theme.bind(stroke(frame), "Color", "line")
-    Util.padding(frame, 14, 14, 8, 10)
-    Util.list(frame, 4)
+    if self.compact then Util.padding(frame, 10, 10, 6, 6) Util.list(frame, 1) else Util.padding(frame, 14, 14, 8, 10) Util.list(frame, 4) end
     if cfg.Title then
         -- accent dot with a soft glow + medium heading (Qustah card title); Icon = "name" replaces the dot
-        local head = create("Frame", { Name = "Heading", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = 0, Parent = frame })
-        local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 14, "accent", { Name = "CardIcon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, -1, 0.5, 0) })
+        local head = create("Frame", { Name = "Heading", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, self.compact and 24 or 20), LayoutOrder = 0, Parent = frame })
+        if self.compact then                                     -- a thin line under the title, the rows start right after it
+            local rule = create("Frame", { Name = "Rule", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, Parent = head })
+            Theme.bind(rule, "BackgroundColor3", "line")
+        end
+        local icon = cfg.Icon and Icons.themed(head, cfg.Icon, 14, "accent", { Name = "CardIcon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, -1, 0, 10) })
         -- Dot = false (or CreateWindow({ CardDots = false }) for every card): plain title when there is no icon
         local dotted = cfg.Dot
         if dotted == nil then dotted = not (page.window and page.window.cfg and page.window.cfg.CardDots == false) end
@@ -100,7 +109,7 @@ function Card.new(page, column, cfg, order)
             corner(dot, ring == 0 and 3 or 6)
         end
         local collapsible = cfg.Collapsible ~= false
-        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(lead, 0), Size = UDim2.new(1, -lead - (collapsible and 22 or 0), 1, 0), Font = Enum.Font.GothamMedium })
+        local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(lead, 0), Size = UDim2.new(1, -lead - (collapsible and 22 or 0), 0, 20), Font = Enum.Font.GothamMedium })
         Theme.bind(title, "TextColor3", "heading")
         self.titleLabel = title
         -- Desc = "...": a muted line under the title

@@ -69,6 +69,7 @@ return function(card, cfg)
     local window = card.window
     local sizeName = tostring(cfg.Size or "Default")
     local size = SIZES[sizeName:sub(1, 1):upper() .. sizeName:sub(2):lower()] or SIZES.Default
+    if card.compact and not cfg.Size then size = { 24, 10, 13 } end   -- compact cards: a slimmer default button
     local buttonHeight, textSize, iconSize = size[1], size[2], size[3]
     local height = cfg.Desc and buttonHeight + 16 or buttonHeight
     local title = cfg.Title ~= nil and tostring(cfg.Title) or (cfg.Icon and "" or "Button")

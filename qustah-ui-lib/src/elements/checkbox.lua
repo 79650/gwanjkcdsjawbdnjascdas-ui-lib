@@ -16,7 +16,7 @@ return function(card, cfg)
     local tick = Icons.themed(box, "check", 12, "onAccent", { Name = "Tick", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
     title.Position = UDim2.new(0, 26, 0, title.Position.Y.Offset)
     title.Size = UDim2.new(1, -26 - (cfg.Help and 16 or 0), 0, title.Size.Y.Offset)
-    if desc then desc.Position = UDim2.fromOffset(26, 23) desc.Size = UDim2.new(1, -26, 0, 14) end
+    if desc then desc.Position = UDim2.fromOffset(26, desc.Position.Y.Offset) desc.Size = UDim2.new(1, -26, 0, 14) end
 
     local element = Base.element(card, "Checkbox", cfg, row, title, desc)
     element.Value = cfg.Default == true
