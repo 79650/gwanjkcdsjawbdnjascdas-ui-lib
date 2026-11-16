@@ -7,6 +7,7 @@
 -- name, lit while on; saved like any toggle). A tile with State is tinted by it ("on" green, "limited" amber,
 -- "error" red, "off" plain) - :SetState(title, state, sub). A tile with only a Callback is a button.
 -- tiles.Items[i] / [title] are the toggle tiles (:Set, :Get).
+-- :SetTileVisible(title, shown) hides or shows one tile (Visible = false on an item starts it hidden); the rest close up.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -24,6 +25,7 @@ return function(card, cfg)
     element.Items = {}
     local states = {}
     local centered = cfg.Align == "Center"
+    local boxes = {}                                               -- { title, box, shown } in order, for :SetTileVisible
     for index, spec in ipairs(list) do
         local position, size = Parts.cell(index, columns, gap, height)
         local box = create("TextButton", { Name = tostring(spec.Title or index), Text = "", AutoButtonColor = false, BorderSizePixel = 0, Position = position, Size = size, Parent = holder })
@@ -77,7 +79,31 @@ return function(card, cfg)
             box.MouseLeave:Connect(function() Theme.tweenTo(box, "BackgroundColor3", "input", 0.1) end)
         end
         Util.hoverPop(box, 1.02)
+        boxes[#boxes + 1] = { title = tostring(spec.Title), box = box, shown = spec.Visible ~= false }
     end
+    -- hidden tiles leave no gap: the shown ones fill the grid in order and the element shrinks to fit
+    local function relayout()
+        local count = 0
+        for _, entry in ipairs(boxes) do
+            entry.box.Visible = entry.shown
+            if entry.shown then
+                count = count + 1
+                local position, size = Parts.cell(count, columns, gap, height)
+                entry.box.Position, entry.box.Size = position, size
+            end
+        end
+        holder.Size = UDim2.new(1, 0, 0, count > 0 and Parts.gridHeight(count, columns, gap, height) or 0)
+        holder.Visible = count > 0
+    end
+    function element:SetTileVisible(titleText, shown)
+        for _, entry in ipairs(boxes) do
+            if entry.title == tostring(titleText) and entry.shown ~= (shown ~= false) then
+                entry.shown = shown ~= false
+                relayout()
+            end
+        end
+    end
+    relayout()
     function element:SetState(titleText, state, subText)
         local set = states[tostring(titleText)]
         if set then set(state, subText) end

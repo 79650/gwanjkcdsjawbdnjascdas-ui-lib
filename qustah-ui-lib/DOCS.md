@@ -494,6 +494,16 @@ fov:Update({ Radius = 140, Sides = 6, Thickness = 1, Color = Color3.new(1, 1, 1)
 
 Bigger building blocks for dashboards, info and settings pages. `test/widgets_demo.lua` uses every one of them (`test/widgets.sh` renders it).
 
+**Header controls, sections, inline sliders**
+```lua
+Card:HeaderSwitch({ Flag = "dash", Callback = fn })              -- on / off switch in the card title row
+Card:HeaderButton({ Title = "Claim all", Icon = "gift", Callback = fn })
+Card:Divider({ Title = "Defense" })                               -- a section label inside a card
+Card:Toggle({ Title = "Stop at spins", Flag = "stop", Slider = { Flag = "stopAt", Min = 50, Max = 1000, Default = 500 } })
+Card:Segment({ Title = "Target part", Items = { "Head", "Torso" }, Wide = true })   -- buttons fill the row, no title
+tiles:SetTileVisible("Back", false)                               -- Tiles: hide one tile, the rest close up
+```
+
 **Item list and canvas**
 ```lua
 local list = Card:ItemList({ Items = { { Title = "Kage Office", Desc = "312 studs", Icon = "map-pin" } }, Button = "Go", Rows = 4,

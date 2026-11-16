@@ -1,4 +1,5 @@
--- card:Segment({ Title, Desc, Flag, Items = { "Head", "Body", "Closest" }, Default, Callback, Locked, Style })
+-- card:Segment({ Title, Desc, Flag, Items = { "Head", "Body", "Closest" }, Default, Callback, Locked, Style, Wide })
+-- Wide = true: the buttons fill the row and the title is not shown.
 -- One choice shown as a row of buttons (Qustah's Aim Part / Priority rows). On a narrow card the buttons move
 -- under the title. Style (or CreateWindow({ SegmentStyle })): "Boxed" (a framed button each, the default),
 -- "Track" (one rounded track, a thumb slides under the chosen one), "Underline" (plain words, a line under the
@@ -16,6 +17,13 @@ return function(card, cfg)
     local options = {}
     for _, option in ipairs(cfg.Items or {}) do options[#options + 1] = tostring(option) end
     local row, title, desc = Base.row(card, cfg, 40, {})
+    local baseHeight = row.Size.Y.Offset                            -- 40, or less on a compact card
+    -- Wide = true: no title on the row, the buttons take the whole width (the title still names it for search)
+    local wide = cfg.Wide == true
+    if wide then
+        title.Visible = false
+        if desc then desc.Visible = false end
+    end
     title.Size = UDim2.new(0, 110, 0, cfg.Desc and 18 or row.Size.Y.Offset)
     if desc then desc.Size = UDim2.new(0, 110, 0, 14) end
     local strip = create("Frame", {
@@ -167,8 +175,14 @@ return function(card, cfg)
 
     -- narrow card: title on top, buttons underneath
     local function fit()
+        if wide then
+            row.Size = UDim2.new(1, 0, 0, baseHeight - 6)
+            strip.AnchorPoint, strip.Position = Vector2.new(0, 0.5), UDim2.new(0, 0, 0.5, 0)
+            if style ~= "Capsule" then strip.Size = UDim2.new(1, 0, 0, 28) end
+            return
+        end
         local stacked = row.AbsoluteSize.X > 0 and row.AbsoluteSize.X < 300
-        row.Size = UDim2.new(1, 0, 0, stacked and 70 or (cfg.Desc and 46 or 40))
+        row.Size = UDim2.new(1, 0, 0, stacked and 70 or (cfg.Desc and baseHeight + 6 or baseHeight))
         strip.AnchorPoint = stacked and Vector2.new(0, 0) or Vector2.new(0, 0.5)
         strip.Position = stacked and UDim2.fromOffset(0, cfg.Desc and 40 or 30) or UDim2.new(0, 120, 0.5, 0)
         if style == "Capsule" then
@@ -176,8 +190,9 @@ return function(card, cfg)
         else
             strip.Size = stacked and UDim2.new(1, 0, 0, 28) or UDim2.new(1, -120, 0, 28)
         end
-        title.Size = UDim2.new(stacked and 1 or 0, stacked and 0 or 110, 0, cfg.Desc and 18 or (stacked and 28 or 40))
+        title.Size = UDim2.new(stacked and 1 or 0, stacked and 0 or 110, 0, cfg.Desc and 18 or (stacked and 28 or baseHeight))
     end
+    if wide then fit() end
     row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 
     function element:Set(value, silent)

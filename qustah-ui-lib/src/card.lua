@@ -505,8 +505,8 @@ function Card:HeaderSwitch(cfg)
     cfg = cfg or {}
     local head = self.titleLabel and self.titleLabel.Parent
     if not head then return nil end
-    local right = self._chevron and 22 or 0
-    local holder = create("TextButton", { Name = "HeaderSwitch", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -right, 0.5, 0), Size = UDim2.fromOffset(28, 16), Parent = head })
+    local right = self._headRight or (self._chevron and 22 or 0)
+    local holder = create("TextButton", { Name = "HeaderSwitch", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -right, 0, 10), Size = UDim2.fromOffset(28, 16), Parent = head })
     local track = create("Frame", { Name = "Track", Size = UDim2.fromScale(1, 1), BorderSizePixel = 0, Parent = holder })
     corner(track, 8)
     local knob = create("Frame", { Name = "Knob", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 2, 0.5, 0), Size = UDim2.fromOffset(12, 12), BorderSizePixel = 0, Parent = track })
@@ -514,11 +514,12 @@ function Card:HeaderSwitch(cfg)
     Theme.bind(knob, "BackgroundColor3", "knob")
     local caption
     if cfg.Title then
-        caption = label(head, tostring(cfg.Title), 9, { Name = "HeaderSwitchTitle", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(right + 34), 0.5, 0), Size = UDim2.fromOffset(Util.textWidth(cfg.Title, 9, Enum.Font.Gotham) + 8, 16), TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.None })
+        caption = label(head, tostring(cfg.Title), 9, { Name = "HeaderSwitchTitle", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(right + 34), 0, 10), Size = UDim2.fromOffset(Util.textWidth(cfg.Title, 9, Enum.Font.Gotham) + 8, 16), TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.None })
         Theme.bind(caption, "TextColor3", "muted")
     end
     local used = right + 34 + (caption and caption.Size.X.Offset + 6 or 0)
-    self.titleLabel.Size = UDim2.new(1, self.titleLabel.Size.X.Offset - (used - right), 1, 0)
+    self.titleLabel.Size = UDim2.new(1, self.titleLabel.Size.X.Offset - (used - right), 0, 20)
+    self._headRight = used
     local element = { Type = "HeaderSwitch", Flag = cfg.Flag, Value = cfg.Default == true, Row = holder, _changed = {} }
     local function paint(animate)
         local t = animate and 0.12 or 0
@@ -545,6 +546,41 @@ function Card:HeaderSwitch(cfg)
         window:_register(cfg.Flag, element) -- (profiles save / load it, its default is remembered)
     end
     paint(false)
+    return element
+end
+
+-- card:HeaderButton({ Title = "Claim all", Icon = "gift", Callback = function() end }) -> a small button in the card's title
+-- row (left of the fold arrow and of any header switch). :SetTitle(text), :SetVisible(shown).
+function Card:HeaderButton(cfg)
+    cfg = cfg or {}
+    local head = self.titleLabel and self.titleLabel.Parent
+    if not head then return nil end
+    local right = self._headRight or (self._chevron and 22 or 0)
+    local text = tostring(cfg.Title or "")
+    local width = Util.textWidth(text, 9, Enum.Font.GothamMedium) + (cfg.Icon and 30 or 16)
+    local button = create("TextButton", {
+        Name = "HeaderButton", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -right, 0, 10), Size = UDim2.fromOffset(width, 18), Parent = head,
+    })
+    Theme.bind(button, "BackgroundColor3", "input")
+    corner(button, 6)
+    Theme.bind(stroke(button, nil, 0.2), "Color", "buttonEdge")
+    local caption = label(button, text, 9, { Name = "Title", Position = UDim2.fromOffset(cfg.Icon and 22 or 8, 0), Size = UDim2.new(1, cfg.Icon and -28 or -16, 1, 0), Font = Enum.Font.GothamMedium })
+    Theme.bind(caption, "TextColor3", "text")
+    if cfg.Icon then Icons.themed(button, cfg.Icon, 11, "text", { Name = "Icon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) }) end
+    local used = right + width + 6
+    self.titleLabel.Size = UDim2.new(1, self.titleLabel.Size.X.Offset - (used - right), 0, 20)
+    self._headRight = used
+    local window = self.window
+    button.MouseEnter:Connect(function() Theme.tweenTo(caption, "TextColor3", "heading", 0.1) end)
+    button.MouseLeave:Connect(function() Theme.tweenTo(caption, "TextColor3", "text", 0.1) end)
+    button.Activated:Connect(function()
+        require("sounds").Play("click")
+        if cfg.Callback then window:_safe(text, cfg.Callback) end
+    end)
+    local element = { Type = "HeaderButton", Title = text, Row = button }
+    function element:SetTitle(t) caption.Text = tostring(t) end
+    function element:SetVisible(shown) button.Visible = shown ~= false end
     return element
 end
 

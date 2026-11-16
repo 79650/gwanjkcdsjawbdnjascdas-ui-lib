@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.21.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.22.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -520,8 +520,8 @@ function Card:HeaderSwitch(cfg)
     cfg = cfg or {}
     local head = self.titleLabel and self.titleLabel.Parent
     if not head then return nil end
-    local right = self._chevron and 22 or 0
-    local holder = create("TextButton", { Name = "HeaderSwitch", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -right, 0.5, 0), Size = UDim2.fromOffset(28, 16), Parent = head })
+    local right = self._headRight or (self._chevron and 22 or 0)
+    local holder = create("TextButton", { Name = "HeaderSwitch", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -right, 0, 10), Size = UDim2.fromOffset(28, 16), Parent = head })
     local track = create("Frame", { Name = "Track", Size = UDim2.fromScale(1, 1), BorderSizePixel = 0, Parent = holder })
     corner(track, 8)
     local knob = create("Frame", { Name = "Knob", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 2, 0.5, 0), Size = UDim2.fromOffset(12, 12), BorderSizePixel = 0, Parent = track })
@@ -529,11 +529,12 @@ function Card:HeaderSwitch(cfg)
     Theme.bind(knob, "BackgroundColor3", "knob")
     local caption
     if cfg.Title then
-        caption = label(head, tostring(cfg.Title), 9, { Name = "HeaderSwitchTitle", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(right + 34), 0.5, 0), Size = UDim2.fromOffset(Util.textWidth(cfg.Title, 9, Enum.Font.Gotham) + 8, 16), TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.None })
+        caption = label(head, tostring(cfg.Title), 9, { Name = "HeaderSwitchTitle", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(right + 34), 0, 10), Size = UDim2.fromOffset(Util.textWidth(cfg.Title, 9, Enum.Font.Gotham) + 8, 16), TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.None })
         Theme.bind(caption, "TextColor3", "muted")
     end
     local used = right + 34 + (caption and caption.Size.X.Offset + 6 or 0)
-    self.titleLabel.Size = UDim2.new(1, self.titleLabel.Size.X.Offset - (used - right), 1, 0)
+    self.titleLabel.Size = UDim2.new(1, self.titleLabel.Size.X.Offset - (used - right), 0, 20)
+    self._headRight = used
     local element = { Type = "HeaderSwitch", Flag = cfg.Flag, Value = cfg.Default == true, Row = holder, _changed = {} }
     local function paint(animate)
         local t = animate and 0.12 or 0
@@ -560,6 +561,41 @@ function Card:HeaderSwitch(cfg)
         window:_register(cfg.Flag, element) -- (profiles save / load it, its default is remembered)
     end
     paint(false)
+    return element
+end
+
+-- card:HeaderButton({ Title = "Claim all", Icon = "gift", Callback = function() end }) -> a small button in the card's title
+-- row (left of the fold arrow and of any header switch). :SetTitle(text), :SetVisible(shown).
+function Card:HeaderButton(cfg)
+    cfg = cfg or {}
+    local head = self.titleLabel and self.titleLabel.Parent
+    if not head then return nil end
+    local right = self._headRight or (self._chevron and 22 or 0)
+    local text = tostring(cfg.Title or "")
+    local width = Util.textWidth(text, 9, Enum.Font.GothamMedium) + (cfg.Icon and 30 or 16)
+    local button = create("TextButton", {
+        Name = "HeaderButton", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -right, 0, 10), Size = UDim2.fromOffset(width, 18), Parent = head,
+    })
+    Theme.bind(button, "BackgroundColor3", "input")
+    corner(button, 6)
+    Theme.bind(stroke(button, nil, 0.2), "Color", "buttonEdge")
+    local caption = label(button, text, 9, { Name = "Title", Position = UDim2.fromOffset(cfg.Icon and 22 or 8, 0), Size = UDim2.new(1, cfg.Icon and -28 or -16, 1, 0), Font = Enum.Font.GothamMedium })
+    Theme.bind(caption, "TextColor3", "text")
+    if cfg.Icon then Icons.themed(button, cfg.Icon, 11, "text", { Name = "Icon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) }) end
+    local used = right + width + 6
+    self.titleLabel.Size = UDim2.new(1, self.titleLabel.Size.X.Offset - (used - right), 0, 20)
+    self._headRight = used
+    local window = self.window
+    button.MouseEnter:Connect(function() Theme.tweenTo(caption, "TextColor3", "heading", 0.1) end)
+    button.MouseLeave:Connect(function() Theme.tweenTo(caption, "TextColor3", "text", 0.1) end)
+    button.Activated:Connect(function()
+        require("sounds").Play("click")
+        if cfg.Callback then window:_safe(text, cfg.Callback) end
+    end)
+    local element = { Type = "HeaderButton", Title = text, Row = button }
+    function element:SetTitle(t) caption.Text = tostring(t) end
+    function element:SetVisible(shown) button.Visible = shown ~= false end
     return element
 end
 
@@ -3760,13 +3796,25 @@ end
 
 __modules["elements/divider"] = function()
 -- card:Divider() - a thin line between groups of rows.
+-- card:Divider({ Title = "Defense" }) - a section label: small upper-case text with the line running after it.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
 
-local create = Util.create
+local create, label = Util.create, Util.label
 
-return function(card)
+return function(card, cfg)
+    cfg = type(cfg) == "table" and cfg or {}
+    if cfg.Title then
+        local holder = create("Frame", { Name = "Section", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 18), LayoutOrder = card:_order(), Parent = card.body })
+        local text = string.upper(tostring(cfg.Title))
+        local width = Util.textWidth(text, 8, Enum.Font.GothamBold) + 2
+        local title = label(holder, text, 8, { Name = "Title", Position = UDim2.fromOffset(0, 4), Size = UDim2.new(0, width, 0, 12), Font = Enum.Font.GothamBold })
+        Theme.bind(title, "TextColor3", "muted")
+        local line = create("Frame", { Name = "Line", Position = UDim2.new(0, width + 6, 0, 10), Size = UDim2.new(1, -(width + 6), 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.3, Parent = holder })
+        Theme.bind(line, "BackgroundColor3", "line")
+        return Base.element(card, "Divider", { Title = cfg.Title }, holder, nil, nil)
+    end
     local holder = create("Frame", { Name = "Divider", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 7), LayoutOrder = card:_order(), Parent = card.body })
     local line = create("Frame", { Position = UDim2.fromOffset(0, 3), Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.3, Parent = holder })
     Theme.bind(line, "BackgroundColor3", "line")
@@ -6546,7 +6594,8 @@ end
 end
 
 __modules["elements/segment"] = function()
--- card:Segment({ Title, Desc, Flag, Items = { "Head", "Body", "Closest" }, Default, Callback, Locked, Style })
+-- card:Segment({ Title, Desc, Flag, Items = { "Head", "Body", "Closest" }, Default, Callback, Locked, Style, Wide })
+-- Wide = true: the buttons fill the row and the title is not shown.
 -- One choice shown as a row of buttons (Qustah's Aim Part / Priority rows). On a narrow card the buttons move
 -- under the title. Style (or CreateWindow({ SegmentStyle })): "Boxed" (a framed button each, the default),
 -- "Track" (one rounded track, a thumb slides under the chosen one), "Underline" (plain words, a line under the
@@ -6564,6 +6613,13 @@ return function(card, cfg)
     local options = {}
     for _, option in ipairs(cfg.Items or {}) do options[#options + 1] = tostring(option) end
     local row, title, desc = Base.row(card, cfg, 40, {})
+    local baseHeight = row.Size.Y.Offset                            -- 40, or less on a compact card
+    -- Wide = true: no title on the row, the buttons take the whole width (the title still names it for search)
+    local wide = cfg.Wide == true
+    if wide then
+        title.Visible = false
+        if desc then desc.Visible = false end
+    end
     title.Size = UDim2.new(0, 110, 0, cfg.Desc and 18 or row.Size.Y.Offset)
     if desc then desc.Size = UDim2.new(0, 110, 0, 14) end
     local strip = create("Frame", {
@@ -6715,8 +6771,14 @@ return function(card, cfg)
 
     -- narrow card: title on top, buttons underneath
     local function fit()
+        if wide then
+            row.Size = UDim2.new(1, 0, 0, baseHeight - 6)
+            strip.AnchorPoint, strip.Position = Vector2.new(0, 0.5), UDim2.new(0, 0, 0.5, 0)
+            if style ~= "Capsule" then strip.Size = UDim2.new(1, 0, 0, 28) end
+            return
+        end
         local stacked = row.AbsoluteSize.X > 0 and row.AbsoluteSize.X < 300
-        row.Size = UDim2.new(1, 0, 0, stacked and 70 or (cfg.Desc and 46 or 40))
+        row.Size = UDim2.new(1, 0, 0, stacked and 70 or (cfg.Desc and baseHeight + 6 or baseHeight))
         strip.AnchorPoint = stacked and Vector2.new(0, 0) or Vector2.new(0, 0.5)
         strip.Position = stacked and UDim2.fromOffset(0, cfg.Desc and 40 or 30) or UDim2.new(0, 120, 0.5, 0)
         if style == "Capsule" then
@@ -6724,8 +6786,9 @@ return function(card, cfg)
         else
             strip.Size = stacked and UDim2.new(1, 0, 0, 28) or UDim2.new(1, -120, 0, 28)
         end
-        title.Size = UDim2.new(stacked and 1 or 0, stacked and 0 or 110, 0, cfg.Desc and 18 or (stacked and 28 or 40))
+        title.Size = UDim2.new(stacked and 1 or 0, stacked and 0 or 110, 0, cfg.Desc and 18 or (stacked and 28 or baseHeight))
     end
+    if wide then fit() end
     row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 
     function element:Set(value, silent)
@@ -8082,6 +8145,7 @@ __modules["elements/tiles"] = function()
 -- name, lit while on; saved like any toggle). A tile with State is tinted by it ("on" green, "limited" amber,
 -- "error" red, "off" plain) - :SetState(title, state, sub). A tile with only a Callback is a button.
 -- tiles.Items[i] / [title] are the toggle tiles (:Set, :Get).
+-- :SetTileVisible(title, shown) hides or shows one tile (Visible = false on an item starts it hidden); the rest close up.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -8099,6 +8163,7 @@ return function(card, cfg)
     element.Items = {}
     local states = {}
     local centered = cfg.Align == "Center"
+    local boxes = {}                                               -- { title, box, shown } in order, for :SetTileVisible
     for index, spec in ipairs(list) do
         local position, size = Parts.cell(index, columns, gap, height)
         local box = create("TextButton", { Name = tostring(spec.Title or index), Text = "", AutoButtonColor = false, BorderSizePixel = 0, Position = position, Size = size, Parent = holder })
@@ -8152,7 +8217,31 @@ return function(card, cfg)
             box.MouseLeave:Connect(function() Theme.tweenTo(box, "BackgroundColor3", "input", 0.1) end)
         end
         Util.hoverPop(box, 1.02)
+        boxes[#boxes + 1] = { title = tostring(spec.Title), box = box, shown = spec.Visible ~= false }
     end
+    -- hidden tiles leave no gap: the shown ones fill the grid in order and the element shrinks to fit
+    local function relayout()
+        local count = 0
+        for _, entry in ipairs(boxes) do
+            entry.box.Visible = entry.shown
+            if entry.shown then
+                count = count + 1
+                local position, size = Parts.cell(count, columns, gap, height)
+                entry.box.Position, entry.box.Size = position, size
+            end
+        end
+        holder.Size = UDim2.new(1, 0, 0, count > 0 and Parts.gridHeight(count, columns, gap, height) or 0)
+        holder.Visible = count > 0
+    end
+    function element:SetTileVisible(titleText, shown)
+        for _, entry in ipairs(boxes) do
+            if entry.title == tostring(titleText) and entry.shown ~= (shown ~= false) then
+                entry.shown = shown ~= false
+                relayout()
+            end
+        end
+    end
+    relayout()
     function element:SetState(titleText, state, subText)
         local set = states[tostring(titleText)]
         if set then set(state, subText) end
@@ -8282,7 +8371,8 @@ end
 end
 
 __modules["elements/toggle"] = function()
--- card:Toggle({ Title, Desc, Flag, Default, Callback, Bindable, Bind, BindMode = "Toggle" | "Hold", Locked, LockedTitle })
+-- card:Toggle({ Title, Desc, Flag, Default, Callback, Bindable, Bind, BindMode = "Toggle" | "Hold", Locked, LockedTitle,
+--               Slider = { Flag, Min, Max, Step, Default, Suffix, Callback } })   -- a slider on the same line
 -- BindMode = "Hold": the toggle is on only while its key is held (aim while holding the key). :SetBindMode(mode)
 -- Click the row or the switch to flip it. With Bindable (or a Bind key) right-click the row to assign a key
 -- (Backspace clears, Escape cancels); the key flips the toggle while the menu is closed too.
@@ -8427,6 +8517,73 @@ return function(card, cfg)
         function element:_load(data)
             if type(data) == "table" then self:SetBind(data.Bind) self:Set(data.Value) else self:Set(data) end
         end
+    end
+
+    ------------------------------------------------------------ inline slider
+    -- Slider = { Flag, Min, Max, Step, Default, Suffix, Callback }: a small slider on the same line, between the title
+    -- and the switch ("Stop at spins ━━●━ 500 [x]"). It is its own element (element.Slider) with its own flag.
+    if type(cfg.Slider) == "table" then
+        local sc = cfg.Slider
+        local min, max = tonumber(sc.Min) or 0, tonumber(sc.Max) or 100
+        local step = tonumber(sc.Step) or 1
+        local suffix = tostring(sc.Suffix or "")
+        local reserve = box and 30 or 50
+        local zone = create("Frame", { Name = "InlineSlider", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -reserve, 0, cfg.Desc and 12 or row.Size.Y.Offset / 2), Size = UDim2.new(0.5, -reserve, 0, 18), Parent = row })
+        title.Size = UDim2.new(0.5, -6, 0, title.Size.Y.Offset)
+        if desc then desc.Size = UDim2.new(1, -reserve, 0, 14) end
+        local valueLabel = Util.label(zone, "", 9, { Name = "Value", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(40, 14), TextXAlignment = Enum.TextXAlignment.Right })
+        Theme.bind(valueLabel, "TextColor3", "muted")
+        local track = create("Frame", { Name = "Track", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 4, 0.5, 0), Size = UDim2.new(1, -52, 0, 3), BorderSizePixel = 0, Parent = zone })
+        Theme.bind(track, "BackgroundColor3", "buttonEdge")
+        corner(track, 2)
+        local fill = create("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BorderSizePixel = 0, Parent = track })
+        Theme.bind(fill, "BackgroundColor3", "accent")
+        corner(fill, 2)
+        local knob = create("Frame", { Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(9, 9), BorderSizePixel = 0, ZIndex = 2, Parent = track })
+        Theme.bind(knob, "BackgroundColor3", "heading")
+        corner(knob, 5)
+        local hit = create("TextButton", { Name = "Hit", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.fromOffset(0, -3), Size = UDim2.new(1, -44, 1, 6), ZIndex = 3, Parent = zone })
+        local sub = Base.element(card, "Slider", { Title = tostring(cfg.Title) .. " amount", Flag = sc.Flag, Callback = sc.Callback }, zone, nil, nil)
+        local function format(v) return (step < 1 and string.format("%.2f", v):gsub("0+$", ""):gsub("%.$", "") or tostring(math.floor(v + 0.5))) .. suffix end
+        local function paint()
+            local ratio = max > min and (sub.Value - min) / (max - min) or 0
+            fill.Size = UDim2.fromScale(ratio, 1)
+            knob.Position = UDim2.fromScale(ratio, 0.5)
+            valueLabel.Text = format(sub.Value)
+            zone.BackgroundTransparency = 1
+            local dim = not element.Value                              -- greyed while the toggle is off
+            track.BackgroundTransparency, fill.BackgroundTransparency, knob.BackgroundTransparency = dim and 0.5 or 0, dim and 0.6 or 0, dim and 0.4 or 0
+        end
+        local dragging = false
+        function sub:Set(value, silent)
+            value = tonumber(value)
+            if not value then paint() return end
+            value = math.clamp(Util.round(value - min, step) + min, min, max)
+            local changed = value ~= self.Value
+            self.Value = value
+            paint()
+            self:_fire(value, silent or not changed, dragging)
+        end
+        function sub:Get() return self.Value end
+        local function fromPoint(point)
+            local width = track.AbsoluteSize.X
+            if width <= 0 then return end
+            sub:Set(min + math.clamp((point.X - Util.screenPos(track).X) / width, 0, 1) * (max - min))
+        end
+        hit.InputBegan:Connect(function(input)
+            if not Util.isPress(input) or sub.Locked or element.Locked then return end
+            dragging = true
+            fromPoint(Util.pointer(input))
+            window:_beginDrag(input, fromPoint, function()
+                dragging = false
+                sub:_fire(sub.Value, false, false)                     -- released: the final value
+            end)
+        end)
+        sub.Value = math.clamp(tonumber(sc.Default) or min, min, max)
+        element:OnChanged(function() paint() end)
+        paint()
+        sub:_fire(sub.Value, true)
+        element.Slider = sub
     end
 
     local function flip() if not element.Locked then element:Set(not element.Value) end end
@@ -10294,7 +10451,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.21.0",
+    Version = "1.22.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

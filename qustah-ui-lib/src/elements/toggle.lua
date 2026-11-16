@@ -1,4 +1,5 @@
--- card:Toggle({ Title, Desc, Flag, Default, Callback, Bindable, Bind, BindMode = "Toggle" | "Hold", Locked, LockedTitle })
+-- card:Toggle({ Title, Desc, Flag, Default, Callback, Bindable, Bind, BindMode = "Toggle" | "Hold", Locked, LockedTitle,
+--               Slider = { Flag, Min, Max, Step, Default, Suffix, Callback } })   -- a slider on the same line
 -- BindMode = "Hold": the toggle is on only while its key is held (aim while holding the key). :SetBindMode(mode)
 -- Click the row or the switch to flip it. With Bindable (or a Bind key) right-click the row to assign a key
 -- (Backspace clears, Escape cancels); the key flips the toggle while the menu is closed too.
@@ -143,6 +144,73 @@ return function(card, cfg)
         function element:_load(data)
             if type(data) == "table" then self:SetBind(data.Bind) self:Set(data.Value) else self:Set(data) end
         end
+    end
+
+    ------------------------------------------------------------ inline slider
+    -- Slider = { Flag, Min, Max, Step, Default, Suffix, Callback }: a small slider on the same line, between the title
+    -- and the switch ("Stop at spins ━━●━ 500 [x]"). It is its own element (element.Slider) with its own flag.
+    if type(cfg.Slider) == "table" then
+        local sc = cfg.Slider
+        local min, max = tonumber(sc.Min) or 0, tonumber(sc.Max) or 100
+        local step = tonumber(sc.Step) or 1
+        local suffix = tostring(sc.Suffix or "")
+        local reserve = box and 30 or 50
+        local zone = create("Frame", { Name = "InlineSlider", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -reserve, 0, cfg.Desc and 12 or row.Size.Y.Offset / 2), Size = UDim2.new(0.5, -reserve, 0, 18), Parent = row })
+        title.Size = UDim2.new(0.5, -6, 0, title.Size.Y.Offset)
+        if desc then desc.Size = UDim2.new(1, -reserve, 0, 14) end
+        local valueLabel = Util.label(zone, "", 9, { Name = "Value", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(40, 14), TextXAlignment = Enum.TextXAlignment.Right })
+        Theme.bind(valueLabel, "TextColor3", "muted")
+        local track = create("Frame", { Name = "Track", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 4, 0.5, 0), Size = UDim2.new(1, -52, 0, 3), BorderSizePixel = 0, Parent = zone })
+        Theme.bind(track, "BackgroundColor3", "buttonEdge")
+        corner(track, 2)
+        local fill = create("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BorderSizePixel = 0, Parent = track })
+        Theme.bind(fill, "BackgroundColor3", "accent")
+        corner(fill, 2)
+        local knob = create("Frame", { Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(9, 9), BorderSizePixel = 0, ZIndex = 2, Parent = track })
+        Theme.bind(knob, "BackgroundColor3", "heading")
+        corner(knob, 5)
+        local hit = create("TextButton", { Name = "Hit", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.fromOffset(0, -3), Size = UDim2.new(1, -44, 1, 6), ZIndex = 3, Parent = zone })
+        local sub = Base.element(card, "Slider", { Title = tostring(cfg.Title) .. " amount", Flag = sc.Flag, Callback = sc.Callback }, zone, nil, nil)
+        local function format(v) return (step < 1 and string.format("%.2f", v):gsub("0+$", ""):gsub("%.$", "") or tostring(math.floor(v + 0.5))) .. suffix end
+        local function paint()
+            local ratio = max > min and (sub.Value - min) / (max - min) or 0
+            fill.Size = UDim2.fromScale(ratio, 1)
+            knob.Position = UDim2.fromScale(ratio, 0.5)
+            valueLabel.Text = format(sub.Value)
+            zone.BackgroundTransparency = 1
+            local dim = not element.Value                              -- greyed while the toggle is off
+            track.BackgroundTransparency, fill.BackgroundTransparency, knob.BackgroundTransparency = dim and 0.5 or 0, dim and 0.6 or 0, dim and 0.4 or 0
+        end
+        local dragging = false
+        function sub:Set(value, silent)
+            value = tonumber(value)
+            if not value then paint() return end
+            value = math.clamp(Util.round(value - min, step) + min, min, max)
+            local changed = value ~= self.Value
+            self.Value = value
+            paint()
+            self:_fire(value, silent or not changed, dragging)
+        end
+        function sub:Get() return self.Value end
+        local function fromPoint(point)
+            local width = track.AbsoluteSize.X
+            if width <= 0 then return end
+            sub:Set(min + math.clamp((point.X - Util.screenPos(track).X) / width, 0, 1) * (max - min))
+        end
+        hit.InputBegan:Connect(function(input)
+            if not Util.isPress(input) or sub.Locked or element.Locked then return end
+            dragging = true
+            fromPoint(Util.pointer(input))
+            window:_beginDrag(input, fromPoint, function()
+                dragging = false
+                sub:_fire(sub.Value, false, false)                     -- released: the final value
+            end)
+        end)
+        sub.Value = math.clamp(tonumber(sc.Default) or min, min, max)
+        element:OnChanged(function() paint() end)
+        paint()
+        sub:_fire(sub.Value, true)
+        element.Slider = sub
     end
 
     local function flip() if not element.Locked then element:Set(not element.Value) end end

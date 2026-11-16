@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.21.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.22.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -468,8 +468,8 @@ function Card:HeaderSwitch(cfg)
 cfg=cfg or{}
 local head=self.titleLabel and self.titleLabel.Parent
 if not head then return nil end
-local right=self._chevron and 22 or 0
-local holder=create("TextButton",{Name="HeaderSwitch",Text="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-right,0.5,0),Size=UDim2.fromOffset(28,16),Parent=head})
+local right=self._headRight or(self._chevron and 22 or 0)
+local holder=create("TextButton",{Name="HeaderSwitch",Text="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-right,0,10),Size=UDim2.fromOffset(28,16),Parent=head})
 local track=create("Frame",{Name="Track",Size=UDim2.fromScale(1,1),BorderSizePixel=0,Parent=holder})
 corner(track,8)
 local knob=create("Frame",{Name="Knob",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,2,0.5,0),Size=UDim2.fromOffset(12,12),BorderSizePixel=0,Parent=track})
@@ -477,11 +477,12 @@ corner(knob,6)
 Theme.bind(knob,"BackgroundColor3","knob")
 local caption
 if cfg.Title then
-caption=label(head,tostring(cfg.Title),9,{Name="HeaderSwitchTitle",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-(right+34),0.5,0),Size=UDim2.fromOffset(Util.textWidth(cfg.Title,9,Enum.Font.Gotham)+8,16),TextXAlignment=Enum.TextXAlignment.Right,TextTruncate=Enum.TextTruncate.None})
+caption=label(head,tostring(cfg.Title),9,{Name="HeaderSwitchTitle",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-(right+34),0,10),Size=UDim2.fromOffset(Util.textWidth(cfg.Title,9,Enum.Font.Gotham)+8,16),TextXAlignment=Enum.TextXAlignment.Right,TextTruncate=Enum.TextTruncate.None})
 Theme.bind(caption,"TextColor3","muted")
 end
 local used=right+34+(caption and caption.Size.X.Offset+6 or 0)
-self.titleLabel.Size=UDim2.new(1,self.titleLabel.Size.X.Offset-(used-right),1,0)
+self.titleLabel.Size=UDim2.new(1,self.titleLabel.Size.X.Offset-(used-right),0,20)
+self._headRight=used
 local element={Type="HeaderSwitch",Flag=cfg.Flag,Value=cfg.Default==true,Row=holder,_changed={}}
 local function paint(animate)
 local t=animate and 0.12 or 0
@@ -508,6 +509,38 @@ window.Lib.Flags[cfg.Flag]=element.Value
 window:_register(cfg.Flag,element)
 end
 paint(false)
+return element
+end
+function Card:HeaderButton(cfg)
+cfg=cfg or{}
+local head=self.titleLabel and self.titleLabel.Parent
+if not head then return nil end
+local right=self._headRight or(self._chevron and 22 or 0)
+local text=tostring(cfg.Title or"")
+local width=Util.textWidth(text,9,Enum.Font.GothamMedium)+(cfg.Icon and 30 or 16)
+local button=create("TextButton",{
+Name="HeaderButton",Text="",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),
+Position=UDim2.new(1,-right,0,10),Size=UDim2.fromOffset(width,18),Parent=head,
+})
+Theme.bind(button,"BackgroundColor3","input")
+corner(button,6)
+Theme.bind(stroke(button,nil,0.2),"Color","buttonEdge")
+local caption=label(button,text,9,{Name="Title",Position=UDim2.fromOffset(cfg.Icon and 22 or 8,0),Size=UDim2.new(1,cfg.Icon and-28 or-16,1,0),Font=Enum.Font.GothamMedium})
+Theme.bind(caption,"TextColor3","text")
+if cfg.Icon then Icons.themed(button,cfg.Icon,11,"text",{Name="Icon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,7,0.5,0)})end
+local used=right+width+6
+self.titleLabel.Size=UDim2.new(1,self.titleLabel.Size.X.Offset-(used-right),0,20)
+self._headRight=used
+local window=self.window
+button.MouseEnter:Connect(function()Theme.tweenTo(caption,"TextColor3","heading",0.1)end)
+button.MouseLeave:Connect(function()Theme.tweenTo(caption,"TextColor3","text",0.1)end)
+button.Activated:Connect(function()
+require("sounds").Play("click")
+if cfg.Callback then window:_safe(text,cfg.Callback)end
+end)
+local element={Type="HeaderButton",Title=text,Row=button}
+function element:SetTitle(t)caption.Text=tostring(t)end
+function element:SetVisible(shown)button.Visible=shown~=false end
 return element
 end
 function Card:SetTitle(text)if self.titleLabel then self.titleLabel.Text=tostring(text)end end
@@ -3248,8 +3281,19 @@ __modules["elements/divider"]=function()
 local Util=require("util")
 local Theme=require("theme")
 local Base=require("elements/base")
-local create=Util.create
-return function(card)
+local create,label=Util.create,Util.label
+return function(card,cfg)
+cfg=type(cfg)=="table"and cfg or{}
+if cfg.Title then
+local holder=create("Frame",{Name="Section",BackgroundTransparency=1,Size=UDim2.new(1,0,0,18),LayoutOrder=card:_order(),Parent=card.body})
+local text=string.upper(tostring(cfg.Title))
+local width=Util.textWidth(text,8,Enum.Font.GothamBold)+2
+local title=label(holder,text,8,{Name="Title",Position=UDim2.fromOffset(0,4),Size=UDim2.new(0,width,0,12),Font=Enum.Font.GothamBold})
+Theme.bind(title,"TextColor3","muted")
+local line=create("Frame",{Name="Line",Position=UDim2.new(0,width+6,0,10),Size=UDim2.new(1,-(width+6),0,1),BorderSizePixel=0,BackgroundTransparency=0.3,Parent=holder})
+Theme.bind(line,"BackgroundColor3","line")
+return Base.element(card,"Divider",{Title=cfg.Title},holder,nil,nil)
+end
 local holder=create("Frame",{Name="Divider",BackgroundTransparency=1,Size=UDim2.new(1,0,0,7),LayoutOrder=card:_order(),Parent=card.body})
 local line=create("Frame",{Position=UDim2.fromOffset(0,3),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,BackgroundTransparency=0.3,Parent=holder})
 Theme.bind(line,"BackgroundColor3","line")
@@ -5076,6 +5120,12 @@ return function(card,cfg)
 local options={}
 for _,option in ipairs(cfg.Items or{})do options[#options+1]=tostring(option)end
 local row,title,desc=Base.row(card,cfg,40,{})
+local baseHeight=row.Size.Y.Offset
+local wide=cfg.Wide==true
+if wide then
+title.Visible=false
+if desc then desc.Visible=false end
+end
 title.Size=UDim2.new(0,110,0,cfg.Desc and 18 or row.Size.Y.Offset)
 if desc then desc.Size=UDim2.new(0,110,0,14)end
 local strip=create("Frame",{
@@ -5220,8 +5270,14 @@ end
 strip.Size=UDim2.fromOffset(x+1,26)
 end
 local function fit()
+if wide then
+row.Size=UDim2.new(1,0,0,baseHeight-6)
+strip.AnchorPoint,strip.Position=Vector2.new(0,0.5),UDim2.new(0,0,0.5,0)
+if style~="Capsule"then strip.Size=UDim2.new(1,0,0,28)end
+return
+end
 local stacked=row.AbsoluteSize.X>0 and row.AbsoluteSize.X<300
-row.Size=UDim2.new(1,0,0,stacked and 70 or(cfg.Desc and 46 or 40))
+row.Size=UDim2.new(1,0,0,stacked and 70 or(cfg.Desc and baseHeight+6 or baseHeight))
 strip.AnchorPoint=stacked and Vector2.new(0,0)or Vector2.new(0,0.5)
 strip.Position=stacked and UDim2.fromOffset(0,cfg.Desc and 40 or 30)or UDim2.new(0,120,0.5,0)
 if style=="Capsule"then
@@ -5229,8 +5285,9 @@ strip.Size=UDim2.fromOffset(strip.Size.X.Offset,26)
 else
 strip.Size=stacked and UDim2.new(1,0,0,28)or UDim2.new(1,-120,0,28)
 end
-title.Size=UDim2.new(stacked and 1 or 0,stacked and 0 or 110,0,cfg.Desc and 18 or(stacked and 28 or 40))
+title.Size=UDim2.new(stacked and 1 or 0,stacked and 0 or 110,0,cfg.Desc and 18 or(stacked and 28 or baseHeight))
 end
+if wide then fit()end
 row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 function element:Set(value,silent)
 value=value~=nil and tostring(value)or nil
@@ -6223,6 +6280,7 @@ local element=Base.element(card,"Tiles",{Title=cfg.Title},holder,nil,nil)
 element.Items={}
 local states={}
 local centered=cfg.Align=="Center"
+local boxes={}
 for index,spec in ipairs(list)do
 local position,size=Parts.cell(index,columns,gap,height)
 local box=create("TextButton",{Name=tostring(spec.Title or index),Text="",AutoButtonColor=false,BorderSizePixel=0,Position=position,Size=size,Parent=holder})
@@ -6275,7 +6333,30 @@ box.MouseEnter:Connect(function()Theme.tweenTo(box,"BackgroundColor3","hover",0.
 box.MouseLeave:Connect(function()Theme.tweenTo(box,"BackgroundColor3","input",0.1)end)
 end
 Util.hoverPop(box,1.02)
+boxes[#boxes+1]={title=tostring(spec.Title),box=box,shown=spec.Visible~=false}
 end
+local function relayout()
+local count=0
+for _,entry in ipairs(boxes)do
+entry.box.Visible=entry.shown
+if entry.shown then
+count=count+1
+local position,size=Parts.cell(count,columns,gap,height)
+entry.box.Position,entry.box.Size=position,size
+end
+end
+holder.Size=UDim2.new(1,0,0,count>0 and Parts.gridHeight(count,columns,gap,height)or 0)
+holder.Visible=count>0
+end
+function element:SetTileVisible(titleText,shown)
+for _,entry in ipairs(boxes)do
+if entry.title==tostring(titleText)and entry.shown~=(shown~=false)then
+entry.shown=shown~=false
+relayout()
+end
+end
+end
+relayout()
 function element:SetState(titleText,state,subText)
 local set=states[tostring(titleText)]
 if set then set(state,subText)end
@@ -6518,6 +6599,69 @@ function element:_save()return{Value=self.Value,Bind=self.BindKey and self.BindK
 function element:_load(data)
 if type(data)=="table"then self:SetBind(data.Bind)self:Set(data.Value)else self:Set(data)end
 end
+end
+if type(cfg.Slider)=="table"then
+local sc=cfg.Slider
+local min,max=tonumber(sc.Min)or 0,tonumber(sc.Max)or 100
+local step=tonumber(sc.Step)or 1
+local suffix=tostring(sc.Suffix or"")
+local reserve=box and 30 or 50
+local zone=create("Frame",{Name="InlineSlider",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-reserve,0,cfg.Desc and 12 or row.Size.Y.Offset/2),Size=UDim2.new(0.5,-reserve,0,18),Parent=row})
+title.Size=UDim2.new(0.5,-6,0,title.Size.Y.Offset)
+if desc then desc.Size=UDim2.new(1,-reserve,0,14)end
+local valueLabel=Util.label(zone,"",9,{Name="Value",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(40,14),TextXAlignment=Enum.TextXAlignment.Right})
+Theme.bind(valueLabel,"TextColor3","muted")
+local track=create("Frame",{Name="Track",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,4,0.5,0),Size=UDim2.new(1,-52,0,3),BorderSizePixel=0,Parent=zone})
+Theme.bind(track,"BackgroundColor3","buttonEdge")
+corner(track,2)
+local fill=create("Frame",{Name="Fill",Size=UDim2.fromScale(0,1),BorderSizePixel=0,Parent=track})
+Theme.bind(fill,"BackgroundColor3","accent")
+corner(fill,2)
+local knob=create("Frame",{Name="Knob",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0,0.5),Size=UDim2.fromOffset(9,9),BorderSizePixel=0,ZIndex=2,Parent=track})
+Theme.bind(knob,"BackgroundColor3","heading")
+corner(knob,5)
+local hit=create("TextButton",{Name="Hit",Text="",AutoButtonColor=false,BackgroundTransparency=1,Position=UDim2.fromOffset(0,-3),Size=UDim2.new(1,-44,1,6),ZIndex=3,Parent=zone})
+local sub=Base.element(card,"Slider",{Title=tostring(cfg.Title).." amount",Flag=sc.Flag,Callback=sc.Callback},zone,nil,nil)
+local function format(v)return(step<1 and string.format("%.2f",v):gsub("0+$",""):gsub("%.$","")or tostring(math.floor(v+0.5)))..suffix end
+local function paint()
+local ratio=max>min and(sub.Value-min)/(max-min)or 0
+fill.Size=UDim2.fromScale(ratio,1)
+knob.Position=UDim2.fromScale(ratio,0.5)
+valueLabel.Text=format(sub.Value)
+zone.BackgroundTransparency=1
+local dim=not element.Value
+track.BackgroundTransparency,fill.BackgroundTransparency,knob.BackgroundTransparency=dim and 0.5 or 0,dim and 0.6 or 0,dim and 0.4 or 0
+end
+local dragging=false
+function sub:Set(value,silent)
+value=tonumber(value)
+if not value then paint()return end
+value=math.clamp(Util.round(value-min,step)+min,min,max)
+local changed=value~=self.Value
+self.Value=value
+paint()
+self:_fire(value,silent or not changed,dragging)
+end
+function sub:Get()return self.Value end
+local function fromPoint(point)
+local width=track.AbsoluteSize.X
+if width<=0 then return end
+sub:Set(min+math.clamp((point.X-Util.screenPos(track).X)/width,0,1)*(max-min))
+end
+hit.InputBegan:Connect(function(input)
+if not Util.isPress(input)or sub.Locked or element.Locked then return end
+dragging=true
+fromPoint(Util.pointer(input))
+window:_beginDrag(input,fromPoint,function()
+dragging=false
+sub:_fire(sub.Value,false,false)
+end)
+end)
+sub.Value=math.clamp(tonumber(sc.Default)or min,min,max)
+element:OnChanged(function()paint()end)
+paint()
+sub:_fire(sub.Value,true)
+element.Slider=sub
 end
 local function flip()if not element.Locked then element:Set(not element.Value)end end
 row.Activated:Connect(flip)
@@ -8150,7 +8294,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.21.0",
+Version="1.22.0",
 Flags={},
 Windows={},
 Theme=Theme,
