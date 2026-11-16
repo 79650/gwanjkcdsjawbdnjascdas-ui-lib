@@ -58,6 +58,8 @@ Card.Elements = {
     Notice      = require("elements/notice"),
     Changelog   = require("elements/changelog"),
     ThemePreview = require("elements/themepreview"),
+    Canvas      = require("elements/canvas"),
+    ItemList    = require("elements/itemlist"),
 }
 Card.__index = function(_, key)
     local method = rawget(Card, key)

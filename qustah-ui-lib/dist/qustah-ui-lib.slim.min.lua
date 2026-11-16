@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.19.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.20.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -67,6 +67,8 @@ Checklist=require("elements/checklist"),
 Notice=require("elements/notice"),
 Changelog=require("elements/changelog"),
 ThemePreview=function()error("[qustah-ui-lib] ThemePreview is not in the slim build: load qustah-ui-lib.min.lua",3)end,
+Canvas=require("elements/canvas"),
+ItemList=require("elements/itemlist"),
 }
 Card.__index=function(_,key)
 local method=rawget(Card,key)
@@ -2366,6 +2368,26 @@ end)
 return Base.finish(element,cfg)
 end
 end
+__modules["elements/canvas"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local create,corner,stroke=Util.create,Util.corner,Util.stroke
+return function(card,cfg)
+local height=tonumber(cfg.Height)or 90
+local holder=create("Frame",{
+Name=tostring(cfg.Name or"Canvas"),Size=UDim2.new(1,0,0,height),BorderSizePixel=0,ClipsDescendants=true,
+BackgroundTransparency=cfg.Background==false and 1 or 0,LayoutOrder=card:_order(),Parent=card.body,
+})
+Theme.bind(holder,"BackgroundColor3","base")
+corner(holder,tonumber(cfg.Radius)or 8)
+if cfg.Background~=false then Theme.bind(stroke(holder),"Color","line")end
+local element=Base.element(card,"Canvas",{},holder,nil,nil)
+element.Frame=holder
+function element:SetHeight(px)holder.Size=UDim2.new(1,0,0,tonumber(px)or height)end
+return element
+end
+end
 __modules["elements/changelog"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -4062,6 +4084,138 @@ frames[#frames+1]=add
 end
 end
 function element:GetItems()return items end
+element:SetItems(cfg.Items)
+return Base.finish(element,cfg)
+end
+end
+__modules["elements/itemlist"]=function()
+local Util=require("util")
+local Theme=require("theme")
+local Base=require("elements/base")
+local Icons=require("icons")
+local create,corner,stroke,label=Util.create,Util.corner,Util.stroke,Util.label
+local ROW=36
+return function(card,cfg)
+local window=card.window
+local rowsShown=math.max(1,tonumber(cfg.Rows)or 4)
+local searchable=cfg.Search~=false
+local top=searchable and 34 or 0
+local holder=create("Frame",{Name=tostring(cfg.Title or"ItemList"),BackgroundTransparency=1,Size=UDim2.new(1,0,0,top+ROW),LayoutOrder=card:_order(),Parent=card.body})
+local box
+if searchable then
+local field=create("Frame",{Name="Search",Size=UDim2.new(1,0,0,28),BorderSizePixel=0,Parent=holder})
+Theme.bind(field,"BackgroundColor3","input")
+corner(field,7)
+Theme.bind(stroke(field,nil,0.2),"Color","buttonEdge")
+Icons.themed(field,"search",12,"muted",{Name="Icon",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,9,0.5,0)})
+box=create("TextBox",{
+Name="Box",BackgroundTransparency=1,Position=UDim2.fromOffset(28,0),Size=UDim2.new(1,-36,1,0),Text="",ClearTextOnFocus=false,
+PlaceholderText=tostring(cfg.Placeholder or"Search…"),TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,Parent=field,
+})
+Theme.bind(box,"TextColor3","heading")
+end
+local scroller=create("ScrollingFrame",{
+Name="Rows",BackgroundTransparency=1,BorderSizePixel=0,Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,0,ROW),
+CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ScrollingDirection=Enum.ScrollingDirection.Y,
+ScrollBarThickness=3,ScrollBarImageTransparency=0.35,VerticalScrollBarInset=Enum.ScrollBarInset.ScrollBar,
+ElasticBehavior=Enum.ElasticBehavior.Never,Parent=holder,
+})
+Theme.bind(scroller,"ScrollBarImageColor3","muted")
+Util.list(scroller,0)
+local empty=label(holder,tostring(cfg.Empty or"Nothing found"),10,{Name="Empty",Position=UDim2.fromOffset(0,top),Size=UDim2.new(1,0,0,ROW),TextXAlignment=Enum.TextXAlignment.Center,Visible=false})
+Theme.bind(empty,"TextColor3","muted")
+local element=Base.element(card,"ItemList",{Title=cfg.Title},holder,nil,nil)
+element.Items={}
+local rows,filter={},""
+local function fit()
+local shown=0
+for _,row in ipairs(rows)do if row.frame.Visible then shown=shown+1 end end
+local height=math.max(1,math.min(shown,rowsShown))*ROW
+scroller.Size=UDim2.new(1,0,0,height)
+holder.Size=UDim2.new(1,0,0,top+height)
+empty.Visible=shown==0
+scroller.Visible=shown>0
+end
+local function applyFilter()
+local query=string.lower(filter)
+for _,row in ipairs(rows)do
+local text=string.lower(tostring(row.item.Title or"").." "..tostring(row.item.Desc or""))
+row.frame.Visible=query==""or string.find(text,query,1,true)~=nil
+end
+fit()
+end
+local function press(row)
+if element.Locked then return end
+element:_call(cfg.Callback,row.item,row.index)
+end
+function element:SetItems(items)
+for _,row in ipairs(rows)do row.frame:Destroy()end
+table.clear(rows)
+self.Items=items or{}
+for index,item in ipairs(self.Items)do
+if type(item)~="table"then item={Title=tostring(item)}end
+local frame=create("TextButton",{Name=tostring(item.Title),Text="",AutoButtonColor=false,BackgroundTransparency=1,Size=UDim2.new(1,-6,0,ROW),LayoutOrder=index,Parent=scroller})
+if index>1 then
+local line=create("Frame",{Name="Line",BorderSizePixel=0,Size=UDim2.new(1,0,0,1),Parent=frame})
+Theme.bind(line,"BackgroundColor3","line")
+end
+local iconBox=create("Frame",{Name="IconBox",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0.5,0),Size=UDim2.fromOffset(24,24),BorderSizePixel=0,Parent=frame})
+Theme.bind(iconBox,"BackgroundColor3","input")
+corner(iconBox,7)
+Icons.themed(iconBox,item.Icon or cfg.Icon or"map-pin",12,"muted",{Name="Icon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+local hasDesc=item.Desc~=nil and item.Desc~=""
+local buttonWidth=Util.textWidth(tostring(item.Button or cfg.Button or"Go"),9,Enum.Font.GothamMedium)+18
+local title=label(frame,tostring(item.Title or""),10,{Name="Title",Position=UDim2.fromOffset(32,hasDesc and 4 or 0),Size=UDim2.new(1,-(40+buttonWidth),0,hasDesc and 16 or ROW)})
+Theme.bind(title,"TextColor3","text")
+local desc=label(frame,tostring(item.Desc or""),8,{Name="Desc",Position=UDim2.fromOffset(32,19),Size=UDim2.new(1,-(40+buttonWidth),0,12),Visible=hasDesc})
+Theme.bind(desc,"TextColor3","muted")
+local go=create("TextButton",{
+Name="Go",AutoButtonColor=false,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0.5,0),Size=UDim2.fromOffset(buttonWidth,22),
+BorderSizePixel=0,Text=tostring(item.Button or cfg.Button or"Go"),TextSize=9,Font=Enum.Font.GothamMedium,Parent=frame,
+})
+Theme.bind(go,"BackgroundColor3","input")
+Theme.bind(go,"TextColor3","text")
+corner(go,6)
+Theme.bind(stroke(go,nil,0.2),"Color","buttonEdge")
+local row={frame=frame,item=item,index=index,title=title,desc=desc}
+frame.MouseEnter:Connect(function()Theme.tweenTo(title,"TextColor3","heading",0.1)Theme.tweenTo(go,"TextColor3","heading",0.1)end)
+frame.MouseLeave:Connect(function()Theme.tweenTo(title,"TextColor3","text",0.1)Theme.tweenTo(go,"TextColor3","text",0.1)end)
+frame.Activated:Connect(function()press(row)end)
+go.Activated:Connect(function()press(row)end)
+rows[#rows+1]=row
+end
+applyFilter()
+end
+function element:SetDesc(which,text)
+for _,row in ipairs(rows)do
+if row.item.Title==which or row.index==which then
+row.item.Desc=text
+row.desc.Text=tostring(text or"")
+row.desc.Visible=text~=nil and text~=""
+row.title.Position=UDim2.fromOffset(32,row.desc.Visible and 4 or 0)
+row.title.Size=UDim2.new(row.title.Size.X.Scale,row.title.Size.X.Offset,0,row.desc.Visible and 16 or ROW)
+return
+end
+end
+end
+function element:SetFilter(text)
+filter=tostring(text or"")
+if box and box.Text~=filter then box.Text=filter end
+applyFilter()
+end
+function element:Get()return filter end
+if box then box:GetPropertyChangedSignal("Text"):Connect(function()filter=box.Text applyFilter()end)end
+scroller.MouseEnter:Connect(function()
+local node=holder.Parent
+while node and not node:IsA("ScrollingFrame")do node=node.Parent end
+if node and node.ScrollingEnabled~=false and scroller.AbsoluteCanvasSize.Y>scroller.AbsoluteSize.Y+1 then
+element._page=node
+node.ScrollingEnabled=false
+end
+end)
+scroller.MouseLeave:Connect(function()
+if element._page then element._page.ScrollingEnabled=true element._page=nil end
+end)
 element:SetItems(cfg.Items)
 return Base.finish(element,cfg)
 end
@@ -7974,7 +8128,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.19.0",
+Version="1.20.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9064,15 +9218,16 @@ if picker then picker:Set(Theme.get("accentUser"),true)end
 syncSwatches()
 end,
 })
-swatches=look:Swatches({
-Title="Accent",Default="Neutral",Style="Dots",
+local accentCard=interface:Card({Title="Accent",Side="Left",Icon="swatch-book"})
+swatches=accentCard:Swatches({
+Title="Accent color",Default="Neutral",Style="Dots",
 Custom=function(open)if picker then picker:SetOpen(open)end end,
 Callback=function(color,name)
 if name=="Neutral"then color=Theme.neutral(Theme.pack)end
 if picker then picker:Set(color)end
 end,
 })
-picker=look:ColorPicker({
+picker=accentCard:ColorPicker({
 Title="Custom accent",Flag="__ui_accent",Default=Theme.get("accentUser"),
 Callback=function(color)Theme.set("accent",color)syncSwatches()end,
 })
@@ -9132,10 +9287,6 @@ Callback=function(text)window:SetUIScale((tonumber(text:match("%d+"))or 100)/100
 })
 end
 window._scaleDropdown=scaleDropdown
-menu:Segment({Title="Dock",Items={"Right","Bottom"},Default=window.dockSide,Flag="__ui_dock",
-Callback=function(side)window:SetDockSide(side)end})
-menu:Segment({Title="Page tabs",Items={"Header","Row"},Default=window.pageTabs,Flag="__ui_pagetabs",
-Callback=function(mode)window:SetPageTabs(mode)end})
 menu:Toggle({Title="Free mouse",Desc="Free cursor while open",Icon="hand",Flag="__ui_mouse",
 Default=window.unlockMouse~=false,Callback=function(on)window:SetMouseUnlock(on)end})
 menu:Toggle({Title="Anonymous mode",Desc="Hides your name and avatar",Icon="venetian-mask",Flag="__ui_anon",Default=window.anonymous==true,
@@ -9192,6 +9343,11 @@ if scaleDropdown then scaleDropdown:Set("100%",true)end
 window:Notify({Title="Interface reset",Content="The menu looks like the first time",Icon="paintbrush"})
 end,"Reset")
 end})
+local layoutCard=interface:Card({Title="Layout",Side="Right",Icon="layout-grid"})
+layoutCard:Segment({Title="Dock",Items={"Right","Bottom"},Default=window.dockSide,Flag="__ui_dock",
+Callback=function(side)window:SetDockSide(side)end})
+layoutCard:Segment({Title="Page tabs",Items={"Header","Row"},Default=window.pageTabs,Flag="__ui_pagetabs",
+Callback=function(mode)window:SetPageTabs(mode)end})
 local look2=interface:Card({Title="Window",Side="Left",Icon="app-window"})
 look2:Slider({Title="Transparency",Flag="__ui_transparency",Min=0,Max=60,Default=0,Suffix="%",
 Callback=function(value)window:SetBackgroundTransparency(value/100)end})

@@ -44,16 +44,17 @@ return function(window, cfg)
             syncSwatches()
         end,
     })
-    -- accent: one row of colour dots; the last one opens a picker for any colour (saved with the profile)
-    swatches = look:Swatches({
-        Title = "Accent", Default = "Neutral", Style = "Dots",
+    -- accent: its own card under Appearance - one row of colour dots; the last one opens a picker for any colour (saved with the profile)
+    local accentCard = interface:Card({ Title = "Accent", Side = "Left", Icon = "swatch-book" })
+    swatches = accentCard:Swatches({
+        Title = "Accent color", Default = "Neutral", Style = "Dots",
         Custom = function(open) if picker then picker:SetOpen(open) end end,
         Callback = function(color, name)
             if name == "Neutral" then color = Theme.neutral(Theme.pack) end
             if picker then picker:Set(color) end
         end,
     })
-    picker = look:ColorPicker({
+    picker = accentCard:ColorPicker({
         Title = "Custom accent", Flag = "__ui_accent", Default = Theme.get("accentUser"),
         Callback = function(color) Theme.set("accent", color) syncSwatches() end,
     })
@@ -121,11 +122,6 @@ return function(window, cfg)
         })
     end
     window._scaleDropdown = scaleDropdown
-    -- where the tab icons and the page names sit
-    menu:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",
-        Callback = function(side) window:SetDockSide(side) end })
-    menu:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
-        Callback = function(mode) window:SetPageTabs(mode) end })
     menu:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Icon = "hand", Flag = "__ui_mouse",
         Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
     menu:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "venetian-mask", Flag = "__ui_anon", Default = window.anonymous == true,
@@ -184,6 +180,13 @@ return function(window, cfg)
             window:Notify({ Title = "Interface reset", Content = "The menu looks like the first time", Icon = "paintbrush" })
         end, "Reset")
     end })
+
+    -- Layout (right, under Behaviour): where the tab icons and the page names sit
+    local layoutCard = interface:Card({ Title = "Layout", Side = "Right", Icon = "layout-grid" })
+    layoutCard:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",
+        Callback = function(side) window:SetDockSide(side) end })
+    layoutCard:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
+        Callback = function(mode) window:SetPageTabs(mode) end })
 
     local look2 = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
     look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",

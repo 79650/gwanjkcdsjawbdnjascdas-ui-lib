@@ -494,6 +494,15 @@ fov:Update({ Radius = 140, Sides = 6, Thickness = 1, Color = Color3.new(1, 1, 1)
 
 Bigger building blocks for dashboards, info and settings pages. `test/widgets_demo.lua` uses every one of them (`test/widgets.sh` renders it).
 
+**Item list and canvas**
+```lua
+local list = Card:ItemList({ Items = { { Title = "Kage Office", Desc = "312 studs", Icon = "map-pin" } }, Button = "Go", Rows = 4,
+    Placeholder = "Search places", Callback = function(item) print(item.Title) end })
+list:SetDesc("Kage Office", "280 studs")       -- one row's muted line; :SetItems(items) replaces the list, :SetFilter(text)
+local canvas = Card:Canvas({ Height = 80 })    -- canvas.Frame: an empty rounded frame for your own drawing
+```
+ItemList shows a search box and at most `Rows` rows (36 px each); longer lists scroll inside the card.
+
 **Compact cards**
 ```lua
 Window:Tab({ Title = "Combat", Icon = "crosshair", Compact = true })   -- every page of the tab
