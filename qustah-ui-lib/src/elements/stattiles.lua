@@ -3,7 +3,8 @@
 --     { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
 --     { Title = "Memory", Value = "26 MB", Sub = "Lua", History = { 20, 22, 26 }, Color = Color3.fromRGB(180, 140, 232) },
 -- } })
--- KPI tiles: a small caps title, a big value, a muted line under it and a sparkline of its history.
+-- KPI tiles: a small caps title, a big value, a muted line under it and its history as bars (Bars = 12 slots;
+-- Style = "Line" for the old line sparkline, per tile or for all; BarColor = a theme role or Color3, a quiet grey by default).
 -- Source = "FPS" | "Ping" | function() return number end (sampled every Interval = 0.5 s while in view; Sub shows
 -- "avg ..." on its own). :Set(tile, { Value, Sub }) (tile = index or title), :Push(tile, number) adds to the line.
 -- No flag (it shows numbers).
@@ -33,7 +34,12 @@ return function(card, cfg)
         local sub = label(box, tostring(spec.Sub or ""), 8, { Name = "Sub", Position = UDim2.fromOffset(9, 37), Size = UDim2.new(1, -18, 0, 11) })
         Theme.bind(sub, "TextColor3", "muted")
         local spark = create("Frame", { Name = "Line", BackgroundTransparency = 1, Position = UDim2.new(0, 8, 1, -24), Size = UDim2.new(1, -16, 0, 18), Parent = box })
-        local draw = Parts.sparkline(spark, Parts.color(spec.Color, "heading"), Parts.scaleOf(window))
+        local draw
+        if (spec.Style or cfg.Style) == "Line" then
+            draw = Parts.sparkline(spark, Parts.color(spec.Color, "heading"), Parts.scaleOf(window))
+        else
+            draw = Parts.sparkbars(spark, spec.BarColor, tonumber(cfg.Bars) or 12)
+        end
         local tile = { spec = spec, box = box, value = value, sub = sub, draw = draw, history = table.clone(spec.History or {}) }
         tiles[index] = tile
         tiles[tostring(spec.Title)] = tile

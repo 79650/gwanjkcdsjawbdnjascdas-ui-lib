@@ -502,6 +502,7 @@ local tiles = Card:StatTiles({ Columns = 4, Items = {
     { Title = "Memory", Value = "26 MB", Sub = "Lua", History = { 20, 22, 26 }, Color = Color3.fromRGB(180, 140, 232) },
 } })
 tiles:Set("Memory", { Value = "30 MB" }) tiles:Push("Memory", 30)    -- by title or index
+-- history is drawn as 12 grey bars (newest on the right); Bars = 20 for more, Style = "Line" for a line sparkline
 
 local gauges = Card:Gauges({ Items = { { Title = "FPS", Source = "FPS", Max = 60 }, { Title = "Ping", Value = 40, Max = 150, Sub = "ms", Color = "warning" } } })
 gauges:Set("Ping", 55)                                                 -- a ring of dots fills to Value / Max

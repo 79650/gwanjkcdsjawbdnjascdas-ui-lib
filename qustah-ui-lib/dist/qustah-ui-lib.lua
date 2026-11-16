@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.17.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.18.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -5661,6 +5661,44 @@ function Parts.sparkline(parent, role, scaleOf)
     return draw, holder
 end
 
+-- Bar sparkline: `slots` rounded bars along the bottom of `parent` (fills it), newest on the right. Slots without
+-- a sample yet stay at the lowest height. Returns draw(values), like Parts.sparkline.
+function Parts.sparkbars(parent, role, slots)
+    slots = slots or 12
+    local holder = create("Frame", { Name = "Bars", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = parent })
+    local bars, last = {}, nil
+    local gap = 3
+    for i = 1, slots do
+        local bar = create("Frame", { Name = "Bar" .. i, AnchorPoint = Vector2.new(0, 1), BorderSizePixel = 0, Parent = holder })
+        create("UICorner", { CornerRadius = UDim.new(0, 2), Parent = bar })
+        Theme.bind(bar, "BackgroundColor3", role or "muted")
+        if not role then bar.BackgroundTransparency = 0.6 end      -- muted at 40 %: a quiet grey on any theme
+        bars[i] = bar
+    end
+    local function draw(values)
+        last = values or last
+        values = last or {}
+        local count = #values
+        local first = math.max(1, count - slots + 1)
+        local low, high = math.huge, -math.huge
+        for i = first, count do low, high = math.min(low, values[i]), math.max(high, values[i]) end
+        local spread = high - low
+        for i = 1, slots do
+            local bar = bars[i]
+            local index = count - slots + i                       -- the sample this slot shows (right-aligned)
+            local fraction = 0.22                                  -- empty slot
+            if index >= first and index >= 1 then
+                -- (a flat history still reads as a full row of mid-height bars)
+                fraction = spread < 1e-6 and 0.6 or 0.35 + (values[index] - low) / spread * 0.65
+            end
+            -- width: equal share of the row minus the gaps (scale part keeps it right at any window size)
+            bar.Size = UDim2.new(1 / slots, -gap * (slots - 1) / slots, fraction, 0)
+            bar.Position = UDim2.new((i - 1) / slots, gap * (i - 1) / slots, 1, 0)
+        end
+    end
+    return draw, holder
+end
+
 -- A ring of `count` dots round the centre of `parent` (size px); set(fraction, role) lights the first part.
 function Parts.dotRing(parent, size, count, dotSize)
     count, dotSize = count or 40, dotSize or 3
@@ -6881,7 +6919,8 @@ __modules["elements/stattiles"] = function()
 --     { Title = "Ping", Source = "Ping", Suffix = " ms", Color = "warning" },
 --     { Title = "Memory", Value = "26 MB", Sub = "Lua", History = { 20, 22, 26 }, Color = Color3.fromRGB(180, 140, 232) },
 -- } })
--- KPI tiles: a small caps title, a big value, a muted line under it and a sparkline of its history.
+-- KPI tiles: a small caps title, a big value, a muted line under it and its history as bars (Bars = 12 slots;
+-- Style = "Line" for the old line sparkline, per tile or for all; BarColor = a theme role or Color3, a quiet grey by default).
 -- Source = "FPS" | "Ping" | function() return number end (sampled every Interval = 0.5 s while in view; Sub shows
 -- "avg ..." on its own). :Set(tile, { Value, Sub }) (tile = index or title), :Push(tile, number) adds to the line.
 -- No flag (it shows numbers).
@@ -6911,7 +6950,12 @@ return function(card, cfg)
         local sub = label(box, tostring(spec.Sub or ""), 8, { Name = "Sub", Position = UDim2.fromOffset(9, 37), Size = UDim2.new(1, -18, 0, 11) })
         Theme.bind(sub, "TextColor3", "muted")
         local spark = create("Frame", { Name = "Line", BackgroundTransparency = 1, Position = UDim2.new(0, 8, 1, -24), Size = UDim2.new(1, -16, 0, 18), Parent = box })
-        local draw = Parts.sparkline(spark, Parts.color(spec.Color, "heading"), Parts.scaleOf(window))
+        local draw
+        if (spec.Style or cfg.Style) == "Line" then
+            draw = Parts.sparkline(spark, Parts.color(spec.Color, "heading"), Parts.scaleOf(window))
+        else
+            draw = Parts.sparkbars(spark, spec.BarColor, tonumber(cfg.Bars) or 12)
+        end
         local tile = { spec = spec, box = box, value = value, sub = sub, draw = draw, history = table.clone(spec.History or {}) }
         tiles[index] = tile
         tiles[tostring(spec.Title)] = tile
@@ -10014,7 +10058,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.17.0",
+    Version = "1.18.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

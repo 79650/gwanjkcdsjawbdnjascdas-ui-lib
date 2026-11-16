@@ -118,6 +118,44 @@ function Parts.sparkline(parent, role, scaleOf)
     return draw, holder
 end
 
+-- Bar sparkline: `slots` rounded bars along the bottom of `parent` (fills it), newest on the right. Slots without
+-- a sample yet stay at the lowest height. Returns draw(values), like Parts.sparkline.
+function Parts.sparkbars(parent, role, slots)
+    slots = slots or 12
+    local holder = create("Frame", { Name = "Bars", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = parent })
+    local bars, last = {}, nil
+    local gap = 3
+    for i = 1, slots do
+        local bar = create("Frame", { Name = "Bar" .. i, AnchorPoint = Vector2.new(0, 1), BorderSizePixel = 0, Parent = holder })
+        create("UICorner", { CornerRadius = UDim.new(0, 2), Parent = bar })
+        Theme.bind(bar, "BackgroundColor3", role or "muted")
+        if not role then bar.BackgroundTransparency = 0.6 end      -- muted at 40 %: a quiet grey on any theme
+        bars[i] = bar
+    end
+    local function draw(values)
+        last = values or last
+        values = last or {}
+        local count = #values
+        local first = math.max(1, count - slots + 1)
+        local low, high = math.huge, -math.huge
+        for i = first, count do low, high = math.min(low, values[i]), math.max(high, values[i]) end
+        local spread = high - low
+        for i = 1, slots do
+            local bar = bars[i]
+            local index = count - slots + i                       -- the sample this slot shows (right-aligned)
+            local fraction = 0.22                                  -- empty slot
+            if index >= first and index >= 1 then
+                -- (a flat history still reads as a full row of mid-height bars)
+                fraction = spread < 1e-6 and 0.6 or 0.35 + (values[index] - low) / spread * 0.65
+            end
+            -- width: equal share of the row minus the gaps (scale part keeps it right at any window size)
+            bar.Size = UDim2.new(1 / slots, -gap * (slots - 1) / slots, fraction, 0)
+            bar.Position = UDim2.new((i - 1) / slots, gap * (i - 1) / slots, 1, 0)
+        end
+    end
+    return draw, holder
+end
+
 -- A ring of `count` dots round the centre of `parent` (size px); set(fraction, role) lights the first part.
 function Parts.dotRing(parent, size, count, dotSize)
     count, dotSize = count or 40, dotSize or 3
