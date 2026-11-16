@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.22.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.23.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -8372,7 +8372,8 @@ end
 
 __modules["elements/toggle"] = function()
 -- card:Toggle({ Title, Desc, Flag, Default, Callback, Bindable, Bind, BindMode = "Toggle" | "Hold", Locked, LockedTitle,
---               Slider = { Flag, Min, Max, Step, Default, Suffix, Callback } })   -- a slider on the same line
+--               Slider = { Flag, Min, Max, Step, Default, Suffix, Callback },   -- a slider on the same line
+--               Style = "Switch" | "Check" })                                  -- force the switch or the check box
 -- BindMode = "Hold": the toggle is on only while its key is held (aim while holding the key). :SetBindMode(mode)
 -- Click the row or the switch to flip it. With Bindable (or a Bind key) right-click the row to assign a key
 -- (Backspace clears, Escape cancels); the key flips the toggle while the menu is closed too.
@@ -8386,7 +8387,8 @@ return function(card, cfg)
     local window = card.window
     local bindable = cfg.Bindable or cfg.Bind ~= nil
     -- compact cards: a check box in place of the switch (same element, same flag)
-    local box = card.compact == true
+    -- Style = "Switch" keeps the switch on a compact card, Style = "Check" asks for the box on any card
+    local box = (card.compact == true and cfg.Style ~= "Switch") or cfg.Style == "Check"
     local row, title, desc = Base.row(card, cfg, cfg.Desc and 46 or 36, { button = true, right = box and 30 or 50, helpRight = box and 24 or 44 })
     local switch = create("TextButton", {
         Name = "Switch", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
@@ -10451,7 +10453,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.22.0",
+    Version = "1.23.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

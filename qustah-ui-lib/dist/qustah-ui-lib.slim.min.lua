@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.22.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.23.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6480,7 +6480,7 @@ local create,corner=Util.create,Util.corner
 return function(card,cfg)
 local window=card.window
 local bindable=cfg.Bindable or cfg.Bind~=nil
-local box=card.compact==true
+local box=(card.compact==true and cfg.Style~="Switch")or cfg.Style=="Check"
 local row,title,desc=Base.row(card,cfg,cfg.Desc and 46 or 36,{button=true,right=box and 30 or 50,helpRight=box and 24 or 44})
 local switch=create("TextButton",{
 Name="Switch",Text="",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),
@@ -8294,7 +8294,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.22.0",
+Version="1.23.0",
 Flags={},
 Windows={},
 Theme=Theme,
