@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.23.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.24.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -421,7 +421,7 @@ end
 
 -- A pseudo-card: elements go into `body`, ordering is its own.
 local function sub(card, body)
-    return setmetatable({ page = card.page, window = card.window, order = 0, body = body, frame = card.frame, title = card.title }, Card)
+    return setmetatable({ page = card.page, window = card.window, order = 0, body = body, frame = card.frame, title = card.title, compact = card.compact }, Card)
 end
 
 -- card:Section({ Title, Icon, Desc, Opened = true }) -> a collapsible part of the card (click its header).
@@ -494,6 +494,15 @@ function Card:Row(cfg)
     end)
     holder.ChildRemoved:Connect(function() task.defer(share) end)
     return sub(self, holder)
+end
+
+-- card:Column({ Gap = 4 }) -> a plain stack of elements (no background). Put two in a card:Row() for two columns
+-- side by side, e.g. a preview on the left and its switches on the right. Compact follows the card.
+function Card:Column(cfg)
+    cfg = cfg or {}
+    local box = create("Frame", { Name = "Column", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Parent = self.body })
+    Util.list(box, tonumber(cfg.Gap) or (self.compact and 1 or 4))
+    return sub(self, box)
 end
 
 -- card:Group({ Title }) -> a boxed group inside the card (elements stacked, its own background).
@@ -10453,7 +10462,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.23.0",
+    Version = "1.24.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

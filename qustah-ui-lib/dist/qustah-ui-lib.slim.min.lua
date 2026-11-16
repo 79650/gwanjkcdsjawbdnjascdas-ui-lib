@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.23.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.24.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -383,7 +383,7 @@ task.defer(refresh)
 return selector
 end
 local function sub(card,body)
-return setmetatable({page=card.page,window=card.window,order=0,body=body,frame=card.frame,title=card.title},Card)
+return setmetatable({page=card.page,window=card.window,order=0,body=body,frame=card.frame,title=card.title,compact=card.compact},Card)
 end
 function Card:Section(cfg)
 if type(cfg)=="string"then cfg={Title=cfg}end
@@ -447,6 +447,12 @@ task.defer(share)
 end)
 holder.ChildRemoved:Connect(function()task.defer(share)end)
 return sub(self,holder)
+end
+function Card:Column(cfg)
+cfg=cfg or{}
+local box=create("Frame",{Name="Column",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=self:_order(),Parent=self.body})
+Util.list(box,tonumber(cfg.Gap)or(self.compact and 1 or 4))
+return sub(self,box)
 end
 function Card:Group(cfg)
 if type(cfg)=="string"then cfg={Title=cfg}end
@@ -8294,7 +8300,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.23.0",
+Version="1.24.0",
 Flags={},
 Windows={},
 Theme=Theme,

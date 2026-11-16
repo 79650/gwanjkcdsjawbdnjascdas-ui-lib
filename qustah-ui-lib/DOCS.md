@@ -499,6 +499,8 @@ Bigger building blocks for dashboards, info and settings pages. `test/widgets_de
 Card:HeaderSwitch({ Flag = "dash", Callback = fn })              -- on / off switch in the card title row
 Card:HeaderButton({ Title = "Claim all", Icon = "gift", Callback = fn })
 Card:Divider({ Title = "Defense" })                               -- a section label inside a card
+local row = Card:Row({ Gap = 10 })                                -- two columns side by side
+local left, right = row:Column(), row:Column()                    -- plain stacks; compact follows the card
 Card:Toggle({ Title = "Stop at spins", Flag = "stop", Slider = { Flag = "stopAt", Min = 50, Max = 1000, Default = 500 } })
 Card:Segment({ Title = "Target part", Items = { "Head", "Torso" }, Wide = true })   -- buttons fill the row, no title
 tiles:SetTileVisible("Back", false)                               -- Tiles: hide one tile, the rest close up
