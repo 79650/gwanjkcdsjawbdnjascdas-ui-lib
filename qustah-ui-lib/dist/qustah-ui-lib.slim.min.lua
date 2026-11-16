@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.25.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.26.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -1583,7 +1583,7 @@ function element:SetVisible(visible)row.Visible=visible~=false end
 function element:_initReset(default)
 if self._resetButton or default==nil or kind=="Button"then return end
 if not title or not title:IsA("TextLabel")or title.Text==""then return end
-if cfg.Reset==false or(window.cfg and window.cfg.ResetButtons==false)then return end
+if cfg.Reset==false or(window.cfg and window.cfg.ResetButtons==false and cfg.Reset~=true)then return end
 if type(self.Flag)=="string"and self.Flag:sub(1,2)=="__"then return end
 self._default=copy(default)
 local button=create("ImageButton",{
@@ -8289,7 +8289,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.25.0",
+Version="1.26.0",
 Flags={},
 Windows={},
 Theme=Theme,

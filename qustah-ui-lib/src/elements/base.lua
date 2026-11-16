@@ -199,11 +199,12 @@ function Base.element(card, kind, cfg, row, title, desc)
 
     -- Reset button: a small "rotate" icon after the title while the value differs from its default
     -- (the default Config recorded when the element was made). Reset = false on the element, or
-    -- ResetButtons = false on the window, turns it off. element:ResetToDefault() does the same in code.
+    -- ResetButtons = false on the window, turns it off; with ResetButtons = false an element can still ask for
+    -- one with Reset = true. element:ResetToDefault() does the same in code.
     function element:_initReset(default)
         if self._resetButton or default == nil or kind == "Button" then return end
         if not title or not title:IsA("TextLabel") or title.Text == "" then return end
-        if cfg.Reset == false or (window.cfg and window.cfg.ResetButtons == false) then return end
+        if cfg.Reset == false or (window.cfg and window.cfg.ResetButtons == false and cfg.Reset ~= true) then return end
         if type(self.Flag) == "string" and self.Flag:sub(1, 2) == "__" then return end -- (the built-in settings)
         self._default = copy(default)
         local button = create("ImageButton", {

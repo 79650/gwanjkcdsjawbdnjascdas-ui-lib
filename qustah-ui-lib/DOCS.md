@@ -621,6 +621,7 @@ Card:Slider({ Title = "Walk speed", Flag = "walk", Min = 16, Max = 100, Default 
 Card:Toggle({ Title = "Silent", Flag = "silent", Reset = false })                         -- no reset icon for this one
 Window:GetElement("walk"):ResetToDefault()                                                 -- the same from code
 Lib:CreateWindow({ Title = "Hub", ResetButtons = false })                                 -- no reset icons anywhere
+card:Toggle({ Title = "Fly", Flag = "fly", Reset = true })                                    -- with ResetButtons = false: this one still gets one
 ```
 
 ---
