@@ -109,9 +109,28 @@ return function(window, cfg)
                 if not ok then busy = false window:Notify({ Title = "Teleport failed", Content = tostring(err), Color = "danger" }) end
             end)
         end
+        -- server health: players, your ping and how long this server has been up (updated twice a second, only on screen)
+        local playersInfo = server:Info({ Title = "Players", Value = "-" })
+        local pingInfo = server:Info({ Title = "Ping", Value = "-" })
+        local uptimeInfo = server:Info({ Title = "Uptime", Value = "-" })
+        local function uptimeText(seconds)
+            seconds = math.max(0, math.floor(seconds))
+            local h, m = math.floor(seconds / 3600), math.floor(seconds % 3600 / 60)
+            if h > 0 then return string.format("%d h %d m", h, m) end
+            return string.format("%d m %d s", m, seconds % 60)
+        end
+        local function refreshHealth()
+            if not Util.shown(server.frame) then return end
+            playersInfo:Set(#Players:GetPlayers() .. " / " .. tostring(Players.MaxPlayers))
+            pingInfo:Set(tostring(Stats.ping or 0) .. " ms")
+            uptimeInfo:Set(uptimeText(workspace.DistributedGameTime))
+        end
+        local stopListening = Stats.listen(refreshHealth)
+        if window.maid then window.maid:give(stopListening) end
+        task.defer(function() pcall(refreshHealth) end)
         local actions = server:Row()
         actions:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() teleport(false) end })
-        actions:Button({ Title = "Server hop", Icon = "shuffle", Confirm = true, Callback = function() teleport(true) end })
+        actions:Button({ Title = "Hop", Icon = "shuffle", Confirm = true, Callback = function() teleport(true) end })
         server:Info({ Title = "Job ID", Value = game.JobId ~= "" and (game.JobId:sub(1, 8) .. "...") or "studio", Copy = function() return game.JobId end })
     end
 

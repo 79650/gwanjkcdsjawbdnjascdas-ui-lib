@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.20.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.21.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -1008,9 +1008,27 @@ end)
 if not ok then busy=false window:Notify({Title="Teleport failed",Content=tostring(err),Color="danger"})end
 end)
 end
+local playersInfo=server:Info({Title="Players",Value="-"})
+local pingInfo=server:Info({Title="Ping",Value="-"})
+local uptimeInfo=server:Info({Title="Uptime",Value="-"})
+local function uptimeText(seconds)
+seconds=math.max(0,math.floor(seconds))
+local h,m=math.floor(seconds/3600),math.floor(seconds%3600/60)
+if h>0 then return string.format("%d h %d m",h,m)end
+return string.format("%d m %d s",m,seconds%60)
+end
+local function refreshHealth()
+if not Util.shown(server.frame)then return end
+playersInfo:Set(#Players:GetPlayers().." / "..tostring(Players.MaxPlayers))
+pingInfo:Set(tostring(Stats.ping or 0).." ms")
+uptimeInfo:Set(uptimeText(workspace.DistributedGameTime))
+end
+local stopListening=Stats.listen(refreshHealth)
+if window.maid then window.maid:give(stopListening)end
+task.defer(function()pcall(refreshHealth)end)
 local actions=server:Row()
 actions:Button({Title="Rejoin",Icon="refresh-cw",Callback=function()teleport(false)end})
-actions:Button({Title="Server hop",Icon="shuffle",Confirm=true,Callback=function()teleport(true)end})
+actions:Button({Title="Hop",Icon="shuffle",Confirm=true,Callback=function()teleport(true)end})
 server:Info({Title="Job ID",Value=game.JobId~=""and(game.JobId:sub(1,8).."...")or"studio",Copy=function()return game.JobId end})
 end
 if cfg.Modules~=false then
@@ -6572,9 +6590,13 @@ local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,Border
 corner(button,6)
 local outline=stroke(button,Color3.new(1,1,1),1)
 Theme.bind(outline,"Color","accent")
-local dot=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0.5,0),Size=UDim2.fromOffset(14,14),BorderSizePixel=0,BackgroundColor3=color,Parent=button})
-corner(dot,4)
-local text=label(button,name,10,{Position=UDim2.fromOffset(28,0),Size=UDim2.new(1,-32,1,0)})
+local color2=item[3]or item.Color2
+local dot=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0.5,0),Size=color2 and UDim2.fromOffset(26,10)or UDim2.fromOffset(14,14),
+BorderSizePixel=0,BackgroundColor3=color2 and Color3.new(1,1,1)or color,Parent=button})
+corner(dot,color2 and 5 or 4)
+if color2 then create("UIGradient",{Color=ColorSequence.new(color,color2),Parent=dot})end
+local textLeft=color2 and 40 or 28
+local text=label(button,name,10,{Position=UDim2.fromOffset(textLeft,0),Size=UDim2.new(1,-(textLeft+4),1,0)})
 local entry={name=name,color=color,button=button,text=text,outline=outline}
 entries[#entries+1]=entry
 byName[name]=entry
@@ -9022,7 +9044,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.20.0",
+Version="1.21.0",
 Flags={},
 Windows={},
 Theme=Theme,

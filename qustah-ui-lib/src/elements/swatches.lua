@@ -1,4 +1,5 @@
 -- card:Swatches({ Title, Desc, Flag, Items = { { "Neutral", Color3 }, { "Blue", Color3 }, ... }, Default = "Blue", Columns = 4, Callback = function(color, name) end })
+-- An item with two colours ({ "Heat", Color3, Color3 }) shows a small gradient bar instead of a dot (grid style).
 -- Named colour presets as a grid (Qustah's accent picker). Value is the chosen name; Callback gets the Color3 and the name.
 -- Without Colors it uses Qustah's eight accent presets.
 -- Style = "Dots": one row of small round colour dots (the name shows on hover). Custom = function(open) end adds a
@@ -84,9 +85,14 @@ return function(card, cfg)
         corner(button, 6)
         local outline = stroke(button, Color3.new(1, 1, 1), 1)
         Theme.bind(outline, "Color", "accent")
-        local dot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = UDim2.fromOffset(14, 14), BorderSizePixel = 0, BackgroundColor3 = color, Parent = button })
-        corner(dot, 4)
-        local text = label(button, name, 10, { Position = UDim2.fromOffset(28, 0), Size = UDim2.new(1, -32, 1, 0) })
+        -- a second colour ({ "Heat", from, to }) makes the dot a short gradient bar
+        local color2 = item[3] or item.Color2
+        local dot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = color2 and UDim2.fromOffset(26, 10) or UDim2.fromOffset(14, 14),
+            BorderSizePixel = 0, BackgroundColor3 = color2 and Color3.new(1, 1, 1) or color, Parent = button })
+        corner(dot, color2 and 5 or 4)
+        if color2 then create("UIGradient", { Color = ColorSequence.new(color, color2), Parent = dot }) end
+        local textLeft = color2 and 40 or 28
+        local text = label(button, name, 10, { Position = UDim2.fromOffset(textLeft, 0), Size = UDim2.new(1, -(textLeft + 4), 1, 0) })
         local entry = { name = name, color = color, button = button, text = text, outline = outline }
         entries[#entries + 1] = entry
         byName[name] = entry
