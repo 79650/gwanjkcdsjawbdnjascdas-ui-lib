@@ -71,18 +71,20 @@ return function(card, cfg)
     local size = SIZES[sizeName:sub(1, 1):upper() .. sizeName:sub(2):lower()] or SIZES.Default
     if card.compact and not cfg.Size then size = { 24, 10, 13 } end   -- compact cards: a slimmer default button
     local buttonHeight, textSize, iconSize = size[1], size[2], size[3]
-    local height = cfg.Desc and buttonHeight + 16 or buttonHeight
+    -- compact cards: 1 px above and below the button, so it never touches the rows around it
+    local inset = card.compact and 1 or 0
+    local height = (cfg.Desc and buttonHeight + 16 or buttonHeight) + inset * 2
     local title = cfg.Title ~= nil and tostring(cfg.Title) or (cfg.Icon and "" or "Button")
     local row = create("Frame", { Name = title ~= "" and title or tostring(cfg.Icon), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, height), LayoutOrder = card:_order(), Parent = card.body })
     local button = create("TextButton", {
-        Name = "Button", Size = UDim2.new(1, 0, 0, buttonHeight), BorderSizePixel = 0, Text = "",
+        Name = "Button", Position = UDim2.fromOffset(0, inset), Size = UDim2.new(1, 0, 0, buttonHeight), BorderSizePixel = 0, Text = "",
         TextSize = textSize, Font = Enum.Font.Gotham, AutoButtonColor = false, Parent = row,
     })
     corner(button, 6)
     local outline = stroke(button)
     local desc
     if cfg.Desc then
-        desc = Util.label(row, tostring(cfg.Desc), 9, { Position = UDim2.fromOffset(2, buttonHeight + 2), Size = UDim2.new(1, -4, 0, 14) })
+        desc = Util.label(row, tostring(cfg.Desc), 9, { Position = UDim2.fromOffset(2, inset + buttonHeight + 2), Size = UDim2.new(1, -4, 0, 14) })
         Theme.bind(desc, "TextColor3", "muted")
     end
 

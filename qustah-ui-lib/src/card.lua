@@ -89,7 +89,7 @@ function Card.new(page, column, cfg, order)
     Theme.bind(frame, "BackgroundColor3", "card")
     corner(frame, self.compact and 6 or 8)
     Theme.bind(stroke(frame), "Color", "line")
-    if self.compact then Util.padding(frame, 10, 10, 6, 6) Util.list(frame, 1) else Util.padding(frame, 14, 14, 8, 10) Util.list(frame, 4) end
+    if self.compact then Util.padding(frame, 10, 10, 6, 6) Util.list(frame, 2) else Util.padding(frame, 14, 14, 8, 10) Util.list(frame, 4) end
     if cfg.Title then
         -- accent dot with a soft glow + medium heading (Qustah card title); Icon = "name" replaces the dot
         local head = create("Frame", { Name = "Heading", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, self.compact and 24 or 20), LayoutOrder = 0, Parent = frame })
@@ -150,7 +150,7 @@ function Card.new(page, column, cfg, order)
             if not frame.Parent then return end
             local any = false
             for _, child in ipairs(frame:GetChildren()) do
-                if child:IsA("GuiObject") and child ~= empty and child.Name ~= "Heading" and child.Name ~= "CardDesc" and (child.Visible or (self._hidden and self._hidden[child])) then
+                if child:IsA("GuiObject") and child ~= empty and child.Name ~= "Heading" and child.Name ~= "CardDesc" and child.Name ~= "BalanceSpacer" and (child.Visible or (self._hidden and self._hidden[child])) then
                     any = true
                     break
                 end
@@ -187,7 +187,7 @@ function Card:SetCollapsed(collapsed, quiet)
     self.Collapsed = collapsed
     self._hidden = self._hidden or {}
     for _, child in ipairs(self.frame:GetChildren()) do
-        if child:IsA("GuiObject") and child.Name ~= "Heading" and child.Name ~= "CardDesc" and child.Name ~= "Empty" then
+        if child:IsA("GuiObject") and child.Name ~= "Heading" and child.Name ~= "CardDesc" and child.Name ~= "Empty" and child.Name ~= "BalanceSpacer" then
             if collapsed then
                 if child.Visible then self._hidden[child] = true child.Visible = false end
             elseif self._hidden[child] then
@@ -486,7 +486,7 @@ end
 function Card:Column(cfg)
     cfg = cfg or {}
     local box = create("Frame", { Name = "Column", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Parent = self.body })
-    Util.list(box, tonumber(cfg.Gap) or (self.compact and 1 or 4))
+    Util.list(box, tonumber(cfg.Gap) or (self.compact and 2 or 4))
     return sub(self, box)
 end
 

@@ -9,8 +9,8 @@ local Base = require("elements/base")
 local create, corner, stroke = Util.create, Util.corner, Util.stroke
 
 return function(card, cfg)
-    local baseHeight = cfg.Desc and 40 or 30
-    local row, title, desc = Base.row(card, cfg, baseHeight, { right = 160 })
+    local row, title, desc = Base.row(card, cfg, cfg.Desc and 40 or 30, { right = 160 })
+    local baseHeight = row.Size.Y.Offset                            -- (less on a compact card: the box is centred in the real row)
     -- the title takes the left half, the box the right half (up to 170 px)
     title.Size = UDim2.new(0.55, -8, 0, title.Size.Y.Offset)
     if desc then desc.Size = UDim2.new(0.55, -8, 0, 14) end

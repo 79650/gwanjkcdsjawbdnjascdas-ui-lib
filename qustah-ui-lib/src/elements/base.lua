@@ -81,8 +81,11 @@ end
 -- opts.right: pixels kept free on the right for the control; opts.button: the whole row is clickable.
 function Base.row(card, cfg, height, opts)
     opts = opts or {}
-    -- compact cards: plain rows lose 6 px (rows that lay out their own parts under the title keep their height)
-    if card.compact and not opts.titleHeight and not opts.keepHeight then height = height - 6 end
+    -- compact cards: plain rows lose 6 px (rows that lay out their own parts under the title keep their height);
+    -- a row of 30 px or more keeps at least 28, so its 24 px box (dropdown, input, stepper) never touches the next row
+    if card.compact and not opts.titleHeight and not opts.keepHeight then
+        height = height >= 30 and math.max(height - 6, 28) or height - 6
+    end
     local row = create(opts.button and "TextButton" or "Frame", {
         Name = tostring(cfg.Title or "Row"), BackgroundTransparency = 1, BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, height), LayoutOrder = card:_order(), Parent = card.body,

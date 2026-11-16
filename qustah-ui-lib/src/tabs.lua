@@ -59,6 +59,22 @@ function Page.new(tab, name, cfg)
     self.frame, self.wide, self.left, self.right = frame, wide, column("Left", 1), column("Right", 2)
     self.wideBottom = wideBottom
     self.content = content
+    self._cardOf, self._fitted = {}, {}
+    -- the two columns end on the same line whenever a Wide = "Bottom" card sits under them (see _balance)
+    local queued = false
+    local function queue()
+        if queued then return end
+        queued = true
+        task.defer(function() queued = false self:_balance() end)
+    end
+    self._queueBalance = queue
+    for _, holderFrame in ipairs({ self.left, self.right, wideBottom }) do
+        local list = holderFrame:FindFirstChildOfClass("UIListLayout")
+        if list then list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(queue) end
+        holderFrame.ChildAdded:Connect(queue)
+        holderFrame.ChildRemoved:Connect(queue)
+    end
+    self.layout:GetPropertyChangedSignal("FillDirection"):Connect(queue)
     if self.cfg.Warning then task.defer(function() self:Warning(self.cfg.Warning) end) end
 
     -- soft fades at the top / bottom edge while there is more to scroll that way
@@ -158,11 +174,135 @@ function Page:Card(cfg)
     if self.cfg.Columns == 1 then side = "Left" end
     if side ~= "Left" and side ~= "Right" then side = (self.cards % 2 == 1) and "Left" or "Right" end
     self.order = self.order + 1
+    local card
     if cfg.Wide then
         self.cards = self.cards - 1 -- a wide card does not take a turn in the left / right alternation
-        return Card.new(self, cfg.Wide == "Bottom" and self.wideBottom or self.wide, cfg, self.order)
+        card = Card.new(self, cfg.Wide == "Bottom" and self.wideBottom or self.wide, cfg, self.order)
+    else
+        card = Card.new(self, side == "Right" and self.right or self.left, cfg, self.order)
     end
-    return Card.new(self, side == "Right" and self.right or self.left, cfg, self.order)
+    self._cardOf[card.frame] = card
+    -- (a card shown, hidden, folded or changing height re-checks the columns)
+    card.frame:GetPropertyChangedSignal("Visible"):Connect(self._queueBalance)
+    card.frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(self._queueBalance)
+    return card
+end
+
+----- Column balance -----
+-- Heights are summed from each card's own children (padding, rows, gaps), never from the laid-out sizes that include
+-- the spacers this sets, so the result does not depend on a spacer's last value and settles at once.
+local SPACER = "BalanceSpacer"
+
+function Page:_cardHeight(frame)
+    local scale = self.window.scale and self.window.scale.Scale or 1
+    local padding = frame:FindFirstChildOfClass("UIPadding")
+    local layout = frame:FindFirstChildOfClass("UIListLayout")
+    local gap = layout and layout.Padding.Offset or 0
+    local total, count = 0, 0
+    for _, child in ipairs(frame:GetChildren()) do
+        if child:IsA("GuiObject") and child.Visible and child.Name ~= SPACER then
+            -- (a fixed-height child counts at its set height, which is current even before the layout catches up)
+            local fixed = child.AutomaticSize == Enum.AutomaticSize.None and child.Size.Y.Scale == 0
+            local height = fixed and child.Size.Y.Offset or child.AbsoluteSize.Y / scale
+            total = total + height
+            count = count + 1
+        end
+    end
+    if padding then total = total + padding.PaddingTop.Offset + padding.PaddingBottom.Offset end
+    return total + math.max(0, count - 1) * gap
+end
+
+-- a column's height without balance spacers
+function Page:_columnHeight(column)
+    local layout = column:FindFirstChildOfClass("UIListLayout")
+    local gap = layout and layout.Padding.Offset or 10
+    local total, count = 0, 0
+    for _, child in ipairs(column:GetChildren()) do
+        if child:IsA("GuiObject") and child.Visible then
+            total = total + self:_cardHeight(child)
+            count = count + 1
+        end
+    end
+    return total + math.max(0, count - 1) * gap
+end
+
+local function lastShown(holder)
+    local best
+    for _, child in ipairs(holder:GetChildren()) do
+        if child:IsA("GuiObject") and child.Visible and (not best or child.LayoutOrder >= best.LayoutOrder) then best = child end
+    end
+    return best
+end
+
+-- FitHeight boxes first (they set a column's height), then the shorter column's last card grows to the other's
+-- bottom line when a Wide = "Bottom" card is shown under the columns (Page cfg Balance = false turns this off).
+function Page:_balance()
+    if self._balancing or not self.frame.Parent then return end
+    self._balancing = true
+    local ok, err = pcall(function()
+        local split = self.layout.FillDirection == Enum.FillDirection.Horizontal
+        for object, fit in pairs(self._fitted) do
+            if object.Parent then fit() else self._fitted[object] = nil end
+        end
+        local want = {}
+        if split and self.cfg.Balance ~= false and lastShown(self.wideBottom) then
+            local leftLast, rightLast = lastShown(self.left), lastShown(self.right)
+            if leftLast and rightLast then
+                local leftHeight, rightHeight = self:_columnHeight(self.left), self:_columnHeight(self.right)
+                local short = leftHeight < rightHeight and leftLast or rightLast
+                local card = self._cardOf[short]
+                local layout = short:FindFirstChildOfClass("UIListLayout")
+                local extra = math.floor(math.abs(leftHeight - rightHeight) - (layout and layout.Padding.Offset or 4))
+                if extra > 0 and not (card and card.Collapsed) then want[short] = extra end
+            end
+        end
+        for _, column in ipairs({ self.left, self.right }) do
+            for _, frame in ipairs(column:GetChildren()) do
+                if frame:IsA("GuiObject") then
+                    local spacer = frame:FindFirstChild(SPACER)
+                    local extra = want[frame]
+                    if extra and not spacer then
+                        spacer = create("Frame", { Name = SPACER, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 2e6, Visible = false, Parent = frame })
+                    end
+                    if spacer then
+                        local size = UDim2.new(1, 0, 0, extra or 0)
+                        if spacer.Size ~= size then spacer.Size = size end
+                        if spacer.Visible ~= (extra ~= nil) then spacer.Visible = extra ~= nil end
+                    end
+                end
+            end
+        end
+    end)
+    self._balancing = false
+    if not ok then warn("[Qustah] column balance: " .. tostring(err)) end
+end
+
+-- page:FitHeight(card, box, { Min = 110, Max = 600 }): `box` (a frame or ScrollingFrame placed directly in the card)
+-- gets the height that makes the card's column end on the same line as the other column, so a long list scrolls
+-- inside its card instead of stretching the page. One column (narrow window): Min, or Fallback when given.
+function Page:FitHeight(card, box, opts)
+    opts = opts or {}
+    local min, max = tonumber(opts.Min) or 80, tonumber(opts.Max) or 2000
+    local function fit()
+        local own = card.frame.Parent
+        local other = own == self.left and self.right or own == self.right and self.left or nil
+        local split = self.layout.FillDirection == Enum.FillDirection.Horizontal
+        local height
+        if other and split and lastShown(other) then
+            local current = box.Size.Y.Offset
+            local rest = self:_columnHeight(own) - current
+            height = self:_columnHeight(other) - rest
+        else
+            height = tonumber(opts.Fallback) or min
+        end
+        height = math.floor(math.clamp(height, min, max))
+        if box.Size.Y.Offset ~= height then box.Size = UDim2.new(box.Size.X.Scale, box.Size.X.Offset, 0, height) end
+    end
+    box.AutomaticSize = Enum.AutomaticSize.None
+    self._fitted[box] = fit
+    for _, object in ipairs({ self.frame }) do object:GetPropertyChangedSignal("AbsoluteSize"):Connect(self._queueBalance) end
+    self._queueBalance()
+    return function() self._queueBalance() end
 end
 
 -- page:MatchHeights(cardA, cardB, ...): side-by-side cards grow to the tallest one (an empty spacer goes under the
@@ -431,6 +571,7 @@ function Tab:Card(cfg)
 end
 -- (a tab without pages: on its first page, like Tab:Card)
 function Tab:FillColumn(card) return (card.page or self.Pages[1]):FillColumn(card) end
+function Tab:FitHeight(card, box, opts) return (card.page or self.Pages[1]):FitHeight(card, box, opts) end
 function Tab:MatchHeights(...) return self.Pages[1]:MatchHeights(...) end
 
 -- Makes a lazy tab's content now (Tab({ Build = fn })); later calls do nothing.

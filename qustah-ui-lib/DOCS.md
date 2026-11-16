@@ -80,6 +80,9 @@ local Top   = Overview:Card({ Title = "Server", Wide = true })   -- spans both c
 local Under = Overview:Card({ Title = "Notes", Wide = "Bottom" }) -- spans both columns, under them
 Overview:MatchHeights(Left, Right)                              -- side-by-side cards as tall as the tallest
 Overview:FillColumn(Stats)                                      -- Stats grows until both columns end on one line
+Overview:FitHeight(List, Scroller, { Min = 110 })              -- Scroller (directly in List) gets the height that ends both columns on one line
+-- With a Wide = "Bottom" card under the columns, the shorter column's last card grows on its own so both columns
+-- end on one line (no gap above the bottom card). Tab:Page(name, { Balance = false }) turns it off.
 ```
 
 **Tabs**

@@ -198,31 +198,15 @@ return function(window, cfg)
             columns = tonumber(cfg.ModuleColumns) or (#order > 6 and 3 or 2)
             tileHeight = 38
             if columns == 3 then
-                -- three a row: as tall as fills the card beside them (Session), so no empty space is left under them
+                -- three a row: tall enough that the right column (Server + Modules) ends on the same line as the left
+                -- one (Session), so no empty space is left under either; never shorter than 30 px
                 local rowsWanted = math.max(1, math.ceil(#order / 3))
                 tileHeight = 46 -- (until it can be measured)
-                -- a card's own height: its children (not the spacer MatchHeights adds) and the gaps between them
-                local scale = window.scale and window.scale.Scale or 1
-                local function natural(card, skip)
-                    local layout = card.frame:FindFirstChildOfClass("UIListLayout")
-                    local gap = layout and layout.Padding.Offset or 4
-                    local total, count = 0, 0
-                    for _, child in ipairs(card.frame:GetChildren()) do
-                        if child:IsA("GuiObject") and child.Visible and child.Name ~= "MatchSpacer" and child ~= skip then
-                            total = total + child.AbsoluteSize.Y / scale
-                            count = count + 1
-                        end
-                    end
-                    return total + math.max(0, count - 1) * gap
-                end
-                local sessionHeight = natural(session)
-                -- (the modules card without its grid)
-                local withoutGrid = natural(modulesCard)
-                local gridHeight = grid.AbsoluteSize.Y / scale
-                if sessionHeight > 0 and gridHeight > 0 then
-                    -- the grid exactly as tall as the room (the last row takes the pixels left over), so the two
-                    -- cards end on the same line
-                    local free = math.floor(sessionHeight - (withoutGrid - gridHeight) + 0.5)
+                local gridHeight = grid.Size.Y.Offset
+                local leftHeight = page:_columnHeight(page.left)
+                local rightHeight = page:_columnHeight(page.right)
+                if leftHeight > 0 and rightHeight > 0 and gridHeight > 0 then
+                    local free = math.floor(leftHeight - (rightHeight - gridHeight) + 0.5)
                     local fit = math.floor((free - (rowsWanted - 1) * 6) / rowsWanted)
                     tileHeight = math.clamp(fit, 30, 58)
                     if fit == tileHeight then exactGrid = free end
@@ -291,7 +275,7 @@ return function(window, cfg)
         end
         window:OnStatusChanged(update)
         update()
-        page:MatchHeights(session, modulesCard) -- (side by side, the same height)
+        -- (no height matching: with a few modules the card stays as short as its tiles)
         -- (three a row fill the height of Session: measured again when it changes size)
         local queued = false
         local function remeasure()

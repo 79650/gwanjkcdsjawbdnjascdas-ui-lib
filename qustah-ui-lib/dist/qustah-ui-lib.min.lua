@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.24.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.25.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -95,7 +95,7 @@ BorderSizePixel=0,LayoutOrder=order or 0,Parent=column,
 Theme.bind(frame,"BackgroundColor3","card")
 corner(frame,self.compact and 6 or 8)
 Theme.bind(stroke(frame),"Color","line")
-if self.compact then Util.padding(frame,10,10,6,6)Util.list(frame,1)else Util.padding(frame,14,14,8,10)Util.list(frame,4)end
+if self.compact then Util.padding(frame,10,10,6,6)Util.list(frame,2)else Util.padding(frame,14,14,8,10)Util.list(frame,4)end
 if cfg.Title then
 local head=create("Frame",{Name="Heading",BackgroundTransparency=1,Size=UDim2.new(1,0,0,self.compact and 24 or 20),LayoutOrder=0,Parent=frame})
 if self.compact then
@@ -151,7 +151,7 @@ queued=false
 if not frame.Parent then return end
 local any=false
 for _,child in ipairs(frame:GetChildren())do
-if child:IsA("GuiObject")and child~=empty and child.Name~="Heading"and child.Name~="CardDesc"and(child.Visible or(self._hidden and self._hidden[child]))then
+if child:IsA("GuiObject")and child~=empty and child.Name~="Heading"and child.Name~="CardDesc"and child.Name~="BalanceSpacer"and(child.Visible or(self._hidden and self._hidden[child]))then
 any=true
 break
 end
@@ -184,7 +184,7 @@ if collapsed==(self.Collapsed==true)then return end
 self.Collapsed=collapsed
 self._hidden=self._hidden or{}
 for _,child in ipairs(self.frame:GetChildren())do
-if child:IsA("GuiObject")and child.Name~="Heading"and child.Name~="CardDesc"and child.Name~="Empty"then
+if child:IsA("GuiObject")and child.Name~="Heading"and child.Name~="CardDesc"and child.Name~="Empty"and child.Name~="BalanceSpacer"then
 if collapsed then
 if child.Visible then self._hidden[child]=true child.Visible=false end
 elseif self._hidden[child]then
@@ -451,7 +451,7 @@ end
 function Card:Column(cfg)
 cfg=cfg or{}
 local box=create("Frame",{Name="Column",BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,LayoutOrder=self:_order(),Parent=self.body})
-Util.list(box,tonumber(cfg.Gap)or(self.compact and 1 or 4))
+Util.list(box,tonumber(cfg.Gap)or(self.compact and 2 or 4))
 return sub(self,box)
 end
 function Card:Group(cfg)
@@ -1130,24 +1130,11 @@ tileHeight=38
 if columns==3 then
 local rowsWanted=math.max(1,math.ceil(#order/3))
 tileHeight=46
-local scale=window.scale and window.scale.Scale or 1
-local function natural(card,skip)
-local layout=card.frame:FindFirstChildOfClass("UIListLayout")
-local gap=layout and layout.Padding.Offset or 4
-local total,count=0,0
-for _,child in ipairs(card.frame:GetChildren())do
-if child:IsA("GuiObject")and child.Visible and child.Name~="MatchSpacer"and child~=skip then
-total=total+child.AbsoluteSize.Y/scale
-count=count+1
-end
-end
-return total+math.max(0,count-1)*gap
-end
-local sessionHeight=natural(session)
-local withoutGrid=natural(modulesCard)
-local gridHeight=grid.AbsoluteSize.Y/scale
-if sessionHeight>0 and gridHeight>0 then
-local free=math.floor(sessionHeight-(withoutGrid-gridHeight)+0.5)
+local gridHeight=grid.Size.Y.Offset
+local leftHeight=page:_columnHeight(page.left)
+local rightHeight=page:_columnHeight(page.right)
+if leftHeight>0 and rightHeight>0 and gridHeight>0 then
+local free=math.floor(leftHeight-(rightHeight-gridHeight)+0.5)
 local fit=math.floor((free-(rowsWanted-1)*6)/rowsWanted)
 tileHeight=math.clamp(fit,30,58)
 if fit==tileHeight then exactGrid=free end
@@ -1213,7 +1200,6 @@ end
 end
 window:OnStatusChanged(update)
 update()
-page:MatchHeights(session,modulesCard)
 local queued=false
 local function remeasure()
 if queued or columns~=3 then return end
@@ -1495,7 +1481,9 @@ end
 end
 function Base.row(card,cfg,height,opts)
 opts=opts or{}
-if card.compact and not opts.titleHeight and not opts.keepHeight then height=height-6 end
+if card.compact and not opts.titleHeight and not opts.keepHeight then
+height=height>=30 and math.max(height-6,28)or height-6
+end
 local row=create(opts.button and"TextButton"or"Frame",{
 Name=tostring(cfg.Title or"Row"),BackgroundTransparency=1,BorderSizePixel=0,
 Size=UDim2.new(1,0,0,height),LayoutOrder=card:_order(),Parent=card.body,
@@ -1908,18 +1896,19 @@ local sizeName=tostring(cfg.Size or"Default")
 local size=SIZES[sizeName:sub(1,1):upper()..sizeName:sub(2):lower()]or SIZES.Default
 if card.compact and not cfg.Size then size={24,10,13}end
 local buttonHeight,textSize,iconSize=size[1],size[2],size[3]
-local height=cfg.Desc and buttonHeight+16 or buttonHeight
+local inset=card.compact and 1 or 0
+local height=(cfg.Desc and buttonHeight+16 or buttonHeight)+inset*2
 local title=cfg.Title~=nil and tostring(cfg.Title)or(cfg.Icon and""or"Button")
 local row=create("Frame",{Name=title~=""and title or tostring(cfg.Icon),BackgroundTransparency=1,Size=UDim2.new(1,0,0,height),LayoutOrder=card:_order(),Parent=card.body})
 local button=create("TextButton",{
-Name="Button",Size=UDim2.new(1,0,0,buttonHeight),BorderSizePixel=0,Text="",
+Name="Button",Position=UDim2.fromOffset(0,inset),Size=UDim2.new(1,0,0,buttonHeight),BorderSizePixel=0,Text="",
 TextSize=textSize,Font=Enum.Font.Gotham,AutoButtonColor=false,Parent=row,
 })
 corner(button,6)
 local outline=stroke(button)
 local desc
 if cfg.Desc then
-desc=Util.label(row,tostring(cfg.Desc),9,{Position=UDim2.fromOffset(2,buttonHeight+2),Size=UDim2.new(1,-4,0,14)})
+desc=Util.label(row,tostring(cfg.Desc),9,{Position=UDim2.fromOffset(2,inset+buttonHeight+2),Size=UDim2.new(1,-4,0,14)})
 Theme.bind(desc,"TextColor3","muted")
 end
 local fill=create("Frame",{Name="Fill",BorderSizePixel=0,Size=UDim2.fromScale(0,1),BackgroundTransparency=1,ZIndex=1,Parent=button})
@@ -4483,8 +4472,8 @@ local Theme=require("theme")
 local Base=require("elements/base")
 local create,corner,stroke=Util.create,Util.corner,Util.stroke
 return function(card,cfg)
-local baseHeight=cfg.Desc and 40 or 30
-local row,title,desc=Base.row(card,cfg,baseHeight,{right=160})
+local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 30,{right=160})
+local baseHeight=row.Size.Y.Offset
 title.Size=UDim2.new(0.55,-8,0,title.Size.Y.Offset)
 if desc then desc.Size=UDim2.new(0.55,-8,0,14)end
 local box=create("TextBox",{
@@ -9194,7 +9183,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.24.0",
+Version="1.25.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -11014,6 +11003,21 @@ Util.list(wideBottom,10)
 self.frame,self.wide,self.left,self.right=frame,wide,column("Left",1),column("Right",2)
 self.wideBottom=wideBottom
 self.content=content
+self._cardOf,self._fitted={},{}
+local queued=false
+local function queue()
+if queued then return end
+queued=true
+task.defer(function()queued=false self:_balance()end)
+end
+self._queueBalance=queue
+for _,holderFrame in ipairs({self.left,self.right,wideBottom})do
+local list=holderFrame:FindFirstChildOfClass("UIListLayout")
+if list then list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(queue)end
+holderFrame.ChildAdded:Connect(queue)
+holderFrame.ChildRemoved:Connect(queue)
+end
+self.layout:GetPropertyChangedSignal("FillDirection"):Connect(queue)
 if self.cfg.Warning then task.defer(function()self:Warning(self.cfg.Warning)end)end
 local function fade(top)
 local object=create("Frame",{
@@ -11100,11 +11104,118 @@ local side=cfg.Side
 if self.cfg.Columns==1 then side="Left"end
 if side~="Left"and side~="Right"then side=(self.cards%2==1)and"Left"or"Right"end
 self.order=self.order+1
+local card
 if cfg.Wide then
 self.cards=self.cards-1
-return Card.new(self,cfg.Wide=="Bottom"and self.wideBottom or self.wide,cfg,self.order)
+card=Card.new(self,cfg.Wide=="Bottom"and self.wideBottom or self.wide,cfg,self.order)
+else
+card=Card.new(self,side=="Right"and self.right or self.left,cfg,self.order)
 end
-return Card.new(self,side=="Right"and self.right or self.left,cfg,self.order)
+self._cardOf[card.frame]=card
+card.frame:GetPropertyChangedSignal("Visible"):Connect(self._queueBalance)
+card.frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(self._queueBalance)
+return card
+end
+local SPACER="BalanceSpacer"
+function Page:_cardHeight(frame)
+local scale=self.window.scale and self.window.scale.Scale or 1
+local padding=frame:FindFirstChildOfClass("UIPadding")
+local layout=frame:FindFirstChildOfClass("UIListLayout")
+local gap=layout and layout.Padding.Offset or 0
+local total,count=0,0
+for _,child in ipairs(frame:GetChildren())do
+if child:IsA("GuiObject")and child.Visible and child.Name~=SPACER then
+local fixed=child.AutomaticSize==Enum.AutomaticSize.None and child.Size.Y.Scale==0
+local height=fixed and child.Size.Y.Offset or child.AbsoluteSize.Y/scale
+total=total+height
+count=count+1
+end
+end
+if padding then total=total+padding.PaddingTop.Offset+padding.PaddingBottom.Offset end
+return total+math.max(0,count-1)*gap
+end
+function Page:_columnHeight(column)
+local layout=column:FindFirstChildOfClass("UIListLayout")
+local gap=layout and layout.Padding.Offset or 10
+local total,count=0,0
+for _,child in ipairs(column:GetChildren())do
+if child:IsA("GuiObject")and child.Visible then
+total=total+self:_cardHeight(child)
+count=count+1
+end
+end
+return total+math.max(0,count-1)*gap
+end
+local function lastShown(holder)
+local best
+for _,child in ipairs(holder:GetChildren())do
+if child:IsA("GuiObject")and child.Visible and(not best or child.LayoutOrder>=best.LayoutOrder)then best=child end
+end
+return best
+end
+function Page:_balance()
+if self._balancing or not self.frame.Parent then return end
+self._balancing=true
+local ok,err=pcall(function()
+local split=self.layout.FillDirection==Enum.FillDirection.Horizontal
+for object,fit in pairs(self._fitted)do
+if object.Parent then fit()else self._fitted[object]=nil end
+end
+local want={}
+if split and self.cfg.Balance~=false and lastShown(self.wideBottom)then
+local leftLast,rightLast=lastShown(self.left),lastShown(self.right)
+if leftLast and rightLast then
+local leftHeight,rightHeight=self:_columnHeight(self.left),self:_columnHeight(self.right)
+local short=leftHeight<rightHeight and leftLast or rightLast
+local card=self._cardOf[short]
+local layout=short:FindFirstChildOfClass("UIListLayout")
+local extra=math.floor(math.abs(leftHeight-rightHeight)-(layout and layout.Padding.Offset or 4))
+if extra>0 and not(card and card.Collapsed)then want[short]=extra end
+end
+end
+for _,column in ipairs({self.left,self.right})do
+for _,frame in ipairs(column:GetChildren())do
+if frame:IsA("GuiObject")then
+local spacer=frame:FindFirstChild(SPACER)
+local extra=want[frame]
+if extra and not spacer then
+spacer=create("Frame",{Name=SPACER,BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),LayoutOrder=2e6,Visible=false,Parent=frame})
+end
+if spacer then
+local size=UDim2.new(1,0,0,extra or 0)
+if spacer.Size~=size then spacer.Size=size end
+if spacer.Visible~=(extra~=nil)then spacer.Visible=extra~=nil end
+end
+end
+end
+end
+end)
+self._balancing=false
+if not ok then warn("[Qustah] column balance: "..tostring(err))end
+end
+function Page:FitHeight(card,box,opts)
+opts=opts or{}
+local min,max=tonumber(opts.Min)or 80,tonumber(opts.Max)or 2000
+local function fit()
+local own=card.frame.Parent
+local other=own==self.left and self.right or own==self.right and self.left or nil
+local split=self.layout.FillDirection==Enum.FillDirection.Horizontal
+local height
+if other and split and lastShown(other)then
+local current=box.Size.Y.Offset
+local rest=self:_columnHeight(own)-current
+height=self:_columnHeight(other)-rest
+else
+height=tonumber(opts.Fallback)or min
+end
+height=math.floor(math.clamp(height,min,max))
+if box.Size.Y.Offset~=height then box.Size=UDim2.new(box.Size.X.Scale,box.Size.X.Offset,0,height)end
+end
+box.AutomaticSize=Enum.AutomaticSize.None
+self._fitted[box]=fit
+for _,object in ipairs({self.frame})do object:GetPropertyChangedSignal("AbsoluteSize"):Connect(self._queueBalance)end
+self._queueBalance()
+return function()self._queueBalance()end
 end
 function Page:MatchHeights(...)
 local cards={...}
@@ -11340,6 +11451,7 @@ if#self.Pages==0 then self:Page(self.Title)end
 return self.Pages[1]:Card(cfg)
 end
 function Tab:FillColumn(card)return(card.page or self.Pages[1]):FillColumn(card)end
+function Tab:FitHeight(card,box,opts)return(card.page or self.Pages[1]):FitHeight(card,box,opts)end
 function Tab:MatchHeights(...)return self.Pages[1]:MatchHeights(...)end
 function Tab:Build()
 local build=self._build
