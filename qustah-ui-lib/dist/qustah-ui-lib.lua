@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.26.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.27.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7473,7 +7473,8 @@ end
 
 __modules["elements/swatches"] = function()
 -- card:Swatches({ Title, Desc, Flag, Items = { { "Neutral", Color3 }, { "Blue", Color3 }, ... }, Default = "Blue", Columns = 4, Callback = function(color, name) end })
--- An item with two colours ({ "Heat", Color3, Color3 }) shows a small gradient bar instead of a dot (grid style).
+-- An item with two or more colours ({ "Heat", Color3, Color3, Color3 }) shows a small gradient bar instead of a dot
+-- (grid style), the colours spread evenly along it.
 -- Named colour presets as a grid (Qustah's accent picker). Value is the chosen name; Callback gets the Color3 and the name.
 -- Without Colors it uses Qustah's eight accent presets.
 -- Style = "Dots": one row of small round colour dots (the name shows on hover). Custom = function(open) end adds a
@@ -7559,12 +7560,19 @@ return function(card, cfg)
         corner(button, 6)
         local outline = stroke(button, Color3.new(1, 1, 1), 1)
         Theme.bind(outline, "Color", "accent")
-        -- a second colour ({ "Heat", from, to }) makes the dot a short gradient bar
+        -- a second colour ({ "Heat", from, to } or more stops) makes the dot a short gradient bar
         local color2 = item[3] or item.Color2
         local dot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = color2 and UDim2.fromOffset(26, 10) or UDim2.fromOffset(14, 14),
             BorderSizePixel = 0, BackgroundColor3 = color2 and Color3.new(1, 1, 1) or color, Parent = button })
         corner(dot, color2 and 5 or 4)
-        if color2 then create("UIGradient", { Color = ColorSequence.new(color, color2), Parent = dot }) end
+        if color2 then
+            local stops = { color }
+            for i = 3, #item do if typeof(item[i]) == "Color3" then stops[#stops + 1] = item[i] end end
+            if #stops == 1 then stops[2] = color2 end
+            local points = {}
+            for i, c in ipairs(stops) do points[i] = ColorSequenceKeypoint.new((i - 1) / (#stops - 1), c) end
+            create("UIGradient", { Color = ColorSequence.new(points), Parent = dot })
+        end
         local textLeft = color2 and 40 or 28
         local text = label(button, name, 10, { Position = UDim2.fromOffset(textLeft, 0), Size = UDim2.new(1, -(textLeft + 4), 1, 0) })
         local entry = { name = name, color = color, button = button, text = text, outline = outline }
@@ -10452,7 +10460,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.26.0",
+    Version = "1.27.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

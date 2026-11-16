@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.26.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.27.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -5958,7 +5958,14 @@ local color2=item[3]or item.Color2
 local dot=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,8,0.5,0),Size=color2 and UDim2.fromOffset(26,10)or UDim2.fromOffset(14,14),
 BorderSizePixel=0,BackgroundColor3=color2 and Color3.new(1,1,1)or color,Parent=button})
 corner(dot,color2 and 5 or 4)
-if color2 then create("UIGradient",{Color=ColorSequence.new(color,color2),Parent=dot})end
+if color2 then
+local stops={color}
+for i=3,#item do if typeof(item[i])=="Color3"then stops[#stops+1]=item[i]end end
+if#stops==1 then stops[2]=color2 end
+local points={}
+for i,c in ipairs(stops)do points[i]=ColorSequenceKeypoint.new((i-1)/(#stops-1),c)end
+create("UIGradient",{Color=ColorSequence.new(points),Parent=dot})
+end
 local textLeft=color2 and 40 or 28
 local text=label(button,name,10,{Position=UDim2.fromOffset(textLeft,0),Size=UDim2.new(1,-(textLeft+4),1,0)})
 local entry={name=name,color=color,button=button,text=text,outline=outline}
@@ -8289,7 +8296,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.26.0",
+Version="1.27.0",
 Flags={},
 Windows={},
 Theme=Theme,
