@@ -37,16 +37,18 @@ return function(card, cfg)
     element.Settings = {}
     for key, value in pairs(DEFAULTS) do element.Settings[key] = value end
 
+    local dirty, queued = true, false
     local function draw()
         local s = element.Settings
         -- real screen pixels: the window's UI scale is undone (k = 1 / scale), unless the circle would not fit
         local scaleUI = window and window.scale and window.scale.Scale or 1
         local height = cfg.Height or 140
         local realRadius = math.max(tonumber(s.Radius) or 60, 1)
-        local k = math.min(1 / scaleUI, (height - 14) / (2 * realRadius))
+        local boxWidth = box.AbsoluteSize.X / math.max(scaleUI, 0.01)
+        local k = math.min(1 / math.max(scaleUI, 0.01), math.max(1, math.min(height - 14, boxWidth - 10)) / (2 * realRadius))
         local fit = k * scaleUI
         local radius = realRadius * k
-        local sides = math.floor(tonumber(s.Sides) or 100)
+        local sides = math.clamp(math.floor(tonumber(s.Sides) or 100), 3, 100)
         local color = typeof(s.Color) == "Color3" and s.Color or Color3.new(1, 1, 1)
         local thickness = math.max(1, (tonumber(s.Thickness) or 1) * k)
         local shown = s.Visible ~= false
@@ -59,6 +61,14 @@ return function(card, cfg)
         circle.BackgroundTransparency = polygon and 1 or fillAlpha
         -- the polygon's fill: 2 px rows, each as wide as the polygon is at that height
         local rows = (polygon and fillAlpha < 1) and math.max(1, math.ceil(radius)) or 0
+        local vertices = {}
+        if polygon then
+            for i = 0, sides - 1 do
+                local angle = i / sides * math.pi * 2
+                vertices[i + 1] = { math.cos(angle) * radius, math.sin(angle) * radius }
+            end
+            vertices[sides + 1] = vertices[1]
+        end
         for index = 1, math.max(#fills, rows) do
             local row = fills[index]
             if not row then
@@ -69,9 +79,8 @@ return function(card, cfg)
             local left, right = math.huge, -math.huge
             if index <= rows then
                 for side = 1, sides do
-                    local a1, a2 = (side - 1) / sides * math.pi * 2, side / sides * math.pi * 2
-                    local x1, y1 = math.cos(a1) * radius, math.sin(a1) * radius
-                    local x2, y2 = math.cos(a2) * radius, math.sin(a2) * radius
+                    local p1, p2 = vertices[side], vertices[side + 1]
+                    local x1, y1, x2, y2 = p1[1], p1[2], p2[1], p2[2]
                     if (y1 - y) * (y2 - y) <= 0 and y1 ~= y2 then
                         local x = x1 + (x2 - x1) * (y - y1) / (y2 - y1)
                         left, right = math.min(left, x), math.max(right, x)
@@ -94,10 +103,8 @@ return function(card, cfg)
                 lines[index] = line
             end
             if polygon and index <= sides then
-                local a1, a2 = (index - 1) / sides * math.pi * 2, index / sides * math.pi * 2
-                -- from the centre of the box (like the circle), so the UI scale cannot move it off
-                local x1, y1 = math.cos(a1) * radius, math.sin(a1) * radius
-                local x2, y2 = math.cos(a2) * radius, math.sin(a2) * radius
+                local p1, p2 = vertices[index], vertices[index + 1]
+                local x1, y1, x2, y2 = p1[1], p1[2], p2[1], p2[2]
                 local dx, dy = x2 - x1, y2 - y1
                 line.Position = UDim2.new(0.5, (x1 + x2) / 2, 0.5, (y1 + y2) / 2)
                 line.Size = UDim2.fromOffset(math.sqrt(dx * dx + dy * dy) + 1, thickness)
@@ -110,17 +117,27 @@ return function(card, cfg)
         note.Text = (shown and "" or (tostring(s.HiddenReason or "hidden") .. " · ")) .. math.floor(realRadius) .. " px"
             .. (fit < 0.995 and " · shown at " .. math.floor(fit * 100 + 0.5) .. " %" or " · real size")
     end
-    function element:Update(changes)
-        for key, value in pairs(changes or {}) do self.Settings[key] = value end
-        draw()
+    local function invalidate()
+        dirty = true
+        if queued then return end
+        queued = true
+        task.defer(function()
+            queued = false
+            if dirty and (not window or window.alive) and Util.inView(box) then dirty = false draw() end
+        end)
     end
-
-    -- the UI scale changed (the box's on-screen size with it): drawn again, so the circle stays real size
-    local lastSize
-    local sizeConnection = box:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        if box.AbsoluteSize ~= lastSize then lastSize = box.AbsoluteSize draw() end
-    end)
-    if window and window.maid then window.maid:give(sizeConnection) end
+    function element:Update(changes)
+        local changed = false
+        for key, value in pairs(changes or {}) do
+            if self.Settings[key] ~= value then self.Settings[key] = value changed = true end
+        end
+        if changed then invalidate() end
+    end
+    local sizeConnection = box:GetPropertyChangedSignal("AbsoluteSize"):Connect(invalidate)
+    local scaleConnection = window and window.scale and window.scale:GetPropertyChangedSignal("Scale"):Connect(invalidate)
+    local stopVisibility = Util.watchInView(box, function(visible) if visible then invalidate() end end)
+    box.Destroying:Connect(function() sizeConnection:Disconnect() if scaleConnection then scaleConnection:Disconnect() end end)
+    if window and window.maid then window.maid:give(stopVisibility) end
     element:Update(cfg.Settings)
     return Base.finish(element, cfg)
 end

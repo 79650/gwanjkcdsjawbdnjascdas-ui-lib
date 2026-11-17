@@ -156,9 +156,16 @@ return function(card, cfg)
                 bars[index].Size = UDim2.new(1 / points, -2, sample and math.clamp(sample / highest, 0.02, 1) or 0, 0)
             end
         end
+        for _, entry in ipairs(series) do
+            if entry.head and #entry.samples == 0 then entry.head.Visible = false end
+        end
         if value then value.Text = text(series[1]) end
     end
     local dirty = false
+    local function redraw()
+        dirty = true
+        if Util.inView(holder) then dirty = false render() end
+    end
     local function find(name)
         if name == nil then return series[1] end
         for _, entry in ipairs(series) do if entry.name == name then return entry end end
@@ -169,14 +176,7 @@ return function(card, cfg)
         if not sample or not entry then return end
         entry.samples[#entry.samples + 1] = sample
         if #entry.samples > points then table.remove(entry.samples, 1) end
-        -- (off screen - another page, the menu hidden - only the samples are kept; drawn when it can be seen)
-        if Util.shown(holder) then
-            dirty = false render()
-        else
-            dirty = true -- (the numbers are cheap: kept current)
-            for _, item in ipairs(series) do if item.legend then item.legend.Text = item.name .. " " .. text(item) end end
-            if value then value.Text = text(series[1]) end
-        end
+        redraw()
     end
     function element:Set(list, name)
         local entry = find(name)
@@ -189,26 +189,14 @@ return function(card, cfg)
                 if #entry.samples > points then table.remove(entry.samples, 1) end
             end
         end
-        render()
+        redraw()
     end
     function element:Get(name) local entry = find(name) return entry and entry.samples end
-    area:GetPropertyChangedSignal("AbsoluteSize"):Connect(render)
-    -- catch up as soon as the page shows again
-    task.spawn(function()
-        while window.alive and holder.Parent do
-            if dirty and Util.shown(holder) then dirty = false render() end
-            task.wait(0.25)
-        end
-    end)
+    area:GetPropertyChangedSignal("AbsoluteSize"):Connect(redraw)
+    window.maid:give(Util.watchInView(holder, function(shown)
+        if shown and dirty then redraw() end
+    end))
 
-    local function onScreen()
-        local object = holder
-        while object and object ~= window.gui do
-            if object:IsA("GuiObject") and not object.Visible then return false end
-            object = object.Parent
-        end
-        return window.visible
-    end
     local polled = {}
     for _, entry in ipairs(series) do
         if entry.source == "FPS" or entry.source == "Ping" then
@@ -222,7 +210,7 @@ return function(card, cfg)
     if #polled > 0 then
         task.spawn(function()
             while window.alive and holder.Parent do
-                if onScreen() then
+                if Util.inView(holder) then
                     for _, entry in ipairs(polled) do
                         local ok, sample = pcall(entry.source)
                         if ok then element:Push(sample, entry.name) end
@@ -232,6 +220,6 @@ return function(card, cfg)
             end
         end)
     end
-    render()
+    redraw()
     return element
 end

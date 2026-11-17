@@ -48,13 +48,12 @@ return function(card, cfg)
         self.Value, self.Model = object, nil
         empty.Visible = object == nil
         if not object then return end
+        local archivable = object.Archivable
         local ok, copy = pcall(function()
-            local archivable = object.Archivable
             object.Archivable = true
-            local clone = object:Clone()
-            object.Archivable = archivable
-            return clone
+            return object:Clone()
         end)
+        pcall(function() object.Archivable = archivable end)
         if not ok or not copy then empty.Text = "Cannot preview" empty.Visible = true return end
         -- scripts out, physics off
         for _, d in ipairs(copy:GetDescendants()) do
@@ -72,17 +71,23 @@ return function(card, cfg)
         place()
     end
     -- turning: a per-frame step only while Spin is on (and nothing done while the preview is out of sight)
-    local spinConnection
+    local spinConnection, inView = nil, false
+    local function syncSpin()
+        local active = spin and inView
+        if active and not spinConnection then
+            spinConnection = Util.Services.RunService.Heartbeat:Connect(function(dt)
+                yaw = yaw + (dt or 0.016) * 0.6
+                place()
+            end)
+        elseif not active and spinConnection then
+            spinConnection:Disconnect()
+            spinConnection = nil
+        end
+    end
+    window.maid:give(Util.watchInView(holder, function(shown) inView = shown syncSpin() end))
     function element:SetSpin(on)
         spin = on == true
-        if spin and not spinConnection then
-            spinConnection = window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
-                if not holder.Parent then spinConnection:Disconnect() spinConnection = nil return end
-                if holder.AbsoluteSize.X > 0 and Util.shown(holder) then yaw = yaw + (dt or 0.016) * 0.6 place() end
-            end)
-        elseif not spin and spinConnection then
-            spinConnection:Disconnect() spinConnection = nil
-        end
+        syncSpin()
     end
 
     if cfg.Interactive ~= false then

@@ -450,6 +450,7 @@ return function(window, cfg)
     task.spawn(function()
         while window.alive do
             task.wait(30)
+            if not window.alive then break end
             local order, modules = window:GetModules()
             for _, name in ipairs(order) do moduleBars:Push(name, modules[name].state) end
         end

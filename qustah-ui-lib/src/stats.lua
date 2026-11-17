@@ -16,6 +16,7 @@ function Stats.start(maid)
     task.spawn(function()
         while Stats.running do
             task.wait(0.5)
+            if not Stats.running then break end
             local now = os.clock()
             Stats.fps = math.floor(frames / math.max(now - last, 1e-3) + 0.5)
             frames, last = 0, now

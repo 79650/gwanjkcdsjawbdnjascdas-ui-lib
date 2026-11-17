@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.27.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.28.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -4251,16 +4251,18 @@ return function(card, cfg)
     element.Settings = {}
     for key, value in pairs(DEFAULTS) do element.Settings[key] = value end
 
+    local dirty, queued = true, false
     local function draw()
         local s = element.Settings
         -- real screen pixels: the window's UI scale is undone (k = 1 / scale), unless the circle would not fit
         local scaleUI = window and window.scale and window.scale.Scale or 1
         local height = cfg.Height or 140
         local realRadius = math.max(tonumber(s.Radius) or 60, 1)
-        local k = math.min(1 / scaleUI, (height - 14) / (2 * realRadius))
+        local boxWidth = box.AbsoluteSize.X / math.max(scaleUI, 0.01)
+        local k = math.min(1 / math.max(scaleUI, 0.01), math.max(1, math.min(height - 14, boxWidth - 10)) / (2 * realRadius))
         local fit = k * scaleUI
         local radius = realRadius * k
-        local sides = math.floor(tonumber(s.Sides) or 100)
+        local sides = math.clamp(math.floor(tonumber(s.Sides) or 100), 3, 100)
         local color = typeof(s.Color) == "Color3" and s.Color or Color3.new(1, 1, 1)
         local thickness = math.max(1, (tonumber(s.Thickness) or 1) * k)
         local shown = s.Visible ~= false
@@ -4273,6 +4275,14 @@ return function(card, cfg)
         circle.BackgroundTransparency = polygon and 1 or fillAlpha
         -- the polygon's fill: 2 px rows, each as wide as the polygon is at that height
         local rows = (polygon and fillAlpha < 1) and math.max(1, math.ceil(radius)) or 0
+        local vertices = {}
+        if polygon then
+            for i = 0, sides - 1 do
+                local angle = i / sides * math.pi * 2
+                vertices[i + 1] = { math.cos(angle) * radius, math.sin(angle) * radius }
+            end
+            vertices[sides + 1] = vertices[1]
+        end
         for index = 1, math.max(#fills, rows) do
             local row = fills[index]
             if not row then
@@ -4283,9 +4293,8 @@ return function(card, cfg)
             local left, right = math.huge, -math.huge
             if index <= rows then
                 for side = 1, sides do
-                    local a1, a2 = (side - 1) / sides * math.pi * 2, side / sides * math.pi * 2
-                    local x1, y1 = math.cos(a1) * radius, math.sin(a1) * radius
-                    local x2, y2 = math.cos(a2) * radius, math.sin(a2) * radius
+                    local p1, p2 = vertices[side], vertices[side + 1]
+                    local x1, y1, x2, y2 = p1[1], p1[2], p2[1], p2[2]
                     if (y1 - y) * (y2 - y) <= 0 and y1 ~= y2 then
                         local x = x1 + (x2 - x1) * (y - y1) / (y2 - y1)
                         left, right = math.min(left, x), math.max(right, x)
@@ -4308,10 +4317,8 @@ return function(card, cfg)
                 lines[index] = line
             end
             if polygon and index <= sides then
-                local a1, a2 = (index - 1) / sides * math.pi * 2, index / sides * math.pi * 2
-                -- from the centre of the box (like the circle), so the UI scale cannot move it off
-                local x1, y1 = math.cos(a1) * radius, math.sin(a1) * radius
-                local x2, y2 = math.cos(a2) * radius, math.sin(a2) * radius
+                local p1, p2 = vertices[index], vertices[index + 1]
+                local x1, y1, x2, y2 = p1[1], p1[2], p2[1], p2[2]
                 local dx, dy = x2 - x1, y2 - y1
                 line.Position = UDim2.new(0.5, (x1 + x2) / 2, 0.5, (y1 + y2) / 2)
                 line.Size = UDim2.fromOffset(math.sqrt(dx * dx + dy * dy) + 1, thickness)
@@ -4324,17 +4331,27 @@ return function(card, cfg)
         note.Text = (shown and "" or (tostring(s.HiddenReason or "hidden") .. " · ")) .. math.floor(realRadius) .. " px"
             .. (fit < 0.995 and " · shown at " .. math.floor(fit * 100 + 0.5) .. " %" or " · real size")
     end
-    function element:Update(changes)
-        for key, value in pairs(changes or {}) do self.Settings[key] = value end
-        draw()
+    local function invalidate()
+        dirty = true
+        if queued then return end
+        queued = true
+        task.defer(function()
+            queued = false
+            if dirty and (not window or window.alive) and Util.inView(box) then dirty = false draw() end
+        end)
     end
-
-    -- the UI scale changed (the box's on-screen size with it): drawn again, so the circle stays real size
-    local lastSize
-    local sizeConnection = box:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        if box.AbsoluteSize ~= lastSize then lastSize = box.AbsoluteSize draw() end
-    end)
-    if window and window.maid then window.maid:give(sizeConnection) end
+    function element:Update(changes)
+        local changed = false
+        for key, value in pairs(changes or {}) do
+            if self.Settings[key] ~= value then self.Settings[key] = value changed = true end
+        end
+        if changed then invalidate() end
+    end
+    local sizeConnection = box:GetPropertyChangedSignal("AbsoluteSize"):Connect(invalidate)
+    local scaleConnection = window and window.scale and window.scale:GetPropertyChangedSignal("Scale"):Connect(invalidate)
+    local stopVisibility = Util.watchInView(box, function(visible) if visible then invalidate() end end)
+    box.Destroying:Connect(function() sizeConnection:Disconnect() if scaleConnection then scaleConnection:Disconnect() end end)
+    if window and window.maid then window.maid:give(stopVisibility) end
     element:Update(cfg.Settings)
     return Base.finish(element, cfg)
 end
@@ -4748,9 +4765,16 @@ return function(card, cfg)
                 bars[index].Size = UDim2.new(1 / points, -2, sample and math.clamp(sample / highest, 0.02, 1) or 0, 0)
             end
         end
+        for _, entry in ipairs(series) do
+            if entry.head and #entry.samples == 0 then entry.head.Visible = false end
+        end
         if value then value.Text = text(series[1]) end
     end
     local dirty = false
+    local function redraw()
+        dirty = true
+        if Util.inView(holder) then dirty = false render() end
+    end
     local function find(name)
         if name == nil then return series[1] end
         for _, entry in ipairs(series) do if entry.name == name then return entry end end
@@ -4761,14 +4785,7 @@ return function(card, cfg)
         if not sample or not entry then return end
         entry.samples[#entry.samples + 1] = sample
         if #entry.samples > points then table.remove(entry.samples, 1) end
-        -- (off screen - another page, the menu hidden - only the samples are kept; drawn when it can be seen)
-        if Util.shown(holder) then
-            dirty = false render()
-        else
-            dirty = true -- (the numbers are cheap: kept current)
-            for _, item in ipairs(series) do if item.legend then item.legend.Text = item.name .. " " .. text(item) end end
-            if value then value.Text = text(series[1]) end
-        end
+        redraw()
     end
     function element:Set(list, name)
         local entry = find(name)
@@ -4781,26 +4798,14 @@ return function(card, cfg)
                 if #entry.samples > points then table.remove(entry.samples, 1) end
             end
         end
-        render()
+        redraw()
     end
     function element:Get(name) local entry = find(name) return entry and entry.samples end
-    area:GetPropertyChangedSignal("AbsoluteSize"):Connect(render)
-    -- catch up as soon as the page shows again
-    task.spawn(function()
-        while window.alive and holder.Parent do
-            if dirty and Util.shown(holder) then dirty = false render() end
-            task.wait(0.25)
-        end
-    end)
+    area:GetPropertyChangedSignal("AbsoluteSize"):Connect(redraw)
+    window.maid:give(Util.watchInView(holder, function(shown)
+        if shown and dirty then redraw() end
+    end))
 
-    local function onScreen()
-        local object = holder
-        while object and object ~= window.gui do
-            if object:IsA("GuiObject") and not object.Visible then return false end
-            object = object.Parent
-        end
-        return window.visible
-    end
     local polled = {}
     for _, entry in ipairs(series) do
         if entry.source == "FPS" or entry.source == "Ping" then
@@ -4814,7 +4819,7 @@ return function(card, cfg)
     if #polled > 0 then
         task.spawn(function()
             while window.alive and holder.Parent do
-                if onScreen() then
+                if Util.inView(holder) then
                     for _, entry in ipairs(polled) do
                         local ok, sample = pcall(entry.source)
                         if ok then element:Push(sample, entry.name) end
@@ -4824,7 +4829,7 @@ return function(card, cfg)
             end
         end)
     end
-    render()
+    redraw()
     return element
 end
 end
@@ -8658,13 +8663,12 @@ return function(card, cfg)
         self.Value, self.Model = object, nil
         empty.Visible = object == nil
         if not object then return end
+        local archivable = object.Archivable
         local ok, copy = pcall(function()
-            local archivable = object.Archivable
             object.Archivable = true
-            local clone = object:Clone()
-            object.Archivable = archivable
-            return clone
+            return object:Clone()
         end)
+        pcall(function() object.Archivable = archivable end)
         if not ok or not copy then empty.Text = "Cannot preview" empty.Visible = true return end
         -- scripts out, physics off
         for _, d in ipairs(copy:GetDescendants()) do
@@ -8682,17 +8686,23 @@ return function(card, cfg)
         place()
     end
     -- turning: a per-frame step only while Spin is on (and nothing done while the preview is out of sight)
-    local spinConnection
+    local spinConnection, inView = nil, false
+    local function syncSpin()
+        local active = spin and inView
+        if active and not spinConnection then
+            spinConnection = Util.Services.RunService.Heartbeat:Connect(function(dt)
+                yaw = yaw + (dt or 0.016) * 0.6
+                place()
+            end)
+        elseif not active and spinConnection then
+            spinConnection:Disconnect()
+            spinConnection = nil
+        end
+    end
+    window.maid:give(Util.watchInView(holder, function(shown) inView = shown syncSpin() end))
     function element:SetSpin(on)
         spin = on == true
-        if spin and not spinConnection then
-            spinConnection = window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
-                if not holder.Parent then spinConnection:Disconnect() spinConnection = nil return end
-                if holder.AbsoluteSize.X > 0 and Util.shown(holder) then yaw = yaw + (dt or 0.016) * 0.6 place() end
-            end)
-        elseif not spin and spinConnection then
-            spinConnection:Disconnect() spinConnection = nil
-        end
+        syncSpin()
     end
 
     if cfg.Interactive ~= false then
@@ -10460,7 +10470,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.27.0",
+    Version = "1.28.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -12122,6 +12132,7 @@ return function(window, cfg)
     task.spawn(function()
         while window.alive do
             task.wait(30)
+            if not window.alive then break end
             local order, modules = window:GetModules()
             for _, name in ipairs(order) do moduleBars:Push(name, modules[name].state) end
         end
@@ -12304,6 +12315,7 @@ function Stats.start(maid)
     task.spawn(function()
         while Stats.running do
             task.wait(0.5)
+            if not Stats.running then break end
             local now = os.clock()
             Stats.fps = math.floor(frames / math.max(now - last, 1e-3) + 0.5)
             frames, last = 0, now
@@ -14103,6 +14115,86 @@ function Util.shown(object)
         object = object.Parent
     end
     return false
+end
+
+-- Screen visibility for previews, including cards scrolled out of a scrolling page.
+function Util.inView(object)
+    if not Util.shown(object) then return false end
+    local p, size = object.AbsolutePosition, object.AbsoluteSize
+    local l, t, r, b = p.X, p.Y, p.X + size.X, p.Y + size.Y
+    if l >= r or t >= b then return false end
+    local parent = object.Parent
+    while parent and not parent:IsA("LayerCollector") do
+        if parent:IsA("GuiObject") and (parent.ClipsDescendants or parent:IsA("ScrollingFrame")) then
+            local a = parent.AbsolutePosition
+            local extent = parent:IsA("ScrollingFrame") and parent.AbsoluteWindowSize or parent.AbsoluteSize
+            l, t = math.max(l, a.X), math.max(t, a.Y)
+            r, b = math.min(r, a.X + extent.X), math.min(b, a.Y + extent.Y)
+            if l >= r or t >= b then return false end
+        end
+        parent = parent.Parent
+    end
+    return true
+end
+
+-- Util.watchInView(object, callback): callback(true / false) whenever the object comes into or goes out of view
+-- (Util.inView), worked out from property changes of the object and its ancestors instead of a per-frame check.
+-- Returns stop(); stopping (or the object being destroyed) while it was in view calls callback(false).
+function Util.watchInView(object, callback)
+    local links = {}
+    local alive, pending, last = true, false, nil
+    local ancestry, destroying
+    local function schedule()
+        if pending or not alive then return end
+        pending = true
+        task.defer(function()
+            pending = false
+            if not alive then return end
+            local shown = Util.inView(object)
+            if shown ~= last then last = shown callback(shown) end
+        end)
+    end
+    local function watch(o, property)
+        links[#links + 1] = o:GetPropertyChangedSignal(property):Connect(schedule)
+    end
+    local function clear()
+        for _, link in ipairs(links) do link:Disconnect() end
+        table.clear(links)
+    end
+    local function bind()
+        clear()
+        watch(object, "AbsolutePosition")
+        watch(object, "AbsoluteSize")
+        local node = object
+        while node do
+            if node:IsA("LayerCollector") then watch(node, "Enabled") break end
+            if node:IsA("GuiObject") then
+                watch(node, "Visible")
+                if node ~= object then
+                    watch(node, "ClipsDescendants")
+                    watch(node, "AbsoluteSize")
+                    if node:IsA("ScrollingFrame") then
+                        watch(node, "AbsoluteWindowSize")
+                        watch(node, "CanvasPosition")
+                    end
+                end
+            end
+            node = node.Parent
+        end
+        schedule()
+    end
+    local function stop()
+        if not alive then return end
+        alive = false
+        clear()
+        if ancestry then ancestry:Disconnect() end
+        if destroying then destroying:Disconnect() end
+        if last then callback(false) end
+    end
+    ancestry = object.AncestryChanged:Connect(bind)
+    destroying = object.Destroying:Connect(stop)
+    bind()
+    return stop
 end
 
 function Util.round(value, step)

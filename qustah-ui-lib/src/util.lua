@@ -294,6 +294,86 @@ function Util.shown(object)
     return false
 end
 
+-- Screen visibility for previews, including cards scrolled out of a scrolling page.
+function Util.inView(object)
+    if not Util.shown(object) then return false end
+    local p, size = object.AbsolutePosition, object.AbsoluteSize
+    local l, t, r, b = p.X, p.Y, p.X + size.X, p.Y + size.Y
+    if l >= r or t >= b then return false end
+    local parent = object.Parent
+    while parent and not parent:IsA("LayerCollector") do
+        if parent:IsA("GuiObject") and (parent.ClipsDescendants or parent:IsA("ScrollingFrame")) then
+            local a = parent.AbsolutePosition
+            local extent = parent:IsA("ScrollingFrame") and parent.AbsoluteWindowSize or parent.AbsoluteSize
+            l, t = math.max(l, a.X), math.max(t, a.Y)
+            r, b = math.min(r, a.X + extent.X), math.min(b, a.Y + extent.Y)
+            if l >= r or t >= b then return false end
+        end
+        parent = parent.Parent
+    end
+    return true
+end
+
+-- Util.watchInView(object, callback): callback(true / false) whenever the object comes into or goes out of view
+-- (Util.inView), worked out from property changes of the object and its ancestors instead of a per-frame check.
+-- Returns stop(); stopping (or the object being destroyed) while it was in view calls callback(false).
+function Util.watchInView(object, callback)
+    local links = {}
+    local alive, pending, last = true, false, nil
+    local ancestry, destroying
+    local function schedule()
+        if pending or not alive then return end
+        pending = true
+        task.defer(function()
+            pending = false
+            if not alive then return end
+            local shown = Util.inView(object)
+            if shown ~= last then last = shown callback(shown) end
+        end)
+    end
+    local function watch(o, property)
+        links[#links + 1] = o:GetPropertyChangedSignal(property):Connect(schedule)
+    end
+    local function clear()
+        for _, link in ipairs(links) do link:Disconnect() end
+        table.clear(links)
+    end
+    local function bind()
+        clear()
+        watch(object, "AbsolutePosition")
+        watch(object, "AbsoluteSize")
+        local node = object
+        while node do
+            if node:IsA("LayerCollector") then watch(node, "Enabled") break end
+            if node:IsA("GuiObject") then
+                watch(node, "Visible")
+                if node ~= object then
+                    watch(node, "ClipsDescendants")
+                    watch(node, "AbsoluteSize")
+                    if node:IsA("ScrollingFrame") then
+                        watch(node, "AbsoluteWindowSize")
+                        watch(node, "CanvasPosition")
+                    end
+                end
+            end
+            node = node.Parent
+        end
+        schedule()
+    end
+    local function stop()
+        if not alive then return end
+        alive = false
+        clear()
+        if ancestry then ancestry:Disconnect() end
+        if destroying then destroying:Disconnect() end
+        if last then callback(false) end
+    end
+    ancestry = object.AncestryChanged:Connect(bind)
+    destroying = object.Destroying:Connect(stop)
+    bind()
+    return stop
+end
+
 function Util.round(value, step)
     step = step or 1
     if step <= 0 then return value end
