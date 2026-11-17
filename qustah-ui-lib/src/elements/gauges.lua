@@ -57,8 +57,8 @@ return function(card, cfg)
     for index, gauge in ipairs(gauges) do if gauge.spec.Source then live[#live + 1] = index end end
     if #live > 0 then
         Stats.start(window.Lib.maid)
-        window.maid:give(Stats.listen(function()
-            if not holder.Parent or not Util.shown(holder) then return end
+        element.Maid:give(Stats.listen(function()
+            if not holder.Parent or not Util.inView(holder) then return end
             for _, index in ipairs(live) do
                 local source = gauges[index].spec.Source
                 local number

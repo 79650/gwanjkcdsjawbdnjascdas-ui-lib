@@ -151,7 +151,37 @@ function Base.element(card, kind, cfg, row, title, desc)
     if cfg.Flag == nil and VALUE[kind] and cfg.Title and window.cfg and window.cfg.AutoFlags and not window._noAutoFlags then
         cfg.Flag = window:_autoFlag(card, cfg.Title)
     end
-    local element = { Type = kind, Title = cfg.Title, Flag = cfg.Flag, Row = row, Card = card, Locked = false, _changed = {} }
+    local element = { Type = kind, Title = cfg.Title, Flag = cfg.Flag, Row = row, Card = card, Locked = false, _changed = {}, Maid = Util.maid() }
+    local cleanup
+    cleanup = function()
+        if element.Destroyed then return end
+        element.Destroyed = true
+        if element.Flag and window.flags[element.Flag] == element then window.flags[element.Flag] = nil end
+        window.binds[element] = nil
+        local panels = window._openPanels
+        local panelIndex = panels and table.find(panels, element)
+        if panelIndex then table.remove(panels, panelIndex) end
+        if window._popup and window._popup.owner == element then window:_closePopup() end
+        element.Maid:clean()
+        local panel = element._panel
+        if panel and panel.Parent then panel:Destroy() end
+        table.clear(element._changed)
+        local index = table.find(window.maid.items, cleanup)
+        if index then table.remove(window.maid.items, index) end
+    end
+    window.maid:give(cleanup)
+    element.Maid:connect(row.Destroying, cleanup)
+    local give = element.Maid.give
+    function element.Maid:give(item)
+        if element.Destroyed then
+            local temporary = Util.maid()
+            temporary:give(item)
+            temporary:clean()
+            return item
+        end
+        return give(self, item)
+    end
+    function element:GiveCleanup(item) return self.Maid:give(item) end
 
     function element:OnChanged(callback)
         self._changed[#self._changed + 1] = callback
@@ -160,6 +190,7 @@ function Base.element(card, kind, cfg, row, title, desc)
     -- Runs a user callback; when it errors the element flashes red and its title says so (Base.failed).
     -- Returns true / false (nil when there was nothing to run).
     function element:_call(callback, ...)
+        if self.Destroyed then return false end
         local ok = window:_safe(tostring(self.Title or kind), callback, ...)
         if ok == false then
             self._failed = true
@@ -174,6 +205,7 @@ function Base.element(card, kind, cfg, row, title, desc)
     -- Stores the flag value; unless silent, runs Callback and the OnChanged listeners (extra values go along:
     -- the slider sends (value, dragging)).
     function element:_fire(value, silent, ...)
+        if self.Destroyed then return end
         if self.Flag then
             window.Lib.Flags[self.Flag] = value
             window:_flagChanged(self.Flag)
@@ -331,9 +363,9 @@ function Base.element(card, kind, cfg, row, title, desc)
     function element:MoveDown() local index = self:GetIndex() if index then self:MoveTo(index + 1) end end
 
     function element:Destroy()
-        if self.Flag and window.flags[self.Flag] == self then window.flags[self.Flag] = nil end
-        window.binds[self] = nil
-        local panel = panelOf(row) -- (the colour picker's panel lives next to its row)
+        if self.Destroyed then return end
+        local panel = panelOf(row)
+        cleanup()
         if panel then panel:Destroy() end
         row:Destroy()
         window:_hideTip()

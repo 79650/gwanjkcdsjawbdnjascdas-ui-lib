@@ -164,10 +164,10 @@ return function(card, cfg)
     headButton("Follow", "arrow-down-to-line", "Follow new lines", cfg.Copy ~= false and 3 or 2, function() element:SetFollow(not element.Follow) end)
     renderFollow()
     -- timestamps keep the theme's muted colour
-    Theme.onChange(function()
+    element.Maid:give(Theme.onChange(function()
         if not holder.Parent then return end
         for _, entry in ipairs(element.Lines) do if entry.paint then entry.paint() end end
-    end)
+    end))
     for _, item in ipairs(cfg.Lines or {}) do
         if type(item) == "table" then element:Append(item[1] or item.Text, item[2] or item.Level) else element:Append(item) end
     end

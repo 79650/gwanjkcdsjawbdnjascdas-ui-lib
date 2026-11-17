@@ -47,7 +47,7 @@ function Glow.setEnabled(enabled)
     for _, fx in ipairs(Glow.items) do if fx.label.Parent then apply(fx) end end
 end
 
-local visible = Util.shown
+local visible = Util.inView
 
 -- One RenderStepped loop for all glows, connected only while a glowing label is on screen and glow is on: a slow
 -- check (twice a second) connects / disconnects it, so a closed menu (and no overlay title showing) costs nothing.

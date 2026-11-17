@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.28.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.29.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -497,6 +497,7 @@ Util.tween(knob,t,{Position=UDim2.new(0,element.Value and 14 or 2,0.5,0)})
 end
 local window=self.window
 function element:Set(on,silent)
+if self.Destroyed then return end
 on=on==true
 local changed=on~=self.Value
 self.Value=on
@@ -507,6 +508,21 @@ end
 function element:Get()return self.Value end
 function element:_save()return self.Value end
 function element:_load(value)self:Set(value==true)end
+local function release()
+if element.Destroyed then return end
+element.Destroyed=true
+if cfg.Flag and window.flags[cfg.Flag]==element then window.flags[cfg.Flag]=nil end
+window.binds[element]=nil
+table.clear(element._changed)
+end
+holder.Destroying:Connect(release)
+function element:Destroy()
+if self.Destroyed then return end
+release()
+holder:Destroy()
+if caption then caption:Destroy()end
+end
+function element:Remove()self:Destroy()end
 holder.Activated:Connect(function()require("sounds").Play("click")element:Set(not element.Value)end)
 holder.MouseEnter:Connect(function()if cfg.Tooltip then window:_tip(cfg.Tooltip)end end)
 holder.MouseLeave:Connect(function()window:_hideTip()end)
@@ -1221,7 +1237,7 @@ local seconds=math.floor(os.clock()-started)
 hero:SetValue(string.format("%02d:%02d:%02d",seconds//3600,(seconds//60)%60,seconds%60))
 hero:SetChipText(1,(Stats.fps or 0).." FPS")
 local ok,value=pcall(function()return player:GetNetworkPing()end)
-hero:SetChipText(2,ok and(math.floor(value*1000+0.5).." ms")or"--")
+hero:SetChipText(2,ok and(math.floor(value*2000+0.5).." ms")or"--")
 hero:SetChipText(3,#Players:GetPlayers().." / "..Players.MaxPlayers)
 end
 task.wait(1)
@@ -1543,12 +1559,43 @@ local window=card.window
 if cfg.Flag==nil and VALUE[kind]and cfg.Title and window.cfg and window.cfg.AutoFlags and not window._noAutoFlags then
 cfg.Flag=window:_autoFlag(card,cfg.Title)
 end
-local element={Type=kind,Title=cfg.Title,Flag=cfg.Flag,Row=row,Card=card,Locked=false,_changed={}}
+local element={Type=kind,Title=cfg.Title,Flag=cfg.Flag,Row=row,Card=card,Locked=false,_changed={},Maid=Util.maid()}
+local cleanup
+cleanup=function()
+if element.Destroyed then return end
+element.Destroyed=true
+if element.Flag and window.flags[element.Flag]==element then window.flags[element.Flag]=nil end
+window.binds[element]=nil
+local panels=window._openPanels
+local panelIndex=panels and table.find(panels,element)
+if panelIndex then table.remove(panels,panelIndex)end
+if window._popup and window._popup.owner==element then window:_closePopup()end
+element.Maid:clean()
+local panel=element._panel
+if panel and panel.Parent then panel:Destroy()end
+table.clear(element._changed)
+local index=table.find(window.maid.items,cleanup)
+if index then table.remove(window.maid.items,index)end
+end
+window.maid:give(cleanup)
+element.Maid:connect(row.Destroying,cleanup)
+local give=element.Maid.give
+function element.Maid:give(item)
+if element.Destroyed then
+local temporary=Util.maid()
+temporary:give(item)
+temporary:clean()
+return item
+end
+return give(self,item)
+end
+function element:GiveCleanup(item)return self.Maid:give(item)end
 function element:OnChanged(callback)
 self._changed[#self._changed+1]=callback
 return self
 end
 function element:_call(callback,...)
+if self.Destroyed then return false end
 local ok=window:_safe(tostring(self.Title or kind),callback,...)
 if ok==false then
 self._failed=true
@@ -1560,6 +1607,7 @@ function element:_accepted(kind)
 if cfg.Flash~=false and not self._failed then self:Flash(kind or"success")end
 end
 function element:_fire(value,silent,...)
+if self.Destroyed then return end
 if self.Flag then
 window.Lib.Flags[self.Flag]=value
 window:_flagChanged(self.Flag)
@@ -1700,9 +1748,9 @@ end
 function element:MoveUp()local index=self:GetIndex()if index then self:MoveTo(index-1)end end
 function element:MoveDown()local index=self:GetIndex()if index then self:MoveTo(index+1)end end
 function element:Destroy()
-if self.Flag and window.flags[self.Flag]==self then window.flags[self.Flag]=nil end
-window.binds[self]=nil
+if self.Destroyed then return end
 local panel=panelOf(row)
+cleanup()
 if panel then panel:Destroy()end
 row:Destroy()
 window:_hideTip()
@@ -2084,25 +2132,24 @@ end
 self.Badge=shown and tostring(text)or nil
 end
 element:SetBadge(cfg.Badge)
-local spinConnection,doneToken=nil,0
+local doneToken=0
+local stopLoading,syncLoading
+if spinner then
+stopLoading,syncLoading=Util.animateInView(spinner,Util.Services.RunService.Heartbeat,function(dt)
+spinner.Rotation=(spinner.Rotation+(dt or 1/60)*360)%360
+end,function()return loading and not element.Destroyed end)
+element.Maid:give(stopLoading)
+end
 function element:SetLoading(on,text)
+if self.Destroyed then return end
 loading=on==true
 self.Loading=loading
-if spinConnection then spinConnection:Disconnect()spinConnection=nil end
 if spinner then
 spinner.Rotation=0
 Icons.Apply(spinner,"loader-circle")
 spinner.Visible=loading
-if loading then
-spinConnection=window.maid:connect(Util.Services.RunService.Heartbeat,function(dt)
-if not spinner.Parent then
-if spinConnection then spinConnection:Disconnect()spinConnection=nil end
-return
 end
-spinner.Rotation=(spinner.Rotation+(dt or 1/60)*360)%360
-end)
-end
-end
+if syncLoading then syncLoading()end
 if icon and not iconRight then icon.Visible=not loading end
 textLabel.Text=loading and text and tostring(text)or(loading and cfg.LoadingText and tostring(cfg.LoadingText))or self.Text
 textLabel.Visible=textLabel.Text~=""
@@ -2171,6 +2218,7 @@ task.spawn(function()
 ok=element:_call(cfg.Callback,table.unpack(args,1,args.n))
 finished=true
 busy=false
+if element.Destroyed then return end
 if loading then
 element:SetLoading(false)
 if ok~=false then showDone()end
@@ -2794,7 +2842,7 @@ end)
 end)
 end
 element:Set(cfg.Code or"")
-Theme.onChange(function()if holder.Parent then element:Set(element.Value)end end)
+element.Maid:give(Theme.onChange(function()if holder.Parent then element:Set(element.Value)end end))
 return element
 end
 end
@@ -3001,6 +3049,7 @@ Theme.tweenTo(rainbow,"TextColor3",element.Rainbow and"accent"or"text",0.1)
 Theme.tweenTo(rainbowEdge,"Color",element.Rainbow and"accent"or"buttonEdge",0.1)
 end
 function element:SetRainbow(on)
+if self.Destroyed then return end
 on=on==true
 if on==self.Rainbow then return end
 self.Rainbow=on
@@ -3008,7 +3057,7 @@ if rainbowConnection then rainbowConnection:Disconnect()rainbowConnection=nil en
 if on then
 local period=math.max(0.5,tonumber(cfg.RainbowSpeed)or 5)
 local last=0
-rainbowConnection=window.maid:connect(Util.Services.RunService.Heartbeat,function()
+rainbowConnection=element.Maid:connect(Util.Services.RunService.Heartbeat,function()
 local now=os.clock()
 if now-last<0.05 then return end
 last=now
@@ -3214,10 +3263,10 @@ end
 headButton("Clear","trash-2","Clear",cfg.Copy~=false and 2 or 1,function()element:Clear()end)
 headButton("Follow","arrow-down-to-line","Follow new lines",cfg.Copy~=false and 3 or 2,function()element:SetFollow(not element.Follow)end)
 renderFollow()
-Theme.onChange(function()
+element.Maid:give(Theme.onChange(function()
 if not holder.Parent then return end
 for _,entry in ipairs(element.Lines)do if entry.paint then entry.paint()end end
-end)
+end))
 for _,item in ipairs(cfg.Lines or{})do
 if type(item)=="table"then element:Append(item[1]or item.Text,item[2]or item.Level)else element:Append(item)end
 end
@@ -3245,27 +3294,19 @@ local caption=Util.label(box,"",8,{Name="Caption",AnchorPoint=Vector2.new(1,1),P
 Theme.bind(caption,"TextColor3","muted")
 local element=Base.element(card,"CrosshairPreview",{},box,nil,nil)
 element.Settings=Crosshair.settings()
-local spinConnection,angle=nil,0
-local function stopSpin()
-if spinConnection then spinConnection:Disconnect()spinConnection=nil end
-end
-if window and window.maid then window.maid:give(stopSpin)end
+local angle=0
+local stopSpin,syncSpin=Util.animateInView(box,Util.Services.RunService.RenderStepped,function(dt)
+angle=(angle+(tonumber(element.Settings.SpinSpeed)or 120)*dt)%360
+drawn.root.Rotation=drawn.baseRotation+angle
+end,function()return element.Settings.Spin==true end)
+element.Maid:give(stopSpin)
 function element:Update(changes)
 for key,value in pairs(changes or{})do self.Settings[key]=value end
 local settings=self.Settings
 drawn.layout(settings,cfg.Scale or 2)
 caption.Text=(settings.Enabled==false and"Off · "or"").."Style: "..tostring(settings.Style)
-if settings.Spin and not spinConnection then
-spinConnection=Util.Services.RunService.RenderStepped:Connect(function(dt)
-if not box.Parent then stopSpin()return end
-if not Util.shown(box)then return end
-angle=(angle+(tonumber(self.Settings.SpinSpeed)or 120)*dt)%360
-drawn.root.Rotation=drawn.baseRotation+angle
-end)
-elseif not settings.Spin then
-stopSpin()
-angle=0
-end
+if not settings.Spin then angle=0 end
+syncSpin()
 if not settings.Spin then drawn.root.Rotation=drawn.baseRotation end
 end
 element:Update(cfg.Settings)
@@ -3608,7 +3649,7 @@ button.Activated:Connect(function()
 if element.Locked then return end
 if popup then window:_closePopup()else openList()end
 end)
-window.maid:connect(Util.Services.UserInputService.InputEnded,function(input)
+element.Maid:connect(Util.Services.UserInputService.InputEnded,function(input)
 if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=nil end
 end)
 local function resolve(value)
@@ -3775,7 +3816,7 @@ local sizeConnection=box:GetPropertyChangedSignal("AbsoluteSize"):Connect(invali
 local scaleConnection=window and window.scale and window.scale:GetPropertyChangedSignal("Scale"):Connect(invalidate)
 local stopVisibility=Util.watchInView(box,function(visible)if visible then invalidate()end end)
 box.Destroying:Connect(function()sizeConnection:Disconnect()if scaleConnection then scaleConnection:Disconnect()end end)
-if window and window.maid then window.maid:give(stopVisibility)end
+if window and window.maid then element.Maid:give(stopVisibility)end
 element:Update(cfg.Settings)
 return Base.finish(element,cfg)
 end
@@ -4880,8 +4921,8 @@ local entry=rows[player]
 if entry then entry.button:Destroy()rows[player]=nil filter()end
 end
 for _,player in ipairs(Players:GetPlayers())do addRow(player)end
-window.maid:connect(Players.PlayerAdded,addRow)
-window.maid:connect(Players.PlayerRemoving,removeRow)
+element.Maid:connect(Players.PlayerAdded,addRow)
+element.Maid:connect(Players.PlayerRemoving,removeRow)
 search:GetPropertyChangedSignal("Text"):Connect(filter)
 function element:Set(ids,silent)
 chosen={}
@@ -4956,20 +4997,20 @@ end
 function element:Set(v)self.Value=math.max(0,tonumber(v)or 0)render(true)end
 function element:SetMax(m)max=math.max(tonumber(m)or max,1e-9)render(true)end
 function element:Get()return self.Value,max end
-local spinner
-function element:SetIndeterminate(on)
-indeterminate=on==true
-if spinner then spinner:Disconnect()spinner=nil end
-if indeterminate then
-fill.Size=UDim2.fromScale(0.3,1)
 local started=os.clock()
-spinner=window.maid:connect(Util.Services.RunService.Heartbeat,function()
-if not row.Parent then if spinner then spinner:Disconnect()spinner=nil end return end
-if not Util.shown(row)then return end
+local stopSpinner,syncSpinner=Util.animateInView(row,Util.Services.RunService.Heartbeat,function()
 local t=((os.clock()-started)/1.2)%1
 fill.Position=UDim2.fromScale(-0.3+t*1.3,0)
-end)
+end,function()return indeterminate and not element.Destroyed end)
+element.Maid:give(stopSpinner)
+function element:SetIndeterminate(on)
+if self.Destroyed then return end
+indeterminate=on==true
+if indeterminate then
+started=os.clock()
+fill.Size=UDim2.fromScale(0.3,1)
 end
+syncSpinner()
 render(false)
 end
 function element:SetSteps(count)
@@ -5696,7 +5737,7 @@ local tile=find(which)
 if not tile or type(number)~="number"then return end
 table.insert(tile.history,number)
 while#tile.history>(keep or 30)do table.remove(tile.history,1)end
-if Util.shown(holder)then tile.draw(tile.history)end
+if Util.inView(holder)then tile.draw(tile.history)end
 end
 function element:Get(which)local tile=find(which)return tile and tile.value.Text end
 local live={}
@@ -5716,13 +5757,13 @@ local fmt=spec.Format or function(v)return tostring(math.floor(v+0.5))..(spec.Su
 element:Set(index,{Value=fmt(number),Sub=spec.Sub or("avg "..fmt(average))})
 end
 Stats.start(window.Lib.maid)
-window.maid:give(Stats.listen(function()
-if not holder.Parent or not Util.shown(holder)then return end
+element.Maid:give(Stats.listen(function()
+if not holder.Parent or not Util.inView(holder)then return end
 for _,index in ipairs(live)do if tiles[index].spec.Source=="FPS"or tiles[index].spec.Source=="Ping"then sample(index)end end
 end))
 task.spawn(function()
-while holder.Parent and window.alive~=false do
-for _,index in ipairs(live)do if type(tiles[index].spec.Source)=="function"and Util.shown(holder)then sample(index)end end
+while not element.Destroyed and holder.Parent and window.alive~=false do
+for _,index in ipairs(live)do if type(tiles[index].spec.Source)=="function"and Util.inView(holder)then sample(index)end end
 task.wait(tonumber(cfg.Interval)or 0.5)
 end
 end)
@@ -6770,7 +6811,7 @@ spinConnection:Disconnect()
 spinConnection=nil
 end
 end
-window.maid:give(Util.watchInView(holder,function(shown)inView=shown syncSpin()end))
+element.Maid:give(Util.watchInView(holder,function(shown)inView=shown syncSpin()end))
 function element:SetSpin(on)
 spin=on==true
 syncSpin()
@@ -6794,9 +6835,14 @@ local node=holder.Parent
 while node and not node:IsA("ScrollingFrame")do node=node.Parent end
 if node and node.ScrollingEnabled~=false then scroller=node node.ScrollingEnabled=false end
 end)
-hit.MouseLeave:Connect(function()
-if scroller then scroller.ScrollingEnabled=true scroller=nil end
-end)
+local function releaseScroll()
+if scroller then
+pcall(function()scroller.ScrollingEnabled=true end)
+scroller=nil
+end
+end
+element.Maid:give(releaseScroll)
+hit.MouseLeave:Connect(releaseScroll)
 hit.InputChanged:Connect(function(input)
 if input.UserInputType==Enum.UserInputType.MouseWheel then
 zoom=math.clamp(zoom*(input.Position.Z>0 and 0.9 or 1.1),0.4,3)
@@ -7114,7 +7160,7 @@ function Glow.setEnabled(enabled)
 Glow.enabled=enabled~=false
 for _,fx in ipairs(Glow.items)do if fx.label.Parent then apply(fx)end end
 end
-local visible=Util.shown
+local visible=Util.inView
 function Glow.start(maid)
 if Glow.started then return end
 Glow.started=true
@@ -8321,7 +8367,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.28.0",
+Version="1.29.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -9931,7 +9977,7 @@ if not Stats.running then break end
 local now=os.clock()
 Stats.fps=math.floor(frames/math.max(now-last,1e-3)+0.5)
 frames,last=0,now
-local ok,ping=pcall(function()return Services.Players.LocalPlayer:GetNetworkPing()*1000 end)
+local ok,ping=pcall(function()return Services.Players.LocalPlayer:GetNetworkPing()*2000 end)
 Stats.ping=ok and math.floor(ping+0.5)or Stats.ping
 for key,value in pairs({fps=Stats.fps,ping=Stats.ping})do
 local list=Stats.history[key]
@@ -11468,6 +11514,19 @@ if not Util.shown(object)then return false end
 local p,size=object.AbsolutePosition,object.AbsoluteSize
 local l,t,r,b=p.X,p.Y,p.X+size.X,p.Y+size.Y
 if l>=r or t>=b then return false end
+local camera=Services.Workspace.CurrentCamera
+if camera then
+local extent=camera.ViewportSize
+local originX,originY=0,0
+local screen=object:FindFirstAncestorWhichIsA("ScreenGui")
+if screen and not screen.IgnoreGuiInset then
+local ok,inset=pcall(function()return Services.GuiService:GetGuiInset()end)
+if ok then originX,originY=-inset.X,-inset.Y end
+end
+l,t=math.max(l,originX),math.max(t,originY)
+r,b=math.min(r,originX+extent.X),math.min(b,originY+extent.Y)
+if l>=r or t>=b then return false end
+end
 local parent=object.Parent
 while parent and not parent:IsA("LayerCollector")do
 if parent:IsA("GuiObject")and(parent.ClipsDescendants or parent:IsA("ScrollingFrame"))then
@@ -11484,7 +11543,7 @@ end
 function Util.watchInView(object,callback)
 local links={}
 local alive,pending,last=true,false,nil
-local ancestry,destroying
+local ancestry,destroying,cameraChanged,cameraSize
 local function schedule()
 if pending or not alive then return end
 pending=true
@@ -11530,12 +11589,45 @@ alive=false
 clear()
 if ancestry then ancestry:Disconnect()end
 if destroying then destroying:Disconnect()end
+if cameraChanged then cameraChanged:Disconnect()end
+if cameraSize then cameraSize:Disconnect()end
 if last then callback(false)end
 end
 ancestry=object.AncestryChanged:Connect(bind)
 destroying=object.Destroying:Connect(stop)
+local function watchCamera()
+if cameraSize then cameraSize:Disconnect()cameraSize=nil end
+local camera=Services.Workspace.CurrentCamera
+if camera then cameraSize=camera:GetPropertyChangedSignal("ViewportSize"):Connect(schedule)end
+schedule()
+end
+cameraChanged=Services.Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
+watchCamera()
 bind()
 return stop
+end
+function Util.animateInView(object,signal,tick,enabled)
+local alive,visible,connection=true,false,nil
+local function sync()
+local active=alive and visible and(not enabled or enabled())
+if active and not connection then
+connection=signal:Connect(tick)
+elseif not active and connection then
+connection:Disconnect()
+connection=nil
+end
+end
+local stopVisibility=Util.watchInView(object,function(on)visible=on sync()end)
+local function stop()
+if not alive then return end
+alive=false
+local release=stopVisibility
+stopVisibility=nil
+release()
+sync()
+signal,tick,enabled=nil,nil,nil
+end
+return stop,sync
 end
 function Util.round(value,step)
 step=step or 1
@@ -12735,16 +12827,16 @@ NumberSequenceKeypoint.new(0.7,0.95),NumberSequenceKeypoint.new(1,0.995),
 Parent=frame,
 })
 local started,last=os.clock(),0
-local connection=Util.Services.RunService.Heartbeat:Connect(function()
+local stop=Util.animateInView(frame,Util.Services.RunService.Heartbeat,function()
 local now=os.clock()
-if now-last<1/24 or not self.main.Visible then return end
+if now-last<1/24 then return end
 last=now
 local t=now-started
 gradient.Rotation=(t*9)%360
 gradient.Offset=Vector2.new(math.sin(t*0.21)*0.25,math.cos(t*0.17)*0.25)
 end)
-self.maid:give(connection)
-self._live={frame=frame,gradient=gradient,connection=connection}
+self.maid:give(stop)
+self._live={frame=frame,gradient=gradient,connection={Disconnect=stop}}
 end
 function Window:SetAccentGlow(on)
 self.accentGlow=on==true
@@ -12759,13 +12851,14 @@ end
 Theme.bind(edge,"Color","accent")
 edge.Thickness=1.5
 local last=0
-self._glowConnection=Util.Services.RunService.Heartbeat:Connect(function()
+local stop=Util.animateInView(self.main,Util.Services.RunService.Heartbeat,function()
 local now=os.clock()
-if now-last<1/30 or not self.visible then return end
+if now-last<1/30 then return end
 last=now
 Util.setRest(edge,0.55+math.sin(now*2.1)*0.25)
 end)
-self.maid:give(self._glowConnection)
+self._glowConnection={Disconnect=stop}
+self.maid:give(stop)
 end
 function Window:SetBlur(on,size)
 self.blur=on==true

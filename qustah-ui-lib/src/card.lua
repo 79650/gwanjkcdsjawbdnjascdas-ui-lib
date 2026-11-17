@@ -537,6 +537,7 @@ function Card:HeaderSwitch(cfg)
     end
     local window = self.window
     function element:Set(on, silent)
+        if self.Destroyed then return end
         on = on == true
         local changed = on ~= self.Value
         self.Value = on
@@ -547,6 +548,21 @@ function Card:HeaderSwitch(cfg)
     function element:Get() return self.Value end
     function element:_save() return self.Value end
     function element:_load(value) self:Set(value == true) end
+    local function release()
+        if element.Destroyed then return end
+        element.Destroyed = true
+        if cfg.Flag and window.flags[cfg.Flag] == element then window.flags[cfg.Flag] = nil end
+        window.binds[element] = nil
+        table.clear(element._changed)
+    end
+    holder.Destroying:Connect(release)
+    function element:Destroy()
+        if self.Destroyed then return end
+        release()
+        holder:Destroy()
+        if caption then caption:Destroy() end
+    end
+    function element:Remove() self:Destroy() end
     holder.Activated:Connect(function() require("sounds").Play("click") element:Set(not element.Value) end)
     holder.MouseEnter:Connect(function() if cfg.Tooltip then window:_tip(cfg.Tooltip) end end)
     holder.MouseLeave:Connect(function() window:_hideTip() end)

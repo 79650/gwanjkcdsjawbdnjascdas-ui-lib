@@ -25,27 +25,19 @@ return function(card, cfg)
 
     local element = Base.element(card, "CrosshairPreview", {}, box, nil, nil)
     element.Settings = Crosshair.settings()
-    local spinConnection, angle = nil, 0
-    local function stopSpin()
-        if spinConnection then spinConnection:Disconnect() spinConnection = nil end
-    end
-    if window and window.maid then window.maid:give(stopSpin) end
+    local angle = 0
+    local stopSpin, syncSpin = Util.animateInView(box, Util.Services.RunService.RenderStepped, function(dt)
+        angle = (angle + (tonumber(element.Settings.SpinSpeed) or 120) * dt) % 360
+        drawn.root.Rotation = drawn.baseRotation + angle
+    end, function() return element.Settings.Spin == true end)
+    element.Maid:give(stopSpin)
     function element:Update(changes)
         for key, value in pairs(changes or {}) do self.Settings[key] = value end
         local settings = self.Settings
         drawn.layout(settings, cfg.Scale or 2)
         caption.Text = (settings.Enabled == false and "Off · " or "") .. "Style: " .. tostring(settings.Style)
-        if settings.Spin and not spinConnection then
-            spinConnection = Util.Services.RunService.RenderStepped:Connect(function(dt)
-                if not box.Parent then stopSpin() return end
-                if not Util.shown(box) then return end
-                angle = (angle + (tonumber(self.Settings.SpinSpeed) or 120) * dt) % 360
-                drawn.root.Rotation = drawn.baseRotation + angle
-            end)
-        elseif not settings.Spin then
-            stopSpin()
-            angle = 0
-        end
+        if not settings.Spin then angle = 0 end
+        syncSpin()
         if not settings.Spin then drawn.root.Rotation = drawn.baseRotation end
     end
     element:Update(cfg.Settings)

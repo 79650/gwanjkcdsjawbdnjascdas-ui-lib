@@ -341,7 +341,7 @@ return function(card, cfg)
         if popup then window:_closePopup() else openList() end
     end)
     -- the drag ends with the mouse button
-    window.maid:connect(Util.Services.UserInputService.InputEnded, function(input)
+    element.Maid:connect(Util.Services.UserInputService.InputEnded, function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = nil end
     end)
 

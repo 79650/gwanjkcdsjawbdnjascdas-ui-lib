@@ -227,6 +227,7 @@ return function(card, cfg)
         Theme.tweenTo(rainbowEdge, "Color", element.Rainbow and "accent" or "buttonEdge", 0.1)
     end
     function element:SetRainbow(on)
+        if self.Destroyed then return end
         on = on == true
         if on == self.Rainbow then return end
         self.Rainbow = on
@@ -234,7 +235,7 @@ return function(card, cfg)
         if on then
             local period = math.max(0.5, tonumber(cfg.RainbowSpeed) or 5)
             local last = 0
-            rainbowConnection = window.maid:connect(Util.Services.RunService.Heartbeat, function()
+            rainbowConnection = element.Maid:connect(Util.Services.RunService.Heartbeat, function()
                 local now = os.clock()
                 if now - last < 0.05 then return end
                 last = now

@@ -85,16 +85,16 @@ return function(Window)
             Parent = frame,
         })
         local started, last = os.clock(), 0
-        local connection = Util.Services.RunService.Heartbeat:Connect(function()
+        local stop = Util.animateInView(frame, Util.Services.RunService.Heartbeat, function()
             local now = os.clock()
-            if now - last < 1 / 24 or not self.main.Visible then return end -- 24 updates a second is plenty for a slow drift
+            if now - last < 1 / 24 then return end
             last = now
             local t = now - started
             gradient.Rotation = (t * 9) % 360
             gradient.Offset = Vector2.new(math.sin(t * 0.21) * 0.25, math.cos(t * 0.17) * 0.25)
         end)
-        self.maid:give(connection)
-        self._live = { frame = frame, gradient = gradient, connection = connection }
+        self.maid:give(stop)
+        self._live = { frame = frame, gradient = gradient, connection = { Disconnect = stop } }
     end
 
     ------------------------------------------------------------------ accent glow on the window edge
@@ -111,13 +111,14 @@ return function(Window)
         Theme.bind(edge, "Color", "accent")
         edge.Thickness = 1.5
         local last = 0
-        self._glowConnection = Util.Services.RunService.Heartbeat:Connect(function()
+        local stop = Util.animateInView(self.main, Util.Services.RunService.Heartbeat, function()
             local now = os.clock()
-            if now - last < 1 / 30 or not self.visible then return end -- (nothing to animate while the menu is hidden)
+            if now - last < 1 / 30 then return end
             last = now
-            Util.setRest(edge, 0.55 + math.sin(now * 2.1) * 0.25) -- breathes between 0.3 and 0.8
+            Util.setRest(edge, 0.55 + math.sin(now * 2.1) * 0.25)
         end)
-        self.maid:give(self._glowConnection)
+        self._glowConnection = { Disconnect = stop }
+        self.maid:give(stop)
     end
 
     ------------------------------------------------------------------ background blur

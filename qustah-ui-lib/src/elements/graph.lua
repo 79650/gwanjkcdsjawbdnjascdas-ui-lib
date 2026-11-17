@@ -193,7 +193,7 @@ return function(card, cfg)
     end
     function element:Get(name) local entry = find(name) return entry and entry.samples end
     area:GetPropertyChangedSignal("AbsoluteSize"):Connect(redraw)
-    window.maid:give(Util.watchInView(holder, function(shown)
+    element.Maid:give(Util.watchInView(holder, function(shown)
         if shown and dirty then redraw() end
     end))
 
@@ -202,14 +202,14 @@ return function(card, cfg)
         if entry.source == "FPS" or entry.source == "Ping" then
             Stats.start(window.Lib.maid)
             local key = entry.source == "FPS" and "fps" or "ping"
-            window.maid:give(Stats.listen(function(stats) if holder.Parent then element:Push(stats[key], entry.name) end end))
+            element.Maid:give(Stats.listen(function(stats) if holder.Parent then element:Push(stats[key], entry.name) end end))
         elseif type(entry.source) == "function" then
             polled[#polled + 1] = entry
         end
     end
     if #polled > 0 then
         task.spawn(function()
-            while window.alive and holder.Parent do
+            while not element.Destroyed and window.alive and holder.Parent do
                 if Util.inView(holder) then
                     for _, entry in ipairs(polled) do
                         local ok, sample = pcall(entry.source)

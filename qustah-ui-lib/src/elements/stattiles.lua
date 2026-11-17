@@ -58,7 +58,7 @@ return function(card, cfg)
         if not tile or type(number) ~= "number" then return end
         table.insert(tile.history, number)
         while #tile.history > (keep or 30) do table.remove(tile.history, 1) end
-        if Util.shown(holder) then tile.draw(tile.history) end
+        if Util.inView(holder) then tile.draw(tile.history) end
     end
     function element:Get(which) local tile = find(which) return tile and tile.value.Text end
 
@@ -81,13 +81,13 @@ return function(card, cfg)
         end
         Stats.start(window.Lib.maid)
         -- (only while the tiles are on screen: nothing runs for a closed menu or another page)
-        window.maid:give(Stats.listen(function()
-            if not holder.Parent or not Util.shown(holder) then return end
+        element.Maid:give(Stats.listen(function()
+            if not holder.Parent or not Util.inView(holder) then return end
             for _, index in ipairs(live) do if tiles[index].spec.Source == "FPS" or tiles[index].spec.Source == "Ping" then sample(index) end end
         end))
         task.spawn(function()
-            while holder.Parent and window.alive ~= false do
-                for _, index in ipairs(live) do if type(tiles[index].spec.Source) == "function" and Util.shown(holder) then sample(index) end end
+            while not element.Destroyed and holder.Parent and window.alive ~= false do
+                for _, index in ipairs(live) do if type(tiles[index].spec.Source) == "function" and Util.inView(holder) then sample(index) end end
                 task.wait(tonumber(cfg.Interval) or 0.5)
             end
         end)

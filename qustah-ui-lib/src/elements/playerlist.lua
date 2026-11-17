@@ -133,8 +133,8 @@ return function(card, cfg)
         if entry then entry.button:Destroy() rows[player] = nil filter() end
     end
     for _, player in ipairs(Players:GetPlayers()) do addRow(player) end
-    window.maid:connect(Players.PlayerAdded, addRow)
-    window.maid:connect(Players.PlayerRemoving, removeRow)
+    element.Maid:connect(Players.PlayerAdded, addRow)
+    element.Maid:connect(Players.PlayerRemoving, removeRow)
     search:GetPropertyChangedSignal("Text"):Connect(filter)
 
     function element:Set(ids, silent)

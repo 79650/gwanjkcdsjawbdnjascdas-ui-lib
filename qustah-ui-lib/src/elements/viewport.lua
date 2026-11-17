@@ -84,7 +84,7 @@ return function(card, cfg)
             spinConnection = nil
         end
     end
-    window.maid:give(Util.watchInView(holder, function(shown) inView = shown syncSpin() end))
+    element.Maid:give(Util.watchInView(holder, function(shown) inView = shown syncSpin() end))
     function element:SetSpin(on)
         spin = on == true
         syncSpin()
@@ -110,9 +110,14 @@ return function(card, cfg)
             while node and not node:IsA("ScrollingFrame") do node = node.Parent end
             if node and node.ScrollingEnabled ~= false then scroller = node node.ScrollingEnabled = false end
         end)
-        hit.MouseLeave:Connect(function()
-            if scroller then scroller.ScrollingEnabled = true scroller = nil end
-        end)
+        local function releaseScroll()
+            if scroller then
+                pcall(function() scroller.ScrollingEnabled = true end)
+                scroller = nil
+            end
+        end
+        element.Maid:give(releaseScroll)
+        hit.MouseLeave:Connect(releaseScroll)
         hit.InputChanged:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseWheel then
                 zoom = math.clamp(zoom * (input.Position.Z > 0 and 0.9 or 1.1), 0.4, 3)

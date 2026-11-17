@@ -300,6 +300,19 @@ function Util.inView(object)
     local p, size = object.AbsolutePosition, object.AbsoluteSize
     local l, t, r, b = p.X, p.Y, p.X + size.X, p.Y + size.Y
     if l >= r or t >= b then return false end
+    local camera = Services.Workspace.CurrentCamera
+    if camera then
+        local extent = camera.ViewportSize
+        local originX, originY = 0, 0
+        local screen = object:FindFirstAncestorWhichIsA("ScreenGui")
+        if screen and not screen.IgnoreGuiInset then
+            local ok, inset = pcall(function() return Services.GuiService:GetGuiInset() end)
+            if ok then originX, originY = -inset.X, -inset.Y end
+        end
+        l, t = math.max(l, originX), math.max(t, originY)
+        r, b = math.min(r, originX + extent.X), math.min(b, originY + extent.Y)
+        if l >= r or t >= b then return false end
+    end
     local parent = object.Parent
     while parent and not parent:IsA("LayerCollector") do
         if parent:IsA("GuiObject") and (parent.ClipsDescendants or parent:IsA("ScrollingFrame")) then
@@ -320,7 +333,7 @@ end
 function Util.watchInView(object, callback)
     local links = {}
     local alive, pending, last = true, false, nil
-    local ancestry, destroying
+    local ancestry, destroying, cameraChanged, cameraSize
     local function schedule()
         if pending or not alive then return end
         pending = true
@@ -366,12 +379,48 @@ function Util.watchInView(object, callback)
         clear()
         if ancestry then ancestry:Disconnect() end
         if destroying then destroying:Disconnect() end
+        if cameraChanged then cameraChanged:Disconnect() end
+        if cameraSize then cameraSize:Disconnect() end
         if last then callback(false) end
     end
     ancestry = object.AncestryChanged:Connect(bind)
     destroying = object.Destroying:Connect(stop)
+    local function watchCamera()
+        if cameraSize then cameraSize:Disconnect() cameraSize = nil end
+        local camera = Services.Workspace.CurrentCamera
+        if camera then cameraSize = camera:GetPropertyChangedSignal("ViewportSize"):Connect(schedule) end
+        schedule()
+    end
+    cameraChanged = Services.Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
+    watchCamera()
     bind()
     return stop
+end
+
+-- Rendering-only animation: disconnect the frame callback offscreen.
+-- Returns stop() and sync(); sync() re-evaluates the feature's enabled predicate.
+function Util.animateInView(object, signal, tick, enabled)
+    local alive, visible, connection = true, false, nil
+    local function sync()
+        local active = alive and visible and (not enabled or enabled())
+        if active and not connection then
+            connection = signal:Connect(tick)
+        elseif not active and connection then
+            connection:Disconnect()
+            connection = nil
+        end
+    end
+    local stopVisibility = Util.watchInView(object, function(on) visible = on sync() end)
+    local function stop()
+        if not alive then return end
+        alive = false
+        local release = stopVisibility
+        stopVisibility = nil
+        release()
+        sync()
+        signal, tick, enabled = nil, nil, nil
+    end
+    return stop, sync
 end
 
 function Util.round(value, step)

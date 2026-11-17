@@ -1,5 +1,5 @@
 -- Shared FPS / ping sampler (one RenderStepped counter for the whole library, started on first use).
--- Stats.fps, Stats.ping (ms), Stats.history.fps / .ping (last 60 samples, one every 0.5 s).
+-- Stats.fps, Stats.ping (round-trip ms), Stats.history.fps / .ping (last 60 samples, one every 0.5 s).
 local Util = require("util")
 
 local Services = Util.Services
@@ -20,7 +20,7 @@ function Stats.start(maid)
             local now = os.clock()
             Stats.fps = math.floor(frames / math.max(now - last, 1e-3) + 0.5)
             frames, last = 0, now
-            local ok, ping = pcall(function() return Services.Players.LocalPlayer:GetNetworkPing() * 1000 end)
+            local ok, ping = pcall(function() return Services.Players.LocalPlayer:GetNetworkPing() * 2000 end)
             Stats.ping = ok and math.floor(ping + 0.5) or Stats.ping
             for key, value in pairs({ fps = Stats.fps, ping = Stats.ping }) do
                 local list = Stats.history[key]

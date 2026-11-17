@@ -283,25 +283,24 @@ return function(card, cfg)
     element:SetBadge(cfg.Badge)
 
     ------------------------------------------------------------ loading
-    local spinConnection, doneToken = nil, 0
+    local doneToken = 0
+    local stopLoading, syncLoading
+    if spinner then
+        stopLoading, syncLoading = Util.animateInView(spinner, Util.Services.RunService.Heartbeat, function(dt)
+            spinner.Rotation = (spinner.Rotation + (dt or 1 / 60) * 360) % 360
+        end, function() return loading and not element.Destroyed end)
+        element.Maid:give(stopLoading)
+    end
     function element:SetLoading(on, text)
+        if self.Destroyed then return end
         loading = on == true
         self.Loading = loading
-        if spinConnection then spinConnection:Disconnect() spinConnection = nil end
         if spinner then
             spinner.Rotation = 0
             Icons.Apply(spinner, "loader-circle")
             spinner.Visible = loading
-            if loading then
-                spinConnection = window.maid:connect(Util.Services.RunService.Heartbeat, function(dt)
-                    if not spinner.Parent then
-                        if spinConnection then spinConnection:Disconnect() spinConnection = nil end
-                        return
-                    end
-                    spinner.Rotation = (spinner.Rotation + (dt or 1 / 60) * 360) % 360
-                end)
-            end
         end
+        if syncLoading then syncLoading() end
         if icon and not iconRight then icon.Visible = not loading end
         textLabel.Text = loading and text and tostring(text) or (loading and cfg.LoadingText and tostring(cfg.LoadingText)) or self.Text
         textLabel.Visible = textLabel.Text ~= ""
@@ -375,6 +374,7 @@ return function(card, cfg)
             ok = element:_call(cfg.Callback, table.unpack(args, 1, args.n))
             finished = true
             busy = false
+            if element.Destroyed then return end
             if loading then
                 element:SetLoading(false)
                 if ok ~= false then showDone() end

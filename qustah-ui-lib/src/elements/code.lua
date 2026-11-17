@@ -126,6 +126,6 @@ return function(card, cfg)
         end)
     end
     element:Set(cfg.Code or "")
-    Theme.onChange(function() if holder.Parent then element:Set(element.Value) end end)
+    element.Maid:give(Theme.onChange(function() if holder.Parent then element:Set(element.Value) end end))
     return element
 end

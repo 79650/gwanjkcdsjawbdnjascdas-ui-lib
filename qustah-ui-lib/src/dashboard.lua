@@ -302,7 +302,7 @@ return function(window, cfg)
                 hero:SetValue(string.format("%02d:%02d:%02d", seconds // 3600, (seconds // 60) % 60, seconds % 60))
                 hero:SetChipText(1, (Stats.fps or 0) .. " FPS")
                 local ok, value = pcall(function() return player:GetNetworkPing() end)
-                hero:SetChipText(2, ok and (math.floor(value * 1000 + 0.5) .. " ms") or "--")
+                hero:SetChipText(2, ok and (math.floor(value * 2000 + 0.5) .. " ms") or "--")
                 hero:SetChipText(3, #Players:GetPlayers() .. " / " .. Players.MaxPlayers)
             end
             task.wait(1)

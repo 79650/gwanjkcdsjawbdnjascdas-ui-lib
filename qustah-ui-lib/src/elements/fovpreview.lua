@@ -137,7 +137,7 @@ return function(card, cfg)
     local scaleConnection = window and window.scale and window.scale:GetPropertyChangedSignal("Scale"):Connect(invalidate)
     local stopVisibility = Util.watchInView(box, function(visible) if visible then invalidate() end end)
     box.Destroying:Connect(function() sizeConnection:Disconnect() if scaleConnection then scaleConnection:Disconnect() end end)
-    if window and window.maid then window.maid:give(stopVisibility) end
+    if window and window.maid then element.Maid:give(stopVisibility) end
     element:Update(cfg.Settings)
     return Base.finish(element, cfg)
 end

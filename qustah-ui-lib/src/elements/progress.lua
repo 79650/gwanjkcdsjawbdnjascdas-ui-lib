@@ -55,21 +55,20 @@ return function(card, cfg)
     function element:Set(v) self.Value = math.max(0, tonumber(v) or 0) render(true) end
     function element:SetMax(m) max = math.max(tonumber(m) or max, 1e-9) render(true) end
     function element:Get() return self.Value, max end
-    local spinner
+    local started = os.clock()
+    local stopSpinner, syncSpinner = Util.animateInView(row, Util.Services.RunService.Heartbeat, function()
+        local t = ((os.clock() - started) / 1.2) % 1
+        fill.Position = UDim2.fromScale(-0.3 + t * 1.3, 0)
+    end, function() return indeterminate and not element.Destroyed end)
+    element.Maid:give(stopSpinner)
     function element:SetIndeterminate(on)
+        if self.Destroyed then return end
         indeterminate = on == true
-        if spinner then spinner:Disconnect() spinner = nil end
         if indeterminate then
+            started = os.clock()
             fill.Size = UDim2.fromScale(0.3, 1)
-            local started = os.clock()
-            spinner = window.maid:connect(Util.Services.RunService.Heartbeat, function()
-                -- (gone: stop for good; out of sight: nothing to move)
-                if not row.Parent then if spinner then spinner:Disconnect() spinner = nil end return end
-                if not Util.shown(row) then return end
-                local t = ((os.clock() - started) / 1.2) % 1
-                fill.Position = UDim2.fromScale(-0.3 + t * 1.3, 0)
-            end)
         end
+        syncSpinner()
         render(false)
     end
     function element:SetSteps(count)
