@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.29.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.30.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7522,7 +7522,8 @@ __modules["elements/swatches"] = function()
 -- (grid style), the colours spread evenly along it.
 -- Named colour presets as a grid (Qustah's accent picker). Value is the chosen name; Callback gets the Color3 and the name.
 -- Without Colors it uses Qustah's eight accent presets.
--- Style = "Dots": one row of small round colour dots (the name shows on hover). Custom = function(open) end adds a
+-- Style = "Dots": one row of small round colour dots (the name shows on hover); a several-colour item fills its dot
+-- with that gradient. Custom = function(open) end adds a
 -- last dot for "any colour" (a script opens its own picker there); it lights up while a custom colour is chosen.
 local Util = require("util")
 local Theme = require("theme")
@@ -7576,11 +7577,24 @@ return function(card, cfg)
             if customEntry.icon then customEntry.icon.Visible = not custom end
         end
     end
+    -- the colours of an item: { "Heat", Color3, Color3, ... } -> { Color3, Color3, ... } (one colour: nil)
+    local function stopsOf(item)
+        local stops = {}
+        for i = 2, #item do if typeof(item[i]) == "Color3" then stops[#stops + 1] = item[i] end end
+        if #stops < 2 and typeof(item.Color2) == "Color3" then stops = { item[2] or item.Color, item.Color2 } end
+        return #stops >= 2 and stops or nil
+    end
+    local function gradientOn(frame, stops)
+        local points = {}
+        for i, c in ipairs(stops) do points[i] = ColorSequenceKeypoint.new((i - 1) / (#stops - 1), c) end
+        return create("UIGradient", { Color = ColorSequence.new(points), Rotation = 35, Parent = frame })
+    end
     -- Dots: a round dot with a ring around the chosen one (the name as a tooltip)
-    local function dot(name, color)
+    local function dot(name, color, stops)
         local button = create("TextButton", { Name = name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, BackgroundTransparency = 1, Size = UDim2.fromOffset(22, 22), Parent = grid })
-        local fill = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(16, 16), BorderSizePixel = 0, BackgroundColor3 = color or Color3.new(1, 1, 1), Parent = button })
+        local fill = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(16, 16), BorderSizePixel = 0, BackgroundColor3 = stops and Color3.new(1, 1, 1) or color or Color3.new(1, 1, 1), Parent = button })
         corner(fill, 8)
+        if stops then gradientOn(fill, stops) end
         local ringFrame = create("Frame", { Name = "Ring", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = button })
         corner(ringFrame, 11)
         local outline = stroke(ringFrame, nil, 1, 1.5)
@@ -7593,7 +7607,7 @@ return function(card, cfg)
     for index, item in ipairs(colors) do
         local name, color = tostring(item[1] or item.Name), item[2] or item.Color
         if dots then
-            local button, fill, outline = dot(name, color)
+            local button, fill, outline = dot(name, color, stopsOf(item))
             button.LayoutOrder = index
             local entry = { name = name, color = color, button = button, outline = outline, fill = fill }
             entries[#entries + 1] = entry
@@ -10515,7 +10529,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.29.0",
+    Version = "1.30.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

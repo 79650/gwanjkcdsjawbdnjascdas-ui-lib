@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.29.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.30.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -5987,10 +5987,22 @@ customEntry.fill.BackgroundTransparency=custom and 0 or 1
 if customEntry.icon then customEntry.icon.Visible=not custom end
 end
 end
-local function dot(name,color)
+local function stopsOf(item)
+local stops={}
+for i=2,#item do if typeof(item[i])=="Color3"then stops[#stops+1]=item[i]end end
+if#stops<2 and typeof(item.Color2)=="Color3"then stops={item[2]or item.Color,item.Color2}end
+return#stops>=2 and stops or nil
+end
+local function gradientOn(frame,stops)
+local points={}
+for i,c in ipairs(stops)do points[i]=ColorSequenceKeypoint.new((i-1)/(#stops-1),c)end
+return create("UIGradient",{Color=ColorSequence.new(points),Rotation=35,Parent=frame})
+end
+local function dot(name,color,stops)
 local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundTransparency=1,Size=UDim2.fromOffset(22,22),Parent=grid})
-local fill=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(16,16),BorderSizePixel=0,BackgroundColor3=color or Color3.new(1,1,1),Parent=button})
+local fill=create("Frame",{Name="Dot",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(16,16),BorderSizePixel=0,BackgroundColor3=stops and Color3.new(1,1,1)or color or Color3.new(1,1,1),Parent=button})
 corner(fill,8)
+if stops then gradientOn(fill,stops)end
 local ringFrame=create("Frame",{Name="Ring",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Parent=button})
 corner(ringFrame,11)
 local outline=stroke(ringFrame,nil,1,1.5)
@@ -6003,7 +6015,7 @@ end
 for index,item in ipairs(colors)do
 local name,color=tostring(item[1]or item.Name),item[2]or item.Color
 if dots then
-local button,fill,outline=dot(name,color)
+local button,fill,outline=dot(name,color,stopsOf(item))
 button.LayoutOrder=index
 local entry={name=name,color=color,button=button,outline=outline,fill=fill}
 entries[#entries+1]=entry
@@ -8367,7 +8379,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.29.0",
+Version="1.30.0",
 Flags={},
 Windows={},
 Theme=Theme,
