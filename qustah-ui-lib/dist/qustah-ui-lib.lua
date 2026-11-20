@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.35.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.36.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -10949,7 +10949,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.35.0",
+    Version = "1.36.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -12337,7 +12337,7 @@ __modules["settings"] = function()
 --              keybind list, session bar, performance monitor), window reset / unload
 --   Profiles   see profiles.lua (active profile + unsaved changes, share codes, notes, search...)
 --   Keys       every bound key, the ones used twice in red; a click opens the setting
---   Info       versions, modules, error list with Copy report / Clear
+--   Info       status banner + tiles (versions, executor, window), modules, executor, errors, disconnects
 local Util = require("util")
 local Theme = require("theme")
 local Glow = require("glow")
@@ -12703,29 +12703,102 @@ return function(window, cfg)
         end
     end
 
-    local about = infoPage:Card({ Title = "About", Side = "Left", Icon = "info" })
-    if window.Version ~= "" then about:Info({ Title = window.Title, Value = window.Version }) end
-    about:Info({ Title = "qustah-ui-lib", Value = "v" .. tostring(window.Lib.Version) })
-    for _, entry in ipairs(cfg.Info or {}) do about:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
+    ------------------------------------------------------------ Info › Status (full width): a banner + tiles
+    -- banner: errors in this session (or none), the first limited module, Copy debug info / Clear;
+    -- tiles: script version, UI lib, executor, secure mode, window size, then CreateWindow({ Info = ... }) rows
+    -- what this executor can do (each line: the feature it is needed for)
+    local executorName = "Unknown"
+    pcall(function()
+        if type(identifyexecutor) == "function" then executorName = table.concat({ identifyexecutor() }, " ")
+        elseif type(getexecutorname) == "function" then executorName = tostring(getexecutorname()) end
+    end)
+    local function has(name) return type(getfenv(0)[name]) == "function" or (getgenv and type(getgenv()[name]) == "function") end
     local files = type(writefile) == "function" and type(readfile) == "function"
-    about:Info({ Title = "File access", Value = files and "Yes" or "No (profiles off)" })
-    about:Info({ Title = "Secure mode", Value = Util.secure and "On" or "Off", Help = "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })" })
-    -- the window's size as CreateWindow({ Size = Vector2.new(w, h) }) takes it (drag the corner and read it here),
-    -- and the UI scale it is drawn at
-    local sizeRow = about:Info({ Title = "Window size", Value = "",
-        Copy = function() return ("Vector2.new(%d, %d)"):format(window.width or 0, window.height or 0) end,
-        Help = "Drag the bottom-right corner to resize; this is the value for CreateWindow({ Size = Vector2.new(w, h) })" })
+    local function copyDebug()
+        local clipboard = setclipboard or toclipboard
+        if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
+            window:Notify({ Title = "Copied", Content = "Debug info copied - paste it into your bug report", Icon = "clipboard-copy" })
+        else
+            window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
+        end
+    end
+    local status = infoPage:Card({ Title = "Status", Wide = true, Icon = "activity" })
+    local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
+    local banner = create("Frame", { Name = "Banner", Size = UDim2.new(1, 0, 0, 50), BorderSizePixel = 0, LayoutOrder = status:_order(), Parent = status.body })
+    corner(banner, 9)
+    local bannerEdge = stroke(banner)
+    local bannerTitle = label(banner, "", 12, { Name = "Title", Position = UDim2.fromOffset(13, 9), Size = UDim2.new(1, -230, 0, 16), Font = Enum.Font.GothamMedium })
+    Theme.bind(bannerTitle, "TextColor3", "heading")
+    local bannerText = label(banner, "", 9, { Name = "Text", Position = UDim2.fromOffset(13, 27), Size = UDim2.new(1, -230, 0, 13) })
+    Theme.bind(bannerText, "TextColor3", "muted")
+    local bannerButtons = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -11, 0.5, 0), Size = UDim2.fromOffset(210, 24), Parent = banner })
+    Util.list(bannerButtons, 6, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Center)
+    local function bannerButton(text, order, primary, callback)
+        local button = create("TextButton", { Name = text, Text = text, TextSize = 9, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
+            Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + 22, 24), LayoutOrder = order, Parent = bannerButtons })
+        corner(button, 6)
+        local edge = stroke(button)
+        Theme.bind(button, "BackgroundColor3", primary and "accentDeep" or "input")
+        Theme.bind(button, "TextColor3", primary and "accent" or "text")
+        Theme.bind(edge, "Color", primary and "accent" or "buttonEdge")
+        edge.Transparency = primary and 0.5 or 0
+        button.Activated:Connect(function() window:_safe("Info", callback) end)
+        return button
+    end
+    bannerButton("Copy debug info", 1, true, copyDebug)
+    local clearErrors = bannerButton("Clear", 2, false, function() window:ClearErrors() end)
+
+    local tiles = create("Frame", { Name = "Tiles", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = status:_order(), Parent = status.body })
+    local grid = create("UIGridLayout", { CellPadding = UDim2.fromOffset(6, 6), CellSize = UDim2.new(0.2, -5, 0, 42), SortOrder = Enum.SortOrder.LayoutOrder, Parent = tiles })
+    local tileCount = 0
+    local function tile(key, value, onClick, tip)
+        tileCount = tileCount + 1
+        local box = create(onClick and "TextButton" or "Frame", { Name = key, BorderSizePixel = 0, LayoutOrder = tileCount, Parent = tiles })
+        if onClick then box.Text = "" box.AutoButtonColor = false end
+        Theme.bind(box, "BackgroundColor3", "base")
+        corner(box, 8)
+        Theme.bind(stroke(box), "Color", "line")
+        local keyText = label(box, key, 8, { Name = "Key", Position = UDim2.fromOffset(9, 6), Size = UDim2.new(1, -18, 0, 11) })
+        Theme.bind(keyText, "TextColor3", "muted")
+        local valueText = label(box, value, 11, { Name = "Value", Position = UDim2.fromOffset(9, 20), Size = UDim2.new(1, -18, 0, 15), Font = Enum.Font.GothamMedium })
+        Theme.bind(valueText, "TextColor3", "heading")
+        if onClick then box.Activated:Connect(function() window:_safe("Info", onClick) end) end
+        if tip then
+            box.MouseEnter:Connect(function() window:_tip(tip) end)
+            box.MouseLeave:Connect(function() window:_hideTip() end)
+        end
+        -- five per row; fewer tiles share the whole width
+        local perRow = math.min(tileCount, 5)
+        grid.CellSize = UDim2.new(1 / perRow, -(6 * (perRow - 1)) / perRow, 0, 42)
+        return valueText, keyText
+    end
+    if window.Version ~= "" then tile(window.Title, window.Version) end
+    tile("UI lib", "v" .. tostring(window.Lib.Version))
+    tile("Executor", executorName)
+    tile("Secure mode", Util.secure and "On" or "Off", nil, "Random gui names and a silent console. Turn it on with getgenv().QUSTAH_SECURE = true before loading, or CreateWindow({ Secure = true })")
+    -- the window's size as CreateWindow({ Size = Vector2.new(w, h) }) takes it (drag the corner and read it here); click copies it
+    local sizeText, sizeKey = tile("Window", "", function()
+        local text = ("Vector2.new(%d, %d)"):format(window.width or 0, window.height or 0)
+        local clipboard = setclipboard or toclipboard
+        if type(clipboard) == "function" and pcall(clipboard, text) then window:Notify({ Title = "Copied", Content = text }) end
+    end, "Click to copy as CreateWindow({ Size = Vector2.new(w, h) })")
     local function showSize()
         local scale = window.scale and window.scale.Scale or 1
-        sizeRow:Set(("%d × %d · %d%%"):format(window.width or 0, window.height or 0, math.floor(scale * 100 + 0.5)))
+        sizeText.Text = ("%d × %d"):format(window.width or 0, window.height or 0)
+        sizeKey.Text = ("Window · %d%%"):format(math.floor(scale * 100 + 0.5))
     end
     window.maid:connect(window.main:GetPropertyChangedSignal("Size"), showSize)
     window.maid:connect(window.scale:GetPropertyChangedSignal("Scale"), showSize)
     showSize()
-    -- (the release notes are in the "What's new" card)
-    local aboutButtons = about
+    for _, entry in ipairs(cfg.Info or {}) do
+        local value = tostring(entry[2] or "")
+        tile(tostring(entry[1] or ""), value, entry.Copy and function()
+            local clipboard = setclipboard or toclipboard
+            if type(clipboard) == "function" and pcall(clipboard, value) then window:Notify({ Title = "Copied", Content = value }) end
+        end or nil)
+    end
     if window.cfg.Tour then
-        aboutButtons:Button({ Title = "Show the tour", Icon = "map", Callback = function()
+        status:Button({ Title = "Show the tour", Icon = "map", Callback = function()
             local spec = window.cfg.Tour
             window:Tour(type(spec) == "table" and spec or nil, { Id = window.cfg.TourId, Force = true })
         end })
@@ -12736,7 +12809,7 @@ return function(window, cfg)
     if type(window.cfg.Links) == "table" and #window.cfg.Links > 0 then
         local linkRow
         for index, link in ipairs(window.cfg.Links) do
-            if index % 2 == 1 then linkRow = about:Row() end
+            if index % 2 == 1 then linkRow = status:Row() end
             linkRow:Button({ Title = tostring(link.Title or "Link"), Icon = link.Icon or "link", Style = "Soft", Tooltip = tostring(link.Url or ""),
                 Callback = function()
                     local clipboard = setclipboard or toclipboard
@@ -12749,9 +12822,40 @@ return function(window, cfg)
         end
     end
 
+    -- each module's state over the last 15 minutes (a sample every 30 s)
+    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes", Desc = "Last 15 minutes" })
+    local noModules = modulesCard:Label("No modules reported")
+    local moduleBars = modulesCard:StatusBars({ Slots = 30, Items = {} })
+    task.spawn(function()
+        while window.alive do
+            task.wait(30)
+            if not window.alive then break end
+            local order, modules = window:GetModules()
+            for _, name in ipairs(order) do moduleBars:Push(name, modules[name].state) end
+        end
+    end)
+
+    infoPage:Card({ Title = "Executor", Side = "Left", Icon = "square-terminal", Desc = executorName }):Checklist({ Items = {
+        { Title = "File access", Ok = files, Note = "profiles, themes" },
+        { Title = "getcustomasset", Ok = has("getcustomasset"), Note = "sharp icons" },
+        { Title = "gethui", Ok = has("gethui"), Note = "hidden interface" },
+        { Title = "Drawing", Ok = (function() local d = getfenv(0).Drawing return type(d) == "table" and type(d.new) == "function" end)(), Note = "screen drawings" },
+        { Title = "getconnections", Ok = has("getconnections"), Note = "connection control" },
+        { Title = "hookmetamethod", Ok = has("hookmetamethod"), Note = "game hooks" },
+        { Title = "setclipboard", Ok = has("setclipboard") or has("toclipboard"), Note = "copy buttons" },
+    } })
+
+    local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right", Icon = "bug" })
+    -- debug mode: a small switch in the card's title row (a notification for every new error)
+    errorsCard:HeaderSwitch({ Title = "Debug", Flag = "__ui_debug", Default = window.cfg.Debug == true, Tooltip = "A notification for every new error",
+        Callback = function(on) window.debug = on end })
+    -- the newest errors as a code block (its Copy button copies them all); Copy debug info / Clear are on the banner
+    local noErrors = errorsCard:Label("No errors in this session")
+    local errorText = errorsCard:Code({ Title = "Last errors", Code = "", MaxHeight = 180 })
+
     -- kicks / disconnects seen by the kick watcher (kick.lua)
     if window.GetKicks and window.cfg.KickLog ~= false then
-        local kicksCard = infoPage:Card({ Title = "Disconnects", Side = "Left", Icon = "log-out", Desc = "Kicks and drops, with Roblox's reason" })
+        local kicksCard = infoPage:Card({ Title = "Disconnects", Side = "Right", Icon = "log-out", Desc = "Kicks and drops, with Roblox's reason" })
         local kickText = kicksCard:Paragraph({ Content = "None yet" })
         local kicksClear
         local function showKicks()
@@ -12775,46 +12879,6 @@ return function(window, cfg)
         showKicks()
     end
 
-    -- Copy debug info (the Errors card's button)
-    local function copyDebug()
-        local clipboard = setclipboard or toclipboard
-        if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
-            window:Notify({ Title = "Copied", Content = "Debug info copied - paste it into your bug report", Icon = "clipboard-copy" })
-        else
-            window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
-        end
-    end
-
-    -- each module's state over the last 15 minutes (a sample every 30 s)
-    local modulesCard = infoPage:Card({ Title = "Modules", Side = "Left", Icon = "boxes", Desc = "Last 15 minutes" })
-    local noModules = modulesCard:Label("No modules reported")
-    local moduleBars = modulesCard:StatusBars({ Slots = 30, Items = {} })
-    task.spawn(function()
-        while window.alive do
-            task.wait(30)
-            if not window.alive then break end
-            local order, modules = window:GetModules()
-            for _, name in ipairs(order) do moduleBars:Push(name, modules[name].state) end
-        end
-    end)
-
-    -- what this executor can do (each line: the feature it is needed for)
-    local executorName = "Unknown"
-    pcall(function()
-        if type(identifyexecutor) == "function" then executorName = table.concat({ identifyexecutor() }, " ")
-        elseif type(getexecutorname) == "function" then executorName = tostring(getexecutorname()) end
-    end)
-    local function has(name) return type(getfenv(0)[name]) == "function" or (getgenv and type(getgenv()[name]) == "function") end
-    infoPage:Card({ Title = "Executor", Side = "Right", Icon = "square-terminal", Desc = executorName }):Checklist({ Items = {
-        { Title = "File access", Ok = files, Note = "profiles, themes" },
-        { Title = "getcustomasset", Ok = has("getcustomasset"), Note = "sharp icons" },
-        { Title = "gethui", Ok = has("gethui"), Note = "hidden interface" },
-        { Title = "Drawing", Ok = (function() local d = getfenv(0).Drawing return type(d) == "table" and type(d.new) == "function" end)(), Note = "screen drawings" },
-        { Title = "getconnections", Ok = has("getconnections"), Note = "connection control" },
-        { Title = "hookmetamethod", Ok = has("hookmetamethod"), Note = "game hooks" },
-        { Title = "setclipboard", Ok = has("setclipboard") or has("toclipboard"), Note = "copy buttons" },
-    } })
-
     -- release notes (CreateWindow({ Changelog = { Version, Items, History } }))
     if type(window.cfg.Changelog) == "table" then
         local log = window.cfg.Changelog
@@ -12823,24 +12887,18 @@ return function(window, cfg)
         infoPage:Card({ Title = "What's new", Side = "Right", Icon = "newspaper" }):Changelog({ Items = entries })
     end
 
-    local errorsCard = infoPage:Card({ Title = "Errors", Side = "Right", Icon = "bug" })
-    -- debug mode: a small switch in the card's title row (a notification for every new error)
-    errorsCard:HeaderSwitch({ Title = "Debug", Flag = "__ui_debug", Default = window.cfg.Debug == true, Tooltip = "A notification for every new error",
-        Callback = function(on) window.debug = on end })
-    local errorCount = errorsCard:Info({ Title = "Errors", Value = "0" })
-    -- the newest errors as a code block (its Copy button copies them all)
-    local errorText = errorsCard:Code({ Title = "Last errors", Code = "", MaxHeight = 180 })
-    local errorButtons = errorsCard:Row()
-    errorButtons:Button({ Title = "Copy debug info", Icon = "clipboard-copy", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report", Callback = copyDebug })
-    local clearErrors = errorButtons:Button({ Title = "Clear", Icon = "trash-2", Callback = function() window:ClearErrors() end })
-
     local function update()
         local order, modules = window:GetModules()
         noModules:SetVisible(#order == 0)
+        local running, problem = 0, nil
         for _, name in ipairs(order) do
             local module = modules[name]
             moduleBars:AddItem({ Title = name, State = module.state, History = { module.state } })
             moduleBars:SetState(name, module.state, module.state .. (module.detail and module.state ~= "Error" and (" · " .. tostring(module.detail)) or ""))
+            if module.state == "On" then running = running + 1
+            elseif module.state ~= "Off" and not problem then
+                problem = name .. " is " .. module.state:lower() .. (module.detail and module.state ~= "Error" and (": " .. tostring(module.detail)) or "")
+            end
         end
         local errors = window:GetErrors()
         local total = 0
@@ -12853,12 +12911,21 @@ return function(window, cfg)
             end
         end
         if #errors > 8 then lines[#lines + 1] = "-- +" .. (#errors - 8) .. " older (Copy debug info)" end
-        errorCount:Set(#errors == 0 and "0" or (#errors .. (total > #errors and (" (" .. total .. "×)") or "")))
-        errorCount:SetColor(#errors > 0 and RED or "text")
         errorText:Set(table.concat(lines, "\n\n"))
-        errorText:SetVisible(#lines > 0) -- (none: the count above says 0)
-        clearErrors:SetVisible(#errors > 0)
+        errorText:SetVisible(#lines > 0)
+        noErrors:SetVisible(#lines == 0)
+        clearErrors.Visible = #errors > 0
+        -- the banner: amber with errors, green without
+        local role = #errors > 0 and "warning" or "success"
+        Theme.bind(banner, "BackgroundColor3", role)
+        banner.BackgroundTransparency = 0.88
+        Theme.bind(bannerEdge, "Color", role)
+        bannerEdge.Transparency = 0.6
+        bannerTitle.Text = #errors > 0 and (#errors .. " error" .. (#errors == 1 and "" or "s") .. " in this session" .. (total > #errors and (" (" .. total .. "×)") or ""))
+            or "No errors in this session"
+        bannerText.Text = problem or (#order > 0 and (running .. " of " .. #order .. " modules on") or "Everything is working")
     end
+
     window:OnStatusChanged(update)
     Theme.onChange(function() if infoPage.frame.Parent then update() end end)
     update()
