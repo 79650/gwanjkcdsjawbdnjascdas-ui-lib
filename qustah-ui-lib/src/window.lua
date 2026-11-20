@@ -596,18 +596,21 @@ function Window:_layoutDock()
     end
     local cursor = DOCK_TOP
     for _, tab in ipairs(self.Tabs) do
-        if tab.Hidden then tab.button.Visible = false continue end
-        tab.button.Visible = true
-        if tab.Divider then
-            local divider = create("Frame", { Name = "Divider", BorderSizePixel = 0, ZIndex = 42, Parent = self.dock })
-            Theme.bind(divider, "BackgroundColor3", "line")
-            self:_dockLine(divider, cursor + 1)
-            self.dockDividers[#self.dockDividers + 1] = divider
-            cursor = cursor + 8
+        if tab.Hidden then
+            tab.button.Visible = false
+        else
+            tab.button.Visible = true
+            if tab.Divider then
+                local divider = create("Frame", { Name = "Divider", BorderSizePixel = 0, ZIndex = 42, Parent = self.dock })
+                Theme.bind(divider, "BackgroundColor3", "line")
+                self:_dockLine(divider, cursor + 1)
+                self.dockDividers[#self.dockDividers + 1] = divider
+                cursor = cursor + 8
+            end
+            tab.y = cursor
+            self:_dockSpot(tab.button, cursor, 5)
+            cursor = cursor + DOCK_STEP
         end
-        tab.y = cursor
-        self:_dockSpot(tab.button, cursor, 5)
-        cursor = cursor + DOCK_STEP
     end
     self.dockHeight = cursor + 8
 end
@@ -769,6 +772,27 @@ function Window:SetFlag(flag, value)
     return false
 end
 function Window:GetFlag(flag) return self.Lib.Flags[flag] end
+-- A flag with no row in the menu: saved and loaded with profiles like any element, set with Window:SetFlag, and its
+-- Callback runs on every change (not on creation). For values a script edits from its own controls.
+--   Window:Value({ Flag = "esp_hpstyle", Default = "Smooth", Callback = function(value) end })
+function Window:Value(cfg)
+    local window = self
+    local element = { Kind = "Value", Flag = cfg.Flag, Value = cfg.Default }
+    function element:Set(value, silent)
+        local changed = self.Value ~= value
+        self.Value = value
+        window.Lib.Flags[self.Flag] = value
+        if changed then window:_flagChanged(self.Flag) end
+        if changed and not silent and cfg.Callback then window:_safe("Value " .. tostring(self.Flag), cfg.Callback, value) end
+        return self
+    end
+    function element:Get() return self.Value end
+    function element:_save() return self.Value end
+    function element:_load(value) self:Set(value) end
+    window.Lib.Flags[cfg.Flag] = cfg.Default
+    self:_register(cfg.Flag, element)
+    return element
+end
 function Window:GetElement(flag) return self.flags[flag] end
 
 -- A flag changed: elements / cards with DependsOn re-check (watchers whose object is gone drop out).

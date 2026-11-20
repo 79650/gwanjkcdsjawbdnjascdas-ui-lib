@@ -94,39 +94,39 @@ return function(card, cfg)
             entries[#entries + 1] = entry
             byName[name] = entry
             button.Activated:Connect(function() if not element.Locked then element:Set(name) end end)
-            continue
-        end
-        local button = create("TextButton", { Name = name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = index, Parent = grid })
-        corner(button, 6)
-        local outline = stroke(button, Color3.new(1, 1, 1), 1)
-        Theme.bind(outline, "Color", "accent")
-        -- a second colour ({ "Heat", from, to } or more stops) makes the dot a short gradient bar
-        local color2 = item[3] or item.Color2
-        local dot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = color2 and UDim2.fromOffset(26, 10) or UDim2.fromOffset(14, 14),
-            BorderSizePixel = 0, BackgroundColor3 = color2 and Color3.new(1, 1, 1) or color, Parent = button })
-        corner(dot, color2 and 5 or 4)
-        if color2 then
-            local stops = { color }
-            for i = 3, #item do if typeof(item[i]) == "Color3" then stops[#stops + 1] = item[i] end end
-            if #stops == 1 then stops[2] = color2 end
-            local points = {}
-            for i, c in ipairs(stops) do points[i] = ColorSequenceKeypoint.new((i - 1) / (#stops - 1), c) end
-            create("UIGradient", { Color = ColorSequence.new(points), Parent = dot })
-        end
-        local textLeft = color2 and 40 or 28
-        local text = label(button, name, 10, { Position = UDim2.fromOffset(textLeft, 0), Size = UDim2.new(1, -(textLeft + 4), 1, 0) })
-        local entry = { name = name, color = color, button = button, text = text, outline = outline }
-        entries[#entries + 1] = entry
-        byName[name] = entry
-        Util.hoverPop(button, 1.04)
-        button.MouseEnter:Connect(function()
-            if element.Value ~= name then
-                Theme.tweenTo(button, "BackgroundColor3", "input", 0.1)
-                Theme.tweenTo(text, "TextColor3", "heading", 0.1)
+        else
+            local button = create("TextButton", { Name = name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = index, Parent = grid })
+            corner(button, 6)
+            local outline = stroke(button, Color3.new(1, 1, 1), 1)
+            Theme.bind(outline, "Color", "accent")
+            -- a second colour ({ "Heat", from, to } or more stops) makes the dot a short gradient bar
+            local color2 = item[3] or item.Color2
+            local dot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = color2 and UDim2.fromOffset(26, 10) or UDim2.fromOffset(14, 14),
+                BorderSizePixel = 0, BackgroundColor3 = color2 and Color3.new(1, 1, 1) or color, Parent = button })
+            corner(dot, color2 and 5 or 4)
+            if color2 then
+                local stops = { color }
+                for i = 3, #item do if typeof(item[i]) == "Color3" then stops[#stops + 1] = item[i] end end
+                if #stops == 1 then stops[2] = color2 end
+                local points = {}
+                for i, c in ipairs(stops) do points[i] = ColorSequenceKeypoint.new((i - 1) / (#stops - 1), c) end
+                create("UIGradient", { Color = ColorSequence.new(points), Parent = dot })
             end
-        end)
-        button.MouseLeave:Connect(render)
-        button.Activated:Connect(function() if not element.Locked then element:Set(name) end end)
+            local textLeft = color2 and 40 or 28
+            local text = label(button, name, 10, { Position = UDim2.fromOffset(textLeft, 0), Size = UDim2.new(1, -(textLeft + 4), 1, 0) })
+            local entry = { name = name, color = color, button = button, text = text, outline = outline }
+            entries[#entries + 1] = entry
+            byName[name] = entry
+            Util.hoverPop(button, 1.04)
+            button.MouseEnter:Connect(function()
+                if element.Value ~= name then
+                    Theme.tweenTo(button, "BackgroundColor3", "input", 0.1)
+                    Theme.tweenTo(text, "TextColor3", "heading", 0.1)
+                end
+            end)
+            button.MouseLeave:Connect(render)
+            button.Activated:Connect(function() if not element.Locked then element:Set(name) end end)
+        end
     end
 
     if dots and type(cfg.Custom) == "function" then

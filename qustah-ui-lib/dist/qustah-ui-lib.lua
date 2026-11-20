@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.31.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.32.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -7883,39 +7883,39 @@ return function(card, cfg)
             entries[#entries + 1] = entry
             byName[name] = entry
             button.Activated:Connect(function() if not element.Locked then element:Set(name) end end)
-            continue
-        end
-        local button = create("TextButton", { Name = name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = index, Parent = grid })
-        corner(button, 6)
-        local outline = stroke(button, Color3.new(1, 1, 1), 1)
-        Theme.bind(outline, "Color", "accent")
-        -- a second colour ({ "Heat", from, to } or more stops) makes the dot a short gradient bar
-        local color2 = item[3] or item.Color2
-        local dot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = color2 and UDim2.fromOffset(26, 10) or UDim2.fromOffset(14, 14),
-            BorderSizePixel = 0, BackgroundColor3 = color2 and Color3.new(1, 1, 1) or color, Parent = button })
-        corner(dot, color2 and 5 or 4)
-        if color2 then
-            local stops = { color }
-            for i = 3, #item do if typeof(item[i]) == "Color3" then stops[#stops + 1] = item[i] end end
-            if #stops == 1 then stops[2] = color2 end
-            local points = {}
-            for i, c in ipairs(stops) do points[i] = ColorSequenceKeypoint.new((i - 1) / (#stops - 1), c) end
-            create("UIGradient", { Color = ColorSequence.new(points), Parent = dot })
-        end
-        local textLeft = color2 and 40 or 28
-        local text = label(button, name, 10, { Position = UDim2.fromOffset(textLeft, 0), Size = UDim2.new(1, -(textLeft + 4), 1, 0) })
-        local entry = { name = name, color = color, button = button, text = text, outline = outline }
-        entries[#entries + 1] = entry
-        byName[name] = entry
-        Util.hoverPop(button, 1.04)
-        button.MouseEnter:Connect(function()
-            if element.Value ~= name then
-                Theme.tweenTo(button, "BackgroundColor3", "input", 0.1)
-                Theme.tweenTo(text, "TextColor3", "heading", 0.1)
+        else
+            local button = create("TextButton", { Name = name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = index, Parent = grid })
+            corner(button, 6)
+            local outline = stroke(button, Color3.new(1, 1, 1), 1)
+            Theme.bind(outline, "Color", "accent")
+            -- a second colour ({ "Heat", from, to } or more stops) makes the dot a short gradient bar
+            local color2 = item[3] or item.Color2
+            local dot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = color2 and UDim2.fromOffset(26, 10) or UDim2.fromOffset(14, 14),
+                BorderSizePixel = 0, BackgroundColor3 = color2 and Color3.new(1, 1, 1) or color, Parent = button })
+            corner(dot, color2 and 5 or 4)
+            if color2 then
+                local stops = { color }
+                for i = 3, #item do if typeof(item[i]) == "Color3" then stops[#stops + 1] = item[i] end end
+                if #stops == 1 then stops[2] = color2 end
+                local points = {}
+                for i, c in ipairs(stops) do points[i] = ColorSequenceKeypoint.new((i - 1) / (#stops - 1), c) end
+                create("UIGradient", { Color = ColorSequence.new(points), Parent = dot })
             end
-        end)
-        button.MouseLeave:Connect(render)
-        button.Activated:Connect(function() if not element.Locked then element:Set(name) end end)
+            local textLeft = color2 and 40 or 28
+            local text = label(button, name, 10, { Position = UDim2.fromOffset(textLeft, 0), Size = UDim2.new(1, -(textLeft + 4), 1, 0) })
+            local entry = { name = name, color = color, button = button, text = text, outline = outline }
+            entries[#entries + 1] = entry
+            byName[name] = entry
+            Util.hoverPop(button, 1.04)
+            button.MouseEnter:Connect(function()
+                if element.Value ~= name then
+                    Theme.tweenTo(button, "BackgroundColor3", "input", 0.1)
+                    Theme.tweenTo(text, "TextColor3", "heading", 0.1)
+                end
+            end)
+            button.MouseLeave:Connect(render)
+            button.Activated:Connect(function() if not element.Locked then element:Set(name) end end)
+        end
     end
 
     if dots and type(cfg.Custom) == "function" then
@@ -10787,7 +10787,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.31.0",
+    Version = "1.32.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -15568,18 +15568,21 @@ function Window:_layoutDock()
     end
     local cursor = DOCK_TOP
     for _, tab in ipairs(self.Tabs) do
-        if tab.Hidden then tab.button.Visible = false continue end
-        tab.button.Visible = true
-        if tab.Divider then
-            local divider = create("Frame", { Name = "Divider", BorderSizePixel = 0, ZIndex = 42, Parent = self.dock })
-            Theme.bind(divider, "BackgroundColor3", "line")
-            self:_dockLine(divider, cursor + 1)
-            self.dockDividers[#self.dockDividers + 1] = divider
-            cursor = cursor + 8
+        if tab.Hidden then
+            tab.button.Visible = false
+        else
+            tab.button.Visible = true
+            if tab.Divider then
+                local divider = create("Frame", { Name = "Divider", BorderSizePixel = 0, ZIndex = 42, Parent = self.dock })
+                Theme.bind(divider, "BackgroundColor3", "line")
+                self:_dockLine(divider, cursor + 1)
+                self.dockDividers[#self.dockDividers + 1] = divider
+                cursor = cursor + 8
+            end
+            tab.y = cursor
+            self:_dockSpot(tab.button, cursor, 5)
+            cursor = cursor + DOCK_STEP
         end
-        tab.y = cursor
-        self:_dockSpot(tab.button, cursor, 5)
-        cursor = cursor + DOCK_STEP
     end
     self.dockHeight = cursor + 8
 end
@@ -15741,6 +15744,27 @@ function Window:SetFlag(flag, value)
     return false
 end
 function Window:GetFlag(flag) return self.Lib.Flags[flag] end
+-- A flag with no row in the menu: saved and loaded with profiles like any element, set with Window:SetFlag, and its
+-- Callback runs on every change (not on creation). For values a script edits from its own controls.
+--   Window:Value({ Flag = "esp_hpstyle", Default = "Smooth", Callback = function(value) end })
+function Window:Value(cfg)
+    local window = self
+    local element = { Kind = "Value", Flag = cfg.Flag, Value = cfg.Default }
+    function element:Set(value, silent)
+        local changed = self.Value ~= value
+        self.Value = value
+        window.Lib.Flags[self.Flag] = value
+        if changed then window:_flagChanged(self.Flag) end
+        if changed and not silent and cfg.Callback then window:_safe("Value " .. tostring(self.Flag), cfg.Callback, value) end
+        return self
+    end
+    function element:Get() return self.Value end
+    function element:_save() return self.Value end
+    function element:_load(value) self:Set(value) end
+    window.Lib.Flags[cfg.Flag] = cfg.Default
+    self:_register(cfg.Flag, element)
+    return element
+end
 function Window:GetElement(flag) return self.flags[flag] end
 
 -- A flag changed: elements / cards with DependsOn re-check (watchers whose object is gone drop out).

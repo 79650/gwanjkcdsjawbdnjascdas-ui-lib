@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.31.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.32.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6277,8 +6277,7 @@ local entry={name=name,color=color,button=button,outline=outline,fill=fill}
 entries[#entries+1]=entry
 byName[name]=entry
 button.Activated:Connect(function()if not element.Locked then element:Set(name)end end)
-continue
-end
+else
 local button=create("TextButton",{Name=name,Text="",AutoButtonColor=false,BorderSizePixel=0,LayoutOrder=index,Parent=grid})
 corner(button,6)
 local outline=stroke(button,Color3.new(1,1,1),1)
@@ -6309,6 +6308,7 @@ end
 end)
 button.MouseLeave:Connect(render)
 button.Activated:Connect(function()if not element.Locked then element:Set(name)end end)
+end
 end
 if dots and type(cfg.Custom)=="function"then
 local button,fill,outline=dot("Custom colour",Color3.new(1,1,1))
@@ -8623,7 +8623,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.31.0",
+Version="1.32.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -12762,7 +12762,9 @@ bar.Position=UDim2.fromOffset(bottom and 8 or 9,(bottom and 10 or 9)+(index-1)*4
 end
 local cursor=DOCK_TOP
 for _,tab in ipairs(self.Tabs)do
-if tab.Hidden then tab.button.Visible=false continue end
+if tab.Hidden then
+tab.button.Visible=false
+else
 tab.button.Visible=true
 if tab.Divider then
 local divider=create("Frame",{Name="Divider",BorderSizePixel=0,ZIndex=42,Parent=self.dock})
@@ -12774,6 +12776,7 @@ end
 tab.y=cursor
 self:_dockSpot(tab.button,cursor,5)
 cursor=cursor+DOCK_STEP
+end
 end
 self.dockHeight=cursor+8
 end
@@ -12913,6 +12916,24 @@ self:_flagChanged(flag)
 return false
 end
 function Window:GetFlag(flag)return self.Lib.Flags[flag]end
+function Window:Value(cfg)
+local window=self
+local element={Kind="Value",Flag=cfg.Flag,Value=cfg.Default}
+function element:Set(value,silent)
+local changed=self.Value~=value
+self.Value=value
+window.Lib.Flags[self.Flag]=value
+if changed then window:_flagChanged(self.Flag)end
+if changed and not silent and cfg.Callback then window:_safe("Value "..tostring(self.Flag),cfg.Callback,value)end
+return self
+end
+function element:Get()return self.Value end
+function element:_save()return self.Value end
+function element:_load(value)self:Set(value)end
+window.Lib.Flags[cfg.Flag]=cfg.Default
+self:_register(cfg.Flag,element)
+return element
+end
 function Window:GetElement(flag)return self.flags[flag]end
 function Window:_flagChanged()
 local list=self._dependents
