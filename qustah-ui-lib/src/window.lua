@@ -69,10 +69,6 @@ function Window.new(Lib, cfg)
     end)
     -- window memory: last position / size (SaveWindow = false turns it off)
     self.memory = cfg.SaveWindow ~= false and self.Config:ReadMemory() or {}
-    -- per-game profiles: the choice made in Settings (remembered with the window) wins over CreateWindow's PerGame
-    local perGame = self.memory.perGame
-    if perGame == nil then perGame = cfg.PerGame end
-    if perGame then self.Config:SetPerGame(perGame) end
     local saved = self.memory.window
     if type(saved) == "table" and tonumber(saved.w) and tonumber(saved.h) then
         self.width = math.clamp(tonumber(saved.w), self.minSize.X, self.maxSize.X)

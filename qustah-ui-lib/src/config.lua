@@ -67,18 +67,9 @@ function Config:_setCustom(custom)
     for _, listener in ipairs(self._dataListeners or {}) do Util.safe(listener, self.Custom) end
 end
 
--- Per-game profiles: Config:SetPerGame("Game" | "Place" | false) keeps profiles, their notes and the autoload in
--- <Folder>/configs/<GameId or PlaceId>/ (CreateWindow({ PerGame = "Game" }) or Settings › Profiles).
-function Config:SetPerGame(mode)
-    if mode == true then mode = "Game" end
-    self.perGame = (mode == "Game" or mode == "Place") and mode or nil
-    local id = self.perGame == "Place" and game.PlaceId or (self.perGame == "Game" and game.GameId) or nil
-    self.path = self.folder .. "/configs" .. (id and ("/" .. tostring(id)) or "")
-    self:_setActive(nil, nil)
-end
--- files that belong to the current profile scope (shared folder or the game's folder)
+-- the profile list and the autoload: <Folder>/profiles.json, <Folder>/autoload.txt
 function Config:_scopeFile(name)
-    return (self.perGame and self.path or self.folder) .. "/" .. name
+    return self.folder .. "/" .. name
 end
 
 function Config:_ensure()

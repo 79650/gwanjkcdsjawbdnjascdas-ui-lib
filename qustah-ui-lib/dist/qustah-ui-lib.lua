@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.32.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.33.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -977,18 +977,9 @@ function Config:_setCustom(custom)
     for _, listener in ipairs(self._dataListeners or {}) do Util.safe(listener, self.Custom) end
 end
 
--- Per-game profiles: Config:SetPerGame("Game" | "Place" | false) keeps profiles, their notes and the autoload in
--- <Folder>/configs/<GameId or PlaceId>/ (CreateWindow({ PerGame = "Game" }) or Settings › Profiles).
-function Config:SetPerGame(mode)
-    if mode == true then mode = "Game" end
-    self.perGame = (mode == "Game" or mode == "Place") and mode or nil
-    local id = self.perGame == "Place" and game.PlaceId or (self.perGame == "Game" and game.GameId) or nil
-    self.path = self.folder .. "/configs" .. (id and ("/" .. tostring(id)) or "")
-    self:_setActive(nil, nil)
-end
--- files that belong to the current profile scope (shared folder or the game's folder)
+-- the profile list and the autoload: <Folder>/profiles.json, <Folder>/autoload.txt
 function Config:_scopeFile(name)
-    return (self.perGame and self.path or self.folder) .. "/" .. name
+    return self.folder .. "/" .. name
 end
 
 function Config:_ensure()
@@ -10787,7 +10778,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.32.0",
+    Version = "1.33.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -11770,20 +11761,6 @@ return function(window, page, defaults)
         end,
     })
 
-    -- per-game profiles (each game gets its own list + autoload); remembered with the window
-    newCard:Toggle({
-        Title = "Separate profiles per game", Desc = "Each game keeps its own list and autoload", Icon = "gamepad-2",
-        Default = store.perGame ~= nil,
-        Callback = function(on)
-            store:SetPerGame(on and "Game" or false)
-            window.memory.perGame = on and "Game" or false
-            window:_saveMemory()
-            open = nil
-            refresh()
-            say(on and ("Profiles for this game (#" .. game.GameId .. ")") or "Shared profiles for all games")
-        end,
-    })
-
     ------------------------------------------------------------ saved list
     local listCard = page:Card({ Title = "Saved", Icon = "folder-open" })
     local search = create("TextBox", {
@@ -12021,7 +11998,11 @@ return function(window, cfg)
     local infoPage = tab:Page("Info")
 
     ------------------------------------------------------------ interface
-    local look = interface:Card({ Title = "Appearance", Side = "Left", Icon = "palette" })
+    -- Three cards: Appearance (Theme / Accent / Font tabs, the theme editor under Theme), Window (Look / Background /
+    -- Overlays tabs) on the left, Behaviour on the right.
+    local appearance = interface:Card({ Title = "Appearance", Side = "Left", Icon = "palette" })
+    local lookTabs = appearance:Tabs({ "Theme", "Accent", "Font" })
+    local look = lookTabs.Theme
     local picker
     local swatches
     local function syncSwatches()
@@ -12043,8 +12024,8 @@ return function(window, cfg)
             syncSwatches()
         end,
     })
-    -- accent: its own card under Appearance - one row of colour dots; the last one opens a picker for any colour (saved with the profile)
-    local accentCard = interface:Card({ Title = "Accent", Side = "Left", Icon = "swatch-book" })
+    -- accent: one row of colour dots; the last one opens a picker for any colour (saved with the profile)
+    local accentCard = lookTabs.Accent
     swatches = accentCard:Swatches({
         Title = "Accent color", Default = "Neutral", Style = "Dots",
         Custom = function(open) if picker then picker:SetOpen(open) end end,
@@ -12069,7 +12050,8 @@ return function(window, cfg)
     -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
-    look:Dropdown({
+    local fontTab = lookTabs.Font
+    fontTab:Dropdown({
         Title = "Font", Items = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
@@ -12080,7 +12062,7 @@ return function(window, cfg)
     local codeItems = {}
     for _, name in ipairs(UIFont.codeFonts) do codeItems[#codeItems + 1] = name end
     local startCode = table.find(codeItems, tostring(window.cfg.CodeFont)) and tostring(window.cfg.CodeFont) or "Sono Mono"
-    look:Segment({
+    fontTab:Segment({
         Title = "Code font", Desc = "Errors and code blocks", Flag = "__ui_codefont", Items = codeItems, Default = startCode,
         Callback = function(name) UIFont.setCode(name) end,
     })
@@ -12088,11 +12070,11 @@ return function(window, cfg)
     if window.cfg.CodeFont and not table.find(codeItems, tostring(window.cfg.CodeFont)) then UIFont.setCode(window.cfg.CodeFont) end
     -- text size: every text a bit smaller / larger, the menu itself stays the same size
     local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
-    look:Segment({
+    fontTab:Segment({
         Title = "Text size", Flag = "__ui_textsize", Items = { "Small", "Normal", "Large" }, Default = "Normal",
         Callback = function(choice) UIFont.setTextScale(TEXT_SIZES[choice] or 1) end,
     })
-    look:Toggle({
+    fontTab:Toggle({
         Title = "Text glow", Desc = "Shine on the title and highlights", Flag = "__ui_glow", Default = Glow.enabled,
         Callback = function(on) Glow.setEnabled(on) end,
     })
@@ -12180,30 +12162,33 @@ return function(window, cfg)
         end, "Reset")
     end })
 
-    -- Layout (right, under Behaviour): where the tab icons and the page names sit
-    local layoutCard = interface:Card({ Title = "Layout", Side = "Right", Icon = "layout-grid" })
-    layoutCard:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",
-        Callback = function(side) window:SetDockSide(side) end })
-    layoutCard:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
-        Callback = function(mode) window:SetPageTabs(mode) end })
-
-    local look2 = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
+    -- Window: Look (transparency, where the tab icons and page names sit, edge glow, blur), Background (image,
+    -- animated glow), Overlays
+    local windowCard = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
+    local windowTabs = windowCard:Tabs({ "Look", "Background", "Overlays" })
+    local look2 = windowTabs.Look
     look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
         Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
+    look2:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",
+        Callback = function(side) window:SetDockSide(side) end })
+    look2:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
+        Callback = function(mode) window:SetPageTabs(mode) end })
+
+    local background = windowTabs.Background
     local bgAlpha
-    look2:Input({ Title = "Background", Placeholder = "image id or url", Flag = "__ui_bg",
+    background:Input({ Title = "Background", Placeholder = "image id or url", Flag = "__ui_bg",
         Callback = function(text) window:SetBackgroundImage(text ~= "" and text or nil, bgAlpha and (1 - bgAlpha.Value / 100) or 0.85) end })
-    bgAlpha = look2:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
+    bgAlpha = background:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
         DependsOn = { Flag = "__ui_bg", Value = function(text) return type(text) == "string" and text ~= "" end, Mode = "Hide" },
         Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
-    look2:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Icon = "blend", Flag = "__ui_live",
+    background:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Icon = "blend", Flag = "__ui_live",
         Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
     look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
         Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
     look2:Toggle({ Title = "Blur game", Desc = "Blurs the game while open", Flag = "__ui_blur",
         Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
 
-    local overlays = interface:Card({ Title = "Overlays", Side = "Right", Icon = "layers" })
+    local overlays = windowTabs.Overlays
     overlays:Toggle({ Title = "Watermark", Desc = "Name · FPS · ping · clock", Flag = "__ui_hud_watermark", Callback = function(on) window:Watermark(on) end })
     overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
     overlays:Toggle({ Title = "Session bar", Desc = "FPS · ping · players · time", Flag = "__ui_hud_session", Callback = function(on) window:SessionBar(on) end })
@@ -12213,8 +12198,7 @@ return function(window, cfg)
     })
 
     ------------------------------------------------------------ theme editor
-    local editorCard = interface:Card({ Title = "Theme editor", Side = "Left", Icon = "paintbrush" })
-    local editor = editorCard:Section({ Title = "Edit colours", Opened = false })
+    local editor = look:Section({ Title = "Edit colours", Opened = false })     -- under Appearance › Theme
     local ROLE_NAMES = { "Background", "Cards", "Inputs", "Outlines", "Text", "Muted text", "Headings", "Dock", "Icons", "Accent" }
     local ROLE_OF = {}
     for index, name in ipairs(ROLE_NAMES) do ROLE_OF[name] = Theme.EDITABLE[index] end
@@ -15041,10 +15025,6 @@ function Window.new(Lib, cfg)
     end)
     -- window memory: last position / size (SaveWindow = false turns it off)
     self.memory = cfg.SaveWindow ~= false and self.Config:ReadMemory() or {}
-    -- per-game profiles: the choice made in Settings (remembered with the window) wins over CreateWindow's PerGame
-    local perGame = self.memory.perGame
-    if perGame == nil then perGame = cfg.PerGame end
-    if perGame then self.Config:SetPerGame(perGame) end
     local saved = self.memory.window
     if type(saved) == "table" and tonumber(saved.w) and tonumber(saved.h) then
         self.width = math.clamp(tonumber(saved.w), self.minSize.X, self.maxSize.X)

@@ -26,7 +26,6 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `KeyHints` | `true` | the `[RSHIFT] MENU` key cap on the right of the status bar |
 | `CloseAction` | `"Hide"` | the X button: `"Hide"` hides the menu and shows how to reopen it, `"Destroy"` unloads everything |
 | `SaveWindow` | `true` | remember position, size and floating panels |
-| `PerGame` | `false` | `"Game"` / `"Place"`: separate profiles for each game |
 | `UnlockMouse` | `true` | frees the mouse while the menu is open (shift lock, first person) |
 | `Profile`, `Anonymous` | `true`, `false` | the avatar button in the dock; start in anonymous mode |
 | `FullscreenButton` | `false` | a fullscreen button in the header (double click on the header still goes fullscreen) |
@@ -697,7 +696,6 @@ Config:OnDataLoaded(function(data) end)
   - every file is written to a `.tmp.txt` copy first and checked (where the executor refuses that, straight to the file);
   - if the game closes mid-save, the profile isn't damaged;
   - on the next start the profile is restored from that copy (`Config:OnRecovered(fn)`).
-- **Per game:** with `CreateWindow({ PerGame = "Game" })` or the switch in Settings › Profiles, each game has its own list and autoload.
 
 The Settings › Profiles page does all of this in the UI:
 - shows the active profile and how many settings changed;
@@ -719,10 +717,10 @@ Window:SettingsTab()                                                            
 **Dashboard:** (Session and Modules side by side are always the same height) profile card (a Hero: avatar, name, session time and live FPS / ping / players chips), live tiles under it (StatTiles: FPS, ping, players and Lua memory with their history; `Stats = false` leaves them out), Session (account, executor, version and your `Info` rows; User ID / Game ID / Place ID with copy buttons), Modules (a grid of tiles: icon, name and the state under it in its colour), Server (Rejoin, Server hop, Job ID).
 
 **Settings › Interface**
-- Appearance: theme, accent (a row of colour dots; the last one opens a picker for any colour), font, text glow
-- Window: transparency, background image (and its visibility once one is set), animated background, edge glow, blur
+Three cards, the first two with tabs in their header:
+- Appearance › Theme / Accent / Font: theme and the theme editor (Edit colours, folded), accent (a row of colour dots; the last one opens a picker for any colour), font, code font, text size, text glow
+- Window › Look / Background / Overlays: transparency, dock side, page tabs, edge glow, blur · background image (and its visibility once one is set), animated background · watermark, keybind list, session bar, performance monitor
 - Behaviour: menu key, UI scale, free mouse, anonymous mode, UI sounds, haptics (touch devices), mobile button, welcome toast, Reset layout, Unload, Reset interface (only the look goes back to its defaults)
-- Overlays, Theme editor
 
 **Settings › Profiles:** the saved profiles are cards (ItemCards: Load on each, ACTIVE / AUTO / LOCKED tags); a card's "..." opens its tools under the cards (note, rename, duplicate, overwrite, autoload, share, delete). See [Configs and profiles](#configs-and-profiles).
 
@@ -732,7 +730,7 @@ Window:SettingsTab()                                                            
 
 ## Overlays
 
-Overlays stay on screen while the menu is closed. They can be dragged and their positions are remembered. You can also turn them on in Settings › Overlays.
+Overlays stay on screen while the menu is closed. They can be dragged and their positions are remembered. You can also turn them on in Settings › Interface › Window › Overlays.
 
 ```lua
 Window:Watermark(true, { Text = "extra" })     -- "Qustāh  V1.00 | 60 FPS | 40 ms | 22:10"
@@ -758,7 +756,7 @@ There are 5 built-in themes (`CreateWindow({ Theme = "Glass" })`, Settings › I
 A theme can bring more than colours: `Theme.packs[name].extras` (Glass: `alpha` per colour role and `blur = true`).
 `Lib.Theme.extras` is the current set; `Lib.Theme.onExtras(fn)` runs when it changes.
 
-Accent presets (Settings › Interface › Accent): Neutral, Blue, Crimson, Violet, Mint, Gold.
+Accent presets (Settings › Interface › Appearance › Accent): Neutral, Blue, Crimson, Violet, Mint, Gold.
 
 Every theme passes an automatic contrast check: 4.5:1 for text, 3:1 for muted text. On light themes, pale accent colours are darkened until they are readable.
 
@@ -773,7 +771,7 @@ The theme editor in Settings lets you:
 - save the result under a name;
 - share or import it with a `QTHEME1:` code.
 
-Fonts (Settings › Interface › Font): **Gotham** (Roblox's default), **Work Sans** (clean), **Quicksand** (soft), **Fuzzy Bubbles** (bubbly), **Silkscreen** (pixel) and **Sono Mono** (terminal).
+Fonts (Settings › Interface › Appearance › Font): **Gotham** (Roblox's default), **Work Sans** (clean), **Quicksand** (soft), **Fuzzy Bubbles** (bubbly), **Silkscreen** (pixel) and **Sono Mono** (terminal).
 
 All of them come from Roblox's own font library by asset id (`Lib.Fonts.Library`, `Font.new("rbxassetid://...")`): nothing is downloaded and every executor shows them. Silkscreen is a display font: fine for a playful look, less so for small text.
 

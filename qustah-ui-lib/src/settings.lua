@@ -22,7 +22,11 @@ return function(window, cfg)
     local infoPage = tab:Page("Info")
 
     ------------------------------------------------------------ interface
-    local look = interface:Card({ Title = "Appearance", Side = "Left", Icon = "palette" })
+    -- Three cards: Appearance (Theme / Accent / Font tabs, the theme editor under Theme), Window (Look / Background /
+    -- Overlays tabs) on the left, Behaviour on the right.
+    local appearance = interface:Card({ Title = "Appearance", Side = "Left", Icon = "palette" })
+    local lookTabs = appearance:Tabs({ "Theme", "Accent", "Font" })
+    local look = lookTabs.Theme
     local picker
     local swatches
     local function syncSwatches()
@@ -44,8 +48,8 @@ return function(window, cfg)
             syncSwatches()
         end,
     })
-    -- accent: its own card under Appearance - one row of colour dots; the last one opens a picker for any colour (saved with the profile)
-    local accentCard = interface:Card({ Title = "Accent", Side = "Left", Icon = "swatch-book" })
+    -- accent: one row of colour dots; the last one opens a picker for any colour (saved with the profile)
+    local accentCard = lookTabs.Accent
     swatches = accentCard:Swatches({
         Title = "Accent color", Default = "Neutral", Style = "Dots",
         Custom = function(open) if picker then picker:SetOpen(open) end end,
@@ -70,7 +74,8 @@ return function(window, cfg)
     -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
-    look:Dropdown({
+    local fontTab = lookTabs.Font
+    fontTab:Dropdown({
         Title = "Font", Items = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
@@ -81,7 +86,7 @@ return function(window, cfg)
     local codeItems = {}
     for _, name in ipairs(UIFont.codeFonts) do codeItems[#codeItems + 1] = name end
     local startCode = table.find(codeItems, tostring(window.cfg.CodeFont)) and tostring(window.cfg.CodeFont) or "Sono Mono"
-    look:Segment({
+    fontTab:Segment({
         Title = "Code font", Desc = "Errors and code blocks", Flag = "__ui_codefont", Items = codeItems, Default = startCode,
         Callback = function(name) UIFont.setCode(name) end,
     })
@@ -89,11 +94,11 @@ return function(window, cfg)
     if window.cfg.CodeFont and not table.find(codeItems, tostring(window.cfg.CodeFont)) then UIFont.setCode(window.cfg.CodeFont) end
     -- text size: every text a bit smaller / larger, the menu itself stays the same size
     local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
-    look:Segment({
+    fontTab:Segment({
         Title = "Text size", Flag = "__ui_textsize", Items = { "Small", "Normal", "Large" }, Default = "Normal",
         Callback = function(choice) UIFont.setTextScale(TEXT_SIZES[choice] or 1) end,
     })
-    look:Toggle({
+    fontTab:Toggle({
         Title = "Text glow", Desc = "Shine on the title and highlights", Flag = "__ui_glow", Default = Glow.enabled,
         Callback = function(on) Glow.setEnabled(on) end,
     })
@@ -181,30 +186,33 @@ return function(window, cfg)
         end, "Reset")
     end })
 
-    -- Layout (right, under Behaviour): where the tab icons and the page names sit
-    local layoutCard = interface:Card({ Title = "Layout", Side = "Right", Icon = "layout-grid" })
-    layoutCard:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",
-        Callback = function(side) window:SetDockSide(side) end })
-    layoutCard:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
-        Callback = function(mode) window:SetPageTabs(mode) end })
-
-    local look2 = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
+    -- Window: Look (transparency, where the tab icons and page names sit, edge glow, blur), Background (image,
+    -- animated glow), Overlays
+    local windowCard = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
+    local windowTabs = windowCard:Tabs({ "Look", "Background", "Overlays" })
+    local look2 = windowTabs.Look
     look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
         Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
+    look2:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",
+        Callback = function(side) window:SetDockSide(side) end })
+    look2:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
+        Callback = function(mode) window:SetPageTabs(mode) end })
+
+    local background = windowTabs.Background
     local bgAlpha
-    look2:Input({ Title = "Background", Placeholder = "image id or url", Flag = "__ui_bg",
+    background:Input({ Title = "Background", Placeholder = "image id or url", Flag = "__ui_bg",
         Callback = function(text) window:SetBackgroundImage(text ~= "" and text or nil, bgAlpha and (1 - bgAlpha.Value / 100) or 0.85) end })
-    bgAlpha = look2:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
+    bgAlpha = background:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
         DependsOn = { Flag = "__ui_bg", Value = function(text) return type(text) == "string" and text ~= "" end, Mode = "Hide" },
         Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
-    look2:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Icon = "blend", Flag = "__ui_live",
+    background:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Icon = "blend", Flag = "__ui_live",
         Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
     look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
         Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
     look2:Toggle({ Title = "Blur game", Desc = "Blurs the game while open", Flag = "__ui_blur",
         Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
 
-    local overlays = interface:Card({ Title = "Overlays", Side = "Right", Icon = "layers" })
+    local overlays = windowTabs.Overlays
     overlays:Toggle({ Title = "Watermark", Desc = "Name · FPS · ping · clock", Flag = "__ui_hud_watermark", Callback = function(on) window:Watermark(on) end })
     overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
     overlays:Toggle({ Title = "Session bar", Desc = "FPS · ping · players · time", Flag = "__ui_hud_session", Callback = function(on) window:SessionBar(on) end })
@@ -214,8 +222,7 @@ return function(window, cfg)
     })
 
     ------------------------------------------------------------ theme editor
-    local editorCard = interface:Card({ Title = "Theme editor", Side = "Left", Icon = "paintbrush" })
-    local editor = editorCard:Section({ Title = "Edit colours", Opened = false })
+    local editor = look:Section({ Title = "Edit colours", Opened = false })     -- under Appearance › Theme
     local ROLE_NAMES = { "Background", "Cards", "Inputs", "Outlines", "Text", "Muted text", "Headings", "Dock", "Icons", "Accent" }
     local ROLE_OF = {}
     for index, name in ipairs(ROLE_NAMES) do ROLE_OF[name] = Theme.EDITABLE[index] end
