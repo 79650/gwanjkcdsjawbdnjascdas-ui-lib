@@ -54,7 +54,7 @@ return function(Window)
 
     -- (the same error is one entry: same source and first line; the longest text is kept, with its trace. quiet: a
     -- status that repeats an error already counted - Window:SetModule "Error" - adds no count)
-    function Window:ReportError(source, message, quiet)
+    function Window:ReportError(source, message, quiet, context)
         source, message = tostring(source or "Script"), tostring(message or "Unknown error")
         self.errors = self.errors or {}
         self._errorIndex = self._errorIndex or {}
@@ -86,6 +86,12 @@ return function(Window)
                 })
             end
         end
+        if type(context) == "table" then
+            entry.module = tostring(context.Module or source)
+            entry.operation = tostring(context.Operation or "Update")
+            entry.count = math.max(entry.count, tonumber(context.RepeatCount) or 1)
+            entry.context = entry.module .. " · " .. entry.operation
+        end
         changed(self)
     end
     function Window:GetErrors() return self.errors or {} end
@@ -101,7 +107,7 @@ return function(Window)
             lines[#lines + 1] = string.format("module %s: %s%s", name, module.state, module.detail and (" (" .. tostring(module.detail) .. ")") or "")
         end
         for _, entry in ipairs(self.errors or {}) do
-            lines[#lines + 1] = string.format("x%d %s: %s", entry.count, entry.source, entry.message)
+            lines[#lines + 1] = string.format("x%d %s: %s", entry.count, entry.context or entry.source, entry.message)
         end
         if #(self.errors or {}) == 0 then lines[#lines + 1] = "no errors" end
         return table.concat(lines, "\n")

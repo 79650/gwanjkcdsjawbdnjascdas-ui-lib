@@ -423,6 +423,112 @@ function Util.animateInView(object, signal, tick, enabled)
     return stop, sync
 end
 
+local scrollOwners = setmetatable({}, { __mode = "k" })
+function Util.lockScroll(owner)
+    local node = owner.Parent
+    while node and not node:IsA("ScrollingFrame") do node = node.Parent end
+    if not node then return function() end end
+    local state = scrollOwners[node]
+    if not state then state = { count = 0, original = node.ScrollingEnabled } scrollOwners[node] = state end
+    state.count += 1
+    node.ScrollingEnabled = false
+    local alive = true
+    return function()
+        if not alive then return end
+        alive = false state.count -= 1
+        if state.count == 0 then
+            scrollOwners[node] = nil
+            pcall(function() node.ScrollingEnabled = state.original end)
+        end
+    end
+end
+function Util.captureScroll(owner, enabled)
+    local maid, release = Util.maid(), nil
+    local function clear() if release then release() release = nil end end
+    local function sync() if enabled and not enabled() then clear() end end
+    maid:connect(owner.MouseEnter, function()
+        clear()
+        if Util.inView(owner) and (not enabled or enabled()) then release = Util.lockScroll(owner) end
+    end)
+    maid:connect(owner.MouseLeave, clear)
+    maid:give(Util.watchInView(owner, function(on) if not on then clear() end end))
+    maid:connect(owner.Destroying, function() maid:clean() clear() end)
+    maid:give(clear)
+    return { Sync = sync, Destroy = function() maid:clean() clear() end }
+end
+function Util.dependencyIcons(Window)
+    local hub = { Running = true, Cleanup = {} }
+	local marks = {}
+	for _, el in pairs(Window.flags or {}) do
+		local row = type(el) == "table" and el.Row
+		local title = row and row:FindFirstChild("Title")
+		if title then
+			local ok, img = pcall(function()
+				return require("icons").Image("lock", { Size = UDim2.fromOffset(10, 10), Color = Color3.fromRGB(150, 155, 168) })
+			end)
+			if ok and img then
+				img.AnchorPoint, img.ZIndex, img.Visible, img.Parent = Vector2.new(0, 0.5), 23, false, row
+				local mark = { row = row, image = img, visible = false }
+				function mark.paint()
+					local show = el._depLocked == true and title.Parent ~= nil
+					img.Visible = show
+					if show then
+						img.Position = UDim2.fromOffset(
+							title.AbsolutePosition.X - row.AbsolutePosition.X + title.TextBounds.X + 5,
+							title.AbsolutePosition.Y - row.AbsolutePosition.Y + title.AbsoluteSize.Y / 2)
+					end
+				end
+				local links = {}
+				local function clear()
+					for _, c in ipairs(links) do c:Disconnect() end
+					table.clear(links)
+				end
+				local stop = Util.watchInView(row, function(visible)
+					clear()
+					mark.visible = visible and hub.Running
+					if mark.visible then
+						mark.paint()
+						for _, spec in ipairs({ { title, "TextBounds" }, { title, "AbsolutePosition" }, { title, "AbsoluteSize" }, { row, "AbsolutePosition" } }) do
+							links[#links + 1] = spec[1]:GetPropertyChangedSignal(spec[2]):Connect(mark.paint)
+						end
+					else img.Visible = false end
+				end)
+				marks[#marks + 1] = mark
+				hub.Cleanup[#hub.Cleanup + 1] = function() stop() clear() end
+			end
+		end
+	end
+	-- The dependents list runs from its end, so this runs before the rows' own DependsOn checks: the repaint waits a
+	-- step to see the new lock states, and several flag changes in a row share one repaint.
+	local queued = false
+	Window._dependents = Window._dependents or {}
+	Window._dependents[#Window._dependents + 1] = function()
+		if not hub.Running then return false end
+		if not queued then
+			queued = true
+			task.defer(function()
+				queued = false
+                if not hub.Running then return end
+				for _, mark in ipairs(marks) do
+					if mark.visible and mark.row.Parent then mark.paint() end
+				end
+			end)
+		end
+		return true
+	end
+    local alive = true
+    local function stop()
+        if not alive then return end
+        alive, hub.Running = false, false
+        for _, cleanup in ipairs(hub.Cleanup) do cleanup() end
+        for _, mark in ipairs(marks) do
+            local image = mark.image
+            if image then image:Destroy() end
+        end
+    end
+    Window.maid:give(stop)
+    return stop
+end
 function Util.round(value, step)
     step = step or 1
     if step <= 0 then return value end

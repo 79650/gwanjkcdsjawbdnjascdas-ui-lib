@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.30.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.31.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -564,6 +564,269 @@ local element={Type="HeaderButton",Title=text,Row=button}
 function element:SetTitle(t)caption.Text=tostring(t)end
 function element:SetVisible(shown)button.Visible=shown~=false end
 return element
+end
+function Card:OnShow(callback)
+local stop=Util.watchInView(self.frame,function(on)if on then self.window:_safe("Card OnShow",callback,self)end end)
+self.window.maid:give(stop)
+return stop
+end
+function Card:OnHide(callback)
+local wasVisible=false
+local stop=Util.watchInView(self.frame,function(on)
+if wasVisible and not on then self.window:_safe("Card OnHide",callback,self)end
+wasVisible=on
+end)
+self.window.maid:give(stop)
+return stop
+end
+function Card:WhileVisible(interval,callback)
+interval=math.max(tonumber(interval)or 1,0.001)
+local elapsed=0
+local function run()self.window:_safe("Card update",callback,self)end
+local stop=Util.animateInView(self.frame,Util.Services.RunService.Heartbeat,function(dt)
+elapsed+=dt
+if elapsed>=interval then elapsed=elapsed%interval run()end
+end)
+local first=self:OnShow(function()elapsed=0 run()end)
+local alive=true
+local function cleanup()if alive then alive=false stop()first()end end
+self.window.maid:give(cleanup)
+return cleanup
+end
+function Card:ServerList(cfg)
+local SrvCard,window,Running=self,self.window,true
+local floor=math.floor
+window.maid:give(function()Running=false end)
+local util=Util
+local theme=Theme
+local srvBox=util.create("ScrollingFrame",{Name="ServerList",BackgroundTransparency=1,BorderSizePixel=0,
+Size=UDim2.new(1,0,0,160),CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,
+ScrollingDirection=Enum.ScrollingDirection.Y,ScrollBarThickness=2,ScrollBarImageTransparency=0.4,
+VerticalScrollBarInset=Enum.ScrollBarInset.ScrollBar,ElasticBehavior=Enum.ElasticBehavior.Never,
+LayoutOrder=SrvCard:_order(),Parent=SrvCard.body})
+theme.bind(srvBox,"ScrollBarImageColor3","muted")
+local srvList=util.create("Frame",{Name="Rows",BackgroundTransparency=1,Position=UDim2.fromOffset(1,1),
+Size=UDim2.new(1,-2,0,0),AutomaticSize=Enum.AutomaticSize.Y,Parent=srvBox})
+util.list(srvList,5)
+local srvRows,srvCache,srvSort={},{},"Asc"
+local maxServers=40
+local function pingLevel(ms)
+if ms<80 then return 4 elseif ms<150 then return 3 elseif ms<250 then return 2 end
+return 1
+end
+local function srvRow(order,s,current)
+local row=util.create("Frame",{Name="Server",Size=UDim2.new(1,0,0,32),BorderSizePixel=0,LayoutOrder=order,Parent=srvList})
+theme.bind(row,"BackgroundColor3","input")
+util.corner(row,8)
+theme.bind(util.stroke(row),"Color",current and"edge"or"line")
+local id=util.label(row,"#"..string.sub(s.id or"",1,6),10,{Position=UDim2.new(0,9,0,0),Size=UDim2.new(0.2,-4,1,0)})
+theme.bind(id,"TextColor3",current and"heading"or"text")
+local pct=(s.maxPlayers or 0)>0 and math.clamp((s.playing or 0)/s.maxPlayers,0,1)or 0
+local bar=util.create("Frame",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0.2,4,0.5,0),Size=UDim2.new(0.17,0,0,4),BorderSizePixel=0,Parent=row})
+theme.bind(bar,"BackgroundColor3","buttonEdge")
+util.corner(bar,2)
+local fill=util.create("Frame",{Size=UDim2.new(pct,0,1,0),BorderSizePixel=0,Parent=bar})
+theme.bind(fill,"BackgroundColor3","accent")
+util.corner(fill,2)
+local cnt=util.label(row,("%d/%d"):format(s.playing or 0,s.maxPlayers or 0),9,{Position=UDim2.new(0.39,4,0,0),Size=UDim2.new(0.12,0,1,0)})
+theme.bind(cnt,"TextColor3","muted")
+local ms=floor(s.ping or 0)
+local lvl=pingLevel(ms)
+local pingBars={}
+for k=1,4 do
+local b=util.create("Frame",{AnchorPoint=Vector2.new(0,1),Position=UDim2.new(0.52,(k-1)*4,0.5,6),Size=UDim2.fromOffset(2.5,2+k*2),BorderSizePixel=0,Parent=row})
+theme.bind(b,"BackgroundColor3",k<=lvl and(lvl>=3 and"success"or"warning")or"buttonEdge")
+util.corner(b,1)
+pingBars[k]=b
+end
+local pl=util.label(row,ms>0 and(ms.." ms")or"-",9,{Position=UDim2.new(0.52,20,0,0),Size=UDim2.new(0.16,0,1,0)})
+theme.bind(pl,"TextColor3","muted")
+local btn=util.create("TextButton",{Text=current and"Rejoin"or"Join",TextSize=9,Font=Enum.Font.GothamMedium,AutoButtonColor=false,
+AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-6,0.5,0),Size=UDim2.fromOffset(54,20),BorderSizePixel=0,Parent=row})
+theme.bind(btn,"BackgroundColor3","buttonEdge")
+theme.bind(btn,"TextColor3","heading")
+util.corner(btn,6)
+btn.MouseEnter:Connect(function()theme.tweenTo(btn,"BackgroundColor3","hover",0.1)end)
+btn.MouseLeave:Connect(function()theme.tweenTo(btn,"BackgroundColor3","buttonEdge",0.1)end)
+btn.Activated:Connect(function()if cfg.OnJoin then window:_safe("Server join",cfg.OnJoin,s,current)end end)
+return{row=row,cnt=cnt,fill=fill,pl=pl,pingBars=pingBars,pingLevel=lvl}
+end
+local srvCurrent
+local function drawServers()
+for _,r in ipairs(srvRows)do r.row:Destroy()end
+table.clear(srvRows)
+local list=table.clone(srvCache)
+if srvSort=="Smallest"then table.sort(list,function(a,b)return(a.playing or 0)<(b.playing or 0)end)
+elseif srvSort=="Ping"then table.sort(list,function(a,b)return(a.ping or 9999)<(b.ping or 9999)end)end
+for i=1,math.min(#list,maxServers)do srvRows[#srvRows+1]=srvRow(10+i,list[i],false)end
+SrvCard:SetDesc(#srvCache>0 and("Servers: %d · %s"):format(#srvCache,srvSort=="Smallest"and"emptiest first"or srvSort=="Ping"and"lowest ping first"or"default order")
+or"No servers found · press Refresh")
+end
+local srvBusy=false
+local function refreshServers()
+if srvBusy then return end
+srvBusy=true
+SrvCard:SetDesc("Loading…")
+task.spawn(function()
+local ok,list=pcall(cfg.Fetch)
+srvBusy=false
+if not Running then return end
+srvCache=ok and list or{}
+local drawn,err=pcall(drawServers)
+if not drawn then window:ReportError("Server list",err)end
+end)
+end
+srvCurrent=srvRow(1,cfg.Current(),true)
+local srvBtns=SrvCard:Row()
+srvBtns:Button({Title="Refresh",Icon="refresh-cw",Cooldown=3,Callback=refreshServers})
+srvBtns:Button({Title="Emptiest",Icon="shuffle",Callback=function()srvSort="Smallest"drawServers()end})
+srvBtns:Button({Title="Lowest ping",Icon="wifi",Callback=function()srvSort="Ping"drawServers()end})
+SrvCard:Button({Title="Random hop",Icon="shuffle",Style="Ghost",Cooldown=5,Callback=function()if cfg.OnHop then cfg.OnHop()end end})
+if Util.watchInView then
+local requested=false
+window.maid:give(Util.watchInView(srvBox,function(visible)
+if visible and Running and not requested then requested=true refreshServers()end
+end))
+else
+task.delay(1,function()if Running then refreshServers()end end)
+end
+local function updateCurrentServer()
+local current=cfg.Current()
+local n,m,p=current.playing or 0,current.maxPlayers or 0,math.floor(current.ping or 0)
+srvCurrent.cnt.Text=("%d/%d"):format(n,m)
+srvCurrent.fill.Size=UDim2.new(m>0 and n/m or 0,0,1,0)
+srvCurrent.pl.Text=p>0 and(p.." ms")or"-"
+local level=pingLevel(p)
+if srvCurrent.pingLevel~=level then
+srvCurrent.pingLevel=level
+for k,bar in ipairs(srvCurrent.pingBars)do
+theme.bind(bar,"BackgroundColor3",k<=level and(level>=3 and"success"or"warning")or"buttonEdge")
+end
+end
+end
+self:WhileVisible(2,function()if Util.inView(srvCurrent.row)then updateCurrentServer()end end)
+self:OnShow(updateCurrentServer)
+return{Frame=srvBox,Refresh=refreshServers,SetItems=function(_,items)srvCache=items drawServers()end}
+end
+function Card:ColorChoice(cfg)
+local picker,dots,syncing
+local swatch=table.clone(cfg.Swatches or{})
+local custom=table.clone(cfg.Picker or{})
+local changed=cfg.Callback
+swatch.Custom=function(open)if picker then picker:SetOpen(open)end end
+swatch.Callback=function(value)if picker and not syncing then picker:Set(value)end end
+dots=self:Swatches(swatch)
+if cfg.Order then dots.Row.LayoutOrder=cfg.Order end
+custom.Callback=function(value,alpha)
+syncing=true
+local ok,err=pcall(dots.Set,dots,value,true)
+syncing=false
+if not ok then self.window:ReportError("ColorChoice",err)end
+if changed then changed(value,alpha)end
+end
+picker=(cfg.PickerCard or self):ColorPicker(custom)
+dots:Set(picker:Get(),true)
+local control={Swatches=dots,Picker=picker}
+function control:Set(value,silent)picker:Set(value,silent)dots:Set(value,true)end
+function control:Get()return picker:Get()end
+function control:Destroy()dots:Destroy()picker:Destroy()end
+return control
+end
+function Card:LocationList(cfg)
+local source,items,byTitle=cfg.Items or{},{},{}
+local function distance(item)
+local origin=cfg.Origin()
+if not origin then return nil end
+local d=(origin-item.Position).Magnitude
+return d>=1000 and string.format("%.1fk studs",d/1000)or string.format("%d studs",math.floor(d+0.5))
+end
+for _,item in ipairs(source)do
+items[#items+1]={Title=item.Title,Desc=distance(item),Icon=item.Icon or"map-pin"}
+byTitle[item.Title]=item
+end
+local element=self:ItemList({Items=items,Button=cfg.Button or"Go",Rows=cfg.Rows or 4,
+Placeholder=cfg.Placeholder,Empty=cfg.Empty,
+Callback=function(item)if cfg.Callback then cfg.Callback(byTitle[item.Title])end end})
+local refresh=function()
+for _,item in ipairs(source)do element:SetDesc(item.Title,distance(item))end
+end
+local stop=self:WhileVisible(cfg.Interval or 2,function()if not element.Destroyed then refresh()end end)
+element.Maid:give(stop)
+return element
+end
+function Card:SkyPreview(cfg)
+local rgb=Color3.new
+local canvas=self:Canvas({Height=cfg.Height or 74})
+local keys={
+{0,rgb(0.04,0.06,0.16),rgb(0.1,0.13,0.28)},{5,rgb(0.15,0.2,0.4),rgb(0.95,0.6,0.4)},
+{7,rgb(0.45,0.66,0.9),rgb(0.85,0.9,0.95)},{12,rgb(0.29,0.56,0.89),rgb(0.75,0.88,1)},
+{17,rgb(0.36,0.56,0.85),rgb(1,0.85,0.63)},{19,rgb(0.23,0.25,0.48),rgb(0.95,0.48,0.29)},
+{21,rgb(0.08,0.1,0.23),rgb(0.29,0.23,0.42)},{24,rgb(0.04,0.06,0.16),rgb(0.1,0.13,0.28)},
+}
+local function at(hour)
+hour=hour%24
+for i=1,#keys-1 do
+local a,b=keys[i],keys[i+1]
+if hour>=a[1]and hour<=b[1]then
+local t=(hour-a[1])/(b[1]-a[1])
+return a[2]:Lerp(b[2],t),a[3]:Lerp(b[3],t)
+end
+end
+return keys[1][2],keys[1][3]
+end
+local frame=canvas.Frame
+local parts={}
+if frame then
+parts.sky=Instance.new("Frame")
+parts.sky.BorderSizePixel,parts.sky.Size,parts.sky.BackgroundColor3=0,UDim2.fromScale(1,1),Color3.new(1,1,1)
+parts.gradient=Instance.new("UIGradient")
+parts.gradient.Rotation=90
+parts.gradient.Parent=parts.sky
+parts.sky.Parent=frame
+parts.body=Instance.new("Frame")
+parts.body.AnchorPoint,parts.body.Size,parts.body.BorderSizePixel=Vector2.new(0.5,0.5),UDim2.fromOffset(12,12),0
+local round=Instance.new("UICorner")
+round.CornerRadius=UDim.new(1,0)
+round.Parent=parts.body
+parts.body.Parent=frame
+parts.ground=Instance.new("Frame")
+parts.ground.BorderSizePixel,parts.ground.AnchorPoint=0,Vector2.new(0,1)
+parts.ground.Position,parts.ground.Size=UDim2.fromScale(0,1),UDim2.new(1,0,0,14)
+parts.ground.Parent=frame
+parts.label=Instance.new("TextLabel")
+parts.label.BackgroundTransparency,parts.label.Position,parts.label.Size=1,UDim2.fromOffset(8,5),UDim2.new(1,-16,0,14)
+parts.label.TextXAlignment,parts.label.TextSize,parts.label.Font=Enum.TextXAlignment.Left,11,Enum.Font.GothamMedium
+parts.label.TextColor3,parts.label.TextStrokeTransparency=Color3.new(1,1,1),0.6
+parts.label.Parent=frame
+end
+local function drawSky()
+local visible=Util.inView or Util.shown
+if not parts.sky or not visible(frame)then return end
+local state=cfg.Read()
+local hour=(tonumber(state.Hour)or 12)%24
+local top,bottom=at(hour)
+parts.gradient.Color=ColorSequence.new(top,bottom)
+local day=hour>=6 and hour<18
+local t=day and(hour-6)/12 or((hour+6)%24)/12
+parts.body.Position=UDim2.new(0.08+t*0.84,0,0.75-math.sin(t*math.pi)*0.55,0)
+parts.body.BackgroundColor3=day and rgb(1,0.86,0.45)or rgb(0.9,0.92,1)
+local ambient=state.Ambient
+parts.ground.BackgroundColor3=rgb(0.16,0.24,0.12):Lerp(ambient,0.35)
+local h,m=math.floor(hour),math.floor((hour%1)*60+0.5)
+if m==60 then h,m=h+1,0 end
+parts.label.Text=string.format("%02d:%02d · %s%s",h%24,m,day and"Day"or"Night",state.FromGame and" (game)"or"")
+end
+local elapsed=0
+local stop=Util.animateInView(canvas.Frame,Util.Services.RunService.Heartbeat,function(dt)
+elapsed+=dt
+if elapsed>=(cfg.Interval or 2)then elapsed=0 self.window:_safe("Sky preview",drawSky)end
+end)
+local show=Util.watchInView(canvas.Frame,function(on)if on then self.window:_safe("Sky preview",drawSky)end end)
+canvas.Maid:give(stop)
+canvas.Maid:give(show)
+function canvas:Update()if not self.Destroyed then self._draw()end end
+canvas._draw=drawSky
+return canvas
 end
 function Card:SetTitle(text)if self.titleLabel then self.titleLabel.Text=tostring(text)end end
 function Card:SetVisible(visible)self.frame.Visible=visible~=false end
@@ -4836,17 +5099,10 @@ applyFilter()
 end
 function element:Get()return filter end
 if box then box:GetPropertyChangedSignal("Text"):Connect(function()filter=box.Text applyFilter()end)end
-scroller.MouseEnter:Connect(function()
-local node=holder.Parent
-while node and not node:IsA("ScrollingFrame")do node=node.Parent end
-if node and node.ScrollingEnabled~=false and scroller.AbsoluteCanvasSize.Y>scroller.AbsoluteSize.Y+1 then
-element._page=node
-node.ScrollingEnabled=false
-end
+local capture=Util.captureScroll(scroller,function()
+return scroller.AbsoluteCanvasSize.Y>scroller.AbsoluteSize.Y+1
 end)
-scroller.MouseLeave:Connect(function()
-if element._page then element._page.ScrollingEnabled=true element._page=nil end
-end)
+element.Maid:give(capture.Destroy)
 element:SetItems(cfg.Items)
 return Base.finish(element,cfg)
 end
@@ -7725,20 +7981,8 @@ pitch=math.clamp(pitch-delta.Y*0.01,-1.3,1.3)
 place()
 end)
 end)
-local scroller
-hit.MouseEnter:Connect(function()
-local node=holder.Parent
-while node and not node:IsA("ScrollingFrame")do node=node.Parent end
-if node and node.ScrollingEnabled~=false then scroller=node node.ScrollingEnabled=false end
-end)
-local function releaseScroll()
-if scroller then
-pcall(function()scroller.ScrollingEnabled=true end)
-scroller=nil
-end
-end
-element.Maid:give(releaseScroll)
-hit.MouseLeave:Connect(releaseScroll)
+local capture=Util.captureScroll(hit)
+element.Maid:give(capture.Destroy)
 hit.InputChanged:Connect(function(input)
 if input.UserInputType==Enum.UserInputType.MouseWheel then
 zoom=math.clamp(zoom*(input.Position.Z>0 and 0.9 or 1.1),0.4,3)
@@ -9263,7 +9507,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.30.0",
+Version="1.31.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -10766,7 +11010,7 @@ local lines={}
 for index,entry in ipairs(errors)do
 total=total+entry.count
 if index>#errors-8 then
-local head=string.format("[%s] %s%s",os.date("%H:%M:%S",entry.last or os.time()),entry.source,entry.count>1 and(" ×"..entry.count)or"")
+local head=string.format("[%s] %s%s",os.date("%H:%M:%S",entry.last or os.time()),(entry.context or entry.source),entry.count>1 and(" ×"..entry.count)or"")
 table.insert(lines,1,head.."\n"..tostring(entry.message))
 end
 end
@@ -10935,7 +11179,7 @@ function Window:OnCount(callback)
 self._countListeners=self._countListeners or{}
 table.insert(self._countListeners,callback)
 end
-function Window:ReportError(source,message,quiet)
+function Window:ReportError(source,message,quiet,context)
 source,message=tostring(source or"Script"),tostring(message or"Unknown error")
 self.errors=self.errors or{}
 self._errorIndex=self._errorIndex or{}
@@ -10966,6 +11210,12 @@ end}},
 })
 end
 end
+if type(context)=="table"then
+entry.module=tostring(context.Module or source)
+entry.operation=tostring(context.Operation or"Update")
+entry.count=math.max(entry.count,tonumber(context.RepeatCount)or 1)
+entry.context=entry.module.." · "..entry.operation
+end
 changed(self)
 end
 function Window:GetErrors()return self.errors or{}end
@@ -10981,7 +11231,7 @@ local module=self.modules[name]
 lines[#lines+1]=string.format("module %s: %s%s",name,module.state,module.detail and(" ("..tostring(module.detail)..")")or"")
 end
 for _,entry in ipairs(self.errors or{})do
-lines[#lines+1]=string.format("x%d %s: %s",entry.count,entry.source,entry.message)
+lines[#lines+1]=string.format("x%d %s: %s",entry.count,entry.context or entry.source,entry.message)
 end
 if#(self.errors or{})==0 then lines[#lines+1]="no errors"end
 return table.concat(lines,"\n")
@@ -12524,6 +12774,110 @@ sync()
 signal,tick,enabled=nil,nil,nil
 end
 return stop,sync
+end
+local scrollOwners=setmetatable({},{__mode="k"})
+function Util.lockScroll(owner)
+local node=owner.Parent
+while node and not node:IsA("ScrollingFrame")do node=node.Parent end
+if not node then return function()end end
+local state=scrollOwners[node]
+if not state then state={count=0,original=node.ScrollingEnabled}scrollOwners[node]=state end
+state.count+=1
+node.ScrollingEnabled=false
+local alive=true
+return function()
+if not alive then return end
+alive=false state.count-=1
+if state.count==0 then
+scrollOwners[node]=nil
+pcall(function()node.ScrollingEnabled=state.original end)
+end
+end
+end
+function Util.captureScroll(owner,enabled)
+local maid,release=Util.maid(),nil
+local function clear()if release then release()release=nil end end
+local function sync()if enabled and not enabled()then clear()end end
+maid:connect(owner.MouseEnter,function()
+clear()
+if Util.inView(owner)and(not enabled or enabled())then release=Util.lockScroll(owner)end
+end)
+maid:connect(owner.MouseLeave,clear)
+maid:give(Util.watchInView(owner,function(on)if not on then clear()end end))
+maid:connect(owner.Destroying,function()maid:clean()clear()end)
+maid:give(clear)
+return{Sync=sync,Destroy=function()maid:clean()clear()end}
+end
+function Util.dependencyIcons(Window)
+local hub={Running=true,Cleanup={}}
+local marks={}
+for _,el in pairs(Window.flags or{})do
+local row=type(el)=="table"and el.Row
+local title=row and row:FindFirstChild("Title")
+if title then
+local ok,img=pcall(function()
+return require("icons").Image("lock",{Size=UDim2.fromOffset(10,10),Color=Color3.fromRGB(150,155,168)})
+end)
+if ok and img then
+img.AnchorPoint,img.ZIndex,img.Visible,img.Parent=Vector2.new(0,0.5),23,false,row
+local mark={row=row,image=img,visible=false}
+function mark.paint()
+local show=el._depLocked==true and title.Parent~=nil
+img.Visible=show
+if show then
+img.Position=UDim2.fromOffset(
+title.AbsolutePosition.X-row.AbsolutePosition.X+title.TextBounds.X+5,
+title.AbsolutePosition.Y-row.AbsolutePosition.Y+title.AbsoluteSize.Y/2)
+end
+end
+local links={}
+local function clear()
+for _,c in ipairs(links)do c:Disconnect()end
+table.clear(links)
+end
+local stop=Util.watchInView(row,function(visible)
+clear()
+mark.visible=visible and hub.Running
+if mark.visible then
+mark.paint()
+for _,spec in ipairs({{title,"TextBounds"},{title,"AbsolutePosition"},{title,"AbsoluteSize"},{row,"AbsolutePosition"}})do
+links[#links+1]=spec[1]:GetPropertyChangedSignal(spec[2]):Connect(mark.paint)
+end
+else img.Visible=false end
+end)
+marks[#marks+1]=mark
+hub.Cleanup[#hub.Cleanup+1]=function()stop()clear()end
+end
+end
+end
+local queued=false
+Window._dependents=Window._dependents or{}
+Window._dependents[#Window._dependents+1]=function()
+if not hub.Running then return false end
+if not queued then
+queued=true
+task.defer(function()
+queued=false
+if not hub.Running then return end
+for _,mark in ipairs(marks)do
+if mark.visible and mark.row.Parent then mark.paint()end
+end
+end)
+end
+return true
+end
+local alive=true
+local function stop()
+if not alive then return end
+alive,hub.Running=false,false
+for _,cleanup in ipairs(hub.Cleanup)do cleanup()end
+for _,mark in ipairs(marks)do
+local image=mark.image
+if image then image:Destroy()end
+end
+end
+Window.maid:give(stop)
+return stop
 end
 function Util.round(value,step)
 step=step or 1

@@ -131,17 +131,10 @@ return function(card, cfg)
     function element:Get() return filter end
     if box then box:GetPropertyChangedSignal("Text"):Connect(function() filter = box.Text applyFilter() end) end
     -- (the page stays put while the wheel scrolls the list)
-    scroller.MouseEnter:Connect(function()
-        local node = holder.Parent
-        while node and not node:IsA("ScrollingFrame") do node = node.Parent end
-        if node and node.ScrollingEnabled ~= false and scroller.AbsoluteCanvasSize.Y > scroller.AbsoluteSize.Y + 1 then
-            element._page = node
-            node.ScrollingEnabled = false
-        end
+    local capture = Util.captureScroll(scroller, function()
+        return scroller.AbsoluteCanvasSize.Y > scroller.AbsoluteSize.Y + 1
     end)
-    scroller.MouseLeave:Connect(function()
-        if element._page then element._page.ScrollingEnabled = true element._page = nil end
-    end)
+    element.Maid:give(capture.Destroy)
     element:SetItems(cfg.Items)
     return Base.finish(element, cfg)
 end

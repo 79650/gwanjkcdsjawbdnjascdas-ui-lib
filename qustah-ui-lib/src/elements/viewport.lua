@@ -104,20 +104,8 @@ return function(card, cfg)
             end)
         end)
         -- (the wheel zooms here: the page's own scrolling waits while the pointer is over the preview)
-        local scroller
-        hit.MouseEnter:Connect(function()
-            local node = holder.Parent
-            while node and not node:IsA("ScrollingFrame") do node = node.Parent end
-            if node and node.ScrollingEnabled ~= false then scroller = node node.ScrollingEnabled = false end
-        end)
-        local function releaseScroll()
-            if scroller then
-                pcall(function() scroller.ScrollingEnabled = true end)
-                scroller = nil
-            end
-        end
-        element.Maid:give(releaseScroll)
-        hit.MouseLeave:Connect(releaseScroll)
+        local capture = Util.captureScroll(hit)
+        element.Maid:give(capture.Destroy)
         hit.InputChanged:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseWheel then
                 zoom = math.clamp(zoom * (input.Position.Z > 0 and 0.9 or 1.1), 0.4, 3)

@@ -506,7 +506,7 @@ return function(window, cfg)
         for index, entry in ipairs(errors) do
             total = total + entry.count
             if index > #errors - 8 then
-                local head = string.format("[%s] %s%s", os.date("%H:%M:%S", entry.last or os.time()), entry.source, entry.count > 1 and (" ×" .. entry.count) or "")
+                local head = string.format("[%s] %s%s", os.date("%H:%M:%S", entry.last or os.time()), (entry.context or entry.source), entry.count > 1 and (" ×" .. entry.count) or "")
                 table.insert(lines, 1, head .. "\n" .. tostring(entry.message))
             end
         end
