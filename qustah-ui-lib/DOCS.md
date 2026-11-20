@@ -742,7 +742,7 @@ Window:SettingsTab()                                                            
 
 **Settings › Keys:** every key the menu listens to (switch / button binds, keybinds, key hints, the menu key) with the setting and where it is; a key used twice is red with a `!`, and a click on a row opens that setting.
 
-**Settings › Info:** Status across the top (a banner: how many errors this session, amber with errors and green without, the first limited module, Copy debug info and Clear; tiles: script version, UI lib, executor, secure mode, window size - click to copy - and your `Info` rows; link buttons and "Show the tour" under them), then Modules (each module's state over the last 15 minutes) and Executor (which functions it has and what they are needed for) on the left, Errors (a Debug switch in the card's title), Disconnects, "What's new" and This session (uptime, your `Window:Count` counters, Lua memory) on the right.
+**Settings › Info:** Status across the top (a banner: how many errors this session, amber with errors and green without, the first limited module, Copy debug info and Clear; tiles: script version, UI lib, executor, secure mode, window size - click to copy - and your `Info` rows; link buttons and "Show the tour" under them), then Modules (each module's state over the last 15 minutes) and Executor (which functions it has and what they are needed for) on the left, Errors (a Debug switch in the card's title), "What's new" and This session (uptime, your `Window:Count` counters, Lua memory) on the right.
 
 ## Overlays
 
@@ -859,7 +859,7 @@ Modules are shown on the Dashboard (two tiles a row; past six, three smaller one
 
 **Kick watcher**
 - When the game disconnects you, the reason and error code are recorded.
-- The last 20 are saved and listed in Settings › Info › Disconnects.
+- The last 20 are saved; read them with `Window:GetKicks()`.
 
 ```lua
 Window:OnKick(function(info)

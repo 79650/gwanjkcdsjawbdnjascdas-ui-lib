@@ -519,32 +519,6 @@ return function(window, cfg)
     local noErrors = errorsCard:Label("No errors in this session")
     local errorText = errorsCard:Code({ Title = "Last errors", Code = "", MaxHeight = 180 })
 
-    -- kicks / disconnects seen by the kick watcher (kick.lua)
-    if window.GetKicks and window.cfg.KickLog ~= false then
-        local kicksCard = infoPage:Card({ Title = "Disconnects", Side = "Right", Icon = "log-out", Desc = "Kicks and drops, with Roblox's reason" })
-        local kickText = kicksCard:Paragraph({ Content = "None yet" })
-        local kicksClear
-        local function showKicks()
-            local list = window:GetKicks()
-            local lines = {}
-            for index, entry in ipairs(list) do
-                if index > 5 then break end
-                lines[#lines + 1] = string.format("<font color=\"#%s\">%s</font>  %s  <font color=\"#%s\">%s</font>",
-                    Util.toHex(Theme.get((entry.Code == 277 or entry.Code == 279) and "warning" or "danger")), tostring(entry.Kind or "Kicked"),
-                    (tostring(entry.Reason or ""):gsub("<", "&lt;")), Util.toHex(Theme.get("muted")), Util.ago(entry.Time))
-            end
-            kickText:Set(#lines > 0 and table.concat(lines, "\n") or "None yet")
-            if kicksClear then kicksClear:SetVisible(#lines > 0) end -- (nothing to clear: no button)
-        end
-        kicksClear = kicksCard:Button({ Title = "Clear", Icon = "trash-2", Callback = function()
-            window.Config:WriteJSON("kicks", { list = {} })
-            showKicks()
-        end })
-        window:OnKick(showKicks)
-        Theme.onChange(function() if infoPage.frame.Parent then showKicks() end end)
-        showKicks()
-    end
-
     -- release notes (CreateWindow({ Changelog = { Version, Items, History } }))
     if type(window.cfg.Changelog) == "table" then
         local log = window.cfg.Changelog
