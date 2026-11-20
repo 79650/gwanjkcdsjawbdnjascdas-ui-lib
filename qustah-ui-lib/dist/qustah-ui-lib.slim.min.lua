@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.36.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.37.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -7257,32 +7257,75 @@ return element
 end
 end
 __modules["font"]=function()
-local UIFont={current="Gotham",guis={}}
-UIFont.order={
-"Gotham","Montserrat","Ubuntu","Work Sans","Josefin Sans","Builder Mono","Arcade","Michroma",
-"Quicksand","Fuzzy Bubbles","Silkscreen","Sono Mono",
+local Util=require("util")
+local UIFont={current="Montserrat",guis={}}
+UIFont.order={"Montserrat","Ubuntu","Work Sans","Josefin Sans","Michroma"}
+UIFont.Source="https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/fonts/files/"
+UIFont.Folder="QustahUI/fonts"
+UIFont.Files={
+Montserrat={Regular="Montserrat-Regular.ttf",SemiBold="Montserrat-SemiBold.ttf"},
+Ubuntu={Regular="Ubuntu-Regular.ttf",SemiBold="Ubuntu-SemiBold.ttf"},
+["Work Sans"]={Regular="WorkSans-Regular.ttf",SemiBold="WorkSans-SemiBold.ttf"},
+["Josefin Sans"]={Regular="JosefinSans-Regular.ttf",SemiBold="JosefinSans-SemiBold.ttf"},
+Michroma={Regular="Michroma-Regular.ttf"},
 }
-UIFont.Enums={["Josefin Sans"]="JosefinSans",Montserrat="Montserrat",Ubuntu="Ubuntu",Arcade="Arcade",Michroma="Michroma"}
-UIFont.Files={["Builder Mono"]="rbxasset://fonts/families/BuilderMono.json"}
-UIFont.Fit={Michroma=1.12,["Builder Mono"]=1.08,Arcade=0.9,["Josefin Sans"]=0.96}
-UIFont.codeFonts={"Sono Mono","Builder Mono"}
-UIFont.Library={
-["Work Sans"]=12187373327,Quicksand=12187371324,["Fuzzy Bubbles"]=11322590111,Silkscreen=12187371840,
-["Sono Mono"]=12187362578,
+UIFont.Fallback={
+Montserrat="Montserrat",Ubuntu="Ubuntu",["Josefin Sans"]="JosefinSans",Michroma="Michroma",
+["Work Sans"]="rbxassetid://12187373327",
 }
-UIFont.code="Sono Mono"
+UIFont.Fit={Michroma=1.12,["Josefin Sans"]=0.96}
+UIFont.code="RobotoMono"
 UIFont.textScale=1
+UIFont.downloaded={}
 function UIFont.available()return table.clone(UIFont.order)end
 local function isText(object)
 return object:IsA("TextLabel")or object:IsA("TextButton")or object:IsA("TextBox")
 end
 local function familyOf(name)
 name=tostring(name)
-if UIFont.Library[name]then return"rbxassetid://"..UIFont.Library[name]end
-if UIFont.Files[name]then return UIFont.Files[name]end
-local enumName=UIFont.Enums[name]or name
-local ok,face=pcall(function()return Font.fromEnum(Enum.Font[enumName])end)
+if UIFont.downloaded[name]then return UIFont.downloaded[name]end
+local fallback=UIFont.Fallback[name]or name
+if fallback:match("^rbxasset")then return fallback end
+local ok,face=pcall(function()return Font.fromEnum(Enum.Font[fallback])end)
 return ok and face and face.Family or nil
+end
+local function isFont(body)
+local magic=body:sub(1,4)
+return magic=="\0\1\0\0"or magic=="true"or magic=="OTTO"
+end
+local started=false
+function UIFont._resetDownload()started=false table.clear(UIFont.downloaded)end
+function UIFont.download()
+if started then return end
+started=true
+local files={}
+for _,name in ipairs(UIFont.order)do
+for _,file in pairs(UIFont.Files[name]or{})do
+files[#files+1]={path=UIFont.Folder.."/"..file,url=UIFont.Source..file,check=isFont}
+end
+end
+Util.cacheFiles(files,function(ids)
+local custom=getcustomasset or getsynasset
+local HttpService=Util.Services.HttpService
+for _,name in ipairs(UIFont.order)do
+local set=UIFont.Files[name]
+local regular=ids[UIFont.Folder.."/"..set.Regular]
+local heavy=set.SemiBold and ids[UIFont.Folder.."/"..set.SemiBold]or regular
+local faces={}
+for _,weight in ipairs({100,200,300,400,500,600,700,800,900})do
+faces[#faces+1]={name=tostring(weight),weight=weight,style="normal",assetId=weight<=400 and regular or heavy}
+end
+local ok,err=pcall(function()
+local path=UIFont.Folder.."/"..name:gsub(" ","")..".json"
+writefile(path,HttpService:JSONEncode({name=name,faces=faces}))
+UIFont.downloaded[name]=custom(path)
+end)
+if not ok then Util.log("[qustah-ui-lib] font "..name.." could not be set up: "..tostring(err))end
+end
+UIFont.refresh()
+end,function(reason)
+if Util.canCustomAsset()then Util.log("[qustah-ui-lib] fonts could not be downloaded ("..tostring(reason).."); using Roblox's copies")end
+end,"fonts")
 end
 local function targetFor(object,uiTarget)
 if object:GetAttribute("QFixedFont")then return nil end
@@ -7325,15 +7368,15 @@ end
 end
 end
 function UIFont.set(name)
-name=tostring(name or"Gotham")
+name=tostring(name or"Montserrat")
 if not table.find(UIFont.order,name)or not familyOf(name)then return false end
 UIFont.current=name
 UIFont.refresh()
 return true
 end
 function UIFont.setCode(name)
-name=tostring(name or"Sono Mono")
-if not table.find(UIFont.order,name)or not familyOf(name)then return false end
+name=tostring(name or"RobotoMono")
+if not familyOf(name)then return false end
 UIFont.code=name
 UIFont.refresh()
 return true
@@ -7349,12 +7392,12 @@ local connection=gui.DescendantAdded:Connect(function(object)
 if not isText(object)then return end
 task.defer(function()
 if not object.Parent then return end
-if UIFont.current=="Gotham"and UIFont.textScale==1 and not object:GetAttribute("QCode")then return end
-apply(object,UIFont.current~="Gotham"and familyOf(UIFont.current)or nil)
+apply(object,familyOf(UIFont.current))
 end)
 end)
 if maid then maid:give(connection)end
 task.defer(UIFont.refresh)
+UIFont.download()
 end
 return UIFont
 end
@@ -8037,6 +8080,7 @@ end)
 end
 Icons.Sharp=true
 Icons.AtlasFolder="QustahUI/icons"
+Icons.SheetSource="https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah/icons/"
 local Atlas=require("icons_atlas")
 local atlas={started=false,ready=false,index=nil,pages={}}
 local sharpImages=setmetatable({},{__mode="k"})
@@ -8085,6 +8129,7 @@ local function startAtlas()
 if atlas.started then return end
 atlas.started=true
 if Icons.Sharp==false then return end
+Icons.UseSheet(require("icons_qustah"),Icons.SheetSource)
 local files={}
 for _,list in pairs(Atlas.Pages)do for _,file in ipairs(list)do files[#files+1]=file end end
 loadFiles("v"..Atlas.Version.."-",Icons.Source.."atlas/",files,function(ids)
@@ -8616,6 +8661,43 @@ return{
 "zodiac-pisces",95845819440327,"zodiac-sagittarius",82651026742181,"zodiac-scorpio",113640924054631,"zodiac-taurus",123053219704400,"zodiac-virgo",99462994613661,
 }
 end
+__modules["icons_qustah"]=function()
+return{
+Id="qustah",Version=10,
+Files={"qustah-v10-1.png","qustah-v10-2.png","qustah-v10-3.png"},
+Names="activity,app-window,arrow-down-to-line,arrow-right,ban,bell,bell-off,bell-ring,blend,bookmark,box,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-x,clipboard-copy,clock-4,code,coins,copy,crosshair,dock,dot,download,dumbbell,earth,ellipsis,eye,fast-forward,folder-open,footprints,gamepad-2,gauge,ghost,hand,hat-glasses,heading,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,link,list,list-checks,loader,loader-circle,lock,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,refresh-cw,rotate-ccw,ruler,save,scan,scan-eye,scroll,search,send,server,settings,settings-2,share-2,shield,shirt,shuffle,skull,sliders-horizontal,sparkle,sparkles,spline,square,square-terminal,star,star-off,store,sword,swords,table,tag,target,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,users,venetian-mask,volume,volume-2,waypoints,wifi,wind,x,zap",
+Sizes={
+[5]={1,0,146},
+[6]={1,14,128},
+[7]={1,30,113},
+[8]={1,48,102},
+[9]={1,68,93},
+[10]={1,90,85},
+[11]={1,114,78},
+[12]={1,140,73},
+[13]={1,182,68},
+[14]={1,227,64},
+[15]={1,275,60},
+[16]={1,326,56},
+[17]={1,380,53},
+[18]={1,437,51},
+[19]={1,497,48},
+[20]={2,0,46},
+[21]={2,88,44},
+[22]={2,180,42},
+[23]={2,276,40},
+[24]={2,376,39},
+[25]={2,480,37},
+[26]={2,615,36},
+[27]={2,755,35},
+[28]={3,0,34},
+[29]={3,150,33},
+[30]={3,305,32},
+[31]={3,465,31},
+[32]={3,630,30},
+},
+}
+end
 __modules["inbox"]=function()
 local Util=require("util")
 local Theme=require("theme")
@@ -8769,7 +8851,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.36.1",
+Version="1.37.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -10034,7 +10116,7 @@ local fonts=UIFont.available()
 local wanted=type(window.cfg.Font)=="table"and window.cfg.Font or{window.cfg.Font}
 local usable={}
 for _,name in ipairs(wanted)do if table.find(fonts,tostring(name))then usable[#usable+1]=tostring(name)end end
-local startFont=usable[1]or"Gotham"
+local startFont=usable[1]or"Montserrat"
 local fontOptions={}
 for _,name in ipairs(fonts)do fontOptions[#fontOptions+1]={Title=name,Font=UIFont.family(name)}end
 local fontTab=interface:Card({Title="Text",Side="Left",Icon="type"})
@@ -10044,16 +10126,8 @@ Callback=function(name)
 if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not available here",Color=RED})end
 end,
 })
-if startFont~="Gotham"then UIFont.set(startFont)end
-local codeItems={}
-for _,name in ipairs(UIFont.codeFonts)do codeItems[#codeItems+1]=name end
-local startCode=table.find(codeItems,tostring(window.cfg.CodeFont))and tostring(window.cfg.CodeFont)or"Sono Mono"
-fontTab:Segment({
-Title="Code font",Desc="Errors and code blocks",Flag="__ui_codefont",Items=codeItems,Default=startCode,
-Callback=function(name)UIFont.setCode(name)end,
-})
-if startCode~="Sono Mono"then UIFont.setCode(startCode)end
-if window.cfg.CodeFont and not table.find(codeItems,tostring(window.cfg.CodeFont))then UIFont.setCode(window.cfg.CodeFont)end
+UIFont.set(startFont)
+if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont)end
 local TEXT_SIZES={Small=0.9,Normal=1,Large=1.1}
 fontTab:Segment({
 Title="Text size",Flag="__ui_textsize",Items={"Small","Normal","Large"},Default="Normal",
@@ -10124,7 +10198,7 @@ Callback=function()
 window:Confirm("Unload "..window.Title.."?","The menu and everything it runs will be removed.",function()window:Destroy()end,"Unload",true)
 end,
 })
-local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_codefont","__ui_textsize","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
+local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_textsize","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
 "__ui_live","__ui_edge_glow","__ui_blur","__ui_hud_watermark","__ui_hud_keys","__ui_hud_session","__ui_hud_stats","__ui_dock","__ui_pagetabs"}
 menu:Button({Title="Reset interface",Icon="paintbrush",Style="Ghost",Callback=function()
 window:Confirm("Reset the interface?","Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.",function()

@@ -35,8 +35,8 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
-| `Font` | `"Gotham"` | starting font, e.g. `"Quicksand"`, or a list such as `{ "Quicksand", "Work Sans" }` (the first known one) (see [Themes](#themes)) |
-| `CodeFont` | `"Sono Mono"` | font of Code, Console and Log text, e.g. `"Silkscreen"` |
+| `Font` | `"Montserrat"` | starting font: `"Ubuntu"`, `"Work Sans"`, `"Josefin Sans"`, `"Michroma"`, or a list such as `{ "Ubuntu", "Work Sans" }` (the first known one) (see [Themes](#themes)) |
+| `CodeFont` | `"RobotoMono"` | font of Code, Console and Log text (an `Enum.Font` name) |
 | `SegmentStyle` | `"Boxed"` | look of every Segment: `"Boxed"`, `"Tab"`, `"Underline"`, `"Line"`, `"Dot"`, `"Divided"`, `"Ghost"`, `"Track"`, `"Pills"`, `"Capsule"` (see [Segment](#dropdown-segment-and-radio)) |
 | `DockSide` | `"Right"` | where the tab icons sit: `"Right"` (beside the window) or `"Bottom"` (in a row under it); Settings › Behaviour › Dock, `Window:SetDockSide` |
 | `PageTabs` | `"Row"` | a tab's page names: `"Row"` (over the cards) or `"Header"` (in the title row, like Dashboard / Settings; a tab whose names don't fit there keeps the row); Settings › Behaviour › Page tabs, `Window:SetPageTabs` |
@@ -734,7 +734,7 @@ Window:SettingsTab()                                                            
 
 **Settings › Interface**
 - Theme: the theme packs as small windows drawn in their own colours (ThemeGallery; New opens the editor), the accent dots under an "Accent" label (the last one opens a picker for any colour), Edit colours (the theme editor, folded)
-- Text: font, code font, text size, text glow
+- Text: font, text size, text glow
 - Behaviour: menu key, UI scale, free mouse, anonymous mode, UI sounds, haptics (touch devices), mobile button, welcome toast, Reset layout, Unload, Reset interface (only the look goes back to its defaults)
 - Window › Look / Background / Overlays: transparency, dock side, page tabs, edge glow, blur · background image (and its visibility once one is set), animated background · watermark, keybind list, session bar, performance monitor
 
@@ -787,17 +787,22 @@ The theme editor in Settings lets you:
 - save the result under a name;
 - share or import it with a `QTHEME1:` code.
 
-Fonts (Settings › Interface › Text): **Gotham** (Roblox's default), **Work Sans** (clean), **Quicksand** (soft), **Fuzzy Bubbles** (bubbly), **Silkscreen** (pixel) and **Sono Mono** (terminal).
+Fonts (Settings › Interface › Text): **Montserrat** (the default), **Ubuntu**, **Work Sans**, **Josefin Sans** and **Michroma** (wide, for a techy look).
 
-All of them come from Roblox's own font library by asset id (`Lib.Fonts.Library`, `Font.new("rbxassetid://...")`): nothing is downloaded and every executor shows them. Silkscreen is a display font: fine for a playful look, less so for small text.
+They are the `.ttf` files in `fonts/files`:
+- downloaded once into `QustahUI/fonts` (the download strip shows it);
+- each family is written next to them as a font JSON (Regular for light / normal text, SemiBold for medium and bold) and shown through `getcustomasset`;
+- until they are there, or where the executor has no `getcustomasset`, Roblox's own copy of the same family is used.
 
-In the font list every name is drawn in its own font. Code, Console and Log text always use a monospace font: Sono Mono, or `CreateWindow({ CodeFont = "Silkscreen" })`.
+In the font list every name is drawn in its own font. Code, Console and Log text use Roblox's monospace RobotoMono, or another `Enum.Font` with `CreateWindow({ CodeFont = "Code" })`.
 
 **Text size** (Settings › Interface): Small, Normal or Large makes every text about 10 % smaller or larger while the menu keeps its size. Small print (9 px and under) stays as it is; in Large a long value in a narrow box can end in "…".
 
-`Lib.Fonts.set("Quicksand")`, `Lib.Fonts.setCode("Sono Mono")` and `Lib.Fonts.setTextScale(1.1)` do the same from code. `CreateWindow({ Font = "Quicksand" })` starts with a font; `Font = { "Quicksand", "Work Sans" }` starts with the first known one.
+`Lib.Fonts.set("Ubuntu")`, `Lib.Fonts.setCode("RobotoMono")` and `Lib.Fonts.setTextScale(1.1)` do the same from code. `CreateWindow({ Font = "Ubuntu" })` starts with a font; `Font = { "Ubuntu", "Work Sans" }` starts with the first known one.
 
-**Download strip.** While the library fetches files (the sharp icon sheets, a script's own sheet) a thin strip at the top of the screen says so, with the progress. It only shows when something is really downloaded, so later starts (everything already on disk) show nothing. `Lib.Loader.enabled = false` hides it. A download that never answers is given up after `Lib.Util.downloadTimeout` (20 s) and the plain icons are used. `Lib.Icons.Preload()` starts the sharp icon download early and `Lib.Loader.Wait(30)` (before `CreateWindow`) keeps the window back until the downloads are done.
+**Icons.** The lib's own icons come from its sheet in `qustah/icons` (every icon at every size from 5 to 32 px, pixel for pixel; `src/icons_qustah.lua` says where each one is), downloaded once into `QustahUI/icons` and shown through `getcustomasset`. Any other lucide icon comes from the 16 / 32 px lucide sheets, and without `getcustomasset` from its asset id.
+
+**Download strip.** While the library fetches files (fonts, the icon sheets, a script's own sheet) a thin strip at the top of the screen says so, with the progress. It only shows when something is really downloaded, so later starts (everything already on disk) show nothing. `Lib.Loader.enabled = false` hides it. A download that never answers is given up after `Lib.Util.downloadTimeout` (20 s) and the plain icons are used. `Lib.Icons.Preload()` starts the sharp icon download early and `Lib.Loader.Wait(30)` (before `CreateWindow`) keeps the window back until the downloads are done.
 
 <p align="center"><img src="assets/screens/strip.png" alt="Download strip" width="500"></p>
 

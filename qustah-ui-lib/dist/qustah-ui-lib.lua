@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.36.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.37.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -3489,7 +3489,7 @@ return function(card, cfg)
         Font = Enum.Font.Code, TextSize = 11, RichText = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
         TextWrapped = false, Text = "", Parent = scroller,
     })
-    text:SetAttribute("QCode", true) -- the code font (Sono Mono / CreateWindow CodeFont)
+    text:SetAttribute("QCode", true) -- the code font (RobotoMono / CreateWindow CodeFont)
     Theme.bind(text, "TextColor3", "heading")
     create("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingBottom = UDim.new(0, 10), Parent = text })
 
@@ -3948,7 +3948,7 @@ return function(card, cfg)
             TextTruncate = Enum.TextTruncate.None, RichText = true, Font = Enum.Font.Code, LayoutOrder = order,
             TextYAlignment = Enum.TextYAlignment.Top,
         })
-        row:SetAttribute("QCode", true) -- the code font (Sono Mono / CreateWindow CodeFont)
+        row:SetAttribute("QCode", true) -- the code font (RobotoMono / CreateWindow CodeFont)
         local function paint()
             local prefix = stamp and ('<font color="#' .. Util.toHex(Theme.get("muted")) .. '">' .. stamp .. "</font>  ") or ""
             row.Text = prefix .. escape(text)
@@ -9221,33 +9221,40 @@ end
 
 __modules["font"] = function()
 -- UI font. Every text object in a registered ScreenGui gets the chosen family; its weight (regular / medium /
--- semibold / bold) is kept. UIFont.set("Quicksand"), UIFont.register(gui, maid).
--- Gotham is Roblox's built-in default; every other font comes from Roblox's own font library (Creator Marketplace)
--- by asset id, like WindUI does: nothing to download, they work in every executor.
-local UIFont = { current = "Gotham", guis = {} }
+-- semibold / bold) is kept. UIFont.set("Ubuntu"), UIFont.register(gui, maid).
+-- The fonts are the .ttf files in this repo's fonts/files: downloaded once into QustahUI/fonts, each family
+-- written as a font JSON next to them and shown through getcustomasset. Until they are there (or where the
+-- executor has no getcustomasset) Roblox's own copy of the same family is used.
+local Util = require("util")
 
-UIFont.order = {
-    "Gotham", "Montserrat", "Ubuntu", "Work Sans", "Josefin Sans", "Builder Mono", "Arcade", "Michroma",
-    "Quicksand", "Fuzzy Bubbles", "Silkscreen", "Sono Mono",
+local UIFont = { current = "Montserrat", guis = {} }
+
+UIFont.order = { "Montserrat", "Ubuntu", "Work Sans", "Josefin Sans", "Michroma" }
+UIFont.Source = "https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/fonts/files/"
+UIFont.Folder = "QustahUI/fonts"
+-- name -> its files (Regular and, where there is one, SemiBold)
+UIFont.Files = {
+    Montserrat = { Regular = "Montserrat-Regular.ttf", SemiBold = "Montserrat-SemiBold.ttf" },
+    Ubuntu = { Regular = "Ubuntu-Regular.ttf", SemiBold = "Ubuntu-SemiBold.ttf" },
+    ["Work Sans"] = { Regular = "WorkSans-Regular.ttf", SemiBold = "WorkSans-SemiBold.ttf" },
+    ["Josefin Sans"] = { Regular = "JosefinSans-Regular.ttf", SemiBold = "JosefinSans-SemiBold.ttf" },
+    Michroma = { Regular = "Michroma-Regular.ttf" },
 }
--- Roblox's own fonts by their Enum.Font name, and families that are only a file in Roblox's font folder
-UIFont.Enums = { ["Josefin Sans"] = "JosefinSans", Montserrat = "Montserrat", Ubuntu = "Ubuntu", Arcade = "Arcade", Michroma = "Michroma" }
-UIFont.Files = { ["Builder Mono"] = "rbxasset://fonts/families/BuilderMono.json" }
+-- Roblox's own copy of each family (before the download / without getcustomasset)
+UIFont.Fallback = {
+    Montserrat = "Montserrat", Ubuntu = "Ubuntu", ["Josefin Sans"] = "JosefinSans", Michroma = "Michroma",
+    ["Work Sans"] = "rbxassetid://12187373327",
+}
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
--- doesn't push labels out of their rows and a small one (Arcade's pixels) stays readable. Code text has its own font.
-UIFont.Fit = { Michroma = 1.12, ["Builder Mono"] = 1.08, Arcade = 0.9, ["Josefin Sans"] = 0.96 }
--- The code fonts the settings offer (Code, Console, Log)
-UIFont.codeFonts = { "Sono Mono", "Builder Mono" }
-UIFont.Library = {
-    ["Work Sans"] = 12187373327, Quicksand = 12187371324, ["Fuzzy Bubbles"] = 11322590111, Silkscreen = 12187371840,
-    ["Sono Mono"] = 12187362578,
-}
--- Code text (Code, Console, Log; marked with the QCode attribute) has its own monospace font, Sono Mono unless
--- CreateWindow({ CodeFont = "Silkscreen" }) asks for another. Text marked QFixedFont keeps whatever font it has
+-- doesn't push labels out of their rows. Code text has its own font.
+UIFont.Fit = { Michroma = 1.12, ["Josefin Sans"] = 0.96 }
+-- Code text (Code, Console, Log; marked with the QCode attribute) uses Roblox's monospace RobotoMono unless
+-- CreateWindow({ CodeFont = "..." }) names another Enum.Font. Text marked QFixedFont keeps whatever font it has
 -- (the font list draws each name in its own font).
-UIFont.code = "Sono Mono"
+UIFont.code = "RobotoMono"
 -- Text size (Settings > Interface > Text size): every text's own size times this, rounded.
 UIFont.textScale = 1
+UIFont.downloaded = {} -- name -> getcustomasset id of its font JSON
 
 -- the fonts this executor can show (all of them: nothing is downloaded)
 function UIFont.available() return table.clone(UIFont.order) end
@@ -9258,11 +9265,54 @@ end
 
 local function familyOf(name)
     name = tostring(name)
-    if UIFont.Library[name] then return "rbxassetid://" .. UIFont.Library[name] end
-    if UIFont.Files[name] then return UIFont.Files[name] end
-    local enumName = UIFont.Enums[name] or name
-    local ok, face = pcall(function() return Font.fromEnum(Enum.Font[enumName]) end)
+    if UIFont.downloaded[name] then return UIFont.downloaded[name] end
+    local fallback = UIFont.Fallback[name] or name
+    if fallback:match("^rbxasset") then return fallback end
+    local ok, face = pcall(function() return Font.fromEnum(Enum.Font[fallback]) end)
     return ok and face and face.Family or nil
+end
+
+-- Downloads the font files once and writes a font JSON per family (faces: Regular for 100 - 400, SemiBold - or
+-- Regular where there is none - for 500 - 900, so medium / bold text gets the heavier file). Then every text is
+-- re-drawn in the downloaded font.
+local function isFont(body)
+    local magic = body:sub(1, 4)
+    return magic == "\0\1\0\0" or magic == "true" or magic == "OTTO"
+end
+local started = false
+-- (tests) start over: forget the downloaded fonts
+function UIFont._resetDownload() started = false table.clear(UIFont.downloaded) end
+function UIFont.download()
+    if started then return end
+    started = true
+    local files = {}
+    for _, name in ipairs(UIFont.order) do
+        for _, file in pairs(UIFont.Files[name] or {}) do
+            files[#files + 1] = { path = UIFont.Folder .. "/" .. file, url = UIFont.Source .. file, check = isFont }
+        end
+    end
+    Util.cacheFiles(files, function(ids)
+        local custom = getcustomasset or getsynasset
+        local HttpService = Util.Services.HttpService
+        for _, name in ipairs(UIFont.order) do
+            local set = UIFont.Files[name]
+            local regular = ids[UIFont.Folder .. "/" .. set.Regular]
+            local heavy = set.SemiBold and ids[UIFont.Folder .. "/" .. set.SemiBold] or regular
+            local faces = {}
+            for _, weight in ipairs({ 100, 200, 300, 400, 500, 600, 700, 800, 900 }) do
+                faces[#faces + 1] = { name = tostring(weight), weight = weight, style = "normal", assetId = weight <= 400 and regular or heavy }
+            end
+            local ok, err = pcall(function()
+                local path = UIFont.Folder .. "/" .. name:gsub(" ", "") .. ".json"
+                writefile(path, HttpService:JSONEncode({ name = name, faces = faces }))
+                UIFont.downloaded[name] = custom(path)
+            end)
+            if not ok then Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err)) end
+        end
+        UIFont.refresh()
+    end, function(reason)
+        if Util.canCustomAsset() then Util.log("[qustah-ui-lib] fonts could not be downloaded (" .. tostring(reason) .. "); using Roblox's copies") end
+    end, "fonts")
 end
 
 -- the family an icon name's text should use: the font list's own faces stay, code text gets the code font
@@ -9303,7 +9353,7 @@ end
 -- the family behind a font name (a library id or a built-in Enum.Font)
 function UIFont.family(name) return familyOf(name) end
 
--- Re-applies the current font to every registered gui (Gotham puts the library's own font back).
+-- Re-applies the current font to every registered gui.
 function UIFont.refresh()
     local target = familyOf(UIFont.current)
     for gui in pairs(UIFont.guis) do
@@ -9316,17 +9366,17 @@ function UIFont.refresh()
 end
 
 function UIFont.set(name)
-    name = tostring(name or "Gotham")
+    name = tostring(name or "Montserrat")
     if not table.find(UIFont.order, name) or not familyOf(name) then return false end
     UIFont.current = name
     UIFont.refresh()
     return true
 end
 
--- The code font (a library font; Sono Mono unless CreateWindow({ CodeFont = "..." }) picks another).
+-- The code font (an Enum.Font name; RobotoMono unless CreateWindow({ CodeFont = "..." }) picks another).
 function UIFont.setCode(name)
-    name = tostring(name or "Sono Mono")
-    if not table.find(UIFont.order, name) or not familyOf(name) then return false end
+    name = tostring(name or "RobotoMono")
+    if not familyOf(name) then return false end
     UIFont.code = name
     UIFont.refresh()
     return true
@@ -9346,12 +9396,12 @@ function UIFont.register(gui, maid)
         -- deferred: creators may still set FontFace (e.g. SemiBold) or the QCode / QFixedFont marks right after parenting
         task.defer(function()
             if not object.Parent then return end
-            if UIFont.current == "Gotham" and UIFont.textScale == 1 and not object:GetAttribute("QCode") then return end
-            apply(object, UIFont.current ~= "Gotham" and familyOf(UIFont.current) or nil)
+            apply(object, familyOf(UIFont.current))
         end)
     end)
     if maid then maid:give(connection) end
     task.defer(UIFont.refresh)
+    UIFont.download()
 end
 
 return UIFont
@@ -10149,6 +10199,7 @@ end
 -- Lib.Icons.Sharp = false before the first window turns this off.
 Icons.Sharp = true
 Icons.AtlasFolder = "QustahUI/icons"
+Icons.SheetSource = "https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah/icons/"
 local Atlas = require("icons_atlas")
 local atlas = { started = false, ready = false, index = nil, pages = {} }
 local sharpImages = setmetatable({}, { __mode = "k" }) -- image -> lucide name, so they switch sheets / get re-drawn
@@ -10205,6 +10256,8 @@ local function startAtlas()
     if atlas.started then return end
     atlas.started = true
     if Icons.Sharp == false then return end
+    -- the lib's own sheet first (its icons at every size), the lucide sheets for every other icon
+    Icons.UseSheet(require("icons_qustah"), Icons.SheetSource)
     local files = {}
     for _, list in pairs(Atlas.Pages) do for _, file in ipairs(list) do files[#files + 1] = file end end
     loadFiles("v" .. Atlas.Version .. "-", Icons.Source .. "atlas/", files, function(ids)
@@ -10785,6 +10838,46 @@ return {
 }
 end
 
+__modules["icons_qustah"] = function()
+-- The lib's own icon sheet (repo folder qustah/icons, drawn by tools/gen_sheet.py): its built-in icons at every
+-- size from 5 to 32 px, pixel for pixel. Downloaded once and used before the lucide sheets (icons.lua).
+return {
+    Id = "qustah", Version = 10,
+    Files = { "qustah-v10-1.png", "qustah-v10-2.png", "qustah-v10-3.png" },
+    Names = "activity,app-window,arrow-down-to-line,arrow-right,ban,bell,bell-off,bell-ring,blend,bookmark,box,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-x,clipboard-copy,clock-4,code,coins,copy,crosshair,dock,dot,download,dumbbell,earth,ellipsis,eye,fast-forward,folder-open,footprints,gamepad-2,gauge,ghost,hand,hat-glasses,heading,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,link,list,list-checks,loader,loader-circle,lock,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,refresh-cw,rotate-ccw,ruler,save,scan,scan-eye,scroll,search,send,server,settings,settings-2,share-2,shield,shirt,shuffle,skull,sliders-horizontal,sparkle,sparkles,spline,square,square-terminal,star,star-off,store,sword,swords,table,tag,target,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,users,venetian-mask,volume,volume-2,waypoints,wifi,wind,x,zap",
+    Sizes = {
+        [5] = { 1, 0, 146 },
+        [6] = { 1, 14, 128 },
+        [7] = { 1, 30, 113 },
+        [8] = { 1, 48, 102 },
+        [9] = { 1, 68, 93 },
+        [10] = { 1, 90, 85 },
+        [11] = { 1, 114, 78 },
+        [12] = { 1, 140, 73 },
+        [13] = { 1, 182, 68 },
+        [14] = { 1, 227, 64 },
+        [15] = { 1, 275, 60 },
+        [16] = { 1, 326, 56 },
+        [17] = { 1, 380, 53 },
+        [18] = { 1, 437, 51 },
+        [19] = { 1, 497, 48 },
+        [20] = { 2, 0, 46 },
+        [21] = { 2, 88, 44 },
+        [22] = { 2, 180, 42 },
+        [23] = { 2, 276, 40 },
+        [24] = { 2, 376, 39 },
+        [25] = { 2, 480, 37 },
+        [26] = { 2, 615, 36 },
+        [27] = { 2, 755, 35 },
+        [28] = { 3, 0, 34 },
+        [29] = { 3, 150, 33 },
+        [30] = { 3, 305, 32 },
+        [31] = { 3, 465, 31 },
+        [32] = { 3, 630, 30 },
+    },
+}
+end
+
 __modules["inbox"] = function()
 -- Notification history: a bell in the window header (left of minimize) with an unread dot; it opens a list of
 -- the last 50 notifications. CreateWindow({ NotificationHistory = false }) leaves it out.
@@ -10949,14 +11042,14 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.36.1",
+    Version = "1.37.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
     Icons = Icons, -- Lib.Icons.Get("house"), "solar:home-bold", Lib.Icons.SetDefault("solar")
     Sounds = Sounds, -- Lib.Sounds.Enabled = true, Lib.Sounds.Set("click", id)
     Haptics = require("haptics"), -- Lib.Haptics.Enabled (on for touch screens)
-    Fonts = require("font"), -- Lib.Fonts.set("Quicksand"), Lib.Fonts.available()
+    Fonts = require("font"), -- Lib.Fonts.set("Ubuntu"), Lib.Fonts.available()
     Words = require("words"), -- Lib.Words.Use(manifest, url): the header's name / version / tags as pictures
     Loader = require("loader"), -- the download strip; Lib.Loader.enabled = false hides it
     Crosshair = require("crosshair"), -- Lib.Crosshair.Overlay({ Style = "X" }) - a crosshair on screen; card:CrosshairPreview()
@@ -12399,13 +12492,13 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- Gotham and Roblox's font library (nothing downloaded). CreateWindow({ Font = "Quicksand" }) starts with one;
-    -- a list ({ "Quicksand", "Work Sans" }) starts with the first known name
+    -- the downloaded fonts (font.lua). CreateWindow({ Font = "Ubuntu" }) starts with one;
+    -- a list ({ "Ubuntu", "Work Sans" }) starts with the first known name
     local fonts = UIFont.available()
     local wanted = type(window.cfg.Font) == "table" and window.cfg.Font or { window.cfg.Font }
     local usable = {}
     for _, name in ipairs(wanted) do if table.find(fonts, tostring(name)) then usable[#usable + 1] = tostring(name) end end
-    local startFont = usable[1] or "Gotham"
+    local startFont = usable[1] or "Montserrat"
     -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
@@ -12416,17 +12509,9 @@ return function(window, cfg)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
         end,
     })
-    if startFont ~= "Gotham" then UIFont.set(startFont) end
-    -- the font of Code, Console and Log text: Sono Mono, or CreateWindow({ CodeFont = "Builder Mono" }) to start with
-    local codeItems = {}
-    for _, name in ipairs(UIFont.codeFonts) do codeItems[#codeItems + 1] = name end
-    local startCode = table.find(codeItems, tostring(window.cfg.CodeFont)) and tostring(window.cfg.CodeFont) or "Sono Mono"
-    fontTab:Segment({
-        Title = "Code font", Desc = "Errors and code blocks", Flag = "__ui_codefont", Items = codeItems, Default = startCode,
-        Callback = function(name) UIFont.setCode(name) end,
-    })
-    if startCode ~= "Sono Mono" then UIFont.setCode(startCode) end
-    if window.cfg.CodeFont and not table.find(codeItems, tostring(window.cfg.CodeFont)) then UIFont.setCode(window.cfg.CodeFont) end
+    UIFont.set(startFont)
+    -- the font of Code, Console and Log text: RobotoMono, or CreateWindow({ CodeFont = "Code" }) (an Enum.Font name)
+    if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont) end
     -- text size: every text a bit smaller / larger, the menu itself stays the same size
     local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
     fontTab:Segment({
@@ -12503,7 +12588,7 @@ return function(window, cfg)
         end,
     })
     -- the look of the menu back to its defaults (theme, accent, font, window, overlays, scale) - nothing else changes
-    local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_codefont", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
+    local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
         "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats", "__ui_dock", "__ui_pagetabs" }
     menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
         window:Confirm("Reset the interface?", "Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.", function()

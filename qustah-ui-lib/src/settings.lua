@@ -65,13 +65,13 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- Gotham and Roblox's font library (nothing downloaded). CreateWindow({ Font = "Quicksand" }) starts with one;
-    -- a list ({ "Quicksand", "Work Sans" }) starts with the first known name
+    -- the downloaded fonts (font.lua). CreateWindow({ Font = "Ubuntu" }) starts with one;
+    -- a list ({ "Ubuntu", "Work Sans" }) starts with the first known name
     local fonts = UIFont.available()
     local wanted = type(window.cfg.Font) == "table" and window.cfg.Font or { window.cfg.Font }
     local usable = {}
     for _, name in ipairs(wanted) do if table.find(fonts, tostring(name)) then usable[#usable + 1] = tostring(name) end end
-    local startFont = usable[1] or "Gotham"
+    local startFont = usable[1] or "Montserrat"
     -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
@@ -82,17 +82,9 @@ return function(window, cfg)
             if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
         end,
     })
-    if startFont ~= "Gotham" then UIFont.set(startFont) end
-    -- the font of Code, Console and Log text: Sono Mono, or CreateWindow({ CodeFont = "Builder Mono" }) to start with
-    local codeItems = {}
-    for _, name in ipairs(UIFont.codeFonts) do codeItems[#codeItems + 1] = name end
-    local startCode = table.find(codeItems, tostring(window.cfg.CodeFont)) and tostring(window.cfg.CodeFont) or "Sono Mono"
-    fontTab:Segment({
-        Title = "Code font", Desc = "Errors and code blocks", Flag = "__ui_codefont", Items = codeItems, Default = startCode,
-        Callback = function(name) UIFont.setCode(name) end,
-    })
-    if startCode ~= "Sono Mono" then UIFont.setCode(startCode) end
-    if window.cfg.CodeFont and not table.find(codeItems, tostring(window.cfg.CodeFont)) then UIFont.setCode(window.cfg.CodeFont) end
+    UIFont.set(startFont)
+    -- the font of Code, Console and Log text: RobotoMono, or CreateWindow({ CodeFont = "Code" }) (an Enum.Font name)
+    if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont) end
     -- text size: every text a bit smaller / larger, the menu itself stays the same size
     local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
     fontTab:Segment({
@@ -169,7 +161,7 @@ return function(window, cfg)
         end,
     })
     -- the look of the menu back to its defaults (theme, accent, font, window, overlays, scale) - nothing else changes
-    local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_codefont", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
+    local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
         "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats", "__ui_dock", "__ui_pagetabs" }
     menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
         window:Confirm("Reset the interface?", "Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.", function()

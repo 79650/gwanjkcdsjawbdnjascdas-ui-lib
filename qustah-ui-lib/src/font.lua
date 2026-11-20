@@ -1,31 +1,38 @@
 -- UI font. Every text object in a registered ScreenGui gets the chosen family; its weight (regular / medium /
--- semibold / bold) is kept. UIFont.set("Quicksand"), UIFont.register(gui, maid).
--- Gotham is Roblox's built-in default; every other font comes from Roblox's own font library (Creator Marketplace)
--- by asset id, like WindUI does: nothing to download, they work in every executor.
-local UIFont = { current = "Gotham", guis = {} }
+-- semibold / bold) is kept. UIFont.set("Ubuntu"), UIFont.register(gui, maid).
+-- The fonts are the .ttf files in this repo's fonts/files: downloaded once into QustahUI/fonts, each family
+-- written as a font JSON next to them and shown through getcustomasset. Until they are there (or where the
+-- executor has no getcustomasset) Roblox's own copy of the same family is used.
+local Util = require("util")
 
-UIFont.order = {
-    "Gotham", "Montserrat", "Ubuntu", "Work Sans", "Josefin Sans", "Builder Mono", "Arcade", "Michroma",
-    "Quicksand", "Fuzzy Bubbles", "Silkscreen", "Sono Mono",
+local UIFont = { current = "Montserrat", guis = {} }
+
+UIFont.order = { "Montserrat", "Ubuntu", "Work Sans", "Josefin Sans", "Michroma" }
+UIFont.Source = "https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/fonts/files/"
+UIFont.Folder = "QustahUI/fonts"
+-- name -> its files (Regular and, where there is one, SemiBold)
+UIFont.Files = {
+    Montserrat = { Regular = "Montserrat-Regular.ttf", SemiBold = "Montserrat-SemiBold.ttf" },
+    Ubuntu = { Regular = "Ubuntu-Regular.ttf", SemiBold = "Ubuntu-SemiBold.ttf" },
+    ["Work Sans"] = { Regular = "WorkSans-Regular.ttf", SemiBold = "WorkSans-SemiBold.ttf" },
+    ["Josefin Sans"] = { Regular = "JosefinSans-Regular.ttf", SemiBold = "JosefinSans-SemiBold.ttf" },
+    Michroma = { Regular = "Michroma-Regular.ttf" },
 }
--- Roblox's own fonts by their Enum.Font name, and families that are only a file in Roblox's font folder
-UIFont.Enums = { ["Josefin Sans"] = "JosefinSans", Montserrat = "Montserrat", Ubuntu = "Ubuntu", Arcade = "Arcade", Michroma = "Michroma" }
-UIFont.Files = { ["Builder Mono"] = "rbxasset://fonts/families/BuilderMono.json" }
+-- Roblox's own copy of each family (before the download / without getcustomasset)
+UIFont.Fallback = {
+    Montserrat = "Montserrat", Ubuntu = "Ubuntu", ["Josefin Sans"] = "JosefinSans", Michroma = "Michroma",
+    ["Work Sans"] = "rbxassetid://12187373327",
+}
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
--- doesn't push labels out of their rows and a small one (Arcade's pixels) stays readable. Code text has its own font.
-UIFont.Fit = { Michroma = 1.12, ["Builder Mono"] = 1.08, Arcade = 0.9, ["Josefin Sans"] = 0.96 }
--- The code fonts the settings offer (Code, Console, Log)
-UIFont.codeFonts = { "Sono Mono", "Builder Mono" }
-UIFont.Library = {
-    ["Work Sans"] = 12187373327, Quicksand = 12187371324, ["Fuzzy Bubbles"] = 11322590111, Silkscreen = 12187371840,
-    ["Sono Mono"] = 12187362578,
-}
--- Code text (Code, Console, Log; marked with the QCode attribute) has its own monospace font, Sono Mono unless
--- CreateWindow({ CodeFont = "Silkscreen" }) asks for another. Text marked QFixedFont keeps whatever font it has
+-- doesn't push labels out of their rows. Code text has its own font.
+UIFont.Fit = { Michroma = 1.12, ["Josefin Sans"] = 0.96 }
+-- Code text (Code, Console, Log; marked with the QCode attribute) uses Roblox's monospace RobotoMono unless
+-- CreateWindow({ CodeFont = "..." }) names another Enum.Font. Text marked QFixedFont keeps whatever font it has
 -- (the font list draws each name in its own font).
-UIFont.code = "Sono Mono"
+UIFont.code = "RobotoMono"
 -- Text size (Settings > Interface > Text size): every text's own size times this, rounded.
 UIFont.textScale = 1
+UIFont.downloaded = {} -- name -> getcustomasset id of its font JSON
 
 -- the fonts this executor can show (all of them: nothing is downloaded)
 function UIFont.available() return table.clone(UIFont.order) end
@@ -36,11 +43,54 @@ end
 
 local function familyOf(name)
     name = tostring(name)
-    if UIFont.Library[name] then return "rbxassetid://" .. UIFont.Library[name] end
-    if UIFont.Files[name] then return UIFont.Files[name] end
-    local enumName = UIFont.Enums[name] or name
-    local ok, face = pcall(function() return Font.fromEnum(Enum.Font[enumName]) end)
+    if UIFont.downloaded[name] then return UIFont.downloaded[name] end
+    local fallback = UIFont.Fallback[name] or name
+    if fallback:match("^rbxasset") then return fallback end
+    local ok, face = pcall(function() return Font.fromEnum(Enum.Font[fallback]) end)
     return ok and face and face.Family or nil
+end
+
+-- Downloads the font files once and writes a font JSON per family (faces: Regular for 100 - 400, SemiBold - or
+-- Regular where there is none - for 500 - 900, so medium / bold text gets the heavier file). Then every text is
+-- re-drawn in the downloaded font.
+local function isFont(body)
+    local magic = body:sub(1, 4)
+    return magic == "\0\1\0\0" or magic == "true" or magic == "OTTO"
+end
+local started = false
+-- (tests) start over: forget the downloaded fonts
+function UIFont._resetDownload() started = false table.clear(UIFont.downloaded) end
+function UIFont.download()
+    if started then return end
+    started = true
+    local files = {}
+    for _, name in ipairs(UIFont.order) do
+        for _, file in pairs(UIFont.Files[name] or {}) do
+            files[#files + 1] = { path = UIFont.Folder .. "/" .. file, url = UIFont.Source .. file, check = isFont }
+        end
+    end
+    Util.cacheFiles(files, function(ids)
+        local custom = getcustomasset or getsynasset
+        local HttpService = Util.Services.HttpService
+        for _, name in ipairs(UIFont.order) do
+            local set = UIFont.Files[name]
+            local regular = ids[UIFont.Folder .. "/" .. set.Regular]
+            local heavy = set.SemiBold and ids[UIFont.Folder .. "/" .. set.SemiBold] or regular
+            local faces = {}
+            for _, weight in ipairs({ 100, 200, 300, 400, 500, 600, 700, 800, 900 }) do
+                faces[#faces + 1] = { name = tostring(weight), weight = weight, style = "normal", assetId = weight <= 400 and regular or heavy }
+            end
+            local ok, err = pcall(function()
+                local path = UIFont.Folder .. "/" .. name:gsub(" ", "") .. ".json"
+                writefile(path, HttpService:JSONEncode({ name = name, faces = faces }))
+                UIFont.downloaded[name] = custom(path)
+            end)
+            if not ok then Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err)) end
+        end
+        UIFont.refresh()
+    end, function(reason)
+        if Util.canCustomAsset() then Util.log("[qustah-ui-lib] fonts could not be downloaded (" .. tostring(reason) .. "); using Roblox's copies") end
+    end, "fonts")
 end
 
 -- the family an icon name's text should use: the font list's own faces stay, code text gets the code font
@@ -81,7 +131,7 @@ end
 -- the family behind a font name (a library id or a built-in Enum.Font)
 function UIFont.family(name) return familyOf(name) end
 
--- Re-applies the current font to every registered gui (Gotham puts the library's own font back).
+-- Re-applies the current font to every registered gui.
 function UIFont.refresh()
     local target = familyOf(UIFont.current)
     for gui in pairs(UIFont.guis) do
@@ -94,17 +144,17 @@ function UIFont.refresh()
 end
 
 function UIFont.set(name)
-    name = tostring(name or "Gotham")
+    name = tostring(name or "Montserrat")
     if not table.find(UIFont.order, name) or not familyOf(name) then return false end
     UIFont.current = name
     UIFont.refresh()
     return true
 end
 
--- The code font (a library font; Sono Mono unless CreateWindow({ CodeFont = "..." }) picks another).
+-- The code font (an Enum.Font name; RobotoMono unless CreateWindow({ CodeFont = "..." }) picks another).
 function UIFont.setCode(name)
-    name = tostring(name or "Sono Mono")
-    if not table.find(UIFont.order, name) or not familyOf(name) then return false end
+    name = tostring(name or "RobotoMono")
+    if not familyOf(name) then return false end
     UIFont.code = name
     UIFont.refresh()
     return true
@@ -124,12 +174,12 @@ function UIFont.register(gui, maid)
         -- deferred: creators may still set FontFace (e.g. SemiBold) or the QCode / QFixedFont marks right after parenting
         task.defer(function()
             if not object.Parent then return end
-            if UIFont.current == "Gotham" and UIFont.textScale == 1 and not object:GetAttribute("QCode") then return end
-            apply(object, UIFont.current ~= "Gotham" and familyOf(UIFont.current) or nil)
+            apply(object, familyOf(UIFont.current))
         end)
     end)
     if maid then maid:give(connection) end
     task.defer(UIFont.refresh)
+    UIFont.download()
 end
 
 return UIFont

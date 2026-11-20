@@ -118,6 +118,7 @@ end
 -- Lib.Icons.Sharp = false before the first window turns this off.
 Icons.Sharp = true
 Icons.AtlasFolder = "QustahUI/icons"
+Icons.SheetSource = "https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah/icons/"
 local Atlas = require("icons_atlas")
 local atlas = { started = false, ready = false, index = nil, pages = {} }
 local sharpImages = setmetatable({}, { __mode = "k" }) -- image -> lucide name, so they switch sheets / get re-drawn
@@ -174,6 +175,8 @@ local function startAtlas()
     if atlas.started then return end
     atlas.started = true
     if Icons.Sharp == false then return end
+    -- the lib's own sheet first (its icons at every size), the lucide sheets for every other icon
+    Icons.UseSheet(require("icons_qustah"), Icons.SheetSource)
     local files = {}
     for _, list in pairs(Atlas.Pages) do for _, file in ipairs(list) do files[#files + 1] = file end end
     loadFiles("v" .. Atlas.Version .. "-", Icons.Source .. "atlas/", files, function(ids)
