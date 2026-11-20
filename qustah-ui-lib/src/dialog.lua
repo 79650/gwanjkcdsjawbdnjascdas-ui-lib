@@ -1,6 +1,7 @@
 -- In-window dialogs.
 --   Window:Dialog({ Title, Content, Buttons = { { Title = "Cancel" }, { Title = "Enable", Style = "Danger", Callback = fn } } })
 --   Window:Confirm(title, content, onConfirm, confirmText, danger)
+--   Input = { Placeholder, Text } adds a text box; each button's Callback gets its text (Enter presses the last button).
 -- The menu behind is dimmed and blocked; Escape or a click on the dim area closes it (as "cancel").
 local Util = require("util")
 local Theme = require("theme")
@@ -46,11 +47,26 @@ return function(Window)
             })
             Theme.bind(content, "TextColor3", "muted")
         end
+        local input
+        if type(cfg.Input) == "table" then
+            input = create("TextBox", {
+                Name = "Input", Text = tostring(cfg.Input.Text or ""), PlaceholderText = tostring(cfg.Input.Placeholder or ""), TextSize = 10,
+                Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, BorderSizePixel = 0,
+                Size = UDim2.new(1, 0, 0, 28), ZIndex = 202, LayoutOrder = 3, Parent = panel,
+            })
+            Theme.bind(input, "BackgroundColor3", "input")
+            Theme.bind(input, "TextColor3", "text")
+            Theme.bind(input, "PlaceholderColor3", "muted")
+            corner(input, 6)
+            Theme.bind(stroke(input), "Color", "buttonEdge")
+            Util.padding(input, 9, 9, 0, 0)
+            task.defer(function() pcall(function() input:CaptureFocus() end) end)
+        end
         -- (a little more room above the buttons than between the texts)
-        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 3, ZIndex = 202, Parent = panel })
+        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 4, ZIndex = 202, Parent = panel })
         Util.list(row, 8, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Bottom)
 
-        local dialog = { Frame = overlay }
+        local dialog = { Frame = overlay, Input = input }
         function dialog:Close(result)
             if not overlay.Parent then return end
             if window._dialog == dialog then window._dialog = nil end
@@ -82,10 +98,16 @@ return function(Window)
                 Theme.bind(button, "TextColor3", "text")
                 Theme.bind(outline, "Color", "buttonEdge")
             end
-            button.Activated:Connect(function()
+            local function press()
+                if not overlay.Parent then return end
+                local text = input and input.Text or nil
                 dialog:Close(true)
-                window:_safe("Dialog", spec.Callback)
-            end)
+                window:_safe("Dialog", spec.Callback, text)
+            end
+            button.Activated:Connect(press)
+            if input and index == #buttons then
+                input.FocusLost:Connect(function(enter) if enter then press() end end)
+            end
         end
         overlay.Activated:Connect(function() dialog:Close() end)
         tween(overlay, 0.15, { BackgroundTransparency = 0.35 })

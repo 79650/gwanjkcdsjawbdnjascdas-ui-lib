@@ -667,9 +667,23 @@ Window:Dialog({ Title = "Enable Silent Aim?", Content = "Can be detected in rank
 } })
 
 Window:Confirm("Unload?", "Everything will be removed.", function() Window:Destroy() end, "Unload", true)
+
+-- a text box: each button's Callback gets its text (Enter presses the last button)
+Window:Dialog({ Title = "Rename", Input = { Text = "pvp", Placeholder = "New name" }, Buttons = {
+    { Title = "Cancel" },
+    { Title = "Rename", Style = "Primary", Callback = function(text) end },
+} })
+
+-- a context menu at the pointer (e.g. from a row's MouseButton2Click)
+Window:Menu({ Owner = row, Items = {
+    { Title = "Rename", Icon = "pencil", Callback = function() end },
+    { Title = "Delete", Icon = "trash-2", Style = "Danger", Callback = function() end },
+} })
 ```
 
 The menu behind a dialog is dimmed and blocked. Escape or a click on the dimmed area cancels it. Escape also closes an open dropdown list or colour panel.
+
+A context menu stays inside the screen. A click outside it, Escape or another menu closes it.
 
 ---
 
@@ -699,11 +713,12 @@ Config:OnDataLoaded(function(data) end)
   - on the next start the profile is restored from that copy (`Config:OnRecovered(fn)`).
 
 The Settings › Profiles page does all of this in the UI:
-- shows the active profile and how many settings changed;
+- shows the active profile and how many settings changed (click it to see which);
 - Save and Revert;
-- import with share codes;
-- search and notes;
-- ACTIVE / AUTO / LOCKED tags.
+- a table of profiles: Name, Note, Saved, Settings, Differs (how many settings it would change), Auto (loads on start), Load, and share / duplicate / delete icons; click a column title to sort;
+- right click a row (long press on touch): Overwrite, Rename, Edit note, Duplicate, Share code, Delete;
+- search, create and import with share codes;
+- ACTIVE / LOCKED tags.
 
 The locked **Default** profile holds the values the script started with.
 
@@ -723,7 +738,7 @@ Window:SettingsTab()                                                            
 - Behaviour: menu key, UI scale, free mouse, anonymous mode, UI sounds, haptics (touch devices), mobile button, welcome toast, Reset layout, Unload, Reset interface (only the look goes back to its defaults)
 - Window › Look / Background / Overlays: transparency, dock side, page tabs, edge glow, blur · background image (and its visibility once one is set), animated background · watermark, keybind list, session bar, performance monitor
 
-**Settings › Profiles:** the saved profiles are cards (ItemCards: Load on each, ACTIVE / AUTO / LOCKED tags); a card's "..." opens its tools under the cards (note, rename, duplicate, overwrite, autoload, share, delete). See [Configs and profiles](#configs-and-profiles).
+**Settings › Profiles:** one full-width card: the active profile with Revert / Save, a sortable table of the profiles (Note, Saved, Settings, Differs, Auto, Load, share / duplicate / delete), a right-click menu on each row, and New profile / Import share code under it. See [Configs and profiles](#configs-and-profiles).
 
 **Settings › Keys:** every key the menu listens to (switch / button binds, keybinds, key hints, the menu key) with the setting and where it is; a key used twice is red with a `!`, and a click on a row opens that setting.
 
@@ -974,6 +989,7 @@ qustah-ui-lib/
     card.lua          cards + element registry
     elements/         one file per element; base.lua holds the shared row, flash, lock and ordering code
     config.lua        profiles, crash-safe saves
+    menu.lua          Window:Menu (context menus)
     theme.lua         colour roles, theme packs
     settings.lua      built-in Settings tab
     ...

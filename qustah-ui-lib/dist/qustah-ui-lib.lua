@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.34.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.35.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1688,6 +1688,7 @@ __modules["dialog"] = function()
 -- In-window dialogs.
 --   Window:Dialog({ Title, Content, Buttons = { { Title = "Cancel" }, { Title = "Enable", Style = "Danger", Callback = fn } } })
 --   Window:Confirm(title, content, onConfirm, confirmText, danger)
+--   Input = { Placeholder, Text } adds a text box; each button's Callback gets its text (Enter presses the last button).
 -- The menu behind is dimmed and blocked; Escape or a click on the dim area closes it (as "cancel").
 local Util = require("util")
 local Theme = require("theme")
@@ -1733,11 +1734,26 @@ return function(Window)
             })
             Theme.bind(content, "TextColor3", "muted")
         end
+        local input
+        if type(cfg.Input) == "table" then
+            input = create("TextBox", {
+                Name = "Input", Text = tostring(cfg.Input.Text or ""), PlaceholderText = tostring(cfg.Input.Placeholder or ""), TextSize = 10,
+                Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, BorderSizePixel = 0,
+                Size = UDim2.new(1, 0, 0, 28), ZIndex = 202, LayoutOrder = 3, Parent = panel,
+            })
+            Theme.bind(input, "BackgroundColor3", "input")
+            Theme.bind(input, "TextColor3", "text")
+            Theme.bind(input, "PlaceholderColor3", "muted")
+            corner(input, 6)
+            Theme.bind(stroke(input), "Color", "buttonEdge")
+            Util.padding(input, 9, 9, 0, 0)
+            task.defer(function() pcall(function() input:CaptureFocus() end) end)
+        end
         -- (a little more room above the buttons than between the texts)
-        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 3, ZIndex = 202, Parent = panel })
+        local row = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 4, ZIndex = 202, Parent = panel })
         Util.list(row, 8, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right, Enum.VerticalAlignment.Bottom)
 
-        local dialog = { Frame = overlay }
+        local dialog = { Frame = overlay, Input = input }
         function dialog:Close(result)
             if not overlay.Parent then return end
             if window._dialog == dialog then window._dialog = nil end
@@ -1769,10 +1785,16 @@ return function(Window)
                 Theme.bind(button, "TextColor3", "text")
                 Theme.bind(outline, "Color", "buttonEdge")
             end
-            button.Activated:Connect(function()
+            local function press()
+                if not overlay.Parent then return end
+                local text = input and input.Text or nil
                 dialog:Close(true)
-                window:_safe("Dialog", spec.Callback)
-            end)
+                window:_safe("Dialog", spec.Callback, text)
+            end
+            button.Activated:Connect(press)
+            if input and index == #buttons then
+                input.FocusLost:Connect(function(enter) if enter then press() end end)
+            end
         end
         overlay.Activated:Connect(function() dialog:Close() end)
         tween(overlay, 0.15, { BackgroundTransparency = 0.35 })
@@ -10917,6 +10939,7 @@ local Sounds = require("sounds")
 local Gate = require("gate")
 require("status")(Window)
 require("dialog")(Window)
+require("menu")(Window)
 require("hud")(Window)
 require("inbox")(Window)
 require("windowx")(Window)
@@ -10926,7 +10949,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.34.0",
+    Version = "1.35.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -11238,6 +11261,85 @@ function Loader.setTitle(text)
 end
 
 return Loader
+end
+
+__modules["menu"] = function()
+-- Context menus.
+--   Window:Menu({ Items = { { Title = "Rename", Icon = "pencil", Callback = fn }, { Title = "Delete", Icon = "trash-2", Style = "Danger", Callback = fn } },
+--                 At = Vector2 (screen point, default the pointer), Owner = guiObject })
+-- A small list at the pointer (moved inside the screen). A click on an item runs it; a click outside, Escape or
+-- another menu closes it. Returns { Frame, Close }.
+local Util = require("util")
+local Theme = require("theme")
+local Icons = require("icons")
+
+local create, corner, stroke = Util.create, Util.corner, Util.stroke
+local ITEM = 26
+
+return function(Window)
+    function Window:Menu(cfg)
+        cfg = cfg or {}
+        local window = self
+        self:_closePopup()
+        local items = {}
+        for _, entry in ipairs(cfg.Items or {}) do
+            if type(entry) == "table" and entry.Title then items[#items + 1] = entry end
+        end
+        if #items == 0 then return nil end
+
+        local scale = self.scale and self.scale.Scale or 1
+        local width = 140
+        for _, entry in ipairs(items) do
+            width = math.max(width, Util.textWidth(tostring(entry.Title), 10, Enum.Font.GothamMedium) + 50)
+        end
+        local height = #items * ITEM + 8
+        local viewport = Util.viewport()
+        local at = typeof(cfg.At) == "Vector2" and cfg.At or Util.pointer()
+        local x = math.clamp(at.X, 8, math.max(8, viewport.X - width * scale - 8))
+        local y = at.Y + height * scale + 8 > viewport.Y and at.Y - height * scale or at.Y
+        local popup = create("Frame", {
+            Name = "ContextMenu", BorderSizePixel = 0, ZIndex = 260, Size = UDim2.fromOffset(width, height),
+            Position = UDim2.fromOffset(x, math.max(8, y)), Parent = self.gui,
+        })
+        create("UIScale", { Scale = scale, Parent = popup })
+        Theme.bind(popup, "BackgroundColor3", "input")
+        corner(popup, 7)
+        Theme.bind(stroke(popup), "Color", "buttonEdge")
+        Util.padding(popup, 4, 4, 4, 4)
+        Util.list(popup, 0)
+
+        for index, entry in ipairs(items) do
+            local danger = entry.Style == "Danger"
+            local item = create("TextButton", {
+                Name = tostring(entry.Title), Text = "", AutoButtonColor = false, BorderSizePixel = 0, BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, ITEM), LayoutOrder = index, ZIndex = 261, Parent = popup,
+            })
+            Theme.bind(item, "BackgroundColor3", "hover")
+            corner(item, 5)
+            local left = 9
+            if entry.Icon and Icons.Get(entry.Icon) then
+                Icons.themed(item, entry.Icon, 12, danger and "dangerText" or "muted", { Name = "Icon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 9, 0.5, 0), ZIndex = 262 })
+                left = 28
+            end
+            local text = Util.label(item, tostring(entry.Title), 10, { Name = "Text", Position = UDim2.fromOffset(left, 0), Size = UDim2.new(1, -left - 8, 1, 0), ZIndex = 262 })
+            Theme.bind(text, "TextColor3", danger and "dangerText" or "text")
+            item.MouseEnter:Connect(function() Util.tween(item, 0.08, { BackgroundTransparency = 0 }) end)
+            item.MouseLeave:Connect(function() Util.tween(item, 0.08, { BackgroundTransparency = 1 }) end)
+            item.Activated:Connect(function()
+                window:_closePopup()
+                require("sounds").Play("click")
+                window:_safe("Menu", entry.Callback)
+            end)
+        end
+
+        local menu = { Frame = popup }
+        function menu:Close()
+            if window._popup and window._popup.frame == popup then window:_closePopup() end
+        end
+        self:_openPopup(popup, cfg.Owner, function() if popup.Parent then popup:Destroy() end end)
+        return menu
+    end
+end
 end
 
 __modules["mobile"] = function()
@@ -11687,24 +11789,40 @@ return Notify
 end
 
 __modules["profiles"] = function()
--- Settings › Profiles page (used by settings.lua).
---   Current   which profile is active, how many settings changed since it was loaded / saved, Save / Revert / Share
---   New       create from the current settings, or import a share code (QUSTAH1:...)
---   Saved     search, profile cards sorted by last use (Load on each); a card's "..." opens its tools under the
---             cards: note, rename / duplicate, Load, Overwrite, Autoload, Share, Delete. "Default" is locked and holds the values the script started with.
+-- Settings › Profiles page (used by settings.lua): one full-width card.
+--   Top      the active profile, "· N unsaved" (click: what changed), Revert, Save
+--   Search   shown when there are more than 3 profiles (name or note)
+--   Table    Name (colour dot, ACTIVE / AUTO / LOCKED tags), Note, Saved, Settings, Differs (how many settings the
+--            profile would change), Auto (loads on start), Load, and share / duplicate / delete icons.
+--            Click Name, Saved, Settings or Differs to sort. Right click a row (long press on touch) for
+--            Overwrite, Rename, Edit note, Duplicate, Share code, Delete. "Default" is locked: the starting values.
+--   Bottom   New profile name + Create, Paste a share code + Import
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
+local Parts = require("elements/parts")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 local RED, GREEN, YELLOW = "danger", "success", "warning" -- theme roles
+
+local ROW, HEAD = 30, 24
+local AUTO_W, LOAD_W, ACTIONS_W = 40, 52, 70
+local FIXED = AUTO_W + LOAD_W + ACTIONS_W
+-- the columns left of the fixed ones share what is left: key, title, part, sortable
+local COLUMNS = {
+    { key = "name", title = "Name", part = 0.31, sort = true },
+    { key = "note", title = "Note", part = 0.27 },
+    { key = "saved", title = "Saved", part = 0.15, sort = true },
+    { key = "count", title = "Settings", part = 0.14, sort = true },
+    { key = "differs", title = "Differs", part = 0.13, sort = true },
+}
 
 return function(window, page, defaults)
     local store = window.Config
     store.DefaultFlags = defaults
     local refresh, updateCurrent
-    local open -- expanded row
     local query = ""
+    local sortKey, descending = "saved", true
 
     local function meta() return store:ReadMeta() end
     local function touch(name, fields)
@@ -11721,6 +11839,14 @@ return function(window, page, defaults)
         end
         window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
         return false
+    end
+    local function count(flags) local n = 0 for _ in pairs(flags or {}) do n = n + 1 end return n end
+    local function trim(text) return (tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")) end
+    local function badName(name)
+        if name == "" then return "Type a name" end
+        if name:lower() == "default" then return "\"Default\" is reserved" end
+        if name:gsub("[%w_%- ]", "") ~= "" then return "Letters, numbers, spaces, - and _ only" end
+        return nil
     end
 
     ------------------------------------------------------------ feedback (toast)
@@ -11760,19 +11886,92 @@ return function(window, page, defaults)
         refresh()
         return ok
     end
+    local function shareProfile(name, locked)
+        local code = locked and ("QUSTAH1:" .. Util.base64encode(Util.Services.HttpService:JSONEncode({ n = "Default", f = defaults }))) or store:Export(name)
+        if code then copy(code, "Share code for \"" .. name .. "\"") end
+    end
+    local function overwriteProfile(name)
+        window:Confirm("Overwrite \"" .. name .. "\"?", "It will hold your current settings.", function() saveProfile(name) end, "Overwrite")
+    end
+    local function renameProfile(name)
+        window:Dialog({
+            Title = "Rename \"" .. name .. "\"", Icon = "pencil", Input = { Text = name, Placeholder = "New name" },
+            Buttons = { { Title = "Cancel" }, { Title = "Rename", Style = "Primary", Callback = function(text)
+                local new = trim(text)
+                if new == name then return end
+                local bad = badName(new)
+                if bad then return say(bad, true) end
+                local ok, err = store:Rename(name, new)
+                if ok then local m = meta() m[new], m[name] = m[name], nil store:WriteMeta(m) end
+                say(ok and ("Renamed to \"" .. new .. "\"") or err, not ok)
+                refresh()
+            end } },
+        })
+    end
+    local function editNote(name, note)
+        window:Dialog({
+            Title = "Note for \"" .. name .. "\"", Icon = "sticky-note", Input = { Text = note or "", Placeholder = "e.g. ranked, low graphics" },
+            Buttons = { { Title = "Cancel" }, { Title = "Save", Style = "Primary", Callback = function(text)
+                text = trim(text):sub(1, 60)
+                touch(name, { note = text ~= "" and text or false })
+                refresh()
+            end } },
+        })
+    end
+    local function duplicateProfile(name, locked)
+        window:Dialog({
+            Title = "Duplicate \"" .. name .. "\"", Icon = "copy", Input = { Text = store:FreeName(name), Placeholder = "Name for the copy" },
+            Buttons = { { Title = "Cancel" }, { Title = "Duplicate", Style = "Primary", Callback = function(text)
+                local new = trim(text)
+                local bad = badName(new)
+                if bad then return say(bad, true) end
+                if store:Exists(new) then return say("A profile with that name exists", true) end
+                local ok, err
+                if locked then ok, err = store:SaveFlags(new, defaults) else ok, err = store:Copy(name, new) end
+                if ok then touch(new, { saved = os.time(), note = "Copy of " .. name }) end
+                say(ok and ("Copied to \"" .. new .. "\"") or (err or "Copy failed"), not ok)
+                refresh()
+            end } },
+        })
+    end
+    local function deleteProfile(name)
+        window:Confirm("Delete \"" .. name .. "\"?", "This cannot be undone.", function()
+            local ok, err = store:Delete(name)
+            if ok then
+                local m = meta() m[name] = nil store:WriteMeta(m)
+                if store:GetAutoLoad() == name then store:ClearAutoLoad() end
+            end
+            say(ok and ("Deleted \"" .. name .. "\"") or err, not ok)
+            refresh()
+        end, "Delete", true)
+    end
+    local function setAuto(name, locked, on)
+        if locked or not on then
+            if store:GetAutoLoad() then store:ClearAutoLoad() say("Nothing loads on start") end
+        else
+            store:SetAutoLoad(name)
+            say("\"" .. name .. "\" loads on start")
+        end
+        refresh()
+    end
+    local function openMenu(row, info)
+        local name, locked = info.name, info.locked
+        local items = {}
+        if not locked then
+            items[#items + 1] = { Title = "Overwrite", Icon = "upload", Callback = function() overwriteProfile(name) end }
+            items[#items + 1] = { Title = "Rename", Icon = "pencil", Callback = function() renameProfile(name) end }
+            items[#items + 1] = { Title = "Edit note", Icon = "sticky-note", Callback = function() editNote(name, info.note) end }
+        end
+        items[#items + 1] = { Title = "Duplicate", Icon = "copy", Callback = function() duplicateProfile(name, locked) end }
+        items[#items + 1] = { Title = "Share code", Icon = "share-2", Callback = function() shareProfile(name, locked) end }
+        if not locked then
+            items[#items + 1] = { Title = "Delete", Icon = "trash-2", Style = "Danger", Callback = function() deleteProfile(name) end }
+        end
+        window:Menu({ Items = items, Owner = row })
+    end
 
-    ------------------------------------------------------------ current
-    local current = page:Card({ Title = "Current", Icon = "bookmark" })
-    local activeInfo = current:Info({ Title = "Profile", Value = "Default" })
-    local changesInfo = current:Info({ Title = "Changes", Value = "--" })
-    local bar = create("Frame", { Name = "CurrentActions", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 24), LayoutOrder = current:_order(), Parent = current.body })
-    Util.list(bar, 6, Enum.FillDirection.Horizontal)
-
-    local ICONS = {
-        Save = "save", Revert = "rotate-ccw", ["Share current"] = "share-2", ["What changed?"] = "list-checks",
-        Load = "download", Overwrite = "upload", Autoload = "star", ["Autoload off"] = "star-off", Share = "share-2",
-        Delete = "trash-2", Rename = "pencil", Duplicate = "copy",
-    }
+    ------------------------------------------------------------ small buttons (Save, Revert, Load)
+    local ICONS = { Save = "save", Revert = "rotate-ccw" }
     local function smallButton(parent, text, order, style)
         local iconName = ICONS[text]
         local button = create("TextButton", {
@@ -11794,12 +11993,7 @@ return function(window, page, defaults)
         end
         corner(button, 6)
         local outline = stroke(button)
-        if style == "Danger" then
-            Theme.bind(button, "BackgroundColor3", "dangerDeep")
-            Theme.bind(button, "TextColor3", "dangerText")
-            Theme.bind(outline, "Color", "dangerEdge")
-            outline.Transparency = 0.3
-        elseif style == "Primary" then
+        if style == "Primary" then
             Theme.bind(button, "BackgroundColor3", "accentDeep")
             Theme.bind(button, "TextColor3", "accent")
             Theme.bind(outline, "Color", "accent")
@@ -11808,33 +12002,38 @@ return function(window, page, defaults)
             Theme.bind(button, "BackgroundColor3", "input")
             Theme.bind(button, "TextColor3", "text")
             Theme.bind(outline, "Color", "buttonEdge")
+            button.MouseEnter:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "hover", 0.1) end)
+            button.MouseLeave:Connect(function() Theme.tweenTo(button, "BackgroundColor3", "input", 0.1) end)
         end
-        button.MouseEnter:Connect(function() if style == nil then Theme.tweenTo(button, "BackgroundColor3", "hover", 0.1) end end)
-        button.MouseLeave:Connect(function() if style == nil then Theme.tweenTo(button, "BackgroundColor3", "input", 0.1) end end)
         return button
     end
 
-    local saveButton = smallButton(bar, "Save", 1, "Primary")
-    saveButton.Activated:Connect(function()
-        if store.Active then saveProfile(store.Active)
-        else say("Default is locked - type a name under New profile and press Create", "warn") end
-    end)
-    smallButton(bar, "Revert", 2).Activated:Connect(function()
+    local card = page:Card({ Title = "Profiles", Icon = "list" })
+
+    ------------------------------------------------------------ top: active profile, unsaved, Revert / Save
+    local top = create("Frame", { Name = "Current", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 26), LayoutOrder = card:_order(), Parent = card.body })
+    local activeName = label(top, "Default", 13, { Name = "Profile", Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None, Font = Enum.Font.GothamMedium })
+    Theme.bind(activeName, "TextColor3", "heading")
+    local changesButton = create("TextButton", { Name = "Changes", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 120, 1, 0), Parent = top })
+    local changesText = label(changesButton, "", 10, { Name = "Text", Size = UDim2.fromScale(1, 1) })
+    local topButtons = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(0, 200, 0, 22), Parent = top })
+    Util.list(topButtons, 6, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right)
+    smallButton(topButtons, "Revert", 1).Activated:Connect(function()
         local changes = store:Changes()
         if changes == 0 then return say("Nothing to revert") end
         window:Confirm("Revert " .. changes .. " change" .. (changes == 1 and "" or "s") .. "?", "Settings go back to \"" .. (store.Active or "Default") .. "\".", function()
             local failed = store:Apply(store.ActiveFlags or defaults)
             say(failed > 0 and (failed .. " setting(s) could not be reverted") or "Reverted", failed > 0)
-            updateCurrent()
+            refresh()
         end, "Revert")
     end)
-    smallButton(bar, "Share current", 3).Activated:Connect(function()
-        local code = store:Export(nil)
-        if code then copy(code, "Share code") end
+    smallButton(topButtons, "Save", 2, "Primary").Activated:Connect(function()
+        if store.Active then saveProfile(store.Active)
+        else say("Default is locked - type a name under the table and press Create", "warn") end
     end)
-    smallButton(bar, "What changed?", 4).Activated:Connect(function()
-        local count, names = store:Changes()
-        if count == 0 then return say("No changes since \"" .. (store.Active or "Default") .. "\"") end
+    changesButton.Activated:Connect(function()
+        local changes, names = store:Changes()
+        if changes == 0 then return say("No changes since \"" .. (store.Active or "Default") .. "\"") end
         -- flags -> element titles
         local titles = {}
         for _, flag in ipairs(names) do
@@ -11845,51 +12044,195 @@ return function(window, page, defaults)
         local shown = {}
         for index = 1, math.min(#titles, 12) do shown[index] = titles[index] end
         window:Dialog({
-            Title = count .. " change" .. (count == 1 and "" or "s"),
+            Title = changes .. " change" .. (changes == 1 and "" or "s"),
             Content = table.concat(shown, ", ") .. (#titles > 12 and (" and " .. (#titles - 12) .. " more") or ""),
             Buttons = { { Title = "Close" } },
         })
     end)
 
     function updateCurrent()
-        local name = store.Active
-        activeInfo:Set(name or "Default")
-        activeInfo:SetColor(name and "accent" or "text")
+        activeName.Text = store.Active or "Default"
         local changes = store:Changes()
-        if changes > 0 then
-            changesInfo:Set(changes .. " unsaved")
-            changesInfo:SetColor(YELLOW)
-        else
-            changesInfo:Set("Saved")
-            changesInfo:SetColor(GREEN)
-        end
+        changesText.Text = changes > 0 and ("· " .. changes .. " unsaved") or "· saved"
+        Theme.bind(changesText, "TextColor3", changes > 0 and YELLOW or "muted")
+        changesButton.Position = UDim2.new(0, Util.textWidth(activeName.Text, 13, Enum.Font.GothamMedium) + 7, 0, 0)
     end
 
-    ------------------------------------------------------------ new / import
-    -- one card, two tabs in its header; each tab is a single field with the action inside it
-    local newCard = page:Card({ Title = "New profile", Icon = "plus" })
-    local sections = newCard:Tabs({ "From current", "From code" })
-    local function count(flags) local n = 0 for _ in pairs(flags or {}) do n = n + 1 end return n end
-    sections["From current"]:ActionInput({
-        Name = "CreateProfile", Icon = "plus", Placeholder = "Profile name", Button = "Create",
-        Hint = "Saves your current settings as a new profile",
+    ------------------------------------------------------------ search
+    local search = create("TextBox", {
+        Name = "Search", Text = "", PlaceholderText = "Search profiles...", TextSize = 10, Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 26), LayoutOrder = card:_order(), Parent = card.body,
+    })
+    Theme.bind(search, "BackgroundColor3", "input")
+    Theme.bind(search, "TextColor3", "text")
+    Theme.bind(search, "PlaceholderColor3", "muted")
+    corner(search, 6)
+    Theme.bind(stroke(search), "Color", "buttonEdge")
+    Util.padding(search, 9, 9, 0, 0)
+
+    ------------------------------------------------------------ table
+    local box = create("Frame", { Name = "ProfileTable", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, ClipsDescendants = true, LayoutOrder = card:_order(), Parent = card.body })
+    Theme.bind(box, "BackgroundColor3", "base")
+    corner(box, 7)
+    Theme.bind(stroke(box), "Color", "line")
+    Util.list(box, 0)
+
+    -- (x, width) of a scaled column: the scaled ones share the width left of the fixed columns
+    local function span(index)
+        local start = 0
+        for i = 1, index - 1 do start = start + COLUMNS[i].part end
+        local part = COLUMNS[index].part
+        return UDim2.new(start, -FIXED * start + 10, 0, 0), UDim2.new(part, -FIXED * part - 12, 1, 0)
+    end
+    local function fixedX(offset) return UDim2.new(1, -FIXED + offset, 0, 0) end
+
+    local head = create("Frame", { Name = "Head", Size = UDim2.new(1, 0, 0, HEAD), BorderSizePixel = 0, LayoutOrder = 0, Parent = box })
+    Theme.bind(head, "BackgroundColor3", "input")
+    local headers = {}
+    for index, column in ipairs(COLUMNS) do
+        local position, size = span(index)
+        local button = create("TextButton", { Name = column.title, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = position, Size = size, Parent = head })
+        local text = label(button, column.title, 9, { Name = "Text", Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamMedium })
+        Theme.bind(text, "TextColor3", "muted")
+        local arrow = Icons.themed(button, "chevron-down", 10, "accent", { Name = "Arrow", AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, Util.textWidth(column.title, 9, Enum.Font.GothamMedium) + 2, 0.5, 0), Visible = false })
+        headers[column.key] = { text = text, arrow = arrow }
+        if column.sort then
+            button.Activated:Connect(function()
+                if sortKey == column.key then descending = not descending
+                else sortKey, descending = column.key, column.key ~= "name" end
+                refresh()
+            end)
+        end
+    end
+    local autoHead = label(head, "Auto", 9, { Name = "Auto", Position = fixedX(6), Size = UDim2.new(0, AUTO_W, 1, 0), Font = Enum.Font.GothamMedium })
+    Theme.bind(autoHead, "TextColor3", "muted")
+    local rowsFrame = create("Frame", { Name = "Rows", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 1, Parent = box })
+    Util.list(rowsFrame, 0)
+    local empty = label(card.body, "", 9, { Name = "Empty", Size = UDim2.new(1, 0, 0, 14), LayoutOrder = card:_order(), Visible = false })
+    Theme.bind(empty, "TextColor3", "muted")
+
+    -- the colour of a profile: Default white, the others from the name
+    local PALETTE = { Color3.fromRGB(232, 232, 236), Color3.fromRGB(74, 157, 224), Color3.fromRGB(94, 196, 110), Color3.fromRGB(232, 110, 176),
+        Color3.fromRGB(226, 177, 90), Color3.fromRGB(160, 125, 232), Color3.fromRGB(79, 200, 216), Color3.fromRGB(224, 106, 106) }
+    local function colorOf(name)
+        if name == "Default" then return PALETTE[1] end
+        local sum = 0
+        for i = 1, #name do sum = sum + string.byte(name, i) end
+        return PALETTE[2 + sum % (#PALETTE - 1)]
+    end
+
+    local function iconButton(parent, iconName, x, hoverRole, tip, callback)
+        local button = create("ImageButton", { Name = tip, BackgroundTransparency = 1, AutoButtonColor = false, AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, x, 0.5, 0), Size = UDim2.fromOffset(18, 18), Image = "", Parent = parent })
+        local icon = Icons.themed(button, iconName, 12, "muted", { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+        button.MouseEnter:Connect(function() if icon then Theme.bind(icon, "ImageColor3", hoverRole) end window:_tip(tip) end)
+        button.MouseLeave:Connect(function() if icon then Theme.bind(icon, "ImageColor3", "muted") end window:_hideTip() end)
+        button.Activated:Connect(function() window:_safe("Profiles", callback) end)
+        return button
+    end
+    local function switch(parent, on, callback)
+        local track = create("TextButton", { Name = "Auto", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 6, 0.5, 0), Size = UDim2.fromOffset(24, 13), Parent = parent })
+        corner(track, 7)
+        Theme.bind(track, "BackgroundColor3", on and "accent" or "line")
+        local knob = create("Frame", { Name = "Knob", BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, on and 13 or 2, 0.5, 0), Size = UDim2.fromOffset(9, 9), Parent = track })
+        corner(knob, 5)
+        Theme.bind(knob, "BackgroundColor3", on and "base" or "muted")
+        track.Activated:Connect(function() window:_safe("Profiles", callback, not on) end)
+        return track
+    end
+
+    local function drawRow(info, order)
+        local row = create("TextButton", { Name = "Profile_" .. info.name, Text = "", AutoButtonColor = false, BorderSizePixel = 0, BackgroundTransparency = info.active and 0 or 1,
+            Size = UDim2.new(1, 0, 0, ROW), LayoutOrder = order, Parent = rowsFrame })
+        Theme.bind(row, "BackgroundColor3", info.active and "selected" or "hover")
+        local line = create("Frame", { Name = "Line", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, Parent = row })
+        Theme.bind(line, "BackgroundColor3", "line")
+        line.BackgroundTransparency = 0.4
+        if not info.active then
+            row.MouseEnter:Connect(function() Util.tween(row, 0.08, { BackgroundTransparency = 0 }) end)
+            row.MouseLeave:Connect(function() Util.tween(row, 0.08, { BackgroundTransparency = 1 }) end)
+        end
+
+        -- name: dot, name, tags
+        local position, size = span(1)
+        local nameCell = create("Frame", { Name = "Name", BackgroundTransparency = 1, Position = position, Size = size, ClipsDescendants = true, Parent = row })
+        local dot = create("Frame", { Name = "Dot", BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(7, 7), BackgroundColor3 = colorOf(info.name), Parent = nameCell })
+        corner(dot, 4)
+        local nameWidth = Util.textWidth(info.name, 10, Enum.Font.GothamMedium)
+        local nameText = label(nameCell, info.name, 10, { Name = "Text", Position = UDim2.fromOffset(13, 0), Size = UDim2.new(0, nameWidth + 2, 1, 0), Font = Enum.Font.GothamMedium })
+        Theme.bind(nameText, "TextColor3", info.active and "heading" or "text")
+        local tags = create("Frame", { Name = "Tags", BackgroundTransparency = 1, Position = UDim2.fromOffset(13 + nameWidth + 6, 0), Size = UDim2.new(1, -(19 + nameWidth), 1, 0), Parent = nameCell })
+        Util.list(tags, 3, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+        for tagOrder, tag in ipairs(info.tags) do
+            local chip = Parts.chip(tags, tag[1], tag[2], nil, { LayoutOrder = tagOrder })
+            chip.Size = UDim2.fromOffset(chip.Size.X.Offset - 6, 14)
+            chip:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 4)
+            local text = chip:FindFirstChild("Text")
+            if text then text.TextSize = 7 text.Position = UDim2.fromOffset(5, 0) Theme.bind(text, "TextColor3", tag[2]) end
+        end
+
+        local function cell(index, text, role)
+            local p, s = span(index)
+            local object = label(row, text, 9, { Name = COLUMNS[index].title, Position = p, Size = s })
+            Theme.bind(object, "TextColor3", role)
+            return object
+        end
+        cell(2, info.note or "", "muted")
+        cell(3, info.when, "text")
+        cell(4, info.count and tostring(info.count) or "—", "text")
+        cell(5, info.differs and tostring(info.differs) or "—", info.active and info.differs and info.differs > 0 and YELLOW or "text")
+
+        local fixed = create("Frame", { Name = "Fixed", BackgroundTransparency = 1, Position = fixedX(0), Size = UDim2.new(0, FIXED, 1, 0), Parent = row })
+        switch(fixed, info.auto, function(on) setAuto(info.name, info.locked, on) end)
+        if not info.active then
+            local load = smallButton(fixed, "Load", 0)
+            load.AnchorPoint = Vector2.new(0, 0.5)
+            load.Position = UDim2.new(0, AUTO_W, 0.5, 0)
+            load.Size = UDim2.fromOffset(LOAD_W - 8, 20)
+            load.Activated:Connect(function() loadProfile(info.name, info.locked) end)
+        end
+        local x = AUTO_W + LOAD_W
+        iconButton(fixed, "share-2", x, "heading", "Share code", function() shareProfile(info.name, info.locked) end)
+        iconButton(fixed, "copy", x + 21, "heading", "Duplicate", function() duplicateProfile(info.name, info.locked) end)
+        if not info.locked then
+            iconButton(fixed, "trash-2", x + 42, RED, "Delete", function() deleteProfile(info.name) end)
+        end
+
+        -- right click (long press on touch): the row's menu
+        row.MouseButton2Click:Connect(function() openMenu(row, info) end)
+        local pressed = 0
+        row.InputBegan:Connect(function(input)
+            if input.UserInputType ~= Enum.UserInputType.Touch then return end
+            pressed = pressed + 1
+            local mine = pressed
+            task.delay(0.5, function() if pressed == mine and row.Parent then openMenu(row, info) end end)
+        end)
+        row.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.Touch then pressed = pressed + 1 end end)
+        return row
+    end
+
+    ------------------------------------------------------------ bottom: create / import
+    local bottom = create("Frame", { Name = "Bottom", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = card:_order(), Parent = card.body })
+    Util.list(bottom, 8, Enum.FillDirection.Horizontal)
+    local create_ = card:ActionInput({
+        Name = "CreateProfile", Icon = "plus", Placeholder = "New profile name", Button = "Create",
+        Hint = "Saves your current settings",
         Validate = function(name)
-            if name:lower() == "default" then return false, "\"Default\" is reserved" end
-            if name:gsub("[%w_%- ]", "") ~= "" then return false, "Letters, numbers, spaces, - and _ only" end
-            if store:Exists(name) then return false, "\"" .. name .. "\" already exists - open it and press Overwrite" end
+            local bad = badName(name)
+            if bad then return false, bad end
+            if store:Exists(name) then return false, "\"" .. name .. "\" exists - right click it › Overwrite" end
             return true, "Saves " .. count(store:Snapshot()) .. " settings as \"" .. name .. "\""
         end,
         Callback = function(name)
-            if saveProfile(name) then
-                open = name
-                say("Created \"" .. name .. "\"")
-                refresh()
-            end
+            if saveProfile(name) then say("Created \"" .. name .. "\"") end
         end,
     })
-    sections["From code"]:ActionInput({
-        Name = "ImportProfile", Icon = "import", Placeholder = "Paste a QUSTAH1: code", Button = "Import",
-        Hint = "Get a code with Share on any profile",
+    local import = card:ActionInput({
+        Name = "ImportProfile", Icon = "import", Placeholder = "Paste a share code", Button = "Import",
+        Hint = "Get one with the share icon on a row",
         Validate = function(code)
             local name, flags = store:Decode(code)
             if not name then return false, flags end
@@ -11903,207 +12246,74 @@ return function(window, page, defaults)
             local ok, err = store:SaveFlags(name, flags, custom)
             if not ok then return say(err, true) end
             touch(name, { saved = os.time(), note = "Imported" })
-            open = name
-            say("Imported as \"" .. name .. "\" - open it and press Load")
+            say("Imported as \"" .. name .. "\" - press Load on its row")
             refresh()
         end,
     })
-
-    ------------------------------------------------------------ saved list
-    local listCard = page:Card({ Title = "Saved", Icon = "folder-open" })
-    local search = create("TextBox", {
-        Name = "Search", Text = "", PlaceholderText = "Search profiles...", TextSize = 10, Font = Enum.Font.Gotham,
-        TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 26), LayoutOrder = listCard:_order(), Parent = listCard.body,
-    })
-    Theme.bind(search, "BackgroundColor3", "input")
-    Theme.bind(search, "TextColor3", "text")
-    Theme.bind(search, "PlaceholderColor3", "muted")
-    corner(search, 6)
-    Theme.bind(stroke(search), "Color", "buttonEdge")
-    Util.padding(search, 9, 9, 0, 0)
-    local holder = create("Frame", { Name = "ProfileList", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = listCard:_order(), Parent = listCard.body })
-    Util.list(holder, 4)
-    local empty = listCard:Label("")
-
-    -- the profiles as cards (ItemCards): a "..." on a card opens its tools under the grid
-    local PALETTE = { Color3.fromRGB(232, 232, 236), Color3.fromRGB(74, 157, 224), Color3.fromRGB(94, 196, 110), Color3.fromRGB(232, 110, 176),
-        Color3.fromRGB(226, 177, 90), Color3.fromRGB(160, 125, 232), Color3.fromRGB(79, 200, 216), Color3.fromRGB(224, 106, 106) }
-    local function colorOf(name)
-        if name == "Default" then return PALETTE[1] end
-        local sum = 0
-        for i = 1, #name do sum = sum + string.byte(name, i) end
-        return PALETTE[2 + sum % (#PALETTE - 1)]
-    end
-    local cards = listCard:ItemCards({ Columns = 2, Height = 92,
-        OnAction = function(item) loadProfile(item.Title, item.Locked) end,
-        OnMenu = function(item) open = open ~= item.Title and item.Title or nil refresh() end,
-    })
-    holder.LayoutOrder = listCard:_order() -- (the tools of the open profile come under the cards)
-    if empty.Row then empty.Row.LayoutOrder = listCard:_order() end
-
-    -- the open profile's tools (note, rename / duplicate, Load, Overwrite, Autoload, Share, Delete)
-    local function profileRow(name, order, locked, autoload, info)
-        if open ~= name then return end
-        local frame = create("Frame", { Name = "Profile_" .. name, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, LayoutOrder = order, Parent = holder })
-        Theme.bind(frame, "BackgroundColor3", "selected")
-        corner(frame, 6)
-        Theme.bind(stroke(frame), "Color", "buttonEdge")
-        Util.list(frame, 0)
-        local note = info and info.note and tostring(info.note) or nil
-        local head = create("TextButton", { Name = "Head", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 30), LayoutOrder = 1, Parent = frame })
-        local title = label(head, name, 11, { Name = "Name", Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -40, 1, 0), Font = Enum.Font.GothamMedium })
-        Theme.bind(title, "TextColor3", "heading")
-        Icons.themed(head, "x", 12, "muted", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0) })
-        head.Activated:Connect(function() open = nil refresh() end)
-
-        local actions = create("Frame", { Name = "Actions", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, Parent = frame })
-        Util.padding(actions, 12, 12, 0, 10)
-        Util.list(actions, 6)
-        if not locked then
-            -- what this profile would change
-            local flags = store:Read(name)
-            local differs = flags and store:Changes(flags) or 0
-            local summary = label(actions, flags and (differs == 0 and "Same as your current settings" or (differs .. (differs == 1 and " setting differs" or " settings differ") .. " from your current settings")) or "File could not be read", 9, {
-                Name = "Summary", Size = UDim2.new(1, 0, 0, 14), LayoutOrder = 0,
-            })
-            Theme.bind(summary, "TextColor3", "muted")
-        end
-
-        local function box(name_, placeholder, order_, width)
-            local object = create("TextBox", {
-                Name = name_, Text = "", PlaceholderText = placeholder, TextSize = 10, Font = Enum.Font.Gotham,
-                TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, BorderSizePixel = 0, Size = width, LayoutOrder = order_,
-            })
-            Theme.bind(object, "BackgroundColor3", "base")
-            Theme.bind(object, "TextColor3", "text")
-            Theme.bind(object, "PlaceholderColor3", "muted")
-            corner(object, 6)
-            Util.padding(object, 8, 8, 0, 0)
-            return object
-        end
-        -- note
-        if not locked then
-            local noteBox = box("Note", "Add a note (e.g. ranked, low graphics)", 1, UDim2.new(1, 0, 0, 24))
-            noteBox.Text = note or ""
-            noteBox.Parent = actions
-            noteBox.FocusLost:Connect(function()
-                local text = noteBox.Text:gsub("^%s+", ""):gsub("%s+$", ""):sub(1, 60)
-                touch(name, { note = text ~= "" and text or false })
-                refresh()
-            end)
-        end
-        -- name box: Rename / Duplicate
-        local nameRow = create("Frame", { Name = "NameRow", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 24), LayoutOrder = 2, Parent = actions })
-        local nameBox = box("NewName", locked and "name for the copy" or "new name", 1, UDim2.new(1, locked and -90 or -176, 1, 0))
-        nameBox.Parent = nameRow
-        local side = create("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0, locked and 84 or 170, 1, 0), Parent = nameRow })
-        Util.list(side, 6, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right)
-        local function typed()
-            local text = nameBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
-            if text == "" then say("Type a name in the box", true) return nil end
-            if text:lower() == "default" then say("\"Default\" is reserved", true) return nil end
-            return text
-        end
-        if not locked then
-            smallButton(side, "Rename", 1).Activated:Connect(function()
-                local new = typed()
-                if not new then return end
-                local ok, err = store:Rename(name, new)
-                if ok then local m = meta() m[new], m[name] = m[name], nil store:WriteMeta(m) open = new end
-                say(ok and ("Renamed to \"" .. new .. "\"") or err, not ok)
-                refresh()
-            end)
-        end
-        smallButton(side, "Duplicate", 2).Activated:Connect(function()
-            local new = typed()
-            if not new then return end
-            local ok, err
-            if store:Exists(new) then ok, err = false, "A profile with that name exists"
-            elseif locked then ok, err = store:SaveFlags(new, defaults)
-            else ok, err = store:Copy(name, new) end
-            if ok then touch(new, { saved = os.time(), note = "Copy of " .. name }) open = new end
-            say(ok and ("Copied to \"" .. new .. "\"") or (err or "Copy failed"), not ok)
-            refresh()
-        end)
-
-        local buttons = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 22), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = actions })
-        local flow = Util.list(buttons, 6, Enum.FillDirection.Horizontal)
-        pcall(function() flow.Wraps = true end)
-        smallButton(buttons, "Load", 1, "Primary").Activated:Connect(function() loadProfile(name, locked) end)
-        if not locked then
-            smallButton(buttons, "Overwrite", 2).Activated:Connect(function()
-                window:Confirm("Overwrite \"" .. name .. "\"?", "It will hold your current settings.", function() saveProfile(name) end, "Overwrite")
-            end)
-            smallButton(buttons, autoload and "Autoload off" or "Autoload", 3).Activated:Connect(function()
-                if autoload then store:ClearAutoLoad() say("Autoload off")
-                else store:SetAutoLoad(name) say("\"" .. name .. "\" loads on start") end
-                refresh()
-            end)
-        end
-        smallButton(buttons, "Share", 4).Activated:Connect(function()
-            local code = locked and ("QUSTAH1:" .. Util.base64encode(Util.Services.HttpService:JSONEncode({ n = "Default", f = defaults }))) or store:Export(name)
-            if code then copy(code, "Share code for \"" .. name .. "\"") end
-        end)
-        if not locked then
-            smallButton(buttons, "Delete", 6, "Danger").Activated:Connect(function()
-                window:Confirm("Delete \"" .. name .. "\"?", "This cannot be undone.", function()
-                    local ok, err = store:Delete(name)
-                    if ok then
-                        local m = meta() m[name] = nil store:WriteMeta(m)
-                        if store:GetAutoLoad() == name then store:ClearAutoLoad() end
-                        open = nil
-                    end
-                    say(ok and ("Deleted \"" .. name .. "\"") or err, not ok)
-                    refresh()
-                end, "Delete", true)
-            end)
-        end
+    for order, element in ipairs({ create_, import }) do
+        element.Row.Parent = bottom
+        element.Row.LayoutOrder = order
+        element.Row.Size = UDim2.new(0.5, -4, 0, 0)
     end
 
+    ------------------------------------------------------------ refresh
     function refresh()
-        for _, child in ipairs(holder:GetChildren()) do if child:IsA("GuiObject") then child:Destroy() end end
+        for _, child in ipairs(rowsFrame:GetChildren()) do if child:IsA("GuiObject") then child:Destroy() end end
         local auto = store:GetAutoLoad()
         local data = meta()
+        local rows = {}
+        local function add(name, locked)
+            local info = data[name] or {}
+            local flags = locked and defaults or store:Read(name)
+            local when = info.saved or info.used
+            local note = locked and "Starting values" or (info.note and tostring(info.note) or nil)
+            local active = (locked and store.Active == nil) or store.Active == name
+            local tags = {}
+            if active then tags[#tags + 1] = { "ACTIVE", GREEN } end
+            if locked then tags[#tags + 1] = { "LOCKED", "muted" } end
+            rows[#rows + 1] = {
+                name = name, locked = locked, active = active, note = note, time = when or 0,
+                when = locked and "script" or (when and Util.ago(when) or "—"),
+                count = not locked and flags and count(flags) or nil,
+                differs = flags and store:Changes(flags) or nil,
+                auto = locked and auto == nil or auto == name,
+            }
+            rows[#rows].tags = tags
+        end
         local names = {}
         for _, name in ipairs(store:List()) do if name:lower() ~= "default" then names[#names + 1] = name end end
-        -- most recently used / saved first
-        table.sort(names, function(a, b)
-            local ta = data[a] and (data[a].used or data[a].saved) or 0
-            local tb = data[b] and (data[b].used or data[b].saved) or 0
-            if ta ~= tb then return ta > tb end
-            return a:lower() < b:lower()
-        end)
         local q = query:lower()
-        local shown = 0
-        local items = {}
-        local function add(name, locked, autoload, info)
-            local active = (locked and store.Active == nil) or store.Active == name
-            local badges = {}
-            if active then badges[#badges + 1] = { Text = "ACTIVE", Role = "success" } end
-            if autoload then badges[#badges + 1] = "AUTO" end
-            if locked then badges[#badges + 1] = "LOCKED" end
-            local when = info and (info.saved or info.used)
-            local count = 0
-            if not locked then local flags = store:Read(name) for _ in pairs(flags or {}) do count = count + 1 end end
-            items[#items + 1] = {
-                Title = name, Locked = locked, Color = colorOf(name), Badges = badges, Action = "Load", Highlight = active or open == name,
-                Sub = (when and os.date("%d %b", when) or (locked and "starting values" or "")) .. (count > 0 and (" · " .. count .. " settings") or ""),
-                Desc = info and info.note and tostring(info.note) or (locked and "The values the script started with" or ""),
-            }
-            profileRow(name, #items, locked, autoload, info)
-            shown = shown + 1
-        end
-        if q == "" or ("default"):find(q, 1, true) then add("Default", true, auto == nil, nil) end
         for _, name in ipairs(names) do
-            local info = data[name]
-            local note = info and info.note and tostring(info.note):lower() or ""
-            if q == "" or name:lower():find(q, 1, true) or note:find(q, 1, true) then add(name, false, auto == name, info) end
+            local note = data[name] and data[name].note and tostring(data[name].note):lower() or ""
+            if q == "" or name:lower():find(q, 1, true) or note:find(q, 1, true) then add(name, false) end
         end
-        cards:SetItems(items)
+        table.sort(rows, function(a, b)
+            local x, y
+            if sortKey == "name" then x, y = a.name:lower(), b.name:lower()
+            elseif sortKey == "count" then x, y = a.count or -1, b.count or -1
+            elseif sortKey == "differs" then x, y = a.differs or -1, b.differs or -1
+            else x, y = a.time, b.time end
+            if x == y then return a.name:lower() < b.name:lower() end
+            if descending then return x > y end
+            return x < y
+        end)
+        -- Default always first
+        if q == "" or ("default"):find(q, 1, true) or ("starting values"):find(q, 1, true) then
+            add("Default", true)
+            table.insert(rows, 1, table.remove(rows))
+        end
+        for order, info in ipairs(rows) do drawRow(info, order) end
+        for key, header in pairs(headers) do
+            local on = sortKey == key
+            Theme.bind(header.text, "TextColor3", on and "accent" or "muted")
+            if header.arrow then
+                header.arrow.Visible = on
+                header.arrow.Rotation = descending and 0 or 180
+            end
+        end
         search.Visible = #names > 3 or q ~= ""
-        empty:Set(#names == 0 and "No saved profiles yet - create one above." or (shown == 0 and "No profile matches \"" .. query .. "\"" or ""))
-        empty:SetVisible(#names == 0 or shown == 0)
+        empty.Text = #names == 0 and "No saved profiles yet - type a name below and press Create." or (#rows == 0 and ("No profile matches \"" .. query .. "\"") or "")
+        empty.Visible = empty.Text ~= ""
         updateCurrent()
     end
     search:GetPropertyChangedSignal("Text"):Connect(function() query = search.Text refresh() end)

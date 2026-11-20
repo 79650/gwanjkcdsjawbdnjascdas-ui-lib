@@ -10,6 +10,7 @@ local Sounds = require("sounds")
 local Gate = require("gate")
 require("status")(Window)
 require("dialog")(Window)
+require("menu")(Window)
 require("hud")(Window)
 require("inbox")(Window)
 require("windowx")(Window)
@@ -19,7 +20,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.34.0",
+    Version = "1.35.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
