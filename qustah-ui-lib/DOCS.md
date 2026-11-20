@@ -742,7 +742,7 @@ Window:SettingsTab()                                                            
 
 **Settings › Keys:** every key the menu listens to (switch / button binds, keybinds, key hints, the menu key) with the setting and where it is; a key used twice is red with a `!`, and a click on a row opens that setting.
 
-**Settings › Info:** Status across the top (a banner: how many errors this session, amber with errors and green without, the first limited module, Copy debug info and Clear; tiles: script version, UI lib, executor, secure mode, window size - click to copy - and your `Info` rows; link buttons and "Show the tour" under them), then Modules (each module's state over the last 15 minutes) and Executor (which functions it has and what they are needed for) on the left, Errors (a Debug switch in the card's title), "What's new" and This session (uptime, your `Window:Count` counters, Lua memory) on the right.
+**Settings › Info:** Modules (each module's state over the last 15 minutes) and Executor (which functions it has and what they are needed for) on the left, Errors (a Debug switch in the card's title, the last errors, Copy debug info and Clear), "What's new" and This session (uptime, your `Window:Count` counters, Lua memory) on the right. With `Info` rows, `Links` or `Tour` an About card holds them.
 
 ## Overlays
 
@@ -966,7 +966,7 @@ Window:GetCounts()                 -- order, { [name] = value }
 Lib:CreateWindow({ Links = { { Title = "Discord", Url = "https://discord.gg/...", Icon = "message-circle" }, { Title = "Website", Url = "https://..." } } })
 ```
 
-Settings › Info › Status gets a button for each link (two per row); a click copies the link, since a game can't open a browser. The Status banner's **Copy debug info** (`Window:GetDebugInfo()`) copies the versions, executor, game, screen, theme, modules and errors in one go for a bug report.
+Settings › Info › About gets a button for each link (two per row); a click copies the link, since a game can't open a browser. Errors › **Copy debug info** (`Window:GetDebugInfo()`) copies the versions, executor, game, screen, theme, modules and errors in one go for a bug report.
 
 ## Secure mode
 
