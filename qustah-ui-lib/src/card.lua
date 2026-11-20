@@ -58,6 +58,7 @@ Card.Elements = {
     Notice      = require("elements/notice"),
     Changelog   = require("elements/changelog"),
     ThemePreview = require("elements/themepreview"),
+    ThemeGallery = require("elements/themegallery"),
     Canvas      = require("elements/canvas"),
     ItemList    = require("elements/itemlist"),
 }

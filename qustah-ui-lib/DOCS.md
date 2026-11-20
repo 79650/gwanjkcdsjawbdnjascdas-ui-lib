@@ -581,6 +581,7 @@ Card:Gallery({ Flag = "theme", Default = "Dark", Items = {
     { Name = "Gotham", Font = Enum.Font.Gotham },                       -- an "Aa" font sample
 } })
 Card:ThemePreview({ Caption = "Gotham · Normal" })                     -- a tiny window in the live theme colours
+Card:ThemeGallery({ Flag = "theme", Default = "Midnight", New = fn })   -- the theme packs as small windows in their own colours (value: pack name)
 local nav = Card:SideNav({ Items = { { "Appearance", "palette" }, { "Behaviour", "sliders-horizontal" } },
     Footer = function(part) part:Button({ Title = "Unload" }) end })
 nav:Section("Appearance"):Toggle({ Title = "Text glow" })              -- each menu item has its own part
@@ -717,10 +718,10 @@ Window:SettingsTab()                                                            
 **Dashboard:** (Session and Modules side by side are always the same height) profile card (a Hero: avatar, name, session time and live FPS / ping / players chips), live tiles under it (StatTiles: FPS, ping, players and Lua memory with their history; `Stats = false` leaves them out), Session (account, executor, version and your `Info` rows; User ID / Game ID / Place ID with copy buttons), Modules (a grid of tiles: icon, name and the state under it in its colour), Server (Rejoin, Server hop, Job ID).
 
 **Settings › Interface**
-Three cards, the first two with tabs in their header:
-- Appearance › Theme / Accent / Font: theme and the theme editor (Edit colours, folded), accent (a row of colour dots; the last one opens a picker for any colour), font, code font, text size, text glow
-- Window › Look / Background / Overlays: transparency, dock side, page tabs, edge glow, blur · background image (and its visibility once one is set), animated background · watermark, keybind list, session bar, performance monitor
+- Theme: the theme packs as small windows drawn in their own colours (ThemeGallery; New opens the editor), the accent dots under an "Accent" label (the last one opens a picker for any colour), Edit colours (the theme editor, folded)
+- Text: font, code font, text size, text glow
 - Behaviour: menu key, UI scale, free mouse, anonymous mode, UI sounds, haptics (touch devices), mobile button, welcome toast, Reset layout, Unload, Reset interface (only the look goes back to its defaults)
+- Window › Look / Background / Overlays: transparency, dock side, page tabs, edge glow, blur · background image (and its visibility once one is set), animated background · watermark, keybind list, session bar, performance monitor
 
 **Settings › Profiles:** the saved profiles are cards (ItemCards: Load on each, ACTIVE / AUTO / LOCKED tags); a card's "..." opens its tools under the cards (note, rename, duplicate, overwrite, autoload, share, delete). See [Configs and profiles](#configs-and-profiles).
 
@@ -756,7 +757,7 @@ There are 5 built-in themes (`CreateWindow({ Theme = "Glass" })`, Settings › I
 A theme can bring more than colours: `Theme.packs[name].extras` (Glass: `alpha` per colour role and `blur = true`).
 `Lib.Theme.extras` is the current set; `Lib.Theme.onExtras(fn)` runs when it changes.
 
-Accent presets (Settings › Interface › Appearance › Accent): Neutral, Blue, Crimson, Violet, Mint, Gold.
+Accent presets (Settings › Interface › Theme): Neutral, Blue, Crimson, Violet, Mint, Gold.
 
 Every theme passes an automatic contrast check: 4.5:1 for text, 3:1 for muted text. On light themes, pale accent colours are darkened until they are readable.
 
@@ -771,7 +772,7 @@ The theme editor in Settings lets you:
 - save the result under a name;
 - share or import it with a `QTHEME1:` code.
 
-Fonts (Settings › Interface › Appearance › Font): **Gotham** (Roblox's default), **Work Sans** (clean), **Quicksand** (soft), **Fuzzy Bubbles** (bubbly), **Silkscreen** (pixel) and **Sono Mono** (terminal).
+Fonts (Settings › Interface › Text): **Gotham** (Roblox's default), **Work Sans** (clean), **Quicksand** (soft), **Fuzzy Bubbles** (bubbly), **Silkscreen** (pixel) and **Sono Mono** (terminal).
 
 All of them come from Roblox's own font library by asset id (`Lib.Fonts.Library`, `Font.new("rbxassetid://...")`): nothing is downloaded and every executor shows them. Silkscreen is a display font: fine for a playful look, less so for small text.
 

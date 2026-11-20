@@ -22,11 +22,10 @@ return function(window, cfg)
     local infoPage = tab:Page("Info")
 
     ------------------------------------------------------------ interface
-    -- Three cards: Appearance (Theme / Accent / Font tabs, the theme editor under Theme), Window (Look / Background /
-    -- Overlays tabs) on the left, Behaviour on the right.
-    local appearance = interface:Card({ Title = "Appearance", Side = "Left", Icon = "palette" })
-    local lookTabs = appearance:Tabs({ "Theme", "Accent", "Font" })
-    local look = lookTabs.Theme
+    -- Theme (the packs as small windows, the accent dots, the theme editor folded) and Text on the left; Behaviour and
+    -- Window (Look / Background / Overlays tabs) on the right.
+    local look = interface:Card({ Title = "Theme", Side = "Left", Icon = "palette" })
+    local editor                                                     -- the "Edit colours" section (made further down)
     local picker
     local swatches
     local function syncSwatches()
@@ -39,8 +38,9 @@ return function(window, cfg)
     -- custom themes saved on this PC (<Folder>/themes.json)
     local customThemes = window.Config:ReadJSON("themes")
     for name, data in pairs(customThemes) do Theme.registerCustom(name, data) end
-    local themeDropdown = look:Dropdown({
+    local themeDropdown = look:ThemeGallery({
         Title = "Theme", Items = Theme.packOrder, Default = Theme.pack, Flag = "__ui_theme",
+        New = function() if editor then editor:SetOpen(true) end end,
         Callback = function(name)
             Theme.applyPack(name)
             -- the pack may swap the neutral accent: keep the picker / presets in step
@@ -49,9 +49,10 @@ return function(window, cfg)
         end,
     })
     -- accent: one row of colour dots; the last one opens a picker for any colour (saved with the profile)
-    local accentCard = lookTabs.Accent
+    look:Divider({ Title = "Accent" })
+    local accentCard = look
     swatches = accentCard:Swatches({
-        Title = "Accent color", Default = "Neutral", Style = "Dots",
+        Name = "Accent color", Default = "Neutral", Style = "Dots",
         Custom = function(open) if picker then picker:SetOpen(open) end end,
         Callback = function(color, name)
             if name == "Neutral" then color = Theme.neutral(Theme.pack) end
@@ -74,7 +75,7 @@ return function(window, cfg)
     -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
-    local fontTab = lookTabs.Font
+    local fontTab = interface:Card({ Title = "Text", Side = "Left", Icon = "type" })
     fontTab:Dropdown({
         Title = "Font", Items = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
@@ -127,9 +128,9 @@ return function(window, cfg)
         })
     end
     window._scaleDropdown = scaleDropdown
-    menu:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Icon = "hand", Flag = "__ui_mouse",
+    menu:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Flag = "__ui_mouse",
         Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
-    menu:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Icon = "venetian-mask", Flag = "__ui_anon", Default = window.anonymous == true,
+    menu:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Flag = "__ui_anon", Default = window.anonymous == true,
         Callback = function(on) window:SetAnonymous(on) end })
     if window.OnAnonymousChanged then
         window:OnAnonymousChanged(function(on) local t = window.flags.__ui_anon if t and t.Value ~= on then t:Set(on, true) end end)
@@ -188,7 +189,7 @@ return function(window, cfg)
 
     -- Window: Look (transparency, where the tab icons and page names sit, edge glow, blur), Background (image,
     -- animated glow), Overlays
-    local windowCard = interface:Card({ Title = "Window", Side = "Left", Icon = "app-window" })
+    local windowCard = interface:Card({ Title = "Window", Side = "Right", Icon = "app-window" })
     local windowTabs = windowCard:Tabs({ "Look", "Background", "Overlays" })
     local look2 = windowTabs.Look
     look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
@@ -205,7 +206,7 @@ return function(window, cfg)
     bgAlpha = background:Slider({ Title = "Background visibility", Flag = "__ui_bg_alpha", Min = 0, Max = 60, Default = 15, Suffix = "%",
         DependsOn = { Flag = "__ui_bg", Value = function(text) return type(text) == "string" and text ~= "" end, Mode = "Hide" },
         Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
-    background:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Icon = "blend", Flag = "__ui_live",
+    background:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Flag = "__ui_live",
         Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
     look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
         Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
@@ -222,7 +223,7 @@ return function(window, cfg)
     })
 
     ------------------------------------------------------------ theme editor
-    local editor = look:Section({ Title = "Edit colours", Opened = false })     -- under Appearance › Theme
+    editor = look:Section({ Title = "Edit colours", Opened = false })           -- the last part of the Theme card
     local ROLE_NAMES = { "Background", "Cards", "Inputs", "Outlines", "Text", "Muted text", "Headings", "Dock", "Icons", "Accent" }
     local ROLE_OF = {}
     for index, name in ipairs(ROLE_NAMES) do ROLE_OF[name] = Theme.EDITABLE[index] end
