@@ -126,7 +126,7 @@
   "send": "solar:plain",
   "server": "solar:server",
   "settings": "solar:settings",
-  "settings-2": "solar:settings-minimalistic",
+  "settings-2": "solar:settings",
   "share-2": "solar:share",
   "shield": "solar:shield",
   "shield-alert": "solar:shield-warning",
