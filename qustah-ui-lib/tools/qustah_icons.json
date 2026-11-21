@@ -172,5 +172,9 @@
   "wifi": "mdi:wifi",
   "wind": "solar:wind",
   "x": "mdi:close-thick",
-  "zap": "solar:bolt"
+  "zap": "solar:bolt",
+  "user-round": "solar:user",
+  "axe": "mdi:axe-battle",
+  "soup": "mdi:food",
+  "server-off": "mdi:server-remove"
 }
