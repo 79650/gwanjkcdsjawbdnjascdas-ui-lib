@@ -1,0 +1,17 @@
+{
+  "_about": "Choices by eye (tools/gen_filled_sheet.py): \"name@size\": candidate A / B / C / D; \"edits\" set single pixels.",
+  "power@14": "A",
+  "server@14": "A",
+  "shield@14": "B",
+  "table@14": "A",
+  "store@14": "A",
+  "user@14": "B",
+  "toolbox@14": "A",
+  "user@16": "A",
+  "edits": {
+    "user@14": [
+      "5,1=1",
+      "7,1=1"
+    ]
+  }
+}

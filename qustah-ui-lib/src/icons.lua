@@ -186,6 +186,17 @@ local function startAtlas()
     end)
 end
 
+-- The sizes icons are drawn at (the qustah sheet has each one, pixel for pixel): a requested size and the size on
+-- screen after the UI scale both go to the nearest of these (ties to the bigger; under 14 -> 14, over 30 -> 30).
+Icons.Sizes = { 14, 16, 20, 24, 28, 30 }
+function Icons.fitSize(size)
+    local best = Icons.Sizes[1]
+    for _, allowed in ipairs(Icons.Sizes) do
+        if math.abs(allowed - size) <= math.abs(best - size) then best = allowed end
+    end
+    return best
+end
+
 -- A script's own sheet (tools/gen_sheet.py): its icons drawn at every on-screen size, used before the lucide
 -- sheets whenever an icon's size is in it. Lib.Icons.UseSheet(manifest, "https://.../folder/") before the window.
 local customSheets = {}
@@ -245,10 +256,27 @@ local function pixelsOf(image)
     return math.max(image.Size.X.Offset, image.Size.Y.Offset)
 end
 
--- A square icon sized in pixels lands on whole screen pixels: at a UI scale like 110 % a 14 px icon would be 15.4
--- px and Roblox would stretch the 15 px cell over it (a slight blur). Its size becomes round(14 * 1.1) / 1.1 (the
--- original size is kept in the QIconSize attribute, so a later scale starts from it again).
-local function snapToPixels(image)
+-- A square icon sized in pixels lands on a size the sheets have, in whole screen pixels: at a UI scale like 125 % a
+-- 16 px icon would be 20 px - fine - but a 14 px one 17.5 px; it becomes 16 px on screen (Icons.fitSize), so 16 / 1.25
+-- in the menu. Icons from the lucide sheets only round to whole pixels. The original size is kept in the QIconSize
+-- attribute, so a later scale starts from it again; an icon that is not laid out keeps its centre.
+local function laidOut(object)
+    local parent = object.Parent
+    return parent == nil or parent:FindFirstChildWhichIsA("UIGridStyleLayout") ~= nil
+end
+local function inSheet(name)
+    for _, sheet in ipairs(customSheets) do if sheet.index[name] then return true end end
+    return false
+end
+local function resize(image, size)
+    local old = image.Size.X.Offset
+    image.Size = UDim2.fromOffset(size, size)
+    if not laidOut(image) then
+        local position, anchor, grow = image.Position, image.AnchorPoint, size - old
+        image.Position = UDim2.new(position.X.Scale, position.X.Offset - grow * (0.5 - anchor.X), position.Y.Scale, position.Y.Offset - grow * (0.5 - anchor.Y))
+    end
+end
+local function snapToPixels(image, name)
     local size = image.Size
     if size.X.Scale ~= 0 or size.Y.Scale ~= 0 then return end
     local base = image:GetAttribute("QIconSize") or size.X.Offset
@@ -256,14 +284,15 @@ local function snapToPixels(image)
     local absolute = image.AbsoluteSize
     if not absolute or absolute.X <= 0 then return end
     local scale = absolute.X / size.X.Offset
-    if scale <= 0 or math.abs(scale - 1) < 0.001 then
-        if image:GetAttribute("QIconSize") and size.X.Offset ~= base then image.Size = UDim2.fromOffset(base, base) end
-        return
-    end
-    local snapped = math.max(1, math.floor(base * scale + 0.5)) / scale
+    if scale <= 0 then return end
+    local onScreen = base * scale
+    local snapped
+    if name and inSheet(name) then snapped = Icons.fitSize(onScreen) / scale
+    elseif math.abs(scale - 1) < 0.001 then snapped = base
+    else snapped = math.max(1, math.floor(onScreen + 0.5)) / scale end
     if math.abs(snapped - size.X.Offset) > 0.001 then
         image:SetAttribute("QIconSize", base)
-        image.Size = UDim2.fromOffset(snapped, snapped)
+        resize(image, snapped)
     end
 end
 
@@ -271,10 +300,6 @@ end
 -- moved by under half a pixel onto whole pixels. An icon its parent lays out (a list: a button's icon and text)
 -- can't move itself, so that parent moves instead, when nothing lays the parent out. The original position stays
 -- in QIconX / QIconY; a position someone else sets later becomes the new one.
-local function laidOut(object)
-    local parent = object.Parent
-    return parent == nil or parent:FindFirstChildWhichIsA("UIGridStyleLayout") ~= nil
-end
 local function snapPosition(image)
     if Icons.SnapPosition == false then return end
     local target = image
@@ -326,10 +351,13 @@ queueSnap = function(image)
 end
 
 applySharp = function(image, name)
-    pcall(snapToPixels, image)
+    pcall(snapToPixels, image, name)
     pcall(snapPosition, image)
     local pixels = pixelsOf(image)
     local picture, offset, size = sheetRect(name, pixels)
+    -- a sheet cell is drawn 1:1, so nearest-pixel sampling keeps it sharp even half a pixel off; a lucide cell can be
+    -- scaled a little and keeps the smooth filter
+    pcall(function() image.ResampleMode = picture and Enum.ResamplerMode.Pixelated or Enum.ResamplerMode.Default end)
     if not picture then
         if not atlas.ready or not atlasIndex()[name] then return false end
         picture, offset, size = atlasRect(atlasIndex()[name], pixels)
@@ -408,7 +436,13 @@ function Icons.Image(name, props)
     image.Name = props.Name or "Icon"
     image.BackgroundTransparency = 1
     image.ScaleType = Enum.ScaleType.Fit
-    image.Size = props.Size or UDim2.fromOffset(16, 16)
+    local size = props.Size or UDim2.fromOffset(16, 16)
+    -- (a square size in pixels goes to the nearest of Icons.Sizes)
+    if size.X.Scale == 0 and size.Y.Scale == 0 and size.X.Offset == size.Y.Offset and size.X.Offset > 0 then
+        local fitted = Icons.fitSize(size.X.Offset)
+        size = UDim2.fromOffset(fitted, fitted)
+    end
+    image.Size = size
     if typeof(props.Color) == "Color3" then image.ImageColor3 = props.Color end
     Icons.Apply(image, name)
     image.Parent = props.Parent
@@ -416,10 +450,16 @@ function Icons.Image(name, props)
 end
 
 -- Library use: an icon whose colour follows a theme role (nil when the name is not an icon).
+-- The size goes to the nearest of Icons.Sizes; the icon keeps the centre it would have had at the asked size.
 function Icons.themed(parent, name, size, role, props)
     if not Icons.Get(name) then return nil end
-    local image = Icons.Image(name, { Size = UDim2.fromOffset(size, size), Name = props and props.Name or "Icon" })
+    local fitted = Icons.fitSize(size)
+    local image = Icons.Image(name, { Size = UDim2.fromOffset(fitted, fitted), Name = props and props.Name or "Icon" })
     for key, value in pairs(props or {}) do if key ~= "Name" then image[key] = value end end
+    if fitted ~= size and not (parent and parent:FindFirstChildWhichIsA("UIGridStyleLayout")) then
+        local position, anchor, grow = image.Position, image.AnchorPoint, fitted - size
+        image.Position = UDim2.new(position.X.Scale, position.X.Offset - grow * (0.5 - anchor.X), position.Y.Scale, position.Y.Offset - grow * (0.5 - anchor.Y))
+    end
     -- web images keep their own colours
     if not Icons.Get(name).Url then Theme.bind(image, "ImageColor3", role or "text") end
     image.Parent = parent
