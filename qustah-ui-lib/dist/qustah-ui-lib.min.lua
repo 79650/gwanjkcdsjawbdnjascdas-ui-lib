@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.38.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.38.1 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -1247,7 +1247,7 @@ return on and"Anonymous"or player.DisplayName,on and"hidden"or("@"..player.Name.
 end
 local displayName,userLine=names(window.anonymous)
 local hero=profile:Hero({Name="Profile",Title=displayName,Desc=userLine,Label="SESSION",Value="00:00:00",AvatarSize=56,
-Chips={{"-- FPS","gauge"},{"-- ms","wifi"},{"--","users"}}})
+Chips={"-- FPS","-- ms","-- players"}})
 Theme.bind(hero.Value,"TextColor3","accent")
 Glow.add(hero.Value,{Base="accent",Phase=0.45})
 Stats.start(window.Lib.maid)
@@ -1495,7 +1495,7 @@ hero:SetValue(string.format("%02d:%02d:%02d",seconds//3600,(seconds//60)%60,seco
 hero:SetChipText(1,(Stats.fps or 0).." FPS")
 local ok,value=pcall(function()return player:GetNetworkPing()end)
 hero:SetChipText(2,ok and(math.floor(value*2000+0.5).." ms")or"--")
-hero:SetChipText(3,#Players:GetPlayers().." / "..Players.MaxPlayers)
+hero:SetChipText(3,#Players:GetPlayers().." / "..Players.MaxPlayers.." players")
 end
 task.wait(1)
 end
@@ -9745,7 +9745,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.38.0",
+Version="1.38.1",
 Flags={},
 Windows={},
 Theme=Theme,

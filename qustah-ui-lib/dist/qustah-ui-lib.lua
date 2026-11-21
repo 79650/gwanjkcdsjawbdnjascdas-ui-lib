@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.38.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.38.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1371,7 +1371,7 @@ end
 
 __modules["dashboard"] = function()
 -- Window:DashboardTab({ Title, Icon, Info = { { "Code revision", "571" }, ... }, Server = true, Modules = true })
--- Qustah's overview: profile card (Hero: avatar, names, session timer, live FPS / ping / players chips), live tiles
+-- Qustah's overview: profile card (Hero: avatar, names, session timer, live FPS / ping / players chips - text only), live tiles
 -- (StatTiles: FPS, ping, players, Lua memory with their history; Stats = false hides them), Session (with the
 -- ids, each with a copy button), Server and Modules (a grid of tiles: Window:SetModule(name, state, detail,
 -- { Icon = "eye", Tab = "ESP" }) - a click on a tile opens its tab).
@@ -1401,7 +1401,7 @@ return function(window, cfg)
     end
     local displayName, userLine = names(window.anonymous)
     local hero = profile:Hero({ Name = "Profile", Title = displayName, Desc = userLine, Label = "SESSION", Value = "00:00:00", AvatarSize = 56,
-        Chips = { { "-- FPS", "gauge" }, { "-- ms", "wifi" }, { "--", "users" } } })
+        Chips = { "-- FPS", "-- ms", "-- players" } })
     Theme.bind(hero.Value, "TextColor3", "accent")
     Glow.add(hero.Value, { Base = "accent", Phase = 0.45 })
     Stats.start(window.Lib.maid)
@@ -1675,7 +1675,7 @@ return function(window, cfg)
                 hero:SetChipText(1, (Stats.fps or 0) .. " FPS")
                 local ok, value = pcall(function() return player:GetNetworkPing() end)
                 hero:SetChipText(2, ok and (math.floor(value * 2000 + 0.5) .. " ms") or "--")
-                hero:SetChipText(3, #Players:GetPlayers() .. " / " .. Players.MaxPlayers)
+                hero:SetChipText(3, #Players:GetPlayers() .. " / " .. Players.MaxPlayers .. " players")
             end
             task.wait(1)
         end
@@ -11061,7 +11061,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.38.0",
+    Version = "1.38.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
