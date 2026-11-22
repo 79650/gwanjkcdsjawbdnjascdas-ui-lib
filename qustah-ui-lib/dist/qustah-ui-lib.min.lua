@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.39.2 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.39.3 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -1283,6 +1283,10 @@ elseif type(getexecutorname)=="function"then executor=tostring(getexecutorname()
 end)
 session:Info({Title="Executor",Value=executor})
 if window.Version~=""then session:Info({Title="GUI version",Value=window.Version})end
+local sizeInfo=session:Info({Title="Menu size",Value="-"})
+local function showSize()sizeInfo:Set(("%dx%d"):format(window:_mainWidth(),window.height))end
+window.maid:connect(window.main:GetPropertyChangedSignal("Size"),showSize)
+showSize()
 for _,entry in ipairs(cfg.Info or{})do session:Info({Title=entry[1],Value=entry[2],Copy=entry.Copy})end
 local details=session
 local userId=details:Info({Title="User ID",Value="#"..player.UserId,Copy=function()return tostring(player.UserId)end})
@@ -1339,8 +1343,8 @@ local stopListening=Stats.listen(refreshHealth)
 if window.maid then window.maid:give(stopListening)end
 task.defer(function()pcall(refreshHealth)end)
 local actions=server:Row()
-actions:Button({Title="Rejoin",Icon="refresh-cw",Callback=function()teleport(false)end})
-actions:Button({Title="Hop",Icon="shuffle",Confirm=true,Callback=function()teleport(true)end})
+actions:Button({Title="Rejoin",Callback=function()teleport(false)end})
+actions:Button({Title="Hop",Confirm=true,Callback=function()teleport(true)end})
 server:Info({Title="Job ID",Value=game.JobId~=""and(game.JobId:sub(1,8).."...")or"studio",Copy=function()return game.JobId end})
 end
 if cfg.Modules~=false then
@@ -9750,7 +9754,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.39.2",
+Version="1.39.3",
 Flags={},
 Windows={},
 Theme=Theme,

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.39.2 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.39.3 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -1442,6 +1442,11 @@ return function(window, cfg)
     end)
     session:Info({ Title = "Executor", Value = executor })
     if window.Version ~= "" then session:Info({ Title = "GUI version", Value = window.Version }) end
+    -- the menu's own size (width x height, before the UI scale), kept up to date while it is resized
+    local sizeInfo = session:Info({ Title = "Menu size", Value = "-" })
+    local function showSize() sizeInfo:Set(("%dx%d"):format(window:_mainWidth(), window.height)) end
+    window.maid:connect(window.main:GetPropertyChangedSignal("Size"), showSize)
+    showSize()
     for _, entry in ipairs(cfg.Info or {}) do session:Info({ Title = entry[1], Value = entry[2], Copy = entry.Copy }) end
     -- the ids, each with a copy button
     local details = session
@@ -1501,8 +1506,8 @@ return function(window, cfg)
         if window.maid then window.maid:give(stopListening) end
         task.defer(function() pcall(refreshHealth) end)
         local actions = server:Row()
-        actions:Button({ Title = "Rejoin", Icon = "refresh-cw", Callback = function() teleport(false) end })
-        actions:Button({ Title = "Hop", Icon = "shuffle", Confirm = true, Callback = function() teleport(true) end })
+        actions:Button({ Title = "Rejoin", Callback = function() teleport(false) end })
+        actions:Button({ Title = "Hop", Confirm = true, Callback = function() teleport(true) end })
         server:Info({ Title = "Job ID", Value = game.JobId ~= "" and (game.JobId:sub(1, 8) .. "...") or "studio", Copy = function() return game.JobId end })
     end
 
@@ -11067,7 +11072,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.39.2",
+    Version = "1.39.3",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
