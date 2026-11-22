@@ -161,16 +161,23 @@ return function(card, cfg)
         end
     end
     -- Capsule: each word as wide as itself, side by side from the left; the track fits around them
-    if style == "Capsule" then
-        local x = 3
-        for _, button in ipairs(buttons) do
-            local width = Util.textWidth(button.Text, 10, Enum.Font.GothamMedium) + 24
-            button.Size = UDim2.fromOffset(width, 20)
-            button.Position = UDim2.new(0, x, 0.5, 0)
-            x = x + width + 2
+    local function sizeWords()
+        if style == "Capsule" then
+            local x = 3
+            for _, button in ipairs(buttons) do
+                local width = Util.textWidth(button.Text, 10, Enum.Font.GothamMedium) + 24
+                button.Size = UDim2.fromOffset(width, 20)
+                button.Position = UDim2.new(0, x, 0.5, 0)
+                x = x + width + 2
+            end
+            strip.Size = UDim2.fromOffset(x + 1, 26)
+        elseif style == "Pills" then
+            for index, button in ipairs(buttons) do button.Size = UDim2.fromOffset(Util.textWidth(options[index], 10, Enum.Font.GothamMedium) + 26, 24) end
         end
-        strip.Size = UDim2.fromOffset(x + 1, 26)
     end
+    sizeWords()
+    -- another font or text size: words and the moving bar / thumb fit again
+    Util.onTextMetrics(row, function() sizeWords() render(false) end)
 
     -- narrow card: title on top, buttons underneath
     local function fit()

@@ -800,6 +800,8 @@ In the font list every name is drawn in its own font. Code, Console and Log text
 
 `Lib.Fonts.set("Ubuntu")`, `Lib.Fonts.setCode("RobotoMono")` and `Lib.Fonts.setTextScale(1.1)` do the same from code. `CreateWindow({ Font = "Ubuntu" })` starts with a font; `Font = { "Ubuntu", "Work Sans" }` starts with the first known one.
 
+**Text widths follow the font.** `Lib.Util.textWidth(text, size, font)` measures with Gotham and scales by the chosen font's width (measured once with `TextService:GetTextBoundsAsync`, estimated until then) and by the text size setting, so buttons, tabs and pills fit their words in every font. Something you lay out by text width can size itself again when the font or text size changes: `Lib.Util.onTextMetrics(frame, function() ... end)` (stops when `frame` is destroyed). A font whose download fails shows a one-time notice and Roblox's own copy of the family is used.
+
 **Icons.** The lib's own icons (and Qustah's) come from its sheet in `qustah/icons`: filled icons (Solar Bold, a few Material Design Icons where Solar has none) drawn at 14, 16, 20, 24, 28 and 30 px, every pixel on or off (no grey edges), downloaded once into `QustahUI/icons` and shown through `getcustomasset` with nearest-pixel sampling. `src/icons_qustah.lua` says where each one is; `tools/qustah_icons.json` which icon is drawn for which lucide name. Any other lucide icon comes from the 16 / 32 px lucide sheets, and without `getcustomasset` from its asset id.
 
 **Icon sizes.** Icons are drawn only at `Lib.Icons.Sizes` (14, 16, 20, 24, 28, 30). A size you ask for goes to the nearest one (`Lib.Icons.fitSize(12)` is 14), keeping the icon's centre; at a UI scale the size on screen goes to the nearest one too (a 14 px icon at 125 % is 16 px on screen).

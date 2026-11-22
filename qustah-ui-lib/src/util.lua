@@ -277,12 +277,32 @@ function Util.textWidth(text, size, font)
     if typeof(font) ~= "EnumItem" or font == Enum.Font.Unknown then font = Enum.Font.Gotham end
     local key = text .. "\0" .. tostring(size) .. "\0" .. tostring(font)
     local width = widthCache[key]
-    if width then return width end
+    if width then return width * Util._fontFactor(font, size) end
     local ok, bounds = pcall(function() return Services.TextService:GetTextSize(text, size, font, Vector2.new(10000, 100)) end)
     width = ok and bounds.X or #text * (tonumber(size) or 10) * 0.55
     if widthCount >= 1000 then widthCache, widthCount = {}, 0 end
     widthCache[key], widthCount = width, widthCount + 1
-    return width
+    return width * Util._fontFactor(font, size)
+end
+-- Util.onTextMetrics(object, fn): fn runs whenever text widths change (another font, text size, a measured font)
+-- while `object` is alive, so something laid out by Util.textWidth can size itself again.
+function Util.onTextMetrics(object, fn)
+    local ok, font = pcall(require, "font")
+    if not ok or type(font) ~= "table" or not font.onChange then return function() end end
+    local stop = font.onChange(function() if object.Parent then fn() end end)
+    object.Destroying:Connect(stop)
+    return stop
+end
+-- (the UI font's width next to Gotham, set by the font module; 1 until it loads)
+local fontModule
+function Util._fontFactor(font, size)
+    if fontModule == nil then
+        local ok, module = pcall(require, "font")
+        fontModule = ok and module or false
+    end
+    if not fontModule then return 1 end
+    local ok, factor = pcall(fontModule.widthFactor, font, size)
+    return ok and factor or 1
 end
 -- true while the object can actually be seen: it and every parent Visible, the ScreenGui enabled
 function Util.shown(object)

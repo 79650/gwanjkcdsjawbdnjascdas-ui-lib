@@ -80,6 +80,8 @@ function Window.new(Lib, cfg)
     self.uiScale = cfg.UIScale == false and 1 or math.clamp(tonumber(self.memory.uiScale or cfg.Scale) or 1, 0.6, 1.5)
     Glow.start(Lib.maid)
     self:_build()
+    -- another font or text size: page names, the header and the dock are measured again
+    self.maid:give(UIFont.onChange(function() if self.alive then self:_layoutDock() self:_layout() end end))
     if self._buildExtras then self:_buildExtras() end
     if self._buildInbox then self:_buildInbox() end
     if self._buildFx then self:_buildFx() end

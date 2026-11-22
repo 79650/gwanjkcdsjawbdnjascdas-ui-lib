@@ -83,6 +83,13 @@ return function(window, cfg)
         end,
     })
     UIFont.set(startFont)
+    -- a font that could not be downloaded: say so once (Roblox's own copy of the family is shown meanwhile)
+    local toldFont = false
+    window.maid:give(UIFont.onFailed(function(name)
+        if toldFont or not window.alive then return end
+        toldFont = true
+        window:Notify({ Title = "Font", Content = "Couldn't download " .. tostring(name) .. "; Roblox's copy is used for now", Color = "warning" })
+    end))
     -- the font of Code, Console and Log text: RobotoMono, or CreateWindow({ CodeFont = "Code" }) (an Enum.Font name)
     if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont) end
     -- text size: every text a bit smaller / larger, the menu itself stays the same size

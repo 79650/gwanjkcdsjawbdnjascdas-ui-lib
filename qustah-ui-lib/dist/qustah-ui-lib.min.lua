@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.39.4 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.40.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -554,6 +554,9 @@ if cfg.Icon then Icons.themed(button,cfg.Icon,11,"text",{Name="Icon",AnchorPoint
 local used=right+width+6
 self.titleLabel.Size=UDim2.new(1,self.titleLabel.Size.X.Offset-(used-right),0,20)
 self._headRight=used
+Util.onTextMetrics(button,function()
+button.Size=UDim2.fromOffset(Util.textWidth(text,9,Enum.Font.GothamMedium)+(cfg.Icon and 30 or 16),18)
+end)
 local window=self.window
 button.MouseEnter:Connect(function()Theme.tweenTo(caption,"TextColor3","heading",0.1)end)
 button.MouseLeave:Connect(function()Theme.tweenTo(caption,"TextColor3","text",0.1)end)
@@ -6268,6 +6271,7 @@ button.MouseEnter:Connect(function()if option~=element.Value and not element.Loc
 button.MouseLeave:Connect(function()if option~=element.Value then Theme.tweenTo(button,"TextColor3","muted",0.08)end end)
 end
 end
+local function sizeWords()
 if style=="Capsule"then
 local x=3
 for _,button in ipairs(buttons)do
@@ -6277,7 +6281,12 @@ button.Position=UDim2.new(0,x,0.5,0)
 x=x+width+2
 end
 strip.Size=UDim2.fromOffset(x+1,26)
+elseif style=="Pills"then
+for index,button in ipairs(buttons)do button.Size=UDim2.fromOffset(Util.textWidth(options[index],10,Enum.Font.GothamMedium)+26,24)end
 end
+end
+sizeWords()
+Util.onTextMetrics(row,function()sizeWords()render(false)end)
 local function fit()
 if wide then
 row.Size=UDim2.new(1,0,0,baseHeight-6)
@@ -8162,6 +8171,12 @@ Montserrat="Montserrat",Ubuntu="Ubuntu",["Josefin Sans"]="JosefinSans",Michroma=
 ["Work Sans"]="rbxassetid://12187373327",
 }
 UIFont.Fit={Michroma=1.12,["Josefin Sans"]=0.96}
+UIFont.Width={
+Montserrat={regular=1.08,heavy=1.08},Ubuntu={regular=0.97,heavy=0.98},["Work Sans"]={regular=1.0,heavy=1.01},
+["Josefin Sans"]={regular=0.9,heavy=0.92},Michroma={regular=1.32,heavy=1.32},
+}
+UIFont.measured={}
+UIFont.failed={}
 UIFont.code="RobotoMono"
 UIFont.textScale=1
 UIFont.downloaded={}
@@ -8208,11 +8223,19 @@ local path=UIFont.Folder.."/"..name:gsub(" ","")..".json"
 writefile(path,HttpService:JSONEncode({name=name,faces=faces}))
 UIFont.downloaded[name]=custom(path)
 end)
-if not ok then Util.log("[qustah-ui-lib] font "..name.." could not be set up: "..tostring(err))end
+if not ok then
+Util.log("[qustah-ui-lib] font "..name.." could not be set up: "..tostring(err))
+UIFont.failed[name]=tostring(err)
+for fn in pairs(failListeners)do Util.safe(fn,name,tostring(err))end
+end
 end
 UIFont.refresh()
 end,function(reason)
-if Util.canCustomAsset()then Util.log("[qustah-ui-lib] fonts could not be downloaded ("..tostring(reason).."); using Roblox's copies")end
+if Util.canCustomAsset()then
+Util.log("[qustah-ui-lib] fonts could not be downloaded ("..tostring(reason).."); using Roblox's copies")
+for _,name in ipairs(UIFont.order)do UIFont.failed[name]=tostring(reason)end
+for fn in pairs(failListeners)do Util.safe(fn,UIFont.current,tostring(reason))end
+end
 end,"fonts")
 end
 local function targetFor(object,uiTarget)
@@ -8245,6 +8268,62 @@ if face.Family~=target then object.FontFace=Font.new(target,face.Weight,face.Sty
 end)
 end
 function UIFont.family(name)return familyOf(name)end
+local listeners,failListeners={},{}
+function UIFont.onChange(fn)
+listeners[fn]=true
+return function()listeners[fn]=nil end
+end
+local pendingChange=false
+local function changed()
+if pendingChange then return end
+pendingChange=true
+task.defer(function()
+pendingChange=false
+for fn in pairs(listeners)do Util.safe(fn)end
+end)
+end
+UIFont._changed=changed
+function UIFont.onFailed(fn)
+failListeners[fn]=true
+return function()failListeners[fn]=nil end
+end
+function UIFont.widthFactor(font,size)
+local ratio=UIFont.Width[UIFont.current]
+local heavy=font~=Enum.Font.Gotham and font~=Enum.Font.GothamLight and font~=Enum.Font.SourceSans
+local factor=ratio and(heavy and ratio.heavy or ratio.regular)or 1
+size=tonumber(size)or 10
+local fit=UIFont.Fit[UIFont.current]or 1
+if size>9 and(UIFont.textScale~=1 or fit~=1)then
+factor=factor*math.max(6,math.floor(size*UIFont.textScale/fit+0.5))/size
+end
+return factor
+end
+local SAMPLE="The quick brown fox jumps over 1234567890 lazy dogs"
+function UIFont.measure(name)
+name=tostring(name or UIFont.current)
+local family=familyOf(name)
+local key=name.."\0"..tostring(family)
+if not family or UIFont.measured[key]then return end
+UIFont.measured[key]=true
+task.spawn(function()
+local TextService=Util.Services.TextService
+local function width(face)
+local params=Instance.new("GetTextBoundsParams")
+params.Text,params.Font,params.Size,params.Width=SAMPLE,face,100,100000
+return TextService:GetTextBoundsAsync(params).X
+end
+local gotham=Font.fromEnum(Enum.Font.Gotham).Family
+local ok,result=pcall(function()
+local regular=width(Font.new(family,Enum.FontWeight.Regular))/width(Font.new(gotham,Enum.FontWeight.Regular))
+local heavy=width(Font.new(family,Enum.FontWeight.SemiBold))/width(Font.new(gotham,Enum.FontWeight.Medium))
+return{regular=regular,heavy=heavy}
+end)
+if ok and result.regular>0.3 and result.regular<3 and result.heavy>0.3 and result.heavy<3 then
+UIFont.Width[name]=result
+changed()
+end
+end)
+end
 function UIFont.refresh()
 local target=familyOf(UIFont.current)
 for gui in pairs(UIFont.guis)do
@@ -8254,6 +8333,8 @@ else
 UIFont.guis[gui]=nil
 end
 end
+UIFont.measure(UIFont.current)
+changed()
 end
 function UIFont.set(name)
 name=tostring(name or"Montserrat")
@@ -9754,7 +9835,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.39.4",
+Version="1.40.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -11030,6 +11111,12 @@ if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not a
 end,
 })
 UIFont.set(startFont)
+local toldFont=false
+window.maid:give(UIFont.onFailed(function(name)
+if toldFont or not window.alive then return end
+toldFont=true
+window:Notify({Title="Font",Content="Couldn't download "..tostring(name).."; Roblox's copy is used for now",Color="warning"})
+end))
 if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont)end
 local TEXT_SIZES={Small=0.9,Normal=1,Large=1.1}
 fontTab:Segment({
@@ -13013,12 +13100,29 @@ text=tostring(text)
 if typeof(font)~="EnumItem"or font==Enum.Font.Unknown then font=Enum.Font.Gotham end
 local key=text.."\0"..tostring(size).."\0"..tostring(font)
 local width=widthCache[key]
-if width then return width end
+if width then return width*Util._fontFactor(font,size)end
 local ok,bounds=pcall(function()return Services.TextService:GetTextSize(text,size,font,Vector2.new(10000,100))end)
 width=ok and bounds.X or#text*(tonumber(size)or 10)*0.55
 if widthCount>=1000 then widthCache,widthCount={},0 end
 widthCache[key],widthCount=width,widthCount+1
-return width
+return width*Util._fontFactor(font,size)
+end
+function Util.onTextMetrics(object,fn)
+local ok,font=pcall(require,"font")
+if not ok or type(font)~="table"or not font.onChange then return function()end end
+local stop=font.onChange(function()if object.Parent then fn()end end)
+object.Destroying:Connect(stop)
+return stop
+end
+local fontModule
+function Util._fontFactor(font,size)
+if fontModule==nil then
+local ok,module=pcall(require,"font")
+fontModule=ok and module or false
+end
+if not fontModule then return 1 end
+local ok,factor=pcall(fontModule.widthFactor,font,size)
+return ok and factor or 1
 end
 function Util.shown(object)
 while object do
@@ -13560,6 +13664,7 @@ end
 self.uiScale=cfg.UIScale==false and 1 or math.clamp(tonumber(self.memory.uiScale or cfg.Scale)or 1,0.6,1.5)
 Glow.start(Lib.maid)
 self:_build()
+self.maid:give(UIFont.onChange(function()if self.alive then self:_layoutDock()self:_layout()end end))
 if self._buildExtras then self:_buildExtras()end
 if self._buildInbox then self:_buildInbox()end
 if self._buildFx then self:_buildFx()end

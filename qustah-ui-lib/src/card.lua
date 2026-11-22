@@ -597,6 +597,10 @@ function Card:HeaderButton(cfg)
     local used = right + width + 6
     self.titleLabel.Size = UDim2.new(1, self.titleLabel.Size.X.Offset - (used - right), 0, 20)
     self._headRight = used
+    -- another font: the button fits its word again (the title keeps the room it was given)
+    Util.onTextMetrics(button, function()
+        button.Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + (cfg.Icon and 30 or 16), 18)
+    end)
     local window = self.window
     button.MouseEnter:Connect(function() Theme.tweenTo(caption, "TextColor3", "heading", 0.1) end)
     button.MouseLeave:Connect(function() Theme.tweenTo(caption, "TextColor3", "text", 0.1) end)

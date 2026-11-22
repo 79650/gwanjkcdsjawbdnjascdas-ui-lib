@@ -26,6 +26,16 @@ UIFont.Fallback = {
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
 -- doesn't push labels out of their rows. Code text has its own font.
 UIFont.Fit = { Michroma = 1.12, ["Josefin Sans"] = 0.96 }
+-- How wide each font's text is next to Gotham's at the same size (regular / medium-and-heavier text): the lib
+-- measures its labels with Gotham (Util.textWidth) and scales by this. These are estimates; the real ratios are
+-- measured once a font is in use (UIFont.measure), and every listener (UIFont.onChange) lays out again then.
+UIFont.Width = {
+    Montserrat = { regular = 1.08, heavy = 1.08 }, Ubuntu = { regular = 0.97, heavy = 0.98 }, ["Work Sans"] = { regular = 1.0, heavy = 1.01 },
+    ["Josefin Sans"] = { regular = 0.9, heavy = 0.92 }, Michroma = { regular = 1.32, heavy = 1.32 },
+}
+UIFont.measured = {}
+-- names of fonts whose download failed (UIFont.onFailed callbacks are told)
+UIFont.failed = {}
 -- Code text (Code, Console, Log; marked with the QCode attribute) uses Roblox's monospace RobotoMono unless
 -- CreateWindow({ CodeFont = "..." }) names another Enum.Font. Text marked QFixedFont keeps whatever font it has
 -- (the font list draws each name in its own font).
@@ -85,11 +95,19 @@ function UIFont.download()
                 writefile(path, HttpService:JSONEncode({ name = name, faces = faces }))
                 UIFont.downloaded[name] = custom(path)
             end)
-            if not ok then Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err)) end
+            if not ok then
+                Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err))
+                UIFont.failed[name] = tostring(err)
+                for fn in pairs(failListeners) do Util.safe(fn, name, tostring(err)) end
+            end
         end
         UIFont.refresh()
     end, function(reason)
-        if Util.canCustomAsset() then Util.log("[qustah-ui-lib] fonts could not be downloaded (" .. tostring(reason) .. "); using Roblox's copies") end
+        if Util.canCustomAsset() then
+            Util.log("[qustah-ui-lib] fonts could not be downloaded (" .. tostring(reason) .. "); using Roblox's copies")
+            for _, name in ipairs(UIFont.order) do UIFont.failed[name] = tostring(reason) end
+            for fn in pairs(failListeners) do Util.safe(fn, UIFont.current, tostring(reason)) end
+        end
     end, "fonts")
 end
 
@@ -131,6 +149,72 @@ end
 -- the family behind a font name (a library id or a built-in Enum.Font)
 function UIFont.family(name) return familyOf(name) end
 
+-- Things that lay out by text width (the window, segments, header buttons...) call UIFont.onChange(fn): fn runs
+-- after the font, the text size or a font's measured width changes. Returns a function that stops it.
+local listeners, failListeners = {}, {}
+function UIFont.onChange(fn)
+    listeners[fn] = true
+    return function() listeners[fn] = nil end
+end
+local pendingChange = false
+local function changed()
+    if pendingChange then return end
+    pendingChange = true
+    task.defer(function()
+        pendingChange = false
+        for fn in pairs(listeners) do Util.safe(fn) end
+    end)
+end
+UIFont._changed = changed
+-- fn(name, reason) when the font files could not be downloaded (Roblox's own copies are used then)
+function UIFont.onFailed(fn)
+    failListeners[fn] = true
+    return function() failListeners[fn] = nil end
+end
+
+-- How much wider than Gotham a text of this Enum font and size is drawn now: the font's width ratio for its weight
+-- class, and the text size setting / wide-font fit the same way scaleText applies them (9 px and under keep size).
+function UIFont.widthFactor(font, size)
+    local ratio = UIFont.Width[UIFont.current]
+    local heavy = font ~= Enum.Font.Gotham and font ~= Enum.Font.GothamLight and font ~= Enum.Font.SourceSans
+    local factor = ratio and (heavy and ratio.heavy or ratio.regular) or 1
+    size = tonumber(size) or 10
+    local fit = UIFont.Fit[UIFont.current] or 1
+    if size > 9 and (UIFont.textScale ~= 1 or fit ~= 1) then
+        factor = factor * math.max(6, math.floor(size * UIFont.textScale / fit + 0.5)) / size
+    end
+    return factor
+end
+
+-- Measures a font's real width next to Gotham (TextService:GetTextBoundsAsync can wait while the font loads, so this
+-- runs on its own thread, once per font and download) and lays everything out again with it.
+local SAMPLE = "The quick brown fox jumps over 1234567890 lazy dogs"
+function UIFont.measure(name)
+    name = tostring(name or UIFont.current)
+    local family = familyOf(name)
+    local key = name .. "\0" .. tostring(family)
+    if not family or UIFont.measured[key] then return end
+    UIFont.measured[key] = true
+    task.spawn(function()
+        local TextService = Util.Services.TextService
+        local function width(face)
+            local params = Instance.new("GetTextBoundsParams")
+            params.Text, params.Font, params.Size, params.Width = SAMPLE, face, 100, 100000
+            return TextService:GetTextBoundsAsync(params).X
+        end
+        local gotham = Font.fromEnum(Enum.Font.Gotham).Family
+        local ok, result = pcall(function()
+            local regular = width(Font.new(family, Enum.FontWeight.Regular)) / width(Font.new(gotham, Enum.FontWeight.Regular))
+            local heavy = width(Font.new(family, Enum.FontWeight.SemiBold)) / width(Font.new(gotham, Enum.FontWeight.Medium))
+            return { regular = regular, heavy = heavy }
+        end)
+        if ok and result.regular > 0.3 and result.regular < 3 and result.heavy > 0.3 and result.heavy < 3 then
+            UIFont.Width[name] = result
+            changed()
+        end
+    end)
+end
+
 -- Re-applies the current font to every registered gui.
 function UIFont.refresh()
     local target = familyOf(UIFont.current)
@@ -141,6 +225,8 @@ function UIFont.refresh()
             UIFont.guis[gui] = nil
         end
     end
+    UIFont.measure(UIFont.current)
+    changed()
 end
 
 function UIFont.set(name)

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.39.4 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.40.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -612,6 +612,10 @@ function Card:HeaderButton(cfg)
     local used = right + width + 6
     self.titleLabel.Size = UDim2.new(1, self.titleLabel.Size.X.Offset - (used - right), 0, 20)
     self._headRight = used
+    -- another font: the button fits its word again (the title keeps the room it was given)
+    Util.onTextMetrics(button, function()
+        button.Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + (cfg.Icon and 30 or 16), 18)
+    end)
     local window = self.window
     button.MouseEnter:Connect(function() Theme.tweenTo(caption, "TextColor3", "heading", 0.1) end)
     button.MouseLeave:Connect(function() Theme.tweenTo(caption, "TextColor3", "text", 0.1) end)
@@ -7090,16 +7094,23 @@ return function(card, cfg)
         end
     end
     -- Capsule: each word as wide as itself, side by side from the left; the track fits around them
-    if style == "Capsule" then
-        local x = 3
-        for _, button in ipairs(buttons) do
-            local width = Util.textWidth(button.Text, 10, Enum.Font.GothamMedium) + 24
-            button.Size = UDim2.fromOffset(width, 20)
-            button.Position = UDim2.new(0, x, 0.5, 0)
-            x = x + width + 2
+    local function sizeWords()
+        if style == "Capsule" then
+            local x = 3
+            for _, button in ipairs(buttons) do
+                local width = Util.textWidth(button.Text, 10, Enum.Font.GothamMedium) + 24
+                button.Size = UDim2.fromOffset(width, 20)
+                button.Position = UDim2.new(0, x, 0.5, 0)
+                x = x + width + 2
+            end
+            strip.Size = UDim2.fromOffset(x + 1, 26)
+        elseif style == "Pills" then
+            for index, button in ipairs(buttons) do button.Size = UDim2.fromOffset(Util.textWidth(options[index], 10, Enum.Font.GothamMedium) + 26, 24) end
         end
-        strip.Size = UDim2.fromOffset(x + 1, 26)
     end
+    sizeWords()
+    -- another font or text size: words and the moving bar / thumb fit again
+    Util.onTextMetrics(row, function() sizeWords() render(false) end)
 
     -- narrow card: title on top, buttons underneath
     local function fit()
@@ -9252,6 +9263,16 @@ UIFont.Fallback = {
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
 -- doesn't push labels out of their rows. Code text has its own font.
 UIFont.Fit = { Michroma = 1.12, ["Josefin Sans"] = 0.96 }
+-- How wide each font's text is next to Gotham's at the same size (regular / medium-and-heavier text): the lib
+-- measures its labels with Gotham (Util.textWidth) and scales by this. These are estimates; the real ratios are
+-- measured once a font is in use (UIFont.measure), and every listener (UIFont.onChange) lays out again then.
+UIFont.Width = {
+    Montserrat = { regular = 1.08, heavy = 1.08 }, Ubuntu = { regular = 0.97, heavy = 0.98 }, ["Work Sans"] = { regular = 1.0, heavy = 1.01 },
+    ["Josefin Sans"] = { regular = 0.9, heavy = 0.92 }, Michroma = { regular = 1.32, heavy = 1.32 },
+}
+UIFont.measured = {}
+-- names of fonts whose download failed (UIFont.onFailed callbacks are told)
+UIFont.failed = {}
 -- Code text (Code, Console, Log; marked with the QCode attribute) uses Roblox's monospace RobotoMono unless
 -- CreateWindow({ CodeFont = "..." }) names another Enum.Font. Text marked QFixedFont keeps whatever font it has
 -- (the font list draws each name in its own font).
@@ -9311,11 +9332,19 @@ function UIFont.download()
                 writefile(path, HttpService:JSONEncode({ name = name, faces = faces }))
                 UIFont.downloaded[name] = custom(path)
             end)
-            if not ok then Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err)) end
+            if not ok then
+                Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err))
+                UIFont.failed[name] = tostring(err)
+                for fn in pairs(failListeners) do Util.safe(fn, name, tostring(err)) end
+            end
         end
         UIFont.refresh()
     end, function(reason)
-        if Util.canCustomAsset() then Util.log("[qustah-ui-lib] fonts could not be downloaded (" .. tostring(reason) .. "); using Roblox's copies") end
+        if Util.canCustomAsset() then
+            Util.log("[qustah-ui-lib] fonts could not be downloaded (" .. tostring(reason) .. "); using Roblox's copies")
+            for _, name in ipairs(UIFont.order) do UIFont.failed[name] = tostring(reason) end
+            for fn in pairs(failListeners) do Util.safe(fn, UIFont.current, tostring(reason)) end
+        end
     end, "fonts")
 end
 
@@ -9357,6 +9386,72 @@ end
 -- the family behind a font name (a library id or a built-in Enum.Font)
 function UIFont.family(name) return familyOf(name) end
 
+-- Things that lay out by text width (the window, segments, header buttons...) call UIFont.onChange(fn): fn runs
+-- after the font, the text size or a font's measured width changes. Returns a function that stops it.
+local listeners, failListeners = {}, {}
+function UIFont.onChange(fn)
+    listeners[fn] = true
+    return function() listeners[fn] = nil end
+end
+local pendingChange = false
+local function changed()
+    if pendingChange then return end
+    pendingChange = true
+    task.defer(function()
+        pendingChange = false
+        for fn in pairs(listeners) do Util.safe(fn) end
+    end)
+end
+UIFont._changed = changed
+-- fn(name, reason) when the font files could not be downloaded (Roblox's own copies are used then)
+function UIFont.onFailed(fn)
+    failListeners[fn] = true
+    return function() failListeners[fn] = nil end
+end
+
+-- How much wider than Gotham a text of this Enum font and size is drawn now: the font's width ratio for its weight
+-- class, and the text size setting / wide-font fit the same way scaleText applies them (9 px and under keep size).
+function UIFont.widthFactor(font, size)
+    local ratio = UIFont.Width[UIFont.current]
+    local heavy = font ~= Enum.Font.Gotham and font ~= Enum.Font.GothamLight and font ~= Enum.Font.SourceSans
+    local factor = ratio and (heavy and ratio.heavy or ratio.regular) or 1
+    size = tonumber(size) or 10
+    local fit = UIFont.Fit[UIFont.current] or 1
+    if size > 9 and (UIFont.textScale ~= 1 or fit ~= 1) then
+        factor = factor * math.max(6, math.floor(size * UIFont.textScale / fit + 0.5)) / size
+    end
+    return factor
+end
+
+-- Measures a font's real width next to Gotham (TextService:GetTextBoundsAsync can wait while the font loads, so this
+-- runs on its own thread, once per font and download) and lays everything out again with it.
+local SAMPLE = "The quick brown fox jumps over 1234567890 lazy dogs"
+function UIFont.measure(name)
+    name = tostring(name or UIFont.current)
+    local family = familyOf(name)
+    local key = name .. "\0" .. tostring(family)
+    if not family or UIFont.measured[key] then return end
+    UIFont.measured[key] = true
+    task.spawn(function()
+        local TextService = Util.Services.TextService
+        local function width(face)
+            local params = Instance.new("GetTextBoundsParams")
+            params.Text, params.Font, params.Size, params.Width = SAMPLE, face, 100, 100000
+            return TextService:GetTextBoundsAsync(params).X
+        end
+        local gotham = Font.fromEnum(Enum.Font.Gotham).Family
+        local ok, result = pcall(function()
+            local regular = width(Font.new(family, Enum.FontWeight.Regular)) / width(Font.new(gotham, Enum.FontWeight.Regular))
+            local heavy = width(Font.new(family, Enum.FontWeight.SemiBold)) / width(Font.new(gotham, Enum.FontWeight.Medium))
+            return { regular = regular, heavy = heavy }
+        end)
+        if ok and result.regular > 0.3 and result.regular < 3 and result.heavy > 0.3 and result.heavy < 3 then
+            UIFont.Width[name] = result
+            changed()
+        end
+    end)
+end
+
 -- Re-applies the current font to every registered gui.
 function UIFont.refresh()
     local target = familyOf(UIFont.current)
@@ -9367,6 +9462,8 @@ function UIFont.refresh()
             UIFont.guis[gui] = nil
         end
     end
+    UIFont.measure(UIFont.current)
+    changed()
 end
 
 function UIFont.set(name)
@@ -11071,7 +11168,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.39.4",
+    Version = "1.40.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -12539,6 +12636,13 @@ return function(window, cfg)
         end,
     })
     UIFont.set(startFont)
+    -- a font that could not be downloaded: say so once (Roblox's own copy of the family is shown meanwhile)
+    local toldFont = false
+    window.maid:give(UIFont.onFailed(function(name)
+        if toldFont or not window.alive then return end
+        toldFont = true
+        window:Notify({ Title = "Font", Content = "Couldn't download " .. tostring(name) .. "; Roblox's copy is used for now", Color = "warning" })
+    end))
     -- the font of Code, Console and Log text: RobotoMono, or CreateWindow({ CodeFont = "Code" }) (an Enum.Font name)
     if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont) end
     -- text size: every text a bit smaller / larger, the menu itself stays the same size
@@ -14855,12 +14959,32 @@ function Util.textWidth(text, size, font)
     if typeof(font) ~= "EnumItem" or font == Enum.Font.Unknown then font = Enum.Font.Gotham end
     local key = text .. "\0" .. tostring(size) .. "\0" .. tostring(font)
     local width = widthCache[key]
-    if width then return width end
+    if width then return width * Util._fontFactor(font, size) end
     local ok, bounds = pcall(function() return Services.TextService:GetTextSize(text, size, font, Vector2.new(10000, 100)) end)
     width = ok and bounds.X or #text * (tonumber(size) or 10) * 0.55
     if widthCount >= 1000 then widthCache, widthCount = {}, 0 end
     widthCache[key], widthCount = width, widthCount + 1
-    return width
+    return width * Util._fontFactor(font, size)
+end
+-- Util.onTextMetrics(object, fn): fn runs whenever text widths change (another font, text size, a measured font)
+-- while `object` is alive, so something laid out by Util.textWidth can size itself again.
+function Util.onTextMetrics(object, fn)
+    local ok, font = pcall(require, "font")
+    if not ok or type(font) ~= "table" or not font.onChange then return function() end end
+    local stop = font.onChange(function() if object.Parent then fn() end end)
+    object.Destroying:Connect(stop)
+    return stop
+end
+-- (the UI font's width next to Gotham, set by the font module; 1 until it loads)
+local fontModule
+function Util._fontFactor(font, size)
+    if fontModule == nil then
+        local ok, module = pcall(require, "font")
+        fontModule = ok and module or false
+    end
+    if not fontModule then return 1 end
+    local ok, factor = pcall(fontModule.widthFactor, font, size)
+    return ok and factor or 1
 end
 -- true while the object can actually be seen: it and every parent Visible, the ScreenGui enabled
 function Util.shown(object)
@@ -15484,6 +15608,8 @@ function Window.new(Lib, cfg)
     self.uiScale = cfg.UIScale == false and 1 or math.clamp(tonumber(self.memory.uiScale or cfg.Scale) or 1, 0.6, 1.5)
     Glow.start(Lib.maid)
     self:_build()
+    -- another font or text size: page names, the header and the dock are measured again
+    self.maid:give(UIFont.onChange(function() if self.alive then self:_layoutDock() self:_layout() end end))
     if self._buildExtras then self:_buildExtras() end
     if self._buildInbox then self:_buildInbox() end
     if self._buildFx then self:_buildFx() end
