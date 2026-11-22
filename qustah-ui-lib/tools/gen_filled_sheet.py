@@ -284,6 +284,8 @@ def review(names, pixels, chosen, all_cands, folder):
             y = i * (cell + 4)
             d.text((4, y + cell // 2 - 5), n[:16], fill=(200, 200, 205), font=font)
             for j, key in enumerate("ABCD"):
+                if key not in all_cands[(n, s)]:
+                    continue
                 b = all_cands[(n, s)][key][0]
                 t = Image.fromarray(np.where(b[..., None], fg, bg).astype(np.uint8)).resize((s * z, s * z), Image.NEAREST)
                 img.paste(t, (110 + j * cell, y))
@@ -296,7 +298,7 @@ def review(names, pixels, chosen, all_cands, folder):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--iconify", required=True, help="folder with solar.json and mdi.json (github.com/iconify/icon-sets/json)")
-    ap.add_argument("--version", type=int, default=17)
+    ap.add_argument("--version", type=int, default=18)
     ap.add_argument("--review", help="write contact sheets here")
     ap.add_argument("--only", help="comma separated names (try a few icons quickly; nothing is written but the review)")
     args = ap.parse_args()
@@ -313,11 +315,20 @@ def main():
         names = [n for n in names if n in args.only.split(",")]
 
     sets = load_sets(args.iconify)
-    big = render_all({n: svg_of(sets, mapping[n]) for n in names})
+    for n in names:
+        if mapping[n] == "drawn" and n not in drawn:
+            raise SystemExit(f"qustah_icons.json: {n} is \"drawn\" but has no drawing in qustah_drawn.json")
+    # an icon mapped to "drawn" exists only as a drawing (every size is made from it), so it needs no vector
+    big = render_all({n: svg_of(sets, mapping[n]) for n in names if mapping[n] != "drawn"})
 
     pixels, chosen, all_cands = {}, {}, {}
     for i, n in enumerate(names):
         for s in SIZES:
+            if mapping[n] == "drawn":
+                all_cands[(n, s)] = {}
+                chosen[(n, s)] = "drawn"
+                pixels[(n, s)] = drawn[n][s]
+                continue
             cands, symmetric = draw_candidates(big[n], s)
             key = choose(cands, symmetric, picks.get(f"{n}@{s}"))
             all_cands[(n, s)] = cands
