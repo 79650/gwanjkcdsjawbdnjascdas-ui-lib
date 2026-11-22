@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.40.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.41.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -956,6 +956,12 @@ end
 
 -- Called by Window:_register once the element is fully built: remembers its default and applies a pending value.
 function Config:_elementReady(flag, element)
+    -- CreateWindow({ Defaults = { flag = value } }): the script's own starting values, in profile format (as a
+    -- saved profile holds them); they become the defaults that reset and "changes" compare against
+    local presets = self.window.cfg.Defaults
+    if self.Defaults[flag] == nil and type(presets) == "table" and presets[flag] ~= nil then
+        pcall(element._load, element, presets[flag])
+    end
     if self.Defaults[flag] == nil then
         local ok, value = pcall(element._save, element)
         if ok and value ~= nil then self.Defaults[flag] = value end
@@ -1002,7 +1008,7 @@ function Config:Save(name)
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
     local data = { version = 1, flags = self:Snapshot(), custom = self.Custom }
-    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", HttpService:JSONEncode(data))
+    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", Util.prettyJSON(data))
     if not ok then return false, err end
     self:_setActive(name, data.flags)
     return true
@@ -1014,7 +1020,7 @@ function Config:SaveFlags(name, flags, custom)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", HttpService:JSONEncode({ version = 1, flags = flags or {}, custom = custom }))
+    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", Util.prettyJSON({ version = 1, flags = flags or {}, custom = custom }))
     if not ok then return false, err end
     return true
 end
@@ -1176,7 +1182,7 @@ end
 function Config:WriteMemory(data)
     if not can("writefile") then return false end
     self:_ensure()
-    return Util.writeAtomic(self.folder .. "/window.json", HttpService:JSONEncode(data))
+    return Util.writeAtomic(self.folder .. "/window.json", Util.prettyJSON(data))
 end
 
 -- Any small JSON file in the folder (custom themes...): Config:ReadJSON("themes"), :WriteJSON("themes", data)
@@ -1186,7 +1192,7 @@ end
 function Config:WriteJSON(name, data)
     if not can("writefile") then return false end
     self:_ensure()
-    return Util.writeAtomic(self.folder .. "/" .. cleanName(name) .. ".json", HttpService:JSONEncode(data))
+    return Util.writeAtomic(self.folder .. "/" .. cleanName(name) .. ".json", Util.prettyJSON(data))
 end
 
 -- Profiles keep extra info (when saved) in <Folder>/profiles.json.
@@ -11168,7 +11174,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.40.1",
+    Version = "1.41.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -15421,6 +15427,48 @@ Util.tmpFiles = tmpFiles
 
 -- Crash-safe writes: the text goes to <file>.tmp.txt first, is read back, then written over the file and the .tmp removed.
 -- If the game closes half way, either the old file or a complete .tmp survives (Util.readJSON picks it up).
+-- Util.prettyJSON(value): JSON that is easy to read and compare - two-space indents, keys in order, short lists of
+-- plain values on one line. (Profiles, themes and the window memory are written this way.)
+function Util.prettyJSON(value)
+    local HttpService = Services.HttpService
+    local function scalar(v) return type(v) ~= "table" end
+    local function isArray(t)
+        local n = 0
+        for k in pairs(t) do
+            if type(k) ~= "number" then return false end
+            n = n + 1
+        end
+        return n == #t
+    end
+    local function encode(v, indent)
+        if type(v) ~= "table" then return HttpService:JSONEncode(v) end
+        local inner = indent .. "  "
+        if isArray(v) then
+            if #v == 0 then return "[]" end
+            local parts, simple = {}, true
+            for _, item in ipairs(v) do
+                parts[#parts + 1] = encode(item, inner)
+                if not scalar(item) then simple = false end
+            end
+            if simple then return "[" .. table.concat(parts, ", ") .. "]" end
+            return "[\n" .. inner .. table.concat(parts, ",\n" .. inner) .. "\n" .. indent .. "]"
+        end
+        local keys = {}
+        for k in pairs(v) do keys[#keys + 1] = tostring(k) end
+        if #keys == 0 then return "{}" end
+        table.sort(keys)
+        local parts = {}
+        for _, k in ipairs(keys) do
+            local item = v[k]
+            if item == nil then item = v[tonumber(k)] end
+            parts[#parts + 1] = HttpService:JSONEncode(k) .. ": " .. encode(item, inner)
+        end
+        return "{\n" .. inner .. table.concat(parts, ",\n" .. inner) .. "\n" .. indent .. "}"
+    end
+    local ok, text = pcall(encode, value, "")
+    return ok and text or HttpService:JSONEncode(value)
+end
+
 function Util.writeAtomic(path, text)
     if type(writefile) ~= "function" then return false, "writefile is not available" end
     local tmp = Util.tmpOf(path)

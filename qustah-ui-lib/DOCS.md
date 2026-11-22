@@ -39,6 +39,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `CodeFont` | `"RobotoMono"` | font of Code, Console and Log text (an `Enum.Font` name) |
 | `SegmentStyle` | `"Underline"` | look of every Segment: `"Underline"`, `"Boxed"`, `"Tab"`, `"Line"`, `"Dot"`, `"Divided"`, `"Ghost"`, `"Track"`, `"Pills"`, `"Capsule"` (see [Segment](#dropdown-segment-and-radio)) |
 | `DockSide` | `"Right"` | where the tabs sit: `"Right"` (icons beside the window), `"Bottom"` (in a row under it) or `"Side"` (a sidebar inside the window with the tab names; the window grows by its 132 px so the pages keep their width); Settings › Interface › Window › Look › Dock, `Window:SetDockSide` |
+| `Defaults` | - | the script's starting values, `{ flag = value }` in profile format (a saved profile's `flags`): a fresh start uses them and reset / "changes" compare against them; a saved profile or AutoLoad still wins |
 | `PageTabs` | `"Row"` | a tab's page names: `"Row"` (over the cards) or `"Header"` (in the title row, like Dashboard / Settings; a tab whose names don't fit there keeps the row); Settings › Behaviour › Page tabs, `Window:SetPageTabs` |
 | `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |

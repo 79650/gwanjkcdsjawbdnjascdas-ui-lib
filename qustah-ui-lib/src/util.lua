@@ -737,6 +737,48 @@ Util.tmpFiles = tmpFiles
 
 -- Crash-safe writes: the text goes to <file>.tmp.txt first, is read back, then written over the file and the .tmp removed.
 -- If the game closes half way, either the old file or a complete .tmp survives (Util.readJSON picks it up).
+-- Util.prettyJSON(value): JSON that is easy to read and compare - two-space indents, keys in order, short lists of
+-- plain values on one line. (Profiles, themes and the window memory are written this way.)
+function Util.prettyJSON(value)
+    local HttpService = Services.HttpService
+    local function scalar(v) return type(v) ~= "table" end
+    local function isArray(t)
+        local n = 0
+        for k in pairs(t) do
+            if type(k) ~= "number" then return false end
+            n = n + 1
+        end
+        return n == #t
+    end
+    local function encode(v, indent)
+        if type(v) ~= "table" then return HttpService:JSONEncode(v) end
+        local inner = indent .. "  "
+        if isArray(v) then
+            if #v == 0 then return "[]" end
+            local parts, simple = {}, true
+            for _, item in ipairs(v) do
+                parts[#parts + 1] = encode(item, inner)
+                if not scalar(item) then simple = false end
+            end
+            if simple then return "[" .. table.concat(parts, ", ") .. "]" end
+            return "[\n" .. inner .. table.concat(parts, ",\n" .. inner) .. "\n" .. indent .. "]"
+        end
+        local keys = {}
+        for k in pairs(v) do keys[#keys + 1] = tostring(k) end
+        if #keys == 0 then return "{}" end
+        table.sort(keys)
+        local parts = {}
+        for _, k in ipairs(keys) do
+            local item = v[k]
+            if item == nil then item = v[tonumber(k)] end
+            parts[#parts + 1] = HttpService:JSONEncode(k) .. ": " .. encode(item, inner)
+        end
+        return "{\n" .. inner .. table.concat(parts, ",\n" .. inner) .. "\n" .. indent .. "}"
+    end
+    local ok, text = pcall(encode, value, "")
+    return ok and text or HttpService:JSONEncode(value)
+end
+
 function Util.writeAtomic(path, text)
     if type(writefile) ~= "function" then return false, "writefile is not available" end
     local tmp = Util.tmpOf(path)

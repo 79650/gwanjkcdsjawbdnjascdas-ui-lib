@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.40.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.41.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -868,6 +868,10 @@ self.Custom={}
 return self
 end
 function Config:_elementReady(flag,element)
+local presets=self.window.cfg.Defaults
+if self.Defaults[flag]==nil and type(presets)=="table"and presets[flag]~=nil then
+pcall(element._load,element,presets[flag])
+end
 if self.Defaults[flag]==nil then
 local ok,value=pcall(element._save,element)
 if ok and value~=nil then self.Defaults[flag]=value end
@@ -905,7 +909,7 @@ if name==""then return false,"Empty config name"end
 if not can("writefile")then return false,"writefile is not available"end
 self:_ensure()
 local data={version=1,flags=self:Snapshot(),custom=self.Custom}
-local ok,err=Util.writeAtomic(self.path.."/"..name..".json",HttpService:JSONEncode(data))
+local ok,err=Util.writeAtomic(self.path.."/"..name..".json",Util.prettyJSON(data))
 if not ok then return false,err end
 self:_setActive(name,data.flags)
 return true
@@ -915,7 +919,7 @@ name=cleanName(name)
 if name==""then return false,"Empty config name"end
 if not can("writefile")then return false,"writefile is not available"end
 self:_ensure()
-local ok,err=Util.writeAtomic(self.path.."/"..name..".json",HttpService:JSONEncode({version=1,flags=flags or{},custom=custom}))
+local ok,err=Util.writeAtomic(self.path.."/"..name..".json",Util.prettyJSON({version=1,flags=flags or{},custom=custom}))
 if not ok then return false,err end
 return true
 end
@@ -1056,7 +1060,7 @@ end
 function Config:WriteMemory(data)
 if not can("writefile")then return false end
 self:_ensure()
-return Util.writeAtomic(self.folder.."/window.json",HttpService:JSONEncode(data))
+return Util.writeAtomic(self.folder.."/window.json",Util.prettyJSON(data))
 end
 function Config:ReadJSON(name)
 return self:_readFile(self.folder.."/"..cleanName(name)..".json",cleanName(name))or{}
@@ -1064,7 +1068,7 @@ end
 function Config:WriteJSON(name,data)
 if not can("writefile")then return false end
 self:_ensure()
-return Util.writeAtomic(self.folder.."/"..cleanName(name)..".json",HttpService:JSONEncode(data))
+return Util.writeAtomic(self.folder.."/"..cleanName(name)..".json",Util.prettyJSON(data))
 end
 function Config:ReadMeta()
 return self:_readFile(self:_scopeFile("profiles.json"),"profiles")or{}
@@ -8951,7 +8955,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.40.1",
+Version="1.41.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -12627,6 +12631,45 @@ end
 function Util.tmpOf(path)return path..".tmp.txt"end
 local function tmpFiles(path)return{path..".tmp.txt"}end
 Util.tmpFiles=tmpFiles
+function Util.prettyJSON(value)
+local HttpService=Services.HttpService
+local function scalar(v)return type(v)~="table"end
+local function isArray(t)
+local n=0
+for k in pairs(t)do
+if type(k)~="number"then return false end
+n=n+1
+end
+return n==#t
+end
+local function encode(v,indent)
+if type(v)~="table"then return HttpService:JSONEncode(v)end
+local inner=indent.."  "
+if isArray(v)then
+if#v==0 then return"[]"end
+local parts,simple={},true
+for _,item in ipairs(v)do
+parts[#parts+1]=encode(item,inner)
+if not scalar(item)then simple=false end
+end
+if simple then return"["..table.concat(parts,", ").."]"end
+return"[\n"..inner..table.concat(parts,",\n"..inner).."\n"..indent.."]"
+end
+local keys={}
+for k in pairs(v)do keys[#keys+1]=tostring(k)end
+if#keys==0 then return"{}"end
+table.sort(keys)
+local parts={}
+for _,k in ipairs(keys)do
+local item=v[k]
+if item==nil then item=v[tonumber(k)]end
+parts[#parts+1]=HttpService:JSONEncode(k)..": "..encode(item,inner)
+end
+return"{\n"..inner..table.concat(parts,",\n"..inner).."\n"..indent.."}"
+end
+local ok,text=pcall(encode,value,"")
+return ok and text or HttpService:JSONEncode(value)
+end
 function Util.writeAtomic(path,text)
 if type(writefile)~="function"then return false,"writefile is not available"end
 local tmp=Util.tmpOf(path)
