@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.39.1 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.39.2 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -9750,7 +9750,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.39.1",
+Version="1.39.2",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -11083,7 +11083,7 @@ Callback=function(on)window:_state("welcomeToast",on)end,
 })
 local menuActions=menu:Row({Widths={3,2}})
 menuActions:Button({
-Title="Reset layout",Icon="rotate-ccw",Tooltip="Puts the window back to its default size and place",
+Title="Reset layout",Tooltip="Puts the window back to its default size and place",
 Callback=function()
 window.width,window.height,window.topLeft=defaultSize.X,defaultSize.Y,nil
 window.memory.window=nil
@@ -11092,7 +11092,7 @@ window:_saveMemory()
 end,
 })
 menuActions:Button({
-Title="Unload",Icon="power",Style="Danger",
+Title="Unload",Style="Danger",
 Callback=function()
 window:Confirm("Unload "..window.Title.."?","The menu and everything it runs will be removed.",function()window:Destroy()end,"Unload",true)
 end,

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.39.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.39.2 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -11067,7 +11067,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.39.1",
+    Version = "1.39.2",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -12598,7 +12598,7 @@ return function(window, cfg)
     })
     local menuActions = menu:Row({ Widths = { 3, 2 } })
     menuActions:Button({
-        Title = "Reset layout", Icon = "rotate-ccw", Tooltip = "Puts the window back to its default size and place",
+        Title = "Reset layout", Tooltip = "Puts the window back to its default size and place",
         Callback = function()
             window.width, window.height, window.topLeft = defaultSize.X, defaultSize.Y, nil
             window.memory.window = nil
@@ -12607,7 +12607,7 @@ return function(window, cfg)
         end,
     })
     menuActions:Button({
-        Title = "Unload", Icon = "power", Style = "Danger",
+        Title = "Unload", Style = "Danger",
         Callback = function()
             window:Confirm("Unload " .. window.Title .. "?", "The menu and everything it runs will be removed.", function() window:Destroy() end, "Unload", true)
         end,
