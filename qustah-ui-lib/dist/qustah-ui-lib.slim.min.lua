@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.41.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.42.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -877,13 +877,18 @@ local flag=key:gsub(" ","_")
 if flag:sub(1,3)=="ui_"then flag="__"..flag end
 return flag
 end
-local function toFile(flags)
+local same
+function Config:_toFile(flags)
 local out={}
-for flag,value in pairs(flags or{})do out[Config.fileKey(flag)]=value end
+for flag,value in pairs(flags or{})do
+local default=self.Defaults[flag]
+if default==nil or not same(value,default)then out[Config.fileKey(flag)]=value end
+end
 return out
 end
-local function fromFile(flags)
+function Config:_fromFile(flags)
 local out={}
+for flag,value in pairs(self.Defaults)do out[flag]=value end
 for key,value in pairs(flags or{})do out[Config.flagKey(key)]=value end
 return out
 end
@@ -928,7 +933,7 @@ if name==""then return false,"Empty config name"end
 if not can("writefile")then return false,"writefile is not available"end
 self:_ensure()
 local flags=self:Snapshot()
-local data={version=1,flags=toFile(flags),custom=self.Custom}
+local data={version=1,flags=self:_toFile(flags),custom=self.Custom}
 local ok,err=Util.writeAtomic(self.path.."/"..name..".json",Util.prettyJSON(data))
 if not ok then return false,err end
 self:_setActive(name,flags)
@@ -939,7 +944,7 @@ name=cleanName(name)
 if name==""then return false,"Empty config name"end
 if not can("writefile")then return false,"writefile is not available"end
 self:_ensure()
-local ok,err=Util.writeAtomic(self.path.."/"..name..".json",Util.prettyJSON({version=1,flags=toFile(flags),custom=custom}))
+local ok,err=Util.writeAtomic(self.path.."/"..name..".json",Util.prettyJSON({version=1,flags=self:_toFile(flags),custom=custom}))
 if not ok then return false,err end
 return true
 end
@@ -961,7 +966,7 @@ if not can("readfile","isfile")then return nil,"readfile is not available"end
 local data,problem=self:_readFile(self.path.."/"..name..".json",name)
 if not data then return nil,problem=="missing"and"Config not found"or"Config file is damaged"end
 if type(data.flags)~="table"then return nil,"Config file is damaged"end
-data.flags=fromFile(data.flags)
+data.flags=self:_fromFile(data.flags)
 return data
 end
 function Config:Load(name)
@@ -987,7 +992,7 @@ function Config:OnActiveChanged(callback)
 self._activeListeners=self._activeListeners or{}
 table.insert(self._activeListeners,callback)
 end
-local function same(a,b)
+function same(a,b)
 if type(a)=="number"and type(b)=="number"then return math.abs(a-b)<1e-6 end
 if type(a)~="table"or type(b)~="table"then return a==b end
 for key,value in pairs(a)do if not same(value,b[key])then return false end end
@@ -8976,7 +8981,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.41.1",
+Version="1.42.0",
 Flags={},
 Windows={},
 Theme=Theme,

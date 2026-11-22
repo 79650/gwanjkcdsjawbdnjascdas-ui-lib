@@ -51,13 +51,20 @@ function Config.flagKey(key)
     if flag:sub(1, 3) == "ui_" then flag = "__" .. flag end
     return flag
 end
-local function toFile(flags)
+-- A profile file keeps only the settings that differ from the defaults; reading one fills the rest back in from
+-- them, so loading a profile also puts every unlisted setting back to its default.
+local same
+function Config:_toFile(flags)
     local out = {}
-    for flag, value in pairs(flags or {}) do out[Config.fileKey(flag)] = value end
+    for flag, value in pairs(flags or {}) do
+        local default = self.Defaults[flag]
+        if default == nil or not same(value, default) then out[Config.fileKey(flag)] = value end
+    end
     return out
 end
-local function fromFile(flags)
+function Config:_fromFile(flags)
     local out = {}
+    for flag, value in pairs(self.Defaults) do out[flag] = value end
     for key, value in pairs(flags or {}) do out[Config.flagKey(key)] = value end
     return out
 end
@@ -116,7 +123,7 @@ function Config:Save(name)
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
     local flags = self:Snapshot()
-    local data = { version = 1, flags = toFile(flags), custom = self.Custom }
+    local data = { version = 1, flags = self:_toFile(flags), custom = self.Custom }
     local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", Util.prettyJSON(data))
     if not ok then return false, err end
     self:_setActive(name, flags)
@@ -129,7 +136,7 @@ function Config:SaveFlags(name, flags, custom)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", Util.prettyJSON({ version = 1, flags = toFile(flags), custom = custom }))
+    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", Util.prettyJSON({ version = 1, flags = self:_toFile(flags), custom = custom }))
     if not ok then return false, err end
     return true
 end
@@ -154,7 +161,7 @@ function Config:_readProfile(name)
     local data, problem = self:_readFile(self.path .. "/" .. name .. ".json", name)
     if not data then return nil, problem == "missing" and "Config not found" or "Config file is damaged" end
     if type(data.flags) ~= "table" then return nil, "Config file is damaged" end
-    data.flags = fromFile(data.flags)
+    data.flags = self:_fromFile(data.flags)
     return data
 end
 
@@ -186,7 +193,7 @@ function Config:OnActiveChanged(callback)
     self._activeListeners = self._activeListeners or {}
     table.insert(self._activeListeners, callback)
 end
-local function same(a, b)
+function same(a, b)
     if type(a) == "number" and type(b) == "number" then return math.abs(a - b) < 1e-6 end
     if type(a) ~= "table" or type(b) ~= "table" then return a == b end
     for key, value in pairs(a) do if not same(value, b[key]) then return false end end
