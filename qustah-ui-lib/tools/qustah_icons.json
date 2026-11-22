@@ -29,7 +29,7 @@
   "circle-check": "solar:check-circle",
   "circle-dashed": "mdi:circle-outline",
   "circle-dot": "mdi:radiobox-marked",
-  "circle-stop": "solar:stop-circle",
+  "circle-stop": "solar:stop",
   "circle-x": "mdi:close-octagon",
   "clipboard-copy": "mdi:clipboard-multiple",
   "clock": "mdi:clock-time-three",
