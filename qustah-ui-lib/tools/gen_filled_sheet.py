@@ -23,7 +23,8 @@ symmetric); failing that, the first that keeps the parts and holes; failing that
 picks.json "edits" fix single pixels by hand: { "server@14": ["3,2=1", "4,2=0"] } (x,y from the top left).
 tools/qustah_drawn.json holds icons drawn by hand: { "save": { "14": ["..##..", ...], "16": [...] } } replaces the drawn
 sizes outright. Sizes not drawn are made from the drawing (twice a drawn size: doubled; otherwise fitted from the biggest
-drawing), so a hand-drawn icon looks the same at every UI scale.
+drawing), so a hand-drawn icon looks the same at every UI scale. "vector": [20, 24] keeps those sizes on the mapped
+vector instead (server: the card is drawn after the dock's 20 px icon, which stays the vector fit).
 """
 import argparse, io, json, os, sys
 import numpy as np
@@ -163,23 +164,24 @@ def load_drawn():
         if name.startswith("_"):
             continue
         drawn[name] = {}
+        vector = set(sizes.pop("vector", []))
         for size, rows in sizes.items():
             b = np.array([[c == "#" for c in row] for row in rows])
             if b.shape != (int(size), int(size)):
                 raise SystemExit(f"qustah_drawn.json: {name}@{size} is {b.shape[1]}x{b.shape[0]}")
             drawn[name][int(size)] = b
-        fill_sizes(drawn[name])
+        fill_sizes(drawn[name], vector)
     return drawn
 
 
-def fill_sizes(sizes):
+def fill_sizes(sizes, vector=()):
     """Every sheet size for a hand-drawn icon, so the drawing shows whatever size the UI scale picks: a size twice a
     drawn one is that drawing doubled; any other is fitted from the biggest drawing (its pixels as the vector)."""
     drawn_sizes = sorted(sizes)
     biggest = sizes[drawn_sizes[-1]]
     src = Image.fromarray(biggest.astype(np.uint8) * 255, "L").resize((SRC, SRC), Image.NEAREST)
     for s in SIZES:
-        if s in sizes:
+        if s in sizes or s in vector:
             continue
         if s % 2 == 0 and s // 2 in drawn_sizes:
             sizes[s] = sizes[s // 2].repeat(2, 0).repeat(2, 1)
@@ -298,7 +300,7 @@ def review(names, pixels, chosen, all_cands, folder):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--iconify", required=True, help="folder with solar.json and mdi.json (github.com/iconify/icon-sets/json)")
-    ap.add_argument("--version", type=int, default=19)
+    ap.add_argument("--version", type=int, default=20)
     ap.add_argument("--review", help="write contact sheets here")
     ap.add_argument("--only", help="comma separated names (try a few icons quickly; nothing is written but the review)")
     args = ap.parse_args()
