@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.38.6 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.38.7 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -9579,8 +9579,8 @@ return{
 end
 __modules["icons_qustah"]=function()
 return{
-Id="qustah",Version=16,
-Files={"qustah-v16-1.png"},
+Id="qustah",Version=17,
+Files={"qustah-v17-1.png"},
 Names="activity,app-window,arrow-down-to-line,arrow-right,axe,ban,bed,bell,bell-off,bell-ring,blend,bookmark,box,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-stop,circle-x,clipboard-copy,clock,clock-4,code,coins,copy,crosshair,crown,dices,dna,dock,dot,download,dumbbell,earth,ellipsis,eye,eye-off,fast-forward,flame,folder-open,footprints,gamepad-2,gauge,ghost,gift,graduation-cap,hand,hand-fist,hash,hat-glasses,heading,heart,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,lightbulb,link,list,list-checks,loader,loader-circle,lock,log-in,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,refresh-cw,repeat,rotate-ccw,ruler,save,scan,scan-eye,scan-search,scroll,scroll-text,search,send,server,server-off,settings,settings-2,share-2,shield,shield-alert,shield-check,shirt,shuffle,skull,sliders-horizontal,soup,sparkle,sparkles,spline,square,square-terminal,star,star-off,sticky-note,store,sun,sword,swords,table,tag,target,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,user-round,user-round-cog,users,venetian-mask,video,volume,volume-2,waypoints,wifi,wind,x,zap",
 Sizes={
 [14]={1,0,64},
@@ -9745,7 +9745,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.38.6",
+Version="1.38.7",
 Flags={},
 Windows={},
 Theme=Theme,

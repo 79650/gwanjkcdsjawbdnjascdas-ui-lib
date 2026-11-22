@@ -22,7 +22,8 @@ Without a pick: the first of A, B, D, C that keeps the parts and holes (and leav
 symmetric); failing that, the first that keeps the parts and holes; failing that, C.
 picks.json "edits" fix single pixels by hand: { "server@14": ["3,2=1", "4,2=0"] } (x,y from the top left).
 tools/qustah_drawn.json holds icons drawn by hand: { "save": { "14": ["..##..", ...], "16": [...] } } replaces the drawn
-sizes outright; 28 px doubles the 14 px drawing when 28 is not drawn. Other sizes still come from the mapped vector.
+sizes outright. Sizes not drawn are made from the drawing (twice a drawn size: doubled; otherwise fitted from the biggest
+drawing), so a hand-drawn icon looks the same at every UI scale.
 """
 import argparse, io, json, os, sys
 import numpy as np
@@ -167,9 +168,24 @@ def load_drawn():
             if b.shape != (int(size), int(size)):
                 raise SystemExit(f"qustah_drawn.json: {name}@{size} is {b.shape[1]}x{b.shape[0]}")
             drawn[name][int(size)] = b
-        if 14 in drawn[name] and 28 not in drawn[name]:
-            drawn[name][28] = drawn[name][14].repeat(2, 0).repeat(2, 1)
+        fill_sizes(drawn[name])
     return drawn
+
+
+def fill_sizes(sizes):
+    """Every sheet size for a hand-drawn icon, so the drawing shows whatever size the UI scale picks: a size twice a
+    drawn one is that drawing doubled; any other is fitted from the biggest drawing (its pixels as the vector)."""
+    drawn_sizes = sorted(sizes)
+    biggest = sizes[drawn_sizes[-1]]
+    src = Image.fromarray(biggest.astype(np.uint8) * 255, "L").resize((SRC, SRC), Image.NEAREST)
+    for s in SIZES:
+        if s in sizes:
+            continue
+        if s % 2 == 0 and s // 2 in drawn_sizes:
+            sizes[s] = sizes[s // 2].repeat(2, 0).repeat(2, 1)
+            continue
+        cands, symmetric = draw_candidates(src, s)
+        sizes[s] = cands[choose(cands, symmetric, None)][0]
 
 
 def apply_edits(b, edits):
@@ -280,7 +296,7 @@ def review(names, pixels, chosen, all_cands, folder):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--iconify", required=True, help="folder with solar.json and mdi.json (github.com/iconify/icon-sets/json)")
-    ap.add_argument("--version", type=int, default=16)
+    ap.add_argument("--version", type=int, default=17)
     ap.add_argument("--review", help="write contact sheets here")
     ap.add_argument("--only", help="comma separated names (try a few icons quickly; nothing is written but the review)")
     args = ap.parse_args()
