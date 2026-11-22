@@ -445,7 +445,7 @@ function Tab.new(window, cfg)
         Position = UDim2.fromOffset(5, DOCK_TOP), Size = UDim2.fromOffset(DOCK_BUTTON, DOCK_BUTTON), ZIndex = 42, Parent = window.dock,
     })
     Theme.bind(button, "BackgroundColor3", "accentDeep")
-    corner(button, 15)
+    self.buttonCorner = corner(button, 15)
     local icon
     -- Icon: a name ("eye", "solar:eye-bold"), an asset id or nothing (first letter of the title)
     if cfg.Icon ~= nil and Icons.Get(cfg.Icon) then
@@ -461,12 +461,16 @@ function Tab.new(window, cfg)
         })
         self.iconProperty = "TextColor3"
     end
+    -- the tab's name, shown next to the icon when the dock is a sidebar (DockSide = "Side")
+    self.nameLabel = label(button, self.Title, 12, {
+        Name = "Name", Position = UDim2.fromOffset(34, 0), Size = UDim2.new(1, -40, 1, 0), ZIndex = 43, Visible = false,
+    })
     self.button, self.icon, self.hovered = button, icon, false
     self:_render(false)
     button.MouseEnter:Connect(function()
         self.hovered = true
         self:_render(true)
-        window:_dockTip(self.Title, self.y or DOCK_TOP)
+        if window.dockSide ~= "Side" then window:_dockTip(self.Title, self.y or DOCK_TOP) end -- (the sidebar shows the name)
     end)
     button.MouseLeave:Connect(function()
         self.hovered = false
@@ -488,6 +492,20 @@ function Tab:_render(animate)
     local transparency = selected and 0 or (self.hovered and 0.6 or 1)
     if duration then tween(self.button, duration, { BackgroundTransparency = transparency }) else self.button.BackgroundTransparency = transparency end
     Theme.tweenTo(self.icon, self.iconProperty, selected and "accent" or (self.hovered and "heading" or "icon"), duration)
+    Theme.tweenTo(self.nameLabel, "TextColor3", selected and "heading" or (self.hovered and "heading" or "muted"), duration)
+end
+
+-- The button's shape: a round icon button (dock), or (sidebar) a row with the icon at the left and the name.
+function Tab:_shape(side, width, height)
+    local button, icon = self.button, self.icon
+    button.Size = side and UDim2.fromOffset(width, height) or UDim2.fromOffset(DOCK_BUTTON, DOCK_BUTTON)
+    if self.buttonCorner then self.buttonCorner.CornerRadius = UDim.new(0, side and 8 or 15) end
+    self.nameLabel.Visible = side == true
+    if self.iconProperty == "ImageColor3" then
+        icon.Position = side and UDim2.new(0, 17, 0.5, 0) or UDim2.fromScale(0.5, 0.5)
+    else
+        icon.Size = side and UDim2.new(0, 34, 1, 0) or UDim2.fromScale(1, 1)
+    end
 end
 
 -- Tab:Page("Overview") adds a sub-page; with two or more pages the strip of page names appears.

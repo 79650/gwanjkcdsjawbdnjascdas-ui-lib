@@ -186,8 +186,9 @@ return function(window, cfg)
     local look2 = windowTabs.Look
     look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
         Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
-    look2:Segment({ Title = "Dock", Items = { "Right", "Bottom" }, Default = window.dockSide, Flag = "__ui_dock",
-        Callback = function(side) window:SetDockSide(side) end })
+    -- Right / Bottom: the dock outside the window; Sidebar: the tabs with their names inside it (DockSide "Side")
+    look2:Segment({ Title = "Dock", Items = { "Right", "Bottom", "Sidebar" }, Default = window.dockSide == "Side" and "Sidebar" or window.dockSide,
+        Flag = "__ui_dock", Callback = function(side) window:SetDockSide(side == "Sidebar" and "Side" or side) end })
     look2:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
         Callback = function(mode) window:SetPageTabs(mode) end })
 

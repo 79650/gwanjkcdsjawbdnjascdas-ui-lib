@@ -38,7 +38,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Font` | `"Montserrat"` | starting font: `"Ubuntu"`, `"Work Sans"`, `"Josefin Sans"`, `"Michroma"`, or a list such as `{ "Ubuntu", "Work Sans" }` (the first known one) (see [Themes](#themes)) |
 | `CodeFont` | `"RobotoMono"` | font of Code, Console and Log text (an `Enum.Font` name) |
 | `SegmentStyle` | `"Boxed"` | look of every Segment: `"Boxed"`, `"Tab"`, `"Underline"`, `"Line"`, `"Dot"`, `"Divided"`, `"Ghost"`, `"Track"`, `"Pills"`, `"Capsule"` (see [Segment](#dropdown-segment-and-radio)) |
-| `DockSide` | `"Right"` | where the tab icons sit: `"Right"` (beside the window) or `"Bottom"` (in a row under it); Settings › Behaviour › Dock, `Window:SetDockSide` |
+| `DockSide` | `"Right"` | where the tabs sit: `"Right"` (icons beside the window), `"Bottom"` (in a row under it) or `"Side"` (a sidebar inside the window with the tab names; the window grows by its 132 px so the pages keep their width); Settings › Interface › Window › Look › Dock, `Window:SetDockSide` |
 | `PageTabs` | `"Row"` | a tab's page names: `"Row"` (over the cards) or `"Header"` (in the title row, like Dashboard / Settings; a tab whose names don't fit there keeps the row); Settings › Behaviour › Page tabs, `Window:SetPageTabs` |
 | `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |
@@ -58,7 +58,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 |---|---|
 | `Window:Tab({ Title, Icon, Divider, Header, Build })` | adds a tab to the dock (`Build`: see below) |
 | `Window:SetUIScale(1.1)`, `:GetUIScale()` | menu size; smaller screens still fit |
-| `Window:SetDockSide("Bottom")`, `Window:SetPageTabs("Header")` | dock under / beside the window, page names in the title row / in their own row |
+| `Window:SetDockSide("Bottom")`, `Window:SetPageTabs("Header")` | dock under / beside the window or a sidebar in it (`"Side"`), page names in the title row / in their own row |
 | `Window:SetVisible(bool)`, `:Toggle()`, `:Minimize()` | show, hide, or fold to the title bar |
 | `Window:SetToggleKey(key)` | changes the menu key (the badge and Settings update too) |
 | `Window:SelectTab(tab or "Title")` | opens a tab |

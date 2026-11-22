@@ -48,7 +48,9 @@ return function(Window)
         if on then
             self._restore = { width = self.width, height = self.height, topLeft = self.topLeft }
             local viewport = Util.viewport()
-            self.width = math.max(self.minSize.X, math.floor(viewport.X - 24 - 12 - 40 - 24))
+            -- (room for the dock beside the window; a sidebar is inside it, an under-the-window dock takes height)
+            local dockRoom = self.dockSide == "Right" and (12 + 40) or (self.dockSide == "Side" and 132 or 0)
+            self.width = math.max(self.minSize.X, math.floor(viewport.X - 24 - dockRoom - 24))
             self.height = math.max(self.minSize.Y, math.floor(viewport.Y - 24))
             self.topLeft = Vector2.new(12, 12)
         elseif self._restore then
@@ -100,8 +102,16 @@ return function(Window)
         layoutDock(self)
         if self._profile and self._profile.Visible then
             local at = self.dockHeight - 2
-            self:_dockLine(self._profileLine, at)
-            self:_dockSpot(self._profile, at + 7, 5)
+            if self.dockSide == "Side" then
+                -- (sidebar: the line across the panel, the avatar at the left like the tab icons)
+                self._profileLine.Size = UDim2.fromOffset(104, 1)
+                self._profileLine.Position = UDim2.fromOffset(14, at)
+                self._profile.Position = UDim2.fromOffset(8, at + 7)
+            else
+                self._profileLine.Size = UDim2.fromOffset(22, 1)
+                self:_dockLine(self._profileLine, at)
+                self:_dockSpot(self._profile, at + 7, 5)
+            end
             self.dockHeight = at + 7 + 30 + 8
         end
     end

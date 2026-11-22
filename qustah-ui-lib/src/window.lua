@@ -1,6 +1,6 @@
 -- Window shell (Qustah layout): header (title, version badge, "Tab › Page" location, minimize / close), sub-page
 -- strip, scrolling pages with two card columns, key hint bar, footer (status, centre text, resize grip) and the
--- dock to the right (drag handle, tab icons, group dividers).
+-- dock to the right (drag handle, tab icons, group dividers), under the window or as a sidebar inside it.
 local Util = require("util")
 local Theme = require("theme")
 local Config = require("config")
@@ -16,6 +16,7 @@ local Tab = Tabs.Tab
 
 local HEADER, FOOTER = 44, 30
 local DOCK_WIDTH, DOCK_GAP, DOCK_STEP = 40, 12, 37
+local SIDE_WIDTH, SIDE_STEP, SIDE_BUTTON = 132, 34, 30 -- DockSide = "Side": the tab list inside the window
 local DOCK_TOP = Tabs.DOCK_TOP
 
 local Window = {}
@@ -31,8 +32,9 @@ function Window.new(Lib, cfg)
         width = size.X, height = size.Y,
         minSize = cfg.MinSize or Vector2.new(400, 300), maxSize = cfg.MaxSize or Vector2.new(920, 660),
         key = cfg.ToggleKey or Enum.KeyCode.RightShift, visible = true, folded = false, alive = true,
-        -- DockSide = "Right" (beside the window, default) | "Bottom" (under it, in a row)
-        dockSide = cfg.DockSide == "Bottom" and "Bottom" or "Right",
+        -- DockSide = "Right" (beside the window, default) | "Bottom" (under it, in a row) | "Side" (a sidebar inside
+        -- the window, with the tab names; the window grows by its width so the pages keep theirs)
+        dockSide = (cfg.DockSide == "Bottom" or cfg.DockSide == "Side") and cfg.DockSide or "Right",
         -- PageTabs = "Row" (a row of page names over the cards, default) | "Header" (in the title row, like the
         -- header tabs; a tab whose page names don't fit there keeps the row)
         pageTabs = cfg.PageTabs == "Header" and "Header" or "Row",
@@ -275,7 +277,12 @@ function Window:_build()
     Theme.bind(dock, "BackgroundColor3", "dock")
     corner(dock, 20)
     Theme.bind(stroke(dock), "Color", "line")
-    self.dock = dock
+    self.dock, self.dockParent = dock, gui
+    self.dockCorner = dock:FindFirstChildOfClass("UICorner")
+    self.dockStroke = dock:FindFirstChildOfClass("UIStroke")
+    -- (sidebar: a line between the tab list and the pages)
+    self.sideLine = create("Frame", { Name = "SideLine", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0, 1, 1, 0), BorderSizePixel = 0, Visible = false, ZIndex = 41, Parent = dock })
+    Theme.bind(self.sideLine, "BackgroundColor3", "line")
     self.dockScale = create("UIScale", { Scale = 1, Parent = dock })
     -- drag handle (three lines) at the top of the dock moves the window like the header
     local dockGrip = create("TextButton", { Name = "DragHandle", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = UDim2.fromOffset(5, 6), Size = UDim2.fromOffset(30, 28), ZIndex = 42, Parent = dock })
@@ -427,9 +434,11 @@ function Window:_layout()
     local total, tall = self:_extent()
     -- the chosen UI scale (Settings / Window:SetUIScale), made smaller when the screen can't fit it
     local s = math.clamp(math.min(self.uiScale or 1, (viewport.X - 24) / total, (viewport.Y - 24) / tall), 0.4, 1.5)
-    self.scale.Scale, self.dockScale.Scale = s, s
+    local side = self.dockSide == "Side"
+    -- (the sidebar sits in the window, which already scales it)
+    self.scale.Scale, self.dockScale.Scale = s, side and 1 or s
     local height = self.folded and HEADER or self.height
-    self.main.Size = UDim2.fromOffset(self.width, height)
+    self.main.Size = UDim2.fromOffset(self:_mainWidth(), height)
     if not self.topLeft then
         local saved = self.memory and self.memory.window
         if type(saved) == "table" and tonumber(saved.x) and tonumber(saved.y) then
@@ -445,7 +454,10 @@ function Window:_layout()
     self.topLeft = Vector2.new(x, y)
     self.main.Position = UDim2.fromOffset(x, y)
     local length = self.dockHeight or DOCK_TOP
-    if self.dockSide == "Bottom" then
+    if side then
+        self.dock.Size = UDim2.fromOffset(SIDE_WIDTH, self.height - HEADER - 1 - FOOTER)
+        self.dock.Position = UDim2.fromOffset(0, HEADER + 1)
+    elseif self.dockSide == "Bottom" then
         self.dock.Size = UDim2.fromOffset(length, DOCK_WIDTH)
         self.dock.Position = UDim2.fromOffset(math.floor(x + (self.width - length) / 2 * s + 0.5), math.floor(y + (self.height + DOCK_GAP) * s + 0.5))
     else
@@ -459,17 +471,23 @@ function Window:_layout()
     self:_updateLocation()
 end
 
+-- Width of the window frame: the page area, plus the sidebar when the tabs are in one.
+function Window:_mainWidth()
+    return self.width + (self.dockSide == "Side" and SIDE_WIDTH or 0)
+end
+
 -- The window with its dock: width and height (unscaled).
 function Window:_extent()
+    if self.dockSide == "Side" then return self:_mainWidth(), self.height end
     if self.dockSide == "Bottom" then
         return math.max(self.width, self.dockHeight or DOCK_TOP), self.height + DOCK_GAP + DOCK_WIDTH
     end
     return self.width + DOCK_GAP + DOCK_WIDTH, self.height
 end
 
--- Window:SetDockSide("Right" | "Bottom")
+-- Window:SetDockSide("Right" | "Bottom" | "Side")
 function Window:SetDockSide(side)
-    side = side == "Bottom" and "Bottom" or "Right"
+    side = (side == "Bottom" or side == "Side") and side or "Right"
     if side == self.dockSide then return end
     self.dockSide = side
     self:_layoutDock()
@@ -502,7 +520,7 @@ function Window:_placePageTabs()
     -- (a header tab - Dashboard / Settings - has the header tabs up there: its pages keep the row)
     if self.pageTabs == "Header" and tab and #tab.Pages > 1 and not (tab.Header and self.cfg.HeaderTabs ~= false) then
         local _, total = self:_pageTabWidths(tab)
-        local room = self.width - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
+        local room = self:_mainWidth() - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
         inHeader = total <= room
     end
     self.pagesInHeader = inHeader
@@ -584,6 +602,8 @@ end
 function Window:_layoutDock()
     for _, divider in ipairs(self.dockDividers) do divider:Destroy() end
     self.dockDividers = {}
+    if self.dockSide == "Side" then return self:_layoutSidebar() end
+    self:_dockShape(false)
     local bottom = self.dockSide == "Bottom"
     self.dockGrip.Size = bottom and UDim2.fromOffset(28, 30) or UDim2.fromOffset(30, 28)
     self:_dockSpot(self.dockGrip, 6, 5)
@@ -605,7 +625,44 @@ function Window:_layoutDock()
             end
             tab.y = cursor
             self:_dockSpot(tab.button, cursor, 5)
+            if tab._shape then tab:_shape(false) end
             cursor = cursor + DOCK_STEP
+        end
+    end
+    self.dockHeight = cursor + 8
+end
+
+-- The dock's frame: a floating rounded bar next to the window, or (sidebar) a flat panel inside it.
+function Window:_dockShape(side)
+    local parent = side and self.main or self.dockParent
+    if self.dock.Parent ~= parent then self.dock.Parent = parent end
+    if self.dockCorner then self.dockCorner.CornerRadius = UDim.new(0, side and 0 or 20) end
+    if self.dockStroke then self.dockStroke.Enabled = not side end
+    self.sideLine.Visible = side
+    self.dockGrip.Visible = not side
+    self.body.Position = UDim2.fromOffset(side and SIDE_WIDTH or 0, HEADER + 1)
+    self.body.Size = UDim2.new(1, side and -SIDE_WIDTH or 0, 1, -(HEADER + 1 + FOOTER))
+end
+
+-- Sidebar (DockSide = "Side"): the tabs as full-width rows with their names, top to bottom.
+function Window:_layoutSidebar()
+    self:_dockShape(true)
+    local cursor = 10
+    for _, tab in ipairs(self.Tabs) do
+        if tab.Hidden then
+            tab.button.Visible = false
+        else
+            tab.button.Visible = true
+            if tab.Divider then
+                local divider = create("Frame", { Name = "Divider", BorderSizePixel = 0, ZIndex = 42, Size = UDim2.fromOffset(SIDE_WIDTH - 28, 1), Position = UDim2.fromOffset(14, cursor + 2), Parent = self.dock })
+                Theme.bind(divider, "BackgroundColor3", "line")
+                self.dockDividers[#self.dockDividers + 1] = divider
+                cursor = cursor + 8
+            end
+            tab.y = cursor
+            tab.button.Position = UDim2.fromOffset(8, cursor)
+            if tab._shape then tab:_shape(true, SIDE_WIDTH - 16, SIDE_BUTTON) end
+            cursor = cursor + SIDE_STEP
         end
     end
     self.dockHeight = cursor + 8
@@ -642,7 +699,7 @@ end
 function Window:_updateLocation()
     local tab = self.current
     -- room between the title row and the header buttons
-    local room = self.width - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
+    local room = self:_mainWidth() - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
     local tabsWidth = 0
     for _, item in ipairs(self._headerButtons or {}) do tabsWidth = tabsWidth + item.button.Size.X.Offset + 6 end
     local onHeaderTab = tab ~= nil and tab.Header and self.cfg.HeaderTabs ~= false
@@ -655,7 +712,7 @@ function Window:_updateLocation()
     if not tab then self.locationLabel.Text = "" return end
     local page = tab.current
     -- never wider than the free room (tags / long titles), and leave the middle to the header stats
-    local share = math.floor(self.width * (self.monitorMode == "Header" and 0.25 or 0.45))
+    local share = math.floor(self:_mainWidth() * (self.monitorMode == "Header" and 0.25 or 0.45))
     local width = math.max(0, math.min(share, room))
     -- "Tab › Page" when it fits, else just the page (or tab) name, else nothing (no cut-off text)
     local label = self.locationLabel
@@ -684,6 +741,14 @@ end
 
 function Window:_dockTip(text, y)
     local s = self.scale.Scale
+    if self.dockSide == "Side" then
+        local origin = self.dock.AbsolutePosition
+        self.tipText.Text = text
+        self.tip.AnchorPoint = Vector2.new(0, 0)
+        self.tip.Position = UDim2.fromOffset(origin.X + (SIDE_WIDTH + 8) * s, origin.Y + (y + 5) * s)
+        self.tip.Visible = true
+        return
+    end
     local dockX = self.dock.Position.X.Offset
     local top = self.dock.Position.Y.Offset + (y + 5) * s
     self.tipText.Text = text
