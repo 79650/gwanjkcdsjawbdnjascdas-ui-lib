@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.39.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.39.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8063,8 +8063,12 @@ local set,icon=name:match("^([%w_%-]+):(.+)$")
 if not set then set,icon=Icons.Default,name end
 set=set:lower()
 if not Icons.Sets[set]then Icons.Load(set)end
-return lookup(set,icon)or(set~="lucide"and not name:find(":")and lookup("lucide",icon))or nil
+local found=lookup(set,icon)or(set~="lucide"and not name:find(":")and lookup("lucide",icon))
+if found then return found end
+if not name:find(":")and Icons._sheetHas(name)then return{Image="",RectSize=ZERO,RectOffset=ZERO}end
+return nil
 end
+Icons._sheetHas=function()return false end
 Icons._urls={}
 Icons.Folder="QustahUI/assets"
 local function fetch(url,done)
@@ -8200,6 +8204,7 @@ local function inSheet(name)
 for _,sheet in ipairs(customSheets)do if sheet.index[name]then return true end end
 return false
 end
+Icons._sheetHas=function(name)startAtlas()return inSheet(name)end
 local function resize(image,size)
 local old=image.Size.X.Offset
 image.Size=UDim2.fromOffset(size,size)
@@ -8695,9 +8700,9 @@ return{
 end
 __modules["icons_qustah"]=function()
 return{
-Id="qustah",Version=21,
-Files={"qustah-v21-1.png"},
-Names="activity,app-window,arrow-down-to-line,arrow-right,axe,ban,bed,bell,bell-off,bell-ring,blend,bookmark,box,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-stop,circle-x,clipboard-copy,clock,clock-4,code,coins,copy,crosshair,crown,dices,dna,dock,dot,download,droplet,dumbbell,earth,ellipsis,eye,eye-off,fast-forward,flame,folder-open,footprints,frog,gamepad-2,gauge,ghost,gift,graduation-cap,hand,hand-fist,hash,hat-glasses,heading,heart,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,lightbulb,link,list,list-checks,loader,loader-circle,lock,log-in,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,refresh-cw,repeat,rotate-ccw,ruler,save,scan,scan-eye,scan-search,scroll,scroll-text,search,send,server,server-off,settings,settings-2,share-2,shield,shield-alert,shield-check,shirt,shuffle,skull,sliders-horizontal,soup,sparkle,sparkles,spline,square,square-terminal,star,star-off,sticky-note,store,sun,sword,swords,table,tag,target,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,user-round,user-round-cog,users,venetian-mask,video,volume,volume-2,waypoints,wifi,wind,x,zap",
+Id="qustah",Version=22,
+Files={"qustah-v22-1.png"},
+Names="activity,app-window,arrow-down-to-line,arrow-right,axe,ban,bed,bell,bell-off,bell-ring,blend,bookmark,box,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-stop,circle-x,clipboard-copy,clock,clock-4,code,coins,copy,crosshair,crown,dices,dna,dock,dot,download,droplet,dumbbell,earth,ellipsis,eye,eye-off,fast-forward,flame,folder-open,footprints,frog,gamepad-2,gauge,ghost,gift,graduation-cap,hand,hand-fist,hash,hat-glasses,heading,heart,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,lightbulb,link,list,list-checks,loader,loader-circle,lock,log-in,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,record,refresh-cw,repeat,rotate-ccw,ruler,save,scan,scan-eye,scan-search,scroll,scroll-text,search,send,server,server-off,settings,settings-2,share-2,shield,shield-alert,shield-check,shirt,shuffle,skull,sliders-horizontal,soup,sparkle,sparkles,spline,square,square-terminal,star,star-off,sticky-note,store,sun,sword,swords,table,tag,target,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,user-round,user-round-cog,users,venetian-mask,video,volume,volume-2,waypoints,wifi,wind,x,zap",
 Sizes={
 [14]={1,0,64},
 [16]={1,48,56},
@@ -8861,7 +8866,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.39.0",
+Version="1.39.1",
 Flags={},
 Windows={},
 Theme=Theme,

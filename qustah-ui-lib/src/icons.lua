@@ -93,8 +93,13 @@ function Icons.Get(name)
     if not set then set, icon = Icons.Default, name end
     set = set:lower()
     if not Icons.Sets[set] then Icons.Load(set) end
-    return lookup(set, icon) or (set ~= "lucide" and not name:find(":") and lookup("lucide", icon)) or nil
+    local found = lookup(set, icon) or (set ~= "lucide" and not name:find(":") and lookup("lucide", icon))
+    if found then return found end
+    -- an icon that only a script's own sheet has (a hand drawing such as "frog"): Apply draws it from the sheet
+    if not name:find(":") and Icons._sheetHas(name) then return { Image = "", RectSize = ZERO, RectOffset = ZERO } end
+    return nil
 end
+Icons._sheetHas = function() return false end -- (set once the sheets below exist)
 
 -- Web images: request + writefile + getcustomasset (cached per url for the session and on disk).
 Icons._urls = {}
@@ -268,6 +273,7 @@ local function inSheet(name)
     for _, sheet in ipairs(customSheets) do if sheet.index[name] then return true end end
     return false
 end
+Icons._sheetHas = function(name) startAtlas() return inSheet(name) end
 local function resize(image, size)
     local old = image.Size.X.Offset
     image.Size = UDim2.fromOffset(size, size)
