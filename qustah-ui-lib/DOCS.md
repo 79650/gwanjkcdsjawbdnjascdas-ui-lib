@@ -801,6 +801,8 @@ In the font list every name is drawn in its own font. Code, Console and Log text
 
 `Lib.Fonts.set("Ubuntu")`, `Lib.Fonts.setCode("RobotoMono")` and `Lib.Fonts.setTextScale(1.1)` do the same from code. `CreateWindow({ Font = "Ubuntu" })` starts with a font; `Font = { "Ubuntu", "Work Sans" }` starts with the first known one.
 
+**Readable small text.** Elements are written with small sizes; each is drawn a step bigger (8 and 9 -> 10, 10 -> 11, 11 -> 12, 12 -> 13, then the text size setting), and text drawn at 11 px or less is at least Medium so thin strokes don't fade. `Lib.Fonts.Readable` and `Lib.Fonts.MediumBelow` hold the table and the limit; text marked `QNoScale` keeps its size.
+
 **Profile files.** A profile keeps only the settings that differ from the defaults, named in words (`"ui accent"`, `"sa enabled"`) and written as indented JSON. Loading one puts every setting it doesn't list back to its default; files with every setting or the old names load the same way.
 
 **Text widths follow the font.** `Lib.Util.textWidth(text, size, font)` measures with Gotham and scales by the chosen font's width (measured once with `TextService:GetTextBoundsAsync`, estimated until then) and by the text size setting, so buttons, tabs and pills fit their words in every font. Something you lay out by text width can size itself again when the font or text size changes: `Lib.Util.onTextMetrics(frame, function() ... end)` (stops when `frame` is destroyed). A font whose download fails shows a one-time notice and Roblox's own copy of the family is used.

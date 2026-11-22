@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.42.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.43.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -9393,19 +9393,28 @@ local function targetFor(object, uiTarget)
     return uiTarget
 end
 
--- Small print (9 px and under: badges, tags, captions) and text sized to a fixed box (QNoScale: rolling digits,
--- range values) keep their size; everything else grows or shrinks with the setting.
+-- Readable sizes: the lib's elements are written with small sizes (8 - 12 px); each is drawn a step bigger so small
+-- print stays legible (8 and 9 -> 10, 10 -> 11, 11 -> 12, 12 -> 13), then the text size setting and the wide-font fit
+-- apply. Text sized to a fixed box (QNoScale: rolling digits, range values) keeps its size.
+UIFont.Readable = { [7] = 9, [8] = 10, [9] = 10, [10] = 11, [11] = 12, [12] = 13 }
+-- Text drawn at this size or smaller is at least Medium: thin strokes of small regular text fade into the
+-- background and the letters look unevenly spaced.
+UIFont.MediumBelow = 11
+function UIFont.drawnSize(base, fixedFit)
+    base = tonumber(base) or 10
+    local fit = fixedFit or UIFont.Fit[UIFont.current] or 1
+    return math.max(6, math.floor((UIFont.Readable[base] or base) * UIFont.textScale / fit + 0.5))
+end
 local function scaleText(object)
     if object:GetAttribute("QNoScale") then return end
     local fit = object:GetAttribute("QCode") and 1 or (UIFont.Fit[UIFont.current] or 1)
     if object:GetAttribute("QFixedFont") then fit = 1 end
     local base = object:GetAttribute("QBaseSize")
     if base == nil then
-        if (UIFont.textScale == 1 and fit == 1) or object.TextSize <= 9 then return end
         base = object.TextSize
         object:SetAttribute("QBaseSize", base)
     end
-    local size = math.max(6, math.floor(base * UIFont.textScale / fit + 0.5))
+    local size = UIFont.drawnSize(base, fit)
     if object.TextSize ~= size then object.TextSize = size end
 end
 
@@ -9417,7 +9426,18 @@ local function apply(object, uiTarget)
     pcall(function()
         local face = object.FontFace
         if not face then object.FontFace = Font.new(target) return end
-        if face.Family ~= target then object.FontFace = Font.new(target, face.Weight, face.Style) end
+        -- the weight it was made with (kept, so a bigger text size can give the regular weight back)
+        local weight = face.Weight
+        local okName, name = pcall(function() return object:GetAttribute("QBaseWeight") or face.Weight.Name end)
+        if okName and name then
+            if object:GetAttribute("QBaseWeight") == nil then object:SetAttribute("QBaseWeight", name) end
+            weight = Enum.FontWeight[name] or face.Weight
+            local okSmall, small = pcall(function()
+                return object.TextSize <= UIFont.MediumBelow and weight.Value < Enum.FontWeight.Medium.Value and not object:GetAttribute("QCode")
+            end)
+            if okSmall and small then weight = Enum.FontWeight.Medium end
+        end
+        if face.Family ~= target or face.Weight ~= weight then object.FontFace = Font.new(target, weight, face.Style) end
     end)
 end
 
@@ -9451,14 +9471,11 @@ end
 -- class, and the text size setting / wide-font fit the same way scaleText applies them (9 px and under keep size).
 function UIFont.widthFactor(font, size)
     local ratio = UIFont.Width[UIFont.current]
-    local heavy = font ~= Enum.Font.Gotham and font ~= Enum.Font.GothamLight and font ~= Enum.Font.SourceSans
-    local factor = ratio and (heavy and ratio.heavy or ratio.regular) or 1
     size = tonumber(size) or 10
-    local fit = UIFont.Fit[UIFont.current] or 1
-    if size > 9 and (UIFont.textScale ~= 1 or fit ~= 1) then
-        factor = factor * math.max(6, math.floor(size * UIFont.textScale / fit + 0.5)) / size
-    end
-    return factor
+    local drawn = UIFont.drawnSize(size)
+    local heavy = drawn <= UIFont.MediumBelow or (font ~= Enum.Font.Gotham and font ~= Enum.Font.GothamLight and font ~= Enum.Font.SourceSans)
+    local factor = ratio and (heavy and ratio.heavy or ratio.regular) or 1
+    return factor * drawn / size
 end
 
 -- Measures a font's real width next to Gotham (TextService:GetTextBoundsAsync can wait while the font loads, so this
@@ -11206,7 +11223,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.42.0",
+    Version = "1.43.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

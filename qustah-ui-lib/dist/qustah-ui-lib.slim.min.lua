@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.42.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.43.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -7389,17 +7389,23 @@ if object:GetAttribute("QFixedFont")then return nil end
 if object:GetAttribute("QCode")then return familyOf(UIFont.code)end
 return uiTarget
 end
+UIFont.Readable={[7]=9,[8]=10,[9]=10,[10]=11,[11]=12,[12]=13}
+UIFont.MediumBelow=11
+function UIFont.drawnSize(base,fixedFit)
+base=tonumber(base)or 10
+local fit=fixedFit or UIFont.Fit[UIFont.current]or 1
+return math.max(6,math.floor((UIFont.Readable[base]or base)*UIFont.textScale/fit+0.5))
+end
 local function scaleText(object)
 if object:GetAttribute("QNoScale")then return end
 local fit=object:GetAttribute("QCode")and 1 or(UIFont.Fit[UIFont.current]or 1)
 if object:GetAttribute("QFixedFont")then fit=1 end
 local base=object:GetAttribute("QBaseSize")
 if base==nil then
-if(UIFont.textScale==1 and fit==1)or object.TextSize<=9 then return end
 base=object.TextSize
 object:SetAttribute("QBaseSize",base)
 end
-local size=math.max(6,math.floor(base*UIFont.textScale/fit+0.5))
+local size=UIFont.drawnSize(base,fit)
 if object.TextSize~=size then object.TextSize=size end
 end
 local function apply(object,uiTarget)
@@ -7410,7 +7416,17 @@ if not target then return end
 pcall(function()
 local face=object.FontFace
 if not face then object.FontFace=Font.new(target)return end
-if face.Family~=target then object.FontFace=Font.new(target,face.Weight,face.Style)end
+local weight=face.Weight
+local okName,name=pcall(function()return object:GetAttribute("QBaseWeight")or face.Weight.Name end)
+if okName and name then
+if object:GetAttribute("QBaseWeight")==nil then object:SetAttribute("QBaseWeight",name)end
+weight=Enum.FontWeight[name]or face.Weight
+local okSmall,small=pcall(function()
+return object.TextSize<=UIFont.MediumBelow and weight.Value<Enum.FontWeight.Medium.Value and not object:GetAttribute("QCode")
+end)
+if okSmall and small then weight=Enum.FontWeight.Medium end
+end
+if face.Family~=target or face.Weight~=weight then object.FontFace=Font.new(target,weight,face.Style)end
 end)
 end
 function UIFont.family(name)return familyOf(name)end
@@ -7435,14 +7451,11 @@ return function()failListeners[fn]=nil end
 end
 function UIFont.widthFactor(font,size)
 local ratio=UIFont.Width[UIFont.current]
-local heavy=font~=Enum.Font.Gotham and font~=Enum.Font.GothamLight and font~=Enum.Font.SourceSans
-local factor=ratio and(heavy and ratio.heavy or ratio.regular)or 1
 size=tonumber(size)or 10
-local fit=UIFont.Fit[UIFont.current]or 1
-if size>9 and(UIFont.textScale~=1 or fit~=1)then
-factor=factor*math.max(6,math.floor(size*UIFont.textScale/fit+0.5))/size
-end
-return factor
+local drawn=UIFont.drawnSize(size)
+local heavy=drawn<=UIFont.MediumBelow or(font~=Enum.Font.Gotham and font~=Enum.Font.GothamLight and font~=Enum.Font.SourceSans)
+local factor=ratio and(heavy and ratio.heavy or ratio.regular)or 1
+return factor*drawn/size
 end
 local SAMPLE="The quick brown fox jumps over 1234567890 lazy dogs"
 function UIFont.measure(name)
@@ -8981,7 +8994,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.42.0",
+Version="1.43.0",
 Flags={},
 Windows={},
 Theme=Theme,
