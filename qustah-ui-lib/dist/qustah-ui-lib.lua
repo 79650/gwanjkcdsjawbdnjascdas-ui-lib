@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.39.3 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.39.4 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -6930,9 +6930,8 @@ __modules["elements/segment"] = function()
 -- card:Segment({ Title, Desc, Flag, Items = { "Head", "Body", "Closest" }, Default, Callback, Locked, Style, Wide })
 -- Wide = true: the buttons fill the row and the title is not shown.
 -- One choice shown as a row of buttons (Qustah's Aim Part / Priority rows). On a narrow card the buttons move
--- under the title. Style (or CreateWindow({ SegmentStyle })): "Boxed" (a framed button each, the default),
--- "Track" (one rounded track, a thumb slides under the chosen one), "Underline" (plain words, a line under the
--- chosen one), "Line" (a short line under the chosen word only), "Dot" (a dot under it), "Divided" (words split
+-- under the title. Style (or CreateWindow({ SegmentStyle })): "Underline" (plain words, a line under the chosen
+-- one, the default), "Boxed" (a framed button each), "Track" (one rounded track, a thumb slides under the chosen one), "Line" (a short line under the chosen word only), "Dot" (a dot under it), "Divided" (words split
 -- by thin bars, the chosen one bright), "Ghost" (a thin outline round the chosen word) or "Pills" (small pills as
 -- wide as their word, the chosen one filled). "Tab" is Underline with a fainter base line and a word-wide
 -- line; "Capsule" is Pills inside one rounded track, the filled part sliding to the chosen word.
@@ -6961,9 +6960,9 @@ return function(card, cfg)
     })
 
     local window = card.window
-    local style = tostring(cfg.Style or (window and window.cfg and window.cfg.SegmentStyle) or "Boxed")
+    local style = tostring(cfg.Style or (window and window.cfg and window.cfg.SegmentStyle) or "Underline")
     local STYLES = { Boxed = true, Track = true, Underline = true, Line = true, Dot = true, Divided = true, Ghost = true, Pills = true, Tab = true, Capsule = true }
-    if not STYLES[style] then style = "Boxed" end
+    if not STYLES[style] then style = "Underline" end
     local element = Base.element(card, "Segment", cfg, row, title, desc)
     element.Style = style
     element.Items = options
@@ -7039,7 +7038,7 @@ return function(card, cfg)
             elseif style == "Line" or style == "Dot" or style == "Divided" or style == "Tab" then
                 Theme.tweenTo(button, "TextColor3", selected and "heading" or "muted", duration)
             else
-                Theme.tweenTo(button, "TextColor3", selected and (style == "Track" and "heading" or "accent") or "muted", duration)
+                Theme.tweenTo(button, "TextColor3", selected and "heading" or "muted", duration)
             end
         end
         local target = UDim2.new((chosen - 0.5) / count, 0, thumb and 0.5 or 1, style == "Dot" and -1 or 0)
@@ -11072,7 +11071,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.39.3",
+    Version = "1.39.4",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

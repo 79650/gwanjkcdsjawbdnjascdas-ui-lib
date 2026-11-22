@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.39.3 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.39.4 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -6142,9 +6142,9 @@ Name="Segments",BackgroundTransparency=1,AnchorPoint=Vector2.new(0,0.5),Position
 Size=UDim2.new(1,-120,0,28),Parent=row,
 })
 local window=card.window
-local style=tostring(cfg.Style or(window and window.cfg and window.cfg.SegmentStyle)or"Boxed")
+local style=tostring(cfg.Style or(window and window.cfg and window.cfg.SegmentStyle)or"Underline")
 local STYLES={Boxed=true,Track=true,Underline=true,Line=true,Dot=true,Divided=true,Ghost=true,Pills=true,Tab=true,Capsule=true}
-if not STYLES[style]then style="Boxed"end
+if not STYLES[style]then style="Underline"end
 local element=Base.element(card,"Segment",cfg,row,title,desc)
 element.Style=style
 element.Items=options
@@ -6218,7 +6218,7 @@ Theme.tweenTo(button,"TextColor3",selected and"base"or"muted",duration)
 elseif style=="Line"or style=="Dot"or style=="Divided"or style=="Tab"then
 Theme.tweenTo(button,"TextColor3",selected and"heading"or"muted",duration)
 else
-Theme.tweenTo(button,"TextColor3",selected and(style=="Track"and"heading"or"accent")or"muted",duration)
+Theme.tweenTo(button,"TextColor3",selected and"heading"or"muted",duration)
 end
 end
 local target=UDim2.new((chosen-0.5)/count,0,thumb and 0.5 or 1,style=="Dot"and-1 or 0)
@@ -9754,7 +9754,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.39.3",
+Version="1.39.4",
 Flags={},
 Windows={},
 Theme=Theme,
