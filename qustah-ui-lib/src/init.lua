@@ -20,7 +20,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.38.10",
+    Version = "1.38.11",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,

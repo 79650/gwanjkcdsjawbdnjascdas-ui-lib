@@ -300,7 +300,7 @@ def review(names, pixels, chosen, all_cands, folder):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--iconify", required=True, help="folder with solar.json and mdi.json (github.com/iconify/icon-sets/json)")
-    ap.add_argument("--version", type=int, default=20)
+    ap.add_argument("--version", type=int, default=21)
     ap.add_argument("--review", help="write contact sheets here")
     ap.add_argument("--only", help="comma separated names (try a few icons quickly; nothing is written but the review)")
     args = ap.parse_args()
