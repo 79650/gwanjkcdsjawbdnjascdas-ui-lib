@@ -21,6 +21,8 @@ Candidates (picks.json can choose one per icon and size, e.g. "eye@20": "C"):
 Without a pick: the first of A, B, D, C that keeps the parts and holes (and leaves a symmetric icon nearly
 symmetric); failing that, the first that keeps the parts and holes; failing that, C.
 picks.json "edits" fix single pixels by hand: { "server@14": ["3,2=1", "4,2=0"] } (x,y from the top left).
+tools/qustah_drawn.json holds icons drawn by hand: { "save": { "14": ["..##..", ...], "16": [...] } } replaces the drawn
+sizes outright; 28 px doubles the 14 px drawing when 28 is not drawn. Other sizes still come from the mapped vector.
 """
 import argparse, io, json, os, sys
 import numpy as np
@@ -150,6 +152,26 @@ def choose(cands, symmetric, pick):
     return "C"
 
 
+def load_drawn():
+    """name -> size -> pixels, from tools/qustah_drawn.json"""
+    path = os.path.join(HERE, "qustah_drawn.json")
+    if not os.path.exists(path):
+        return {}
+    drawn = {}
+    for name, sizes in json.load(open(path)).items():
+        if name.startswith("_"):
+            continue
+        drawn[name] = {}
+        for size, rows in sizes.items():
+            b = np.array([[c == "#" for c in row] for row in rows])
+            if b.shape != (int(size), int(size)):
+                raise SystemExit(f"qustah_drawn.json: {name}@{size} is {b.shape[1]}x{b.shape[0]}")
+            drawn[name][int(size)] = b
+        if 14 in drawn[name] and 28 not in drawn[name]:
+            drawn[name][28] = drawn[name][14].repeat(2, 0).repeat(2, 1)
+    return drawn
+
+
 def apply_edits(b, edits):
     b = b.copy()
     for edit in edits or ():
@@ -258,7 +280,7 @@ def review(names, pixels, chosen, all_cands, folder):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--iconify", required=True, help="folder with solar.json and mdi.json (github.com/iconify/icon-sets/json)")
-    ap.add_argument("--version", type=int, default=14)
+    ap.add_argument("--version", type=int, default=15)
     ap.add_argument("--review", help="write contact sheets here")
     ap.add_argument("--only", help="comma separated names (try a few icons quickly; nothing is written but the review)")
     args = ap.parse_args()
@@ -269,6 +291,7 @@ def main():
     picks = json.load(open(picks_path)) if os.path.exists(picks_path) else {}
     edits = picks.pop("edits", {})
     picks.pop("_about", None)
+    drawn = load_drawn()
     names = sorted(mapping)
     if args.only:
         names = [n for n in names if n in args.only.split(",")]
@@ -284,6 +307,9 @@ def main():
             all_cands[(n, s)] = cands
             chosen[(n, s)] = key
             pixels[(n, s)] = apply_edits(cands[key][0], edits.get(f"{n}@{s}"))
+            if s in drawn.get(n, {}):
+                chosen[(n, s)] = "drawn"
+                pixels[(n, s)] = drawn[n][s]
         print(f"\r{i + 1}/{len(names)} {n}            ", end="", file=sys.stderr, flush=True)
     print(file=sys.stderr)
 

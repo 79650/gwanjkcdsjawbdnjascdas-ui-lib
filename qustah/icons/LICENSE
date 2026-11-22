@@ -1,5 +1,6 @@
-The qustah icon sheet (qustah-v*.png) is drawn by qustah-ui-lib/tools/gen_filled_sheet.py from two icon sets.
-Which icon comes from which set: qustah-ui-lib/tools/qustah_icons.json.
+The qustah icon sheet (qustah-v*.png) is drawn by qustah-ui-lib/tools/gen_filled_sheet.py from the icon sets below.
+Which icon comes from which set: qustah-ui-lib/tools/qustah_icons.json. Icons drawn by hand pixel by pixel
+(qustah-ui-lib/tools/qustah_drawn.json) are original, some modelled on pixelarticons and the Pixel Icon Library.
 
 ---
 
@@ -18,3 +19,20 @@ Copyright (c) Pictogrammers (https://pictogrammers.com/library/mdi/)
 Licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
 
 Changes: as above.
+
+---
+
+pixelarticons (some hand-drawn icons follow or copy these designs, e.g. sun)
+Copyright (c) Gerrit Halfmann (https://github.com/halfmage/pixelarticons)
+Licensed under the MIT License: https://github.com/halfmage/pixelarticons/blob/master/LICENSE
+
+Changes: halved from the 24 px grid and placed on the 14 / 16 px cells.
+
+---
+
+Pixel Icon Library (some hand-drawn icons follow or copy these designs, e.g. paint-bucket)
+Copyright (c) HackerNoon (https://github.com/hackernoon/pixel-icon-library)
+Licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+Changes: redrawn as small bitmaps as above.
