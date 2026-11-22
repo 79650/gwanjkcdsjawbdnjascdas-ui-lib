@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.41.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.41.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -954,14 +954,37 @@ function Config.new(window, folder)
     return self
 end
 
+-- Profile files name each setting in words: "__ui_accent" is saved as "ui accent", "sa_enabled" as "sa enabled".
+-- The flags themselves keep their names; files with the old names still load.
+function Config.fileKey(flag)
+    return (tostring(flag):gsub("^__", ""):gsub("_", " "))
+end
+function Config.flagKey(key)
+    key = tostring(key)
+    if not key:find(" ", 1, true) then return key end -- (an older file: the flag's own name)
+    local flag = key:gsub(" ", "_")
+    if flag:sub(1, 3) == "ui_" then flag = "__" .. flag end
+    return flag
+end
+local function toFile(flags)
+    local out = {}
+    for flag, value in pairs(flags or {}) do out[Config.fileKey(flag)] = value end
+    return out
+end
+local function fromFile(flags)
+    local out = {}
+    for key, value in pairs(flags or {}) do out[Config.flagKey(key)] = value end
+    return out
+end
+
 -- Called by Window:_register once the element is fully built: remembers its default and applies a pending value.
 function Config:_elementReady(flag, element)
     -- CreateWindow({ Defaults = { flag = value } }): the script's own starting values, in profile format (as a
     -- saved profile holds them); they become the defaults that reset and "changes" compare against
+    -- (named either way: the flag, or in words as profile files have it - "ui accent")
     local presets = self.window.cfg.Defaults
-    if self.Defaults[flag] == nil and type(presets) == "table" and presets[flag] ~= nil then
-        pcall(element._load, element, presets[flag])
-    end
+    local preset = type(presets) == "table" and (presets[flag] ~= nil and presets[flag] or presets[Config.fileKey(flag)]) or nil
+    if self.Defaults[flag] == nil and preset ~= nil then pcall(element._load, element, preset) end
     if self.Defaults[flag] == nil then
         local ok, value = pcall(element._save, element)
         if ok and value ~= nil then self.Defaults[flag] = value end
@@ -1007,10 +1030,11 @@ function Config:Save(name)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local data = { version = 1, flags = self:Snapshot(), custom = self.Custom }
+    local flags = self:Snapshot()
+    local data = { version = 1, flags = toFile(flags), custom = self.Custom }
     local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", Util.prettyJSON(data))
     if not ok then return false, err end
-    self:_setActive(name, data.flags)
+    self:_setActive(name, flags)
     return true
 end
 
@@ -1020,7 +1044,7 @@ function Config:SaveFlags(name, flags, custom)
     if name == "" then return false, "Empty config name" end
     if not can("writefile") then return false, "writefile is not available" end
     self:_ensure()
-    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", Util.prettyJSON({ version = 1, flags = flags or {}, custom = custom }))
+    local ok, err = Util.writeAtomic(self.path .. "/" .. name .. ".json", Util.prettyJSON({ version = 1, flags = toFile(flags), custom = custom }))
     if not ok then return false, err end
     return true
 end
@@ -1045,6 +1069,7 @@ function Config:_readProfile(name)
     local data, problem = self:_readFile(self.path .. "/" .. name .. ".json", name)
     if not data then return nil, problem == "missing" and "Config not found" or "Config file is damaged" end
     if type(data.flags) ~= "table" then return nil, "Config file is damaged" end
+    data.flags = fromFile(data.flags)
     return data
 end
 
@@ -11174,7 +11199,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.41.0",
+    Version = "1.41.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
