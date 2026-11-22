@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.40.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.40.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8951,7 +8951,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.40.0",
+Version="1.40.1",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -10169,7 +10169,8 @@ local Profiles=require("profiles")
 local RED="danger"
 return function(window,cfg)
 cfg=cfg or{}
-local defaultSize=Vector2.new(window.width,window.height)
+local configured=typeof(window.cfg.Size)=="Vector2"and window.cfg.Size or Vector2.new(540,390)
+local defaultSize=Vector2.new(math.clamp(configured.X,window.minSize.X,window.maxSize.X),math.clamp(configured.Y,window.minSize.Y,window.maxSize.Y))
 local tab=window:Tab({Title=cfg.Title or"Settings",Icon=cfg.Icon or"settings",Divider=cfg.Divider~=false,Header=cfg.Header~=false,Compact=cfg.Compact==true})
 local interface=tab:Page("Interface")
 local profiles=tab:Page("Profiles",{Columns=1})

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.40.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.40.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -11168,7 +11168,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.40.0",
+    Version = "1.40.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -12567,7 +12567,9 @@ local RED = "danger" -- theme role
 
 return function(window, cfg)
     cfg = cfg or {}
-    local defaultSize = Vector2.new(window.width, window.height)
+    -- Reset layout goes back to the script's own size (CreateWindow({ Size })), not to a size remembered from last time
+    local configured = typeof(window.cfg.Size) == "Vector2" and window.cfg.Size or Vector2.new(540, 390)
+    local defaultSize = Vector2.new(math.clamp(configured.X, window.minSize.X, window.maxSize.X), math.clamp(configured.Y, window.minSize.Y, window.maxSize.Y))
     local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = cfg.Icon or "settings", Divider = cfg.Divider ~= false, Header = cfg.Header ~= false, Compact = cfg.Compact == true })
     local interface = tab:Page("Interface")
     local profiles = tab:Page("Profiles", { Columns = 1 })
