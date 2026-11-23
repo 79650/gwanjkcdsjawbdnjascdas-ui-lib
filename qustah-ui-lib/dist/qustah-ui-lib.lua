@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.45.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.45.2 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -11223,7 +11223,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.45.1",
+    Version = "1.45.2",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -12612,8 +12612,9 @@ __modules["settings"] = function()
 --   Profiles   see profiles.lua (active profile + unsaved changes, share codes, notes, search...)
 --   Keys       every bound key, the ones used twice in red; a click opens the setting
 --   Info       modules, executor, errors (Copy debug info / Clear), what's new, this session
--- Simple = true: for a small script - Interface and Profiles only; theme, font and text size, menu key, scale,
---   free mouse, anonymous mode, reset layout / unload, transparency, dock and blur (the rest keeps its default)
+-- Simple = true: for a small script - the same four pages, Interface with the everyday settings only: theme,
+--   font and text size, menu key, scale, free mouse, anonymous mode, reset layout / unload, transparency, dock and
+--   blur (the rest keeps its default)
 local Util = require("util")
 local Theme = require("theme")
 local Glow = require("glow")
@@ -12631,8 +12632,8 @@ return function(window, cfg)
     local interface = tab:Page("Interface")
     local profiles = tab:Page("Profiles", { Columns = 1 })
     local simple = cfg.Simple == true
-    local keysPage = not simple and tab:Page("Keys", { Columns = 1 }) or nil
-    local infoPage = not simple and tab:Page("Info") or nil
+    local keysPage = tab:Page("Keys", { Columns = 1 })
+    local infoPage = tab:Page("Info")
 
     ------------------------------------------------------------ interface
     -- Theme (the packs as small windows, the accent dots, the theme editor folded) and Text on the left; Behaviour and
@@ -12923,7 +12924,6 @@ return function(window, cfg)
     -- Default profile = each element's starting value (recorded as elements are created, any order)
     Profiles(window, profiles, window.Config.Defaults)
 
-    if not simple then
     ------------------------------------------------------------ info
     ------------------------------------------------------------ keys
     -- every key the menu listens to: switches / buttons with a bind, keybinds, key hints and the menu key. A key
@@ -13140,8 +13140,6 @@ return function(window, cfg)
         end
     end)
     refreshSession()
-
-    end
 
     window.settingsTab = tab
     return tab

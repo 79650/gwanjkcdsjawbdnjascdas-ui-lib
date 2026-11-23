@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.45.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.45.2 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8994,7 +8994,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.45.1",
+Version="1.45.2",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -10218,8 +10218,8 @@ local tab=window:Tab({Title=cfg.Title or"Settings",Icon=cfg.Icon or"settings",Di
 local interface=tab:Page("Interface")
 local profiles=tab:Page("Profiles",{Columns=1})
 local simple=cfg.Simple==true
-local keysPage=not simple and tab:Page("Keys",{Columns=1})or nil
-local infoPage=not simple and tab:Page("Info")or nil
+local keysPage=tab:Page("Keys",{Columns=1})
+local infoPage=tab:Page("Info")
 local look=interface:Card({Title="Theme",Side="Left",Icon="palette"})
 local editor
 local picker
@@ -10476,7 +10476,6 @@ end
 end})
 end
 Profiles(window,profiles,window.Config.Defaults)
-if not simple then
 do
 local card=keysPage:Card({Title="Keys",Icon="keyboard",Wide=true,Desc="Every bound key"})
 local list
@@ -10670,7 +10669,6 @@ task.wait(1)
 end
 end)
 refreshSession()
-end
 window.settingsTab=tab
 return tab
 end
