@@ -110,7 +110,8 @@ return function(window, cfg)
     }) end
 
     local scaleDropdown
-    local menu = interface:Card({ Title = "Behaviour", Side = "Right", Icon = "settings-2" })
+    -- (Simple: Behaviour and Window as compact cards - check boxes, shorter rows)
+    local menu = interface:Card({ Title = "Behaviour", Side = "Right", Icon = "settings-2", Compact = simple or nil })
     local menuKey = menu:Keybind({
         Title = "Menu key", Desc = "Opens and closes the menu", Flag = "__ui_menu_key", Default = window.key,
         Callback = function(key) window:SetToggleKey(key) end,
@@ -196,7 +197,7 @@ return function(window, cfg)
 
     -- Window: Look (transparency, where the tab icons and page names sit, edge glow, blur), Background (image,
     -- animated glow), Overlays
-    local windowCard = interface:Card({ Title = "Window", Side = "Right", Icon = "app-window" })
+    local windowCard = interface:Card({ Title = "Window", Side = "Right", Icon = "app-window", Compact = simple or nil })
     -- (Simple: one plain card, no Background / Overlays tabs)
     local windowTabs = not simple and windowCard:Tabs({ "Look", "Background", "Overlays" }) or nil
     local look2 = windowTabs and windowTabs.Look or windowCard
