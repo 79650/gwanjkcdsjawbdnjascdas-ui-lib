@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.43.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.43.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -11223,7 +11223,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.43.0",
+    Version = "1.43.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -16021,11 +16021,13 @@ function Window:_build()
         -- 3. Escape closes an open dialog, else an open popup (dropdown list, colour panel...)
         if self._dialog and input.KeyCode == Enum.KeyCode.Escape then self._dialog:Close() return end
         if self._popup and input.KeyCode == Enum.KeyCode.Escape then self:_closePopup() return end
-        if processed or UserInputService:GetFocusedTextBox() then return end
+        if UserInputService:GetFocusedTextBox() then return end
         local key = Util.inputKey(input, true)
         if not key then return end
-        -- 4. menu key, then toggle / keybind binds (chords like CTRL + M1 fire when their modifier is held)
+        -- 4. the menu key, even when the game took it (Shift Lock and other game binds mark Shift as processed)
         if key == self.key then self:Toggle() return end
+        if processed then return end
+        -- 5. toggle / keybind binds (chords like CTRL + M1 fire when their modifier is held)
         for element, bound in pairs(self.binds) do
             if element.Row and element.Row.Parent then
                 local chord = element.Chord

@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.43.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.43.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8994,7 +8994,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.43.0",
+Version="1.43.1",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -13141,10 +13141,11 @@ if not inside(self._popup.frame)and not inside(self._popup.owner)then self:_clos
 end
 if self._dialog and input.KeyCode==Enum.KeyCode.Escape then self._dialog:Close()return end
 if self._popup and input.KeyCode==Enum.KeyCode.Escape then self:_closePopup()return end
-if processed or UserInputService:GetFocusedTextBox()then return end
+if UserInputService:GetFocusedTextBox()then return end
 local key=Util.inputKey(input,true)
 if not key then return end
 if key==self.key then self:Toggle()return end
+if processed then return end
 for element,bound in pairs(self.binds)do
 if element.Row and element.Row.Parent then
 local chord=element.Chord
