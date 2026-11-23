@@ -40,7 +40,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `SegmentStyle` | `"Underline"` | look of every Segment: `"Underline"`, `"Boxed"`, `"Tab"`, `"Line"`, `"Dot"`, `"Divided"`, `"Ghost"`, `"Track"`, `"Pills"`, `"Capsule"` (see [Segment](#dropdown-segment-and-radio)) |
 | `DockSide` | `"Right"` | where the tabs sit: `"Right"` (icons beside the window), `"Bottom"` (in a row under it) or `"Side"` (a sidebar inside the window with the tab names; the window grows by its 132 px so the pages keep their width; the profile becomes a card at its bottom: avatar, name, session time and an eye for anonymous mode); Settings › Interface › Window › Look › Dock, `Window:SetDockSide` |
 | `Defaults` | - | the script's starting values, `{ flag = value }` in profile format (a saved profile's `flags`): a fresh start uses them and reset / "changes" compare against them; a saved profile or AutoLoad still wins |
-| `PageTabs` | `"Row"` | a tab's page names: `"Row"` (over the cards) or `"Header"` (in the title row, like Dashboard / Settings; a tab whose names don't fit there keeps the row); Settings › Behaviour › Page tabs, `Window:SetPageTabs` |
+| `PageTabs` | `"Header"` | a tab's page names: `"Header"` (in the middle of the title row, moved aside when the title or the header buttons would be under them; a tab whose names don't fit there keeps the row) or `"Row"` (over the cards); Settings › Window › Page tabs, `Window:SetPageTabs`. With `DockSide = "Side"` Dashboard / Settings have no header buttons (the sidebar lists them), so their pages go up there too |
 | `OnePickerOpen` | `true` | opening a colour panel closes the other open one (see [ColorPicker](#colorpicker-gradient-and-swatches)) |
 | `Debug` | `false` | a notification for every new error |
 | `ConsoleLog` | `true` | `false`: nothing in the Roblox console (the game's scripts can read it); errors still show in Settings › Info and `Window:GetErrors()` |
@@ -524,6 +524,7 @@ Window:Tab({ Title = "Combat", Icon = "crosshair", Compact = true })   -- every 
 Tab:Page("Movement", { Compact = true })                               -- one page
 Page:Card({ Title = "FOV", Compact = false })                          -- a card can opt out (or in)
 Window:SettingsTab({ Compact = true })
+Window:SettingsTab({ Simple = true })   -- a small script: Interface and Profiles only, the everyday settings (theme, font, text size, menu key, scale, free mouse, anonymous, reset layout / unload, transparency, dock, blur)
 ```
 Compact cards have tighter padding, a line under the title, 6 px shorter rows, slimmer buttons and sliders, and a check box in place of each toggle's switch (same element, same flag).
 

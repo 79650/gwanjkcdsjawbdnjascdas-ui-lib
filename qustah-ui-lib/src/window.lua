@@ -38,7 +38,7 @@ function Window.new(Lib, cfg)
         dockSide = (cfg.DockSide == "Bottom" or cfg.DockSide == "Side") and cfg.DockSide or "Right",
         -- PageTabs = "Row" (a row of page names over the cards, default) | "Header" (in the title row, like the
         -- header tabs; a tab whose page names don't fit there keeps the row)
-        pageTabs = cfg.PageTabs == "Header" and "Header" or "Row",
+        pageTabs = cfg.PageTabs == "Row" and "Row" or "Header", -- page names in the middle of the header (Row: over the cards)
     }, Window)
     require("loader").setTitle(self.Title) -- the download strip says whose files these are
     -- key conflicts the script starts with are only marked; later ones also get a notification
@@ -518,12 +518,17 @@ function Window:_pageTabWidths(tab)
     end
     return widths, total
 end
+-- The Dashboard / Settings buttons in the header: on a header tab, unless the sidebar lists the tabs already.
+function Window:_headerTabsShown(tab)
+    return tab ~= nil and tab.Header == true and self.cfg.HeaderTabs ~= false and self.dockSide ~= "Side"
+end
 function Window:_placePageTabs()
     local holder, tab = self.stripHolder, self.current
     if not holder then return end
     local inHeader = false
-    -- (a header tab - Dashboard / Settings - has the header tabs up there: its pages keep the row)
-    if self.pageTabs == "Header" and tab and #tab.Pages > 1 and not (tab.Header and self.cfg.HeaderTabs ~= false) then
+    -- (a header tab - Dashboard / Settings - has the header tabs up there: its pages keep the row. Not with the
+    -- sidebar: it lists those tabs already, so the header has no tab buttons)
+    if self.pageTabs == "Header" and tab and #tab.Pages > 1 and not (self:_headerTabsShown(tab)) then
         local _, total = self:_pageTabWidths(tab)
         local room = self:_mainWidth() - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
         inHeader = total <= room
@@ -549,10 +554,14 @@ function Window:_placePageTabs()
         end
     end
     if inHeader then
+        -- in the middle of the header; pushed aside when the title or the header buttons would be under it
         local _, total = self:_pageTabWidths(tab)
+        local width = self:_mainWidth()
+        local left, right = 16 + self:_titleWidth() + 16, width - (self.headerRight or 90)
+        local centre = math.clamp(width / 2, left + total / 2, math.max(left + total / 2, right - total / 2))
         holder.Parent = self.main
-        holder.AnchorPoint = Vector2.new(1, 0)
-        holder.Position = UDim2.new(1, -(self.headerRight or 90), 0, 0)
+        holder.AnchorPoint = Vector2.new(0.5, 0)
+        holder.Position = UDim2.new(0.5, math.floor(centre - width / 2 + 0.5), 0, 0)
         holder.Size = UDim2.fromOffset(total, HEADER)
     else
         holder.Parent = self.body
@@ -707,8 +716,7 @@ function Window:_updateLocation()
     local room = self:_mainWidth() - (self.headerRight or 90) - 16 - self:_titleWidth() - 16
     local tabsWidth = 0
     for _, item in ipairs(self._headerButtons or {}) do tabsWidth = tabsWidth + item.button.Size.X.Offset + 6 end
-    local onHeaderTab = tab ~= nil and tab.Header and self.cfg.HeaderTabs ~= false
-    self.headerTabs.Visible = onHeaderTab and room >= tabsWidth
+    self.headerTabs.Visible = self:_headerTabsShown(tab) and room >= tabsWidth
     for _, item in ipairs(self._headerButtons or {}) do
         local selected = item.tab == tab
         Theme.tweenTo(item.button, "TextColor3", selected and "heading" or "muted", 0.12)

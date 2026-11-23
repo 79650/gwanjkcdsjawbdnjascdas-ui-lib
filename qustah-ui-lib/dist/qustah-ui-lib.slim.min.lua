@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.44.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.45.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8994,7 +8994,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.44.1",
+Version="1.45.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -10217,8 +10217,9 @@ local defaultSize=Vector2.new(math.clamp(configured.X,window.minSize.X,window.ma
 local tab=window:Tab({Title=cfg.Title or"Settings",Icon=cfg.Icon or"settings",Divider=cfg.Divider~=false,Header=cfg.Header~=false,Compact=cfg.Compact==true})
 local interface=tab:Page("Interface")
 local profiles=tab:Page("Profiles",{Columns=1})
-local keysPage=tab:Page("Keys",{Columns=1})
-local infoPage=tab:Page("Info")
+local simple=cfg.Simple==true
+local keysPage=not simple and tab:Page("Keys",{Columns=1})or nil
+local infoPage=not simple and tab:Page("Info")or nil
 local look=interface:Card({Title="Theme",Side="Left",Icon="palette"})
 local editor
 local picker
@@ -10233,7 +10234,7 @@ local customThemes=window.Config:ReadJSON("themes")
 for name,data in pairs(customThemes)do Theme.registerCustom(name,data)end
 local themeDropdown=look:ThemeGallery({
 Title="Theme",Items=Theme.packOrder,Default=Theme.pack,Flag="__ui_theme",
-New=function()if editor then editor:SetOpen(true)end end,
+New=not simple and function()if editor then editor:SetOpen(true)end end or nil,
 Callback=function(name)
 Theme.applyPack(name)
 if picker then picker:Set(Theme.get("accentUser"),true)end
@@ -10283,10 +10284,10 @@ fontTab:Segment({
 Title="Text size",Flag="__ui_textsize",Items={"Small","Normal","Large"},Default="Normal",
 Callback=function(choice)UIFont.setTextScale(TEXT_SIZES[choice]or 1)end,
 })
-fontTab:Toggle({
+if not simple then fontTab:Toggle({
 Title="Text glow",Desc="Shine on the title and highlights",Flag="__ui_glow",Default=Glow.enabled,
 Callback=function(on)Glow.setEnabled(on)end,
-})
+})end
 local scaleDropdown
 local menu=interface:Card({Title="Behaviour",Side="Right",Icon="settings-2"})
 local menuKey=menu:Keybind({
@@ -10317,6 +10318,7 @@ if window.OnAnonymousChanged then
 window:OnAnonymousChanged(function(on)local t=window.flags.__ui_anon if t and t.Value~=on then t:Set(on,true)end end)
 end
 local Sounds=require("sounds")
+if not simple then
 menu:Toggle({
 Title="UI sounds",Desc="Soft clicks on buttons and switches",Flag="__ui_sounds",Default=Sounds.Enabled,
 Callback=function(on)Sounds.Enabled=on end,
@@ -10332,6 +10334,7 @@ Title="Welcome toast",Desc="Greets a new account on first open",
 Default=window:_state("welcomeToast")~=false and window.cfg.Welcome~=false,
 Callback=function(on)window:_state("welcomeToast",on)end,
 })
+end
 local menuActions=menu:Row({Widths={3,2}})
 menuActions:Button({
 Title="Reset layout",Tooltip="Puts the window back to its default size and place",
@@ -10350,7 +10353,7 @@ end,
 })
 local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_textsize","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
 "__ui_live","__ui_edge_glow","__ui_blur","__ui_hud_watermark","__ui_hud_keys","__ui_hud_session","__ui_hud_stats","__ui_dock","__ui_pagetabs"}
-menu:Button({Title="Reset interface",Icon="paintbrush",Style="Ghost",Callback=function()
+if not simple then menu:Button({Title="Reset interface",Icon="paintbrush",Style="Ghost",Callback=function()
 window:Confirm("Reset the interface?","Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.",function()
 for _,flag in ipairs(LOOK_FLAGS)do
 local element=window.flags[flag]
@@ -10364,16 +10367,17 @@ window:SetUIScale(1)
 if scaleDropdown then scaleDropdown:Set("100%",true)end
 window:Notify({Title="Interface reset",Content="The menu looks like the first time",Icon="paintbrush"})
 end,"Reset")
-end})
+end})end
 local windowCard=interface:Card({Title="Window",Side="Right",Icon="app-window"})
-local windowTabs=windowCard:Tabs({"Look","Background","Overlays"})
-local look2=windowTabs.Look
+local windowTabs=not simple and windowCard:Tabs({"Look","Background","Overlays"})or nil
+local look2=windowTabs and windowTabs.Look or windowCard
 look2:Slider({Title="Transparency",Flag="__ui_transparency",Min=0,Max=60,Default=0,Suffix="%",
 Callback=function(value)window:SetBackgroundTransparency(value/100)end})
 look2:Segment({Title="Dock",Items={"Right","Bottom","Sidebar"},Default=window.dockSide=="Side"and"Sidebar"or window.dockSide,
 Flag="__ui_dock",Callback=function(side)window:SetDockSide(side=="Sidebar"and"Side"or side)end})
-look2:Segment({Title="Page tabs",Items={"Header","Row"},Default=window.pageTabs,Flag="__ui_pagetabs",
-Callback=function(mode)window:SetPageTabs(mode)end})
+if not simple then look2:Segment({Title="Page tabs",Items={"Header","Row"},Default=window.pageTabs,Flag="__ui_pagetabs",
+Callback=function(mode)window:SetPageTabs(mode)end})end
+if not simple then
 local background=windowTabs.Background
 local bgAlpha
 background:Input({Title="Background",Placeholder="image id or url",Flag="__ui_bg",
@@ -10383,10 +10387,12 @@ DependsOn={Flag="__ui_bg",Value=function(text)return type(text)=="string"and tex
 Callback=function(value)if window._background then window._background.ImageTransparency=1-value/100 end end})
 background:Toggle({Title="Animated background",Desc="Slow glow behind the menu",Flag="__ui_live",
 Default=window.liveBackground==true,Callback=function(on)window:SetLiveBackground(on)end})
-look2:Toggle({Title="Edge glow",Desc="Pulsing accent border",Flag="__ui_edge_glow",
-Default=window.accentGlow==true,Callback=function(on)window:SetAccentGlow(on)end})
+end
+if not simple then look2:Toggle({Title="Edge glow",Desc="Pulsing accent border",Flag="__ui_edge_glow",
+Default=window.accentGlow==true,Callback=function(on)window:SetAccentGlow(on)end})end
 look2:Toggle({Title="Blur game",Desc="Blurs the game while open",Flag="__ui_blur",
 Default=window.blur==true,Callback=function(on)window:SetBlur(on)end})
+if not simple then
 local overlays=windowTabs.Overlays
 overlays:Toggle({Title="Watermark",Desc="Name · FPS · ping · clock",Flag="__ui_hud_watermark",Callback=function(on)window:Watermark(on)end})
 overlays:Toggle({Title="Keybind list",Desc="Bound keys on screen",Flag="__ui_hud_keys",Callback=function(on)window:KeybindList(on)end})
@@ -10395,6 +10401,8 @@ overlays:Dropdown({
 Title="Performance",Items={"Off","Header","Floating"},Default="Off",Flag="__ui_hud_stats",
 Callback=function(mode)window:StatsMonitor(mode)end,
 })
+end
+if not simple then
 editor=look:Section({Title="Edit colours",Opened=false})
 local ROLE_NAMES={"Background","Cards","Inputs","Outlines","Text","Muted text","Headings","Dock","Icons","Accent"}
 local ROLE_OF={}
@@ -10466,7 +10474,9 @@ refreshThemeList(name)
 window:Notify({Title="Theme imported",Content=name,Icon="palette"})
 end
 end})
+end
 Profiles(window,profiles,window.Config.Defaults)
+if not simple then
 do
 local card=keysPage:Card({Title="Keys",Icon="keyboard",Wide=true,Desc="Every bound key"})
 local list
@@ -10660,6 +10670,7 @@ task.wait(1)
 end
 end)
 refreshSession()
+end
 window.settingsTab=tab
 return tab
 end
@@ -12832,7 +12843,7 @@ width=size.X,height=size.Y,
 minSize=cfg.MinSize or Vector2.new(400,300),maxSize=cfg.MaxSize or Vector2.new(920,660),
 key=cfg.ToggleKey or Enum.KeyCode.RightShift,visible=true,folded=false,alive=true,
 dockSide=(cfg.DockSide=="Bottom"or cfg.DockSide=="Side")and cfg.DockSide or"Right",
-pageTabs=cfg.PageTabs=="Header"and"Header"or"Row",
+pageTabs=cfg.PageTabs=="Row"and"Row"or"Header",
 },Window)
 require("loader").setTitle(self.Title)
 task.delay(3,function()self._keysSettled=true end)
@@ -13248,11 +13259,14 @@ total=total+widths[index]
 end
 return widths,total
 end
+function Window:_headerTabsShown(tab)
+return tab~=nil and tab.Header==true and self.cfg.HeaderTabs~=false and self.dockSide~="Side"
+end
 function Window:_placePageTabs()
 local holder,tab=self.stripHolder,self.current
 if not holder then return end
 local inHeader=false
-if self.pageTabs=="Header"and tab and#tab.Pages>1 and not(tab.Header and self.cfg.HeaderTabs~=false)then
+if self.pageTabs=="Header"and tab and#tab.Pages>1 and not(self:_headerTabsShown(tab))then
 local _,total=self:_pageTabWidths(tab)
 local room=self:_mainWidth()-(self.headerRight or 90)-16-self:_titleWidth()-16
 inHeader=total<=room
@@ -13279,9 +13293,12 @@ end
 end
 if inHeader then
 local _,total=self:_pageTabWidths(tab)
+local width=self:_mainWidth()
+local left,right=16+self:_titleWidth()+16,width-(self.headerRight or 90)
+local centre=math.clamp(width/2,left+total/2,math.max(left+total/2,right-total/2))
 holder.Parent=self.main
-holder.AnchorPoint=Vector2.new(1,0)
-holder.Position=UDim2.new(1,-(self.headerRight or 90),0,0)
+holder.AnchorPoint=Vector2.new(0.5,0)
+holder.Position=UDim2.new(0.5,math.floor(centre-width/2+0.5),0,0)
 holder.Size=UDim2.fromOffset(total,HEADER)
 else
 holder.Parent=self.body
@@ -13417,8 +13434,7 @@ local tab=self.current
 local room=self:_mainWidth()-(self.headerRight or 90)-16-self:_titleWidth()-16
 local tabsWidth=0
 for _,item in ipairs(self._headerButtons or{})do tabsWidth=tabsWidth+item.button.Size.X.Offset+6 end
-local onHeaderTab=tab~=nil and tab.Header and self.cfg.HeaderTabs~=false
-self.headerTabs.Visible=onHeaderTab and room>=tabsWidth
+self.headerTabs.Visible=self:_headerTabsShown(tab)and room>=tabsWidth
 for _,item in ipairs(self._headerButtons or{})do
 local selected=item.tab==tab
 Theme.tweenTo(item.button,"TextColor3",selected and"heading"or"muted",0.12)

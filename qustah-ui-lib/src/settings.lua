@@ -1,9 +1,11 @@
--- Window:SettingsTab({ Title, Icon, Divider }) - ready-made tab (create it LAST, after every other tab):
+-- Window:SettingsTab({ Title, Icon, Divider, Simple }) - ready-made tab (create it LAST, after every other tab):
 --   Interface  theme pack, accent presets + custom colour, font, text glow, menu key, overlays (watermark,
 --              keybind list, session bar, performance monitor), window reset / unload
 --   Profiles   see profiles.lua (active profile + unsaved changes, share codes, notes, search...)
 --   Keys       every bound key, the ones used twice in red; a click opens the setting
 --   Info       modules, executor, errors (Copy debug info / Clear), what's new, this session
+-- Simple = true: for a small script - Interface and Profiles only; theme, font and text size, menu key, scale,
+--   free mouse, anonymous mode, reset layout / unload, transparency, dock and blur (the rest keeps its default)
 local Util = require("util")
 local Theme = require("theme")
 local Glow = require("glow")
@@ -20,8 +22,9 @@ return function(window, cfg)
     local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = cfg.Icon or "settings", Divider = cfg.Divider ~= false, Header = cfg.Header ~= false, Compact = cfg.Compact == true })
     local interface = tab:Page("Interface")
     local profiles = tab:Page("Profiles", { Columns = 1 })
-    local keysPage = tab:Page("Keys", { Columns = 1 })
-    local infoPage = tab:Page("Info")
+    local simple = cfg.Simple == true
+    local keysPage = not simple and tab:Page("Keys", { Columns = 1 }) or nil
+    local infoPage = not simple and tab:Page("Info") or nil
 
     ------------------------------------------------------------ interface
     -- Theme (the packs as small windows, the accent dots, the theme editor folded) and Text on the left; Behaviour and
@@ -42,7 +45,7 @@ return function(window, cfg)
     for name, data in pairs(customThemes) do Theme.registerCustom(name, data) end
     local themeDropdown = look:ThemeGallery({
         Title = "Theme", Items = Theme.packOrder, Default = Theme.pack, Flag = "__ui_theme",
-        New = function() if editor then editor:SetOpen(true) end end,
+        New = not simple and function() if editor then editor:SetOpen(true) end end or nil, -- (Simple: no colour editor)
         Callback = function(name)
             Theme.applyPack(name)
             -- the pack may swap the neutral accent: keep the picker / presets in step
@@ -100,10 +103,10 @@ return function(window, cfg)
         Title = "Text size", Flag = "__ui_textsize", Items = { "Small", "Normal", "Large" }, Default = "Normal",
         Callback = function(choice) UIFont.setTextScale(TEXT_SIZES[choice] or 1) end,
     })
-    fontTab:Toggle({
+    if not simple then fontTab:Toggle({
         Title = "Text glow", Desc = "Shine on the title and highlights", Flag = "__ui_glow", Default = Glow.enabled,
         Callback = function(on) Glow.setEnabled(on) end,
-    })
+    }) end
 
     local scaleDropdown
     local menu = interface:Card({ Title = "Behaviour", Side = "Right", Icon = "settings-2" })
@@ -137,6 +140,7 @@ return function(window, cfg)
         window:OnAnonymousChanged(function(on) local t = window.flags.__ui_anon if t and t.Value ~= on then t:Set(on, true) end end)
     end
     local Sounds = require("sounds")
+    if not simple then
     menu:Toggle({
         Title = "UI sounds", Desc = "Soft clicks on buttons and switches", Flag = "__ui_sounds", Default = Sounds.Enabled,
         Callback = function(on) Sounds.Enabled = on end,
@@ -153,6 +157,7 @@ return function(window, cfg)
         Default = window:_state("welcomeToast") ~= false and window.cfg.Welcome ~= false,
         Callback = function(on) window:_state("welcomeToast", on) end,
     })
+    end
     local menuActions = menu:Row({ Widths = { 3, 2 } })
     menuActions:Button({
         Title = "Reset layout", Tooltip = "Puts the window back to its default size and place",
@@ -172,7 +177,7 @@ return function(window, cfg)
     -- the look of the menu back to its defaults (theme, accent, font, window, overlays, scale) - nothing else changes
     local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
         "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats", "__ui_dock", "__ui_pagetabs" }
-    menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
+    if not simple then menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
         window:Confirm("Reset the interface?", "Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.", function()
             for _, flag in ipairs(LOOK_FLAGS) do
                 local element = window.flags[flag]
@@ -186,21 +191,23 @@ return function(window, cfg)
             if scaleDropdown then scaleDropdown:Set("100%", true) end
             window:Notify({ Title = "Interface reset", Content = "The menu looks like the first time", Icon = "paintbrush" })
         end, "Reset")
-    end })
+    end }) end
 
     -- Window: Look (transparency, where the tab icons and page names sit, edge glow, blur), Background (image,
     -- animated glow), Overlays
     local windowCard = interface:Card({ Title = "Window", Side = "Right", Icon = "app-window" })
-    local windowTabs = windowCard:Tabs({ "Look", "Background", "Overlays" })
-    local look2 = windowTabs.Look
+    -- (Simple: one plain card, no Background / Overlays tabs)
+    local windowTabs = not simple and windowCard:Tabs({ "Look", "Background", "Overlays" }) or nil
+    local look2 = windowTabs and windowTabs.Look or windowCard
     look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
         Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
     -- Right / Bottom: the dock outside the window; Sidebar: the tabs with their names inside it (DockSide "Side")
     look2:Segment({ Title = "Dock", Items = { "Right", "Bottom", "Sidebar" }, Default = window.dockSide == "Side" and "Sidebar" or window.dockSide,
         Flag = "__ui_dock", Callback = function(side) window:SetDockSide(side == "Sidebar" and "Side" or side) end })
-    look2:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
-        Callback = function(mode) window:SetPageTabs(mode) end })
+    if not simple then look2:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
+        Callback = function(mode) window:SetPageTabs(mode) end }) end
 
+    if not simple then
     local background = windowTabs.Background
     local bgAlpha
     background:Input({ Title = "Background", Placeholder = "image id or url", Flag = "__ui_bg",
@@ -210,11 +217,13 @@ return function(window, cfg)
         Callback = function(value) if window._background then window._background.ImageTransparency = 1 - value / 100 end end })
     background:Toggle({ Title = "Animated background", Desc = "Slow glow behind the menu", Flag = "__ui_live",
         Default = window.liveBackground == true, Callback = function(on) window:SetLiveBackground(on) end })
-    look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
-        Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end })
+    end
+    if not simple then look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
+        Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end }) end
     look2:Toggle({ Title = "Blur game", Desc = "Blurs the game while open", Flag = "__ui_blur",
         Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
 
+    if not simple then
     local overlays = windowTabs.Overlays
     overlays:Toggle({ Title = "Watermark", Desc = "Name · FPS · ping · clock", Flag = "__ui_hud_watermark", Callback = function(on) window:Watermark(on) end })
     overlays:Toggle({ Title = "Keybind list", Desc = "Bound keys on screen", Flag = "__ui_hud_keys", Callback = function(on) window:KeybindList(on) end })
@@ -223,7 +232,9 @@ return function(window, cfg)
         Title = "Performance", Items = { "Off", "Header", "Floating" }, Default = "Off", Flag = "__ui_hud_stats",
         Callback = function(mode) window:StatsMonitor(mode) end,
     })
+    end
 
+    if not simple then
     ------------------------------------------------------------ theme editor
     editor = look:Section({ Title = "Edit colours", Opened = false })           -- the last part of the Theme card
     local ROLE_NAMES = { "Background", "Cards", "Inputs", "Outlines", "Text", "Muted text", "Headings", "Dock", "Icons", "Accent" }
@@ -298,10 +309,13 @@ return function(window, cfg)
         end })
 
 
+    end
+
     ------------------------------------------------------------ profiles
     -- Default profile = each element's starting value (recorded as elements are created, any order)
     Profiles(window, profiles, window.Config.Defaults)
 
+    if not simple then
     ------------------------------------------------------------ info
     ------------------------------------------------------------ keys
     -- every key the menu listens to: switches / buttons with a bind, keybinds, key hints and the menu key. A key
@@ -518,6 +532,8 @@ return function(window, cfg)
         end
     end)
     refreshSession()
+
+    end
 
     window.settingsTab = tab
     return tab
