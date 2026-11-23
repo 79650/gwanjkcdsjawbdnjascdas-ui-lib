@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.43.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.44.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -11223,7 +11223,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.43.1",
+    Version = "1.44.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -15648,6 +15648,7 @@ local DOCK_TOP = Tabs.DOCK_TOP
 
 local Window = {}
 Window.__index = Window
+Window._sideWidth = SIDE_WIDTH -- (windowx: the sidebar profile card)
 
 -------------------------------------------------------------------------------- Window
 function Window.new(Lib, cfg)
@@ -17112,20 +17113,91 @@ return function(Window)
     local layoutDock = Window._layoutDock
     function Window:_layoutDock()
         layoutDock(self)
-        if self._profile and self._profile.Visible then
+        if not self._profile then return end
+        local side = self.dockSide == "Side"
+        -- sidebar: the profile card pinned to the bottom (it sits on the panel, so the tab list doesn't grow);
+        -- dock: the round avatar under a short line, after the last tab
+        self._profile.Visible, self._profileLine.Visible = not side, not side
+        if self._profileCard then self._profileCard.Visible = side end
+        if not side then
             local at = self.dockHeight - 2
-            if self.dockSide == "Side" then
-                -- (sidebar: the line across the panel, the avatar at the left like the tab icons)
-                self._profileLine.Size = UDim2.fromOffset(104, 1)
-                self._profileLine.Position = UDim2.fromOffset(14, at)
-                self._profile.Position = UDim2.fromOffset(8, at + 7)
-            else
-                self._profileLine.Size = UDim2.fromOffset(22, 1)
-                self:_dockLine(self._profileLine, at)
-                self:_dockSpot(self._profile, at + 7, 5)
-            end
+            self._profileLine.Size = UDim2.fromOffset(22, 1)
+            self:_dockLine(self._profileLine, at)
+            self:_dockSpot(self._profile, at + 7, 5)
             self.dockHeight = at + 7 + 30 + 8
         end
+    end
+
+    -- Sidebar profile card: avatar with an online dot, the display name, the session time under it and an eye that
+    -- switches anonymous mode (the name becomes "Anonymous", the avatar a mask).
+    function Window:_profileCardMake(player, avatar)
+        local width = self._sideWidth - 16
+        local card = create("Frame", {
+            Name = "ProfileCard", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 8, 1, -8), Size = UDim2.fromOffset(width, 40),
+            BorderSizePixel = 0, ZIndex = 42, Visible = false, Parent = self.dock,
+        })
+        Theme.bind(card, "BackgroundColor3", "input")
+        corner(card, 9)
+        Theme.bind(stroke(card, nil, 0, 1), "Color", "line")
+        local picture = create("ImageLabel", {
+            Name = "Avatar", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0), Size = UDim2.fromOffset(26, 26),
+            ScaleType = Enum.ScaleType.Crop, Image = avatar, BorderSizePixel = 0, ZIndex = 43, Parent = card,
+        })
+        Theme.bind(picture, "BackgroundColor3", "hover")
+        corner(picture, 13)
+        Theme.bind(stroke(picture, nil, 0.5, 1.5), "Color", "buttonEdge")
+        local mask = Icons.themed(picture, "hat-glasses", 13, "muted", { Name = "Anon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 44, Visible = false })
+        local dot = create("Frame", {
+            Name = "Online", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 1, 1, 1), Size = UDim2.fromOffset(8, 8),
+            BorderSizePixel = 0, ZIndex = 45, Parent = picture,
+        })
+        corner(dot, 4)
+        Theme.bind(dot, "BackgroundColor3", "success")
+        Theme.bind(stroke(dot, nil, 0, 1.5), "Color", "input")
+        local name = Util.label(card, player.DisplayName, 11, {
+            Name = "Name", Position = UDim2.fromOffset(40, 6), Size = UDim2.new(1, -66, 0, 15), Font = Enum.Font.GothamBold, ZIndex = 43,
+        })
+        Theme.bind(name, "TextColor3", "heading")
+        local time = Util.label(card, "00:00:00", 9, {
+            Name = "Session", Position = UDim2.fromOffset(40, 21), Size = UDim2.new(1, -66, 0, 13), ZIndex = 43,
+        })
+        Theme.bind(time, "TextColor3", "muted")
+        local eye = create("ImageButton", {
+            Name = "Anonymous", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -5, 0.5, 0), Size = UDim2.fromOffset(22, 22),
+            BackgroundTransparency = 1, AutoButtonColor = false, Image = "", ZIndex = 43, Parent = card,
+        })
+        local eyeIcon = Icons.themed(eye, "eye", 14, "muted", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 44 })
+        local function tip()
+            self:_dockTip(self.anonymous and "Anonymous · click to show" or (player.DisplayName .. " · click to hide"),
+                self.dock.Size.Y.Offset - 46)
+        end
+        eye.MouseEnter:Connect(function()
+            if eyeIcon then Theme.tweenTo(eyeIcon, "ImageColor3", "heading", 0.1) end
+            tip()
+        end)
+        eye.MouseLeave:Connect(function()
+            if eyeIcon then Theme.tweenTo(eyeIcon, "ImageColor3", "muted", 0.1) end
+            self:_hideTip()
+        end)
+        eye.Activated:Connect(function()
+            self:SetAnonymous(not self.anonymous)
+            tip()
+        end)
+        self:OnAnonymousChanged(function(on)
+            picture.Image = on and "" or avatar
+            if mask then mask.Visible = on end
+            name.Text = on and "Anonymous" or player.DisplayName
+            if eyeIcon then Icons.Apply(eyeIcon, on and "eye-off" or "eye") end
+        end)
+        -- session time, once a second while the card is on screen
+        local started = os.clock()
+        task.spawn(function()
+            while self.alive do
+                if card.Visible and self.visible then time.Text = Util.clock(os.clock() - started) end
+                task.wait(1)
+            end
+        end)
+        self._profileCard = card
     end
 
     ------------------------------------------------------------------ mouse unlock
@@ -17216,6 +17288,7 @@ return function(Window)
             local avatar = Util.avatar(player.UserId, 60) -- (shown at 30 px: a clean 2x)
             button.Image = avatar
             self._profile, self._profileLine = button, line
+            self:_profileCardMake(player, avatar)
             self:OnAnonymousChanged(function(on)
                 button.Image = on and "" or avatar
                 if mask then mask.Visible = on end

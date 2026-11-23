@@ -21,6 +21,7 @@ local DOCK_TOP = Tabs.DOCK_TOP
 
 local Window = {}
 Window.__index = Window
+Window._sideWidth = SIDE_WIDTH -- (windowx: the sidebar profile card)
 
 -------------------------------------------------------------------------------- Window
 function Window.new(Lib, cfg)
