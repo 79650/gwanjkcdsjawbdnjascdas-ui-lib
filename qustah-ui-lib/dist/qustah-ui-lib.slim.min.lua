@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.45.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.45.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8994,7 +8994,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.45.0",
+Version="1.45.1",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -12964,13 +12964,8 @@ local minimize=windowButton("Minimize",-74,false)
 local close=windowButton("Close",-40,true)
 self._windowButton=windowButton
 self.headerRight=90
-local headerLine=create("Frame",{Name="HeaderLine",Position=UDim2.fromOffset(18,HEADER),Size=UDim2.new(1,-36,0,1),BorderSizePixel=0,Parent=main})
-Theme.bind(headerLine,"BackgroundColor3","accent")
-create("UIGradient",{
-Transparency=NumberSequence.new({
-NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.5,0.45),NumberSequenceKeypoint.new(1,1),
-}),Parent=headerLine,
-})
+local headerLine=create("Frame",{Name="HeaderLine",Position=UDim2.fromOffset(0,HEADER),Size=UDim2.new(1,0,0,1),BorderSizePixel=0,Parent=main})
+Theme.bind(headerLine,"BackgroundColor3","line")
 local location=label(main,"",10,{
 Name="Location",AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-self.headerRight,0,12),Size=UDim2.new(0.45,0,0,20),
 TextXAlignment=Enum.TextXAlignment.Right,
@@ -13282,11 +13277,13 @@ if header then
 button.Position,button.Size=UDim2.fromOffset(x,0),UDim2.fromOffset(widths[index],HEADER)
 button.TextSize=11
 underline.Size=UDim2.new(1,-14,0,2)
+Theme.bind(underline,"BackgroundColor3","heading")
 x=x+widths[index]
 else
 button.Position,button.Size=UDim2.new((index-1)/count,0,0,0),UDim2.new(1/count,0,1,0)
 button.TextSize=10
 underline.Size=UDim2.fromOffset(math.max(12,Util.textWidth(page.Name,10,Enum.Font.GothamMedium)),1)
+Theme.bind(underline,"BackgroundColor3","accent")
 end
 Theme.bind(button,"TextColor3",(other.current==page)and(header and"heading"or"accent")or(header and"muted"or"text"))
 end
