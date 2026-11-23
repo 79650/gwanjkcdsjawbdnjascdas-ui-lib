@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.44.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.44.1 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -9878,7 +9878,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.44.0",
+Version="1.44.1",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -12215,8 +12215,10 @@ if self.buttonCorner then self.buttonCorner.CornerRadius=UDim.new(0,side and 8 o
 self.nameLabel.Visible=side==true
 if self.iconProperty=="ImageColor3"then
 icon.Position=side and UDim2.new(0,17,0.5,0)or UDim2.fromScale(0.5,0.5)
+self.nameLabel.Position,self.nameLabel.Size=UDim2.fromOffset(34,0),UDim2.new(1,-40,1,0)
 else
-icon.Size=side and UDim2.new(0,34,1,0)or UDim2.fromScale(1,1)
+icon.Visible=not side
+self.nameLabel.Position,self.nameLabel.Size=UDim2.fromOffset(side and 12 or 34,0),UDim2.new(1,side and-18 or-40,1,0)
 end
 end
 function Tab:SetActive(on,color)

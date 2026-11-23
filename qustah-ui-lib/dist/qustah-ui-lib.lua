@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.44.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.44.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -11223,7 +11223,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.44.0",
+    Version = "1.44.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -13915,8 +13915,12 @@ function Tab:_shape(side, width, height)
     self.nameLabel.Visible = side == true
     if self.iconProperty == "ImageColor3" then
         icon.Position = side and UDim2.new(0, 17, 0.5, 0) or UDim2.fromScale(0.5, 0.5)
+        self.nameLabel.Position, self.nameLabel.Size = UDim2.fromOffset(34, 0), UDim2.new(1, -40, 1, 0)
     else
-        icon.Size = side and UDim2.new(0, 34, 1, 0) or UDim2.fromScale(1, 1)
+        -- no icon: the dock shows the first letter; the sidebar already shows the name, so the letter goes and the
+        -- name starts where the icon would have been
+        icon.Visible = not side
+        self.nameLabel.Position, self.nameLabel.Size = UDim2.fromOffset(side and 12 or 34, 0), UDim2.new(1, side and -18 or -40, 1, 0)
     end
 end
 
