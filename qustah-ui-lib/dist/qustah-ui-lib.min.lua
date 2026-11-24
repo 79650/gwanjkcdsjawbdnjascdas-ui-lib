@@ -215,7 +215,7 @@ cfg=cfg or{}
 local holder
 if self.titleLabel then
 holder=create("Frame",{Name="Tabs",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,self._chevron and-20 or 0,0,1),Size=UDim2.new(0.6,self._chevron and-20 or 0,0,18),Parent=self.titleLabel.Parent})
-self.titleLabel.Size=UDim2.new(0.4,-13,1,0)
+self.titleLabel.Size=UDim2.new(0.4,-13,0,20)
 else
 holder=create("Frame",{Name="Tabs",BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=self:_order(),Parent=self.body})
 end
@@ -283,7 +283,7 @@ local holder
 local inHeader=self.titleLabel and not self.titleLabel.Parent:FindFirstChild("Tabs")and not self.titleLabel.Parent:FindFirstChild("Presets")
 if inHeader then
 holder=create("Frame",{Name="Presets",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,self._chevron and-20 or 0,0,1),Size=UDim2.new(0.65,self._chevron and-20 or 0,0,18),Parent=self.titleLabel.Parent})
-self.titleLabel.Size=UDim2.new(0.35,-13,1,0)
+self.titleLabel.Size=UDim2.new(0.35,-13,0,20)
 else
 holder=create("Frame",{Name="Presets",BackgroundTransparency=1,Size=UDim2.new(1,0,0,20),LayoutOrder=self:_order(),Parent=self.body})
 end
