@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.48.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.48.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -273,7 +273,7 @@ function Card:Tabs(names, cfg)
         buttons[name] = button
         local body = create("Frame", { Name = "Section_" .. name, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Visible = false, Parent = self.body })
         Util.list(body, 4)
-        sections[name] = setmetatable({ page = self.page, window = self.window, order = 0, body = body, frame = self.frame, title = self.title }, Card)
+        sections[name] = setmetatable({ page = self.page, window = self.window, order = 0, body = body, frame = self.frame, title = self.title, compact = self.compact }, Card)
         button.Activated:Connect(function() selector:Select(name) end)
     end
     current = tostring(cfg.Default or names[1])
@@ -11222,7 +11222,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.48.0",
+    Version = "1.48.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
