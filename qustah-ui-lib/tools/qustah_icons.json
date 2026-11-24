@@ -179,5 +179,7 @@
   "wifi": "mdi:wifi",
   "wind": "solar:wind",
   "x": "mdi:close-thick",
-  "zap": "solar:bolt"
+  "zap": "solar:bolt",
+  "target-in-sight": "drawn",
+  "box-expand": "drawn"
 }
