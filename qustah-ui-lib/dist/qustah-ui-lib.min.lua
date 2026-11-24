@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.47.0 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.47.1 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -4850,7 +4850,7 @@ if desc then desc.Size=UDim2.new(0.55,-8,0,14)end
 local box=create("TextBox",{
 Name="Box",AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,0,0,baseHeight/2),Size=UDim2.new(0.45,0,0,24),
 BorderSizePixel=0,Text="",PlaceholderText=tostring(cfg.Placeholder or""),TextSize=10,Font=Enum.Font.Gotham,
-TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=cfg.ClearOnFocus==true,ClipsDescendants=true,
+TextXAlignment=cfg.Align=="Left"and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center,ClearTextOnFocus=cfg.ClearOnFocus==true,ClipsDescendants=true,
 TextTruncate=Enum.TextTruncate.AtEnd,Parent=row,
 })
 Theme.bind(box,"BackgroundColor3","input")
@@ -9883,7 +9883,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.47.0",
+Version="1.47.1",
 Flags={},
 Windows={},
 Theme=Theme,

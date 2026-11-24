@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.47.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.47.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -5478,7 +5478,8 @@ end
 end
 
 __modules["elements/input"] = function()
--- card:Input({ Title, Desc, Flag, Default, Placeholder, Numeric, ClearOnFocus, Finished, Validate, Callback, Locked })
+-- card:Input({ Title, Desc, Flag, Default, Placeholder, Numeric, ClearOnFocus, Finished, Validate, Callback, Locked, Align })
+-- The text is centred in the box; Align = "Left" keeps it on the left.
 -- Callback runs when the box loses focus (with Finished = false it runs on every change).
 -- Validate = function(text) return ok, message end: checked while typing. ok = true: green edge, false: red edge and
 -- the value is not taken (the flag keeps the last good one), nil: no judgement. The message shows under the box.
@@ -5497,7 +5498,8 @@ return function(card, cfg)
     local box = create("TextBox", {
         Name = "Box", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0, baseHeight / 2), Size = UDim2.new(0.45, 0, 0, 24),
         BorderSizePixel = 0, Text = "", PlaceholderText = tostring(cfg.Placeholder or ""), TextSize = 10, Font = Enum.Font.Gotham,
-        TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = cfg.ClearOnFocus == true, ClipsDescendants = true,
+        -- the text sits in the middle of the box (Align = "Left" for a left-aligned box)
+        TextXAlignment = cfg.Align == "Left" and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center, ClearTextOnFocus = cfg.ClearOnFocus == true, ClipsDescendants = true,
         TextTruncate = Enum.TextTruncate.AtEnd, Parent = row,
     })
     Theme.bind(box, "BackgroundColor3", "input")
@@ -11230,7 +11232,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.47.0",
+    Version = "1.47.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
