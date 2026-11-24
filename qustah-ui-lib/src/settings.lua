@@ -4,9 +4,9 @@
 --   Profiles   see profiles.lua (active profile + unsaved changes, share codes, notes, search...)
 --   Keys       every bound key, the ones used twice in red; a click opens the setting
 --   Info       modules, executor, errors (Copy debug info / Clear), what's new, this session
--- Simple = true: for a small script - the same four pages, Interface with the everyday settings only: theme,
---   font and text size, menu key, scale, free mouse, anonymous mode, reset layout / unload, transparency, dock and
---   blur (the rest keeps its default)
+-- Simple = true: for a small script - the same four pages, Interface with the everyday settings only: an
+--   Appearance card (Theme | Text tabs), Behaviour (menu key, scale, free mouse, anonymous, reset layout / unload) and
+--   Window (transparency, blur) as compact cards. No dock choice: the dock stays where the script put it.
 local Util = require("util")
 local Theme = require("theme")
 local Glow = require("glow")
@@ -30,7 +30,9 @@ return function(window, cfg)
     ------------------------------------------------------------ interface
     -- Theme (the packs as small windows, the accent dots, the theme editor folded) and Text on the left; Behaviour and
     -- Window (Look / Background / Overlays tabs) on the right.
-    local look = interface:Card({ Title = "Theme", Side = "Left", Icon = "palette" })
+    -- (Simple: Theme and Text are the two tabs of one Appearance card)
+    local appearanceTabs = simple and interface:Card({ Title = "Appearance", Side = "Left", Icon = "palette" }):Tabs({ "Theme", "Text" }) or nil
+    local look = appearanceTabs and appearanceTabs.Theme or interface:Card({ Title = "Theme", Side = "Left", Icon = "palette" })
     local editor                                                     -- the "Edit colours" section (made further down)
     local picker
     local swatches
@@ -81,7 +83,7 @@ return function(window, cfg)
     -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
-    local fontTab = interface:Card({ Title = "Text", Side = "Left", Icon = "type" })
+    local fontTab = appearanceTabs and appearanceTabs.Text or interface:Card({ Title = "Text", Side = "Left", Icon = "type" })
     fontTab:Dropdown({
         Title = "Font", Items = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
@@ -204,8 +206,9 @@ return function(window, cfg)
     look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
         Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
     -- Right / Bottom: the dock outside the window; Sidebar: the tabs with their names inside it (DockSide "Side")
-    look2:Segment({ Title = "Dock", Items = { "Right", "Bottom", "Sidebar" }, Default = window.dockSide == "Side" and "Sidebar" or window.dockSide,
-        Flag = "__ui_dock", Callback = function(side) window:SetDockSide(side == "Sidebar" and "Side" or side) end })
+    -- (Simple: no dock choice - the dock stays where the script put it)
+    if not simple then look2:Segment({ Title = "Dock", Items = { "Right", "Bottom", "Sidebar" }, Default = window.dockSide == "Side" and "Sidebar" or window.dockSide,
+        Flag = "__ui_dock", Callback = function(side) window:SetDockSide(side == "Sidebar" and "Side" or side) end }) end
     if not simple then look2:Segment({ Title = "Page tabs", Items = { "Header", "Row" }, Default = window.pageTabs, Flag = "__ui_pagetabs",
         Callback = function(mode) window:SetPageTabs(mode) end }) end
 

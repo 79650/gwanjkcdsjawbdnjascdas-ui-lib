@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.45.3 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.46.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -9878,7 +9878,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.45.3",
+Version="1.46.0",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -11104,7 +11104,8 @@ local profiles=tab:Page("Profiles",{Columns=1})
 local simple=cfg.Simple==true
 local keysPage=tab:Page("Keys",{Columns=1})
 local infoPage=tab:Page("Info")
-local look=interface:Card({Title="Theme",Side="Left",Icon="palette"})
+local appearanceTabs=simple and interface:Card({Title="Appearance",Side="Left",Icon="palette"}):Tabs({"Theme","Text"})or nil
+local look=appearanceTabs and appearanceTabs.Theme or interface:Card({Title="Theme",Side="Left",Icon="palette"})
 local editor
 local picker
 local swatches
@@ -11148,7 +11149,7 @@ for _,name in ipairs(wanted)do if table.find(fonts,tostring(name))then usable[#u
 local startFont=usable[1]or"Montserrat"
 local fontOptions={}
 for _,name in ipairs(fonts)do fontOptions[#fontOptions+1]={Title=name,Font=UIFont.family(name)}end
-local fontTab=interface:Card({Title="Text",Side="Left",Icon="type"})
+local fontTab=appearanceTabs and appearanceTabs.Text or interface:Card({Title="Text",Side="Left",Icon="type"})
 fontTab:Dropdown({
 Title="Font",Items=fontOptions,Default=startFont,Flag="__ui_font",
 Callback=function(name)
@@ -11257,8 +11258,8 @@ local windowTabs=not simple and windowCard:Tabs({"Look","Background","Overlays"}
 local look2=windowTabs and windowTabs.Look or windowCard
 look2:Slider({Title="Transparency",Flag="__ui_transparency",Min=0,Max=60,Default=0,Suffix="%",
 Callback=function(value)window:SetBackgroundTransparency(value/100)end})
-look2:Segment({Title="Dock",Items={"Right","Bottom","Sidebar"},Default=window.dockSide=="Side"and"Sidebar"or window.dockSide,
-Flag="__ui_dock",Callback=function(side)window:SetDockSide(side=="Sidebar"and"Side"or side)end})
+if not simple then look2:Segment({Title="Dock",Items={"Right","Bottom","Sidebar"},Default=window.dockSide=="Side"and"Sidebar"or window.dockSide,
+Flag="__ui_dock",Callback=function(side)window:SetDockSide(side=="Sidebar"and"Side"or side)end})end
 if not simple then look2:Segment({Title="Page tabs",Items={"Header","Row"},Default=window.pageTabs,Flag="__ui_pagetabs",
 Callback=function(mode)window:SetPageTabs(mode)end})end
 if not simple then
