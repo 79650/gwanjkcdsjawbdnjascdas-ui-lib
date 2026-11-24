@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.46.0 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.46.1 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -11223,7 +11223,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.46.0",
+    Version = "1.46.1",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
@@ -13926,6 +13926,14 @@ function Tab:_render(animate)
 end
 
 -- The button's shape: a round icon button (dock), or (sidebar) a row with the icon at the left and the name.
+-- the running dot: bottom-right of the round dock button, right end of the sidebar row
+function Tab:_placeDot()
+    local dot = self._activeDot
+    if not dot then return end
+    local side = self.nameLabel.Visible
+    dot.AnchorPoint = side and Vector2.new(1, 0.5) or Vector2.new(1, 1)
+    dot.Position = side and UDim2.new(1, -12, 0.5, 0) or UDim2.new(1, -1, 1, -1)
+end
 function Tab:_shape(side, width, height)
     local button, icon = self.button, self.icon
     button.Size = side and UDim2.fromOffset(width, height) or UDim2.fromOffset(DOCK_BUTTON, DOCK_BUTTON)
@@ -13940,13 +13948,14 @@ function Tab:_shape(side, width, height)
         icon.Visible = not side
         self.nameLabel.Position, self.nameLabel.Size = UDim2.fromOffset(side and 12 or 34, 0), UDim2.new(1, side and -18 or -40, 1, 0)
     end
+    self:_placeDot()
 end
 
 -- Tab:Page("Overview") adds a sub-page; with two or more pages the strip of page names appears.
 -- tab:SetBadge(3) / ("NEW") / (true) a dot / (nil, 0, false) hides it; color: a theme role or Color3 (default "accent").
 -- A small tag on the tab's dock button (new messages, an error, an update...).
--- tab:SetActive(true): a small green dot at the bottom-right of the dock button (something in this tab is
--- running); SetActive(false) hides it. Color: a theme role or Color3 (default "success"). Kept apart from SetBadge.
+-- tab:SetActive(true): a small green dot at the bottom-right of the dock button, or at the right end of the row in
+-- the sidebar (something in this tab is running); SetActive(false) hides it. Color: a theme role or Color3 (default "success"). Kept apart from SetBadge.
 function Tab:SetActive(on, color)
     self.Active = on == true
     local dot = self._activeDot
@@ -13959,6 +13968,7 @@ function Tab:SetActive(on, color)
     end
     Theme.bind(dot, "BackgroundColor3", color or "success")
     dot.Visible = self.Active
+    self:_placeDot()
 end
 
 function Tab:SetBadge(value, color)

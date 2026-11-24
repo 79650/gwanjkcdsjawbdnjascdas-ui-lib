@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.46.0 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
+-- qustah-ui-lib v1.46.1 slim (no DiffList, Gallery, Gauges, Graph, Image, ImagePicker, Radio, Search, SwitchGrid, TextArea, ThemePreview; minified)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -8994,7 +8994,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.46.0",
+Version="1.46.1",
 Flags={},
 Windows={},
 Theme=Theme,
@@ -11334,6 +11334,13 @@ if duration then tween(self.button,duration,{BackgroundTransparency=transparency
 Theme.tweenTo(self.icon,self.iconProperty,selected and"accent"or(self.hovered and"heading"or"icon"),duration)
 Theme.tweenTo(self.nameLabel,"TextColor3",selected and"heading"or(self.hovered and"heading"or"muted"),duration)
 end
+function Tab:_placeDot()
+local dot=self._activeDot
+if not dot then return end
+local side=self.nameLabel.Visible
+dot.AnchorPoint=side and Vector2.new(1,0.5)or Vector2.new(1,1)
+dot.Position=side and UDim2.new(1,-12,0.5,0)or UDim2.new(1,-1,1,-1)
+end
 function Tab:_shape(side,width,height)
 local button,icon=self.button,self.icon
 button.Size=side and UDim2.fromOffset(width,height)or UDim2.fromOffset(DOCK_BUTTON,DOCK_BUTTON)
@@ -11346,6 +11353,7 @@ else
 icon.Visible=not side
 self.nameLabel.Position,self.nameLabel.Size=UDim2.fromOffset(side and 12 or 34,0),UDim2.new(1,side and-18 or-40,1,0)
 end
+self:_placeDot()
 end
 function Tab:SetActive(on,color)
 self.Active=on==true
@@ -11359,6 +11367,7 @@ self._activeDot=dot
 end
 Theme.bind(dot,"BackgroundColor3",color or"success")
 dot.Visible=self.Active
+self:_placeDot()
 end
 function Tab:SetBadge(value,color)
 local shown=value~=nil and value~=false and value~=0 and tostring(value)~=""and tostring(value)~="0"
