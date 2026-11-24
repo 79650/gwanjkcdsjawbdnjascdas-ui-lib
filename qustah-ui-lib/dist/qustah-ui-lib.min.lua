@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.46.1 (minified build of dist/qustah-ui-lib.lua)
+-- qustah-ui-lib v1.47.0 (minified build of dist/qustah-ui-lib.lua)
 local __modules,__loaded={},{}
 local function require(name)
 local loaded=__loaded[name]
@@ -114,6 +114,8 @@ BorderSizePixel=0,BackgroundTransparency=ring==0 and 0 or 0.91,Parent=head,
 })
 Theme.bind(dot,"BackgroundColor3","accent")
 corner(dot,ring==0 and 3 or 6)
+self._dots=self._dots or{}
+table.insert(self._dots,dot)
 end
 local collapsible=cfg.Collapsible~=false
 local title=label(head,tostring(cfg.Title),10,{Position=UDim2.fromOffset(lead,0),Size=UDim2.new(1,-lead-(collapsible and 22 or 0),0,20),Font=Enum.Font.GothamMedium})
@@ -831,6 +833,9 @@ canvas.Maid:give(show)
 function canvas:Update()if not self.Destroyed then self._draw()end end
 canvas._draw=drawSky
 return canvas
+end
+function Card:SetDot(role)
+for _,dot in ipairs(self._dots or{})do Theme.tweenTo(dot,"BackgroundColor3",role or"accent",0.15)end
 end
 function Card:SetTitle(text)if self.titleLabel then self.titleLabel.Text=tostring(text)end end
 function Card:SetVisible(visible)self.frame.Visible=visible~=false end
@@ -9878,7 +9883,7 @@ require("kick")(Window)
 require("mobile")(Window)
 require("tour")(Window)
 local Lib={
-Version="1.46.1",
+Version="1.47.0",
 Flags={},
 Windows={},
 Theme=Theme,

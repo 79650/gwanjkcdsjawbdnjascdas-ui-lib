@@ -92,7 +92,7 @@ Overview:FitHeight(List, Scroller, { Min = 110 })              -- Scroller (dire
 - `Tab:Card()` adds a card to the first page without creating one.
 - `tab:SetHidden(true)` (or `Window:Tab({ Hidden = true })`) takes the icon out of the dock without leaving a gap; the tab still opens from code (`Select`, `Window:SelectTab`).
 - `tab:SetBadge(3)` puts a number on the tab's dock icon (`"NEW"`, `true` for a dot, `0` / `nil` hides it; a second argument picks the colour, e.g. `"danger"`).
-- `tab:SetActive(true)` puts a small green dot at the bottom corner of the dock icon (something in this tab is running); `false` hides it.
+- `tab:SetActive(true)` puts a small green dot at the bottom corner of the dock icon, or at the right end of the row in the sidebar (something in this tab is running); `false` hides it.
 - `Build = function(tab) ... end`: the tab's content is made later, so a big script starts faster. It builds itself 1.5 s after start (its key binds work without opening it); `BuildDelay = false` waits until the tab is opened. `Window:BuildAll()` builds every lazy tab now.
 
 **Pages**
@@ -104,7 +104,7 @@ Overview:FitHeight(List, Scroller, { Min = 110 })              -- Scroller (dire
 - `card:HeaderSwitch({ Title = "Debug", Flag, Default, Callback })` puts a small switch in the card's title row.
 - The arrow in the header folds the card. `Collapsible = false` removes the arrow, `Collapsed = true` starts folded, and the folded state is remembered.
 - The title starts with an accent dot; `Icon = "name"` puts an icon there instead. `Dot = false` leaves the plain title, and `CreateWindow({ CardDots = false })` does that for every card without an icon.
-- Methods: `card:SetCollapsed(bool)`, `card:SetTitle()`, `card:SetDesc()`, `card:SetVisible()`.
+- Methods: `card:SetCollapsed(bool)`, `card:SetTitle()`, `card:SetDesc()`, `card:SetVisible()`, `card:SetDot("success")` (the title dot in a theme role, e.g. green while what the card controls is running; `SetDot()` gives back the accent).
 - A card with nothing visible in it shows "Nothing here" (`Empty = "your text"`, or `Empty = false`).
 
 Layout inside a card:

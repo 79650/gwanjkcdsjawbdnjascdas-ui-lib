@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.46.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.47.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -125,6 +125,8 @@ function Card.new(page, column, cfg, order)
             })
             Theme.bind(dot, "BackgroundColor3", "accent")
             corner(dot, ring == 0 and 3 or 6)
+            self._dots = self._dots or {}
+            table.insert(self._dots, dot)
         end
         local collapsible = cfg.Collapsible ~= false
         local title = label(head, tostring(cfg.Title), 10, { Position = UDim2.fromOffset(lead, 0), Size = UDim2.new(1, -lead - (collapsible and 22 or 0), 0, 20), Font = Enum.Font.GothamMedium })
@@ -905,6 +907,11 @@ function Card:SkyPreview(cfg)
     function canvas:Update() if not self.Destroyed then self._draw() end end
     canvas._draw = drawSky
     return canvas
+end
+-- card:SetDot("success") colours the title dot (and its glow) with a theme role; SetDot() gives it back the accent.
+-- E.g. green while what the card controls is running.
+function Card:SetDot(role)
+    for _, dot in ipairs(self._dots or {}) do Theme.tweenTo(dot, "BackgroundColor3", role or "accent", 0.15) end
 end
 function Card:SetTitle(text) if self.titleLabel then self.titleLabel.Text = tostring(text) end end
 function Card:SetVisible(visible) self.frame.Visible = visible ~= false end
@@ -11223,7 +11230,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.46.1",
+    Version = "1.47.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
