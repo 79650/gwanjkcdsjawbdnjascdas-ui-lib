@@ -10611,6 +10611,7 @@ end
 
 -- Puts the icon on an ImageLabel / ImageButton (two-tone icons get their extra parts as children).
 function Icons.Apply(image, name)
+    image:SetAttribute("QIcon", name) -- which icon this is (debugging, previews)
     for _, child in ipairs(image:GetChildren()) do if child.Name == "IconPart" then child:Destroy() end end
     local icon = Icons.Get(name)
     if not icon then sharpImages[image] = nil return false end

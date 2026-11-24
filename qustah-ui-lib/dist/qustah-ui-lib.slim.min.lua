@@ -8414,6 +8414,7 @@ image.Image,image.ImageRectOffset,image.ImageRectSize=picture,offset,size
 return true
 end
 function Icons.Apply(image,name)
+image:SetAttribute("QIcon",name)
 for _,child in ipairs(image:GetChildren())do if child.Name=="IconPart"then child:Destroy()end end
 local icon=Icons.Get(name)
 if not icon then sharpImages[image]=nil return false end
