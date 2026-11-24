@@ -1,4 +1,4 @@
--- qustah-ui-lib v1.47.1 | bundled from src/ by build.py - edit the source files, not this one.
+-- qustah-ui-lib v1.48.0 | bundled from src/ by build.py - edit the source files, not this one.
 -- local Lib = loadstring(game:HttpGet("<raw url>/dist/qustah-ui-lib.lua"))()
 local __modules, __loaded = {}, {}
 local function require(name)
@@ -4269,20 +4269,13 @@ return function(card, cfg)
     Theme.bind(stroke(button), "Color", "buttonEdge")
     create("UISizeConstraint", { MaxSize = Vector2.new(170, 24), Parent = button })
     local valueIcon = create("ImageLabel", { Name = "ValueIcon", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = UDim2.fromOffset(12, 12), Visible = false, Parent = button })
-    local valueLabel = label(button, "", 10, { Position = UDim2.fromOffset(9, 0), Size = UDim2.new(1, -28, 1, 0) })
+    local valueLabel = label(button, "", 10, { Position = UDim2.fromOffset(9, 0), Size = UDim2.new(1, -34, 1, 0) })
     Theme.bind(valueLabel, "TextColor3", "text")
-    -- chevron drawn with two bars (fonts may not have an arrow glyph)
-    local arrow = create("Frame", { Name = "Chevron", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 1), Size = UDim2.fromOffset(10, 6), Parent = button })
-    local arrowBars = {}
-    for index, rotation in ipairs({ 45, -45 }) do
-        local bar = create("Frame", {
-            AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(index == 1 and 3 or 7, 3), Size = UDim2.fromOffset(6, 1.5),
-            Rotation = rotation, BorderSizePixel = 0, Parent = arrow,
-        })
-        Theme.bind(bar, "BackgroundColor3", "muted")
-        arrowBars[index] = bar
-    end
-    local function tintArrow(role) for _, bar in ipairs(arrowBars) do Theme.tweenTo(bar, "BackgroundColor3", role, 0.1) end end
+    -- the opener on the right: a thin divider and three dots
+    local divider = create("Frame", { Name = "Divider", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -26, 0.5, 0), Size = UDim2.fromOffset(1, 14), BorderSizePixel = 0, Parent = button })
+    Theme.bind(divider, "BackgroundColor3", "buttonEdge")
+    local dots = Icons.themed(button, "ellipsis", 12, "muted", { Name = "Dots", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -7, 0.5, 0) })
+    local function tintArrow(role) if dots then Theme.tweenTo(dots, "ImageColor3", role, 0.1) end end
 
     local element = Base.element(card, "Dropdown", cfg, row, title, desc)
     element.Items = options
@@ -4333,7 +4326,7 @@ return function(card, cfg)
         local hasVisual = entry and applyVisual(valueIcon, entry, "text") or false
         valueIcon.Visible = hasVisual
         valueLabel.Position = UDim2.fromOffset(hasVisual and 26 or 9, 0)
-        valueLabel.Size = UDim2.new(1, hasVisual and -45 or -28, 1, 0)
+        valueLabel.Size = UDim2.new(1, hasVisual and -51 or -34, 1, 0)
     end
 
     if multi then button:GetPropertyChangedSignal("AbsoluteSize"):Connect(render) end
@@ -4384,15 +4377,12 @@ return function(card, cfg)
             Name = "Header", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, ZIndex = 261,
             Position = UDim2.fromOffset(0, below and 0 or total - 24), Size = UDim2.new(1, 0, 0, 24), Parent = popup,
         })
-        local headerText = label(header, valueLabel.Text, 10, { Position = UDim2.fromOffset(9, 0), Size = UDim2.new(1, -28, 1, 0), ZIndex = 262 })
+        local headerText = label(header, valueLabel.Text, 10, { Position = UDim2.fromOffset(9, 0), Size = UDim2.new(1, -34, 1, 0), ZIndex = 262 })
         Theme.bind(headerText, "TextColor3", "text")
-        for index, rotation in ipairs({ -40, 40 }) do
-            local bar = create("Frame", {
-                AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, index == 1 and -16 or -12, 0.5, 0), Size = UDim2.fromOffset(6, 1.5),
-                Rotation = rotation, BorderSizePixel = 0, ZIndex = 262, Parent = header,
-            })
-            Theme.bind(bar, "BackgroundColor3", "accent")
-        end
+        -- (open: the same divider and dots, lit)
+        local headerDivider = create("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -26, 0.5, 0), Size = UDim2.fromOffset(1, 14), BorderSizePixel = 0, ZIndex = 262, Parent = header })
+        Theme.bind(headerDivider, "BackgroundColor3", "buttonEdge")
+        Icons.themed(header, "ellipsis", 12, "accent", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -7, 0.5, 0), ZIndex = 262 })
         header.Activated:Connect(function() window:_closePopup() end)
         local separator = create("Frame", {
             Position = UDim2.new(0, 6, 0, below and 24 or total - 25), Size = UDim2.new(1, -12, 0, 1), BorderSizePixel = 0, ZIndex = 261, Parent = popup,
@@ -11232,7 +11222,7 @@ require("mobile")(Window)
 require("tour")(Window)
 
 local Lib = {
-    Version = "1.47.1",
+    Version = "1.48.0",
     Flags = {},   -- Flag -> current value of every flagged element
     Windows = {},
     Theme = Theme,
