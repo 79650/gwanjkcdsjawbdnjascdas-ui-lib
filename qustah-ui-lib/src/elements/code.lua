@@ -1,4 +1,4 @@
--- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, MaxHeight = 200 })
+-- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, CopyIcon = true, MaxHeight = 200 })
 -- A code block: monospace, Lua colouring (keywords, strings, numbers, comments, functions), scrolls sideways for long
 -- lines and down past MaxHeight. Copy button in the header. :Set(code).
 local Util = require("util")
@@ -111,9 +111,12 @@ return function(card, cfg)
         Theme.bind(copy, "BackgroundColor3", "input")
         corner(copy, 5)
         Theme.bind(stroke(copy), "Color", "buttonEdge")
-        local copyText = label(copy, "Copy", 9, { Position = UDim2.fromOffset(20, 0), Size = UDim2.new(1, -22, 1, 0), Font = Enum.Font.GothamMedium })
+        -- (CopyIcon = false: the word alone, centred)
+        local withIcon = cfg.CopyIcon ~= false
+        local copyText = label(copy, "Copy", 9, { Position = UDim2.fromOffset(withIcon and 20 or 0, 0), Size = UDim2.new(1, withIcon and -22 or 0, 1, 0),
+            Font = Enum.Font.GothamMedium, TextXAlignment = withIcon and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center })
         Theme.bind(copyText, "TextColor3", "text")
-        local copyIcon = Icons.themed(copy, "copy", 10, "text", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) })
+        local copyIcon = withIcon and Icons.themed(copy, "copy", 10, "text", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) }) or nil
         copy.Activated:Connect(function()
             local clipboard = setclipboard or toclipboard
             local ok = type(clipboard) == "function" and pcall(clipboard, element.Value)

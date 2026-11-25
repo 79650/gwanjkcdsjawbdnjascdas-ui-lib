@@ -6,6 +6,7 @@
 --            Click Name, Saved, Settings or Differs to sort. Right click a row (long press on touch) for
 --            Overwrite, Rename, Edit note, Duplicate, Share code, Delete. "Default" is locked: the starting values.
 --   Bottom   New profile name + Create, Paste a share code + Import
+--   Share    the active profile's share code with a Copy button
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
@@ -95,8 +96,13 @@ return function(window, page, defaults)
         refresh()
         return ok
     end
+    -- a profile's share code ("Default" is the starting values)
+    local function shareCodeOf(name, locked)
+        if locked then return "QUSTAH1:" .. Util.base64encode(Util.Services.HttpService:JSONEncode({ n = "Default", f = defaults })) end
+        return store:Export(name)
+    end
     local function shareProfile(name, locked)
-        local code = locked and ("QUSTAH1:" .. Util.base64encode(Util.Services.HttpService:JSONEncode({ n = "Default", f = defaults }))) or store:Export(name)
+        local code = shareCodeOf(name, locked)
         if code then copy(code, "Share code for \"" .. name .. "\"") end
     end
     local function overwriteProfile(name)
@@ -450,6 +456,17 @@ return function(window, page, defaults)
         element.Row.Size = UDim2.new(0.5, -4, 0, 0)
     end
 
+    ------------------------------------------------------------ share
+    -- the active profile's share code, ready to copy (paste it into Import on another PC or for a friend)
+    local shareCard = page:Card({ Title = "Share Default", Icon = "share-2" })
+    local shareCode = shareCard:Code({ Title = "share code", Code = "", CopyIcon = false, Highlight = false, MaxHeight = 60 })
+    local function updateShare()
+        local name = store.Active or "Default"
+        local code = shareCodeOf(name, store.Active == nil)
+        shareCard:SetTitle("Share " .. name)
+        if code and code ~= shareCode.Value then shareCode:Set(code) end
+    end
+
     ------------------------------------------------------------ refresh
     function refresh()
         for _, child in ipairs(rowsFrame:GetChildren()) do if child:IsA("GuiObject") then child:Destroy() end end
@@ -509,6 +526,7 @@ return function(window, page, defaults)
         empty.Text = #names == 0 and "No saved profiles yet - type a name below and press Create." or (#rows == 0 and ("No profile matches \"" .. query .. "\"") or "")
         empty.Visible = empty.Text ~= ""
         updateCurrent()
+        updateShare()
     end
     search:GetPropertyChangedSignal("Text"):Connect(function() query = search.Text refresh() end)
     store:OnActiveChanged(function() if page.frame.Visible then refresh() end end)

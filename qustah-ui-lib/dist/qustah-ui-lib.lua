@@ -3454,7 +3454,7 @@ end
 end
 
 __modules["elements/code"] = function()
--- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, MaxHeight = 200 })
+-- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, CopyIcon = true, MaxHeight = 200 })
 -- A code block: monospace, Lua colouring (keywords, strings, numbers, comments, functions), scrolls sideways for long
 -- lines and down past MaxHeight. Copy button in the header. :Set(code).
 local Util = require("util")
@@ -3567,9 +3567,12 @@ return function(card, cfg)
         Theme.bind(copy, "BackgroundColor3", "input")
         corner(copy, 5)
         Theme.bind(stroke(copy), "Color", "buttonEdge")
-        local copyText = label(copy, "Copy", 9, { Position = UDim2.fromOffset(20, 0), Size = UDim2.new(1, -22, 1, 0), Font = Enum.Font.GothamMedium })
+        -- (CopyIcon = false: the word alone, centred)
+        local withIcon = cfg.CopyIcon ~= false
+        local copyText = label(copy, "Copy", 9, { Position = UDim2.fromOffset(withIcon and 20 or 0, 0), Size = UDim2.new(1, withIcon and -22 or 0, 1, 0),
+            Font = Enum.Font.GothamMedium, TextXAlignment = withIcon and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center })
         Theme.bind(copyText, "TextColor3", "text")
-        local copyIcon = Icons.themed(copy, "copy", 10, "text", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) })
+        local copyIcon = withIcon and Icons.themed(copy, "copy", 10, "text", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) }) or nil
         copy.Activated:Connect(function()
             local clipboard = setclipboard or toclipboard
             local ok = type(clipboard) == "function" and pcall(clipboard, element.Value)
@@ -12071,6 +12074,7 @@ __modules["profiles"] = function()
 --            Click Name, Saved, Settings or Differs to sort. Right click a row (long press on touch) for
 --            Overwrite, Rename, Edit note, Duplicate, Share code, Delete. "Default" is locked: the starting values.
 --   Bottom   New profile name + Create, Paste a share code + Import
+--   Share    the active profile's share code with a Copy button
 local Util = require("util")
 local Theme = require("theme")
 local Icons = require("icons")
@@ -12160,8 +12164,13 @@ return function(window, page, defaults)
         refresh()
         return ok
     end
+    -- a profile's share code ("Default" is the starting values)
+    local function shareCodeOf(name, locked)
+        if locked then return "QUSTAH1:" .. Util.base64encode(Util.Services.HttpService:JSONEncode({ n = "Default", f = defaults })) end
+        return store:Export(name)
+    end
     local function shareProfile(name, locked)
-        local code = locked and ("QUSTAH1:" .. Util.base64encode(Util.Services.HttpService:JSONEncode({ n = "Default", f = defaults }))) or store:Export(name)
+        local code = shareCodeOf(name, locked)
         if code then copy(code, "Share code for \"" .. name .. "\"") end
     end
     local function overwriteProfile(name)
@@ -12515,6 +12524,17 @@ return function(window, page, defaults)
         element.Row.Size = UDim2.new(0.5, -4, 0, 0)
     end
 
+    ------------------------------------------------------------ share
+    -- the active profile's share code, ready to copy (paste it into Import on another PC or for a friend)
+    local shareCard = page:Card({ Title = "Share Default", Icon = "share-2" })
+    local shareCode = shareCard:Code({ Title = "share code", Code = "", CopyIcon = false, Highlight = false, MaxHeight = 60 })
+    local function updateShare()
+        local name = store.Active or "Default"
+        local code = shareCodeOf(name, store.Active == nil)
+        shareCard:SetTitle("Share " .. name)
+        if code and code ~= shareCode.Value then shareCode:Set(code) end
+    end
+
     ------------------------------------------------------------ refresh
     function refresh()
         for _, child in ipairs(rowsFrame:GetChildren()) do if child:IsA("GuiObject") then child:Destroy() end end
@@ -12574,6 +12594,7 @@ return function(window, page, defaults)
         empty.Text = #names == 0 and "No saved profiles yet - type a name below and press Create." or (#rows == 0 and ("No profile matches \"" .. query .. "\"") or "")
         empty.Visible = empty.Text ~= ""
         updateCurrent()
+        updateShare()
     end
     search:GetPropertyChangedSignal("Text"):Connect(function() query = search.Text refresh() end)
     store:OnActiveChanged(function() if page.frame.Visible then refresh() end end)
