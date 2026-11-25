@@ -418,6 +418,7 @@ Card:Paragraph({ Title = "About", Content = "Longer text that wraps over as many
 Card:Info({ Title = "User ID", Value = "#123", Copy = true })   -- a "name ...... value" row with a Copy button
 Card:Divider()
 Card:Code({ Title = "loader.lua", Code = 'print("hi")', Copy = true, MaxHeight = 200 })   -- Lua highlighting
+-- (CopyText = false: the Copy button is just the copy icon; CopyIcon = false: just the word)
 ```
 
 ### Live data: Progress, Stat, Graph, Console and Table

@@ -3147,6 +3147,29 @@ fit()
 end
 function element:Get()return self.Value end
 if cfg.Copy~=false then
+if cfg.CopyText==false then
+local copy=create("ImageButton",{
+Name="Copy",Image="",BackgroundTransparency=1,AutoButtonColor=false,AnchorPoint=Vector2.new(1,0.5),
+Position=UDim2.new(1,-8,0.5,0),Size=UDim2.fromOffset(18,18),Parent=head,
+})
+local copyIcon=Icons.themed(copy,"copy",14,"muted",{Name="Icon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+local busy=false
+copy.MouseEnter:Connect(function()if not busy and copyIcon then Theme.tweenTo(copyIcon,"ImageColor3","heading",0.1)end window:_tip("Copy")end)
+copy.MouseLeave:Connect(function()if not busy and copyIcon then Theme.tweenTo(copyIcon,"ImageColor3","muted",0.1)end window:_hideTip()end)
+copy.Activated:Connect(function()
+local clipboard=setclipboard or toclipboard
+local ok=type(clipboard)=="function"and pcall(clipboard,element.Value)
+if ok and cfg.OnCopy then window:_safe("Code",cfg.OnCopy)end
+if not copyIcon then return end
+busy=true
+Icons.Apply(copyIcon,ok and"check"or"x")
+Theme.bind(copyIcon,"ImageColor3",ok and"success"or"danger")
+task.delay(1.4,function()
+busy=false
+if copy.Parent then Icons.Apply(copyIcon,"copy")Theme.bind(copyIcon,"ImageColor3","muted")end
+end)
+end)
+else
 local copy=create("TextButton",{
 Name="Copy",Text="",AutoButtonColor=false,BorderSizePixel=0,AnchorPoint=Vector2.new(1,0.5),
 Position=UDim2.new(1,-6,0.5,0),Size=UDim2.fromOffset(52,18),Parent=head,
@@ -3169,6 +3192,7 @@ task.delay(1.4,function()
 if copy.Parent then copyText.Text="Copy"if copyIcon then Icons.Apply(copyIcon,"copy")end end
 end)
 end)
+end
 end
 element:Set(cfg.Code or"")
 element.Maid:give(Theme.onChange(function()if holder.Parent then element:Set(element.Value)end end))
@@ -10964,7 +10988,7 @@ element.Row.LayoutOrder=order
 element.Row.Size=UDim2.new(0.5,-4,0,0)
 end
 local shareCard=page:Card({})
-local shareCode=shareCard:Code({Title="share code",Code="",CopyIcon=false,Highlight=false,Truncate=true})
+local shareCode=shareCard:Code({Title="share code",Code="",CopyText=false,Highlight=false,Truncate=true})
 local function updateShare()
 local name=store.Active or"Default"
 local code=shareCodeOf(name,store.Active==nil)

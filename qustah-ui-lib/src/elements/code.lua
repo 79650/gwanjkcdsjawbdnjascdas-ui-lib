@@ -1,4 +1,4 @@
--- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, CopyIcon = true, MaxHeight = 200, Truncate = false })
+-- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, CopyIcon = true, CopyText = true, MaxHeight = 200, Truncate = false })
 -- A code block: monospace, Lua colouring (keywords, strings, numbers, comments, functions), scrolls sideways for long
 -- lines and down past MaxHeight. Copy button in the header. :Set(code).
 -- Truncate = true: one line that ends in "..." inside the box (the same room left and right) instead of scrolling -
@@ -113,29 +113,54 @@ return function(card, cfg)
     function element:Get() return self.Value end
 
     if cfg.Copy ~= false then
-        local copy = create("TextButton", {
-            Name = "Copy", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
-            Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(52, 18), Parent = head,
-        })
-        Theme.bind(copy, "BackgroundColor3", "input")
-        corner(copy, 5)
-        Theme.bind(stroke(copy), "Color", "buttonEdge")
-        -- (CopyIcon = false: the word alone, centred)
-        local withIcon = cfg.CopyIcon ~= false
-        local copyText = label(copy, "Copy", 9, { Position = UDim2.fromOffset(withIcon and 20 or 0, 0), Size = UDim2.new(1, withIcon and -22 or 0, 1, 0),
-            Font = Enum.Font.GothamMedium, TextXAlignment = withIcon and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center })
-        Theme.bind(copyText, "TextColor3", "text")
-        local copyIcon = withIcon and Icons.themed(copy, "copy", 10, "text", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) }) or nil
-        copy.Activated:Connect(function()
-            local clipboard = setclipboard or toclipboard
-            local ok = type(clipboard) == "function" and pcall(clipboard, element.Value)
-            copyText.Text = ok and "Copied" or "Failed"
-            if copyIcon then Icons.Apply(copyIcon, ok and "check" or "x") end
-            if ok and cfg.OnCopy then window:_safe("Code", cfg.OnCopy) end
-            task.delay(1.4, function()
-                if copy.Parent then copyText.Text = "Copy" if copyIcon then Icons.Apply(copyIcon, "copy") end end
+        -- CopyText = false: just the copy icon, no box (it turns into a tick / a cross for a moment)
+        if cfg.CopyText == false then
+            local copy = create("ImageButton", {
+                Name = "Copy", Image = "", BackgroundTransparency = 1, AutoButtonColor = false, AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(18, 18), Parent = head,
+            })
+            local copyIcon = Icons.themed(copy, "copy", 14, "muted", { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+            local busy = false
+            copy.MouseEnter:Connect(function() if not busy and copyIcon then Theme.tweenTo(copyIcon, "ImageColor3", "heading", 0.1) end window:_tip("Copy") end)
+            copy.MouseLeave:Connect(function() if not busy and copyIcon then Theme.tweenTo(copyIcon, "ImageColor3", "muted", 0.1) end window:_hideTip() end)
+            copy.Activated:Connect(function()
+                local clipboard = setclipboard or toclipboard
+                local ok = type(clipboard) == "function" and pcall(clipboard, element.Value)
+                if ok and cfg.OnCopy then window:_safe("Code", cfg.OnCopy) end
+                if not copyIcon then return end
+                busy = true
+                Icons.Apply(copyIcon, ok and "check" or "x")
+                Theme.bind(copyIcon, "ImageColor3", ok and "success" or "danger")
+                task.delay(1.4, function()
+                    busy = false
+                    if copy.Parent then Icons.Apply(copyIcon, "copy") Theme.bind(copyIcon, "ImageColor3", "muted") end
+                end)
             end)
-        end)
+        else
+            local copy = create("TextButton", {
+                Name = "Copy", Text = "", AutoButtonColor = false, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(52, 18), Parent = head,
+            })
+            Theme.bind(copy, "BackgroundColor3", "input")
+            corner(copy, 5)
+            Theme.bind(stroke(copy), "Color", "buttonEdge")
+            -- (CopyIcon = false: the word alone, centred)
+            local withIcon = cfg.CopyIcon ~= false
+            local copyText = label(copy, "Copy", 9, { Position = UDim2.fromOffset(withIcon and 20 or 0, 0), Size = UDim2.new(1, withIcon and -22 or 0, 1, 0),
+                Font = Enum.Font.GothamMedium, TextXAlignment = withIcon and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center })
+            Theme.bind(copyText, "TextColor3", "text")
+            local copyIcon = withIcon and Icons.themed(copy, "copy", 10, "text", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) }) or nil
+            copy.Activated:Connect(function()
+                local clipboard = setclipboard or toclipboard
+                local ok = type(clipboard) == "function" and pcall(clipboard, element.Value)
+                copyText.Text = ok and "Copied" or "Failed"
+                if copyIcon then Icons.Apply(copyIcon, ok and "check" or "x") end
+                if ok and cfg.OnCopy then window:_safe("Code", cfg.OnCopy) end
+                task.delay(1.4, function()
+                    if copy.Parent then copyText.Text = "Copy" if copyIcon then Icons.Apply(copyIcon, "copy") end end
+                end)
+            end)
+        end
     end
     element:Set(cfg.Code or "")
     element.Maid:give(Theme.onChange(function() if holder.Parent then element:Set(element.Value) end end))
