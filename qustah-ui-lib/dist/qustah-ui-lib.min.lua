@@ -10963,12 +10963,11 @@ element.Row.Parent=bottom
 element.Row.LayoutOrder=order
 element.Row.Size=UDim2.new(0.5,-4,0,0)
 end
-local shareCard=page:Card({Title="Share Default",Icon="share-2"})
+local shareCard=page:Card({})
 local shareCode=shareCard:Code({Title="share code",Code="",CopyIcon=false,Highlight=false,Truncate=true})
 local function updateShare()
 local name=store.Active or"Default"
 local code=shareCodeOf(name,store.Active==nil)
-shareCard:SetTitle("Share "..name)
 if code and code~=shareCode.Value then shareCode:Set(code)end
 end
 function refresh()

@@ -12480,12 +12480,11 @@ return function(window, page, defaults)
 
     ------------------------------------------------------------ share
     -- the active profile's share code, ready to copy (paste it into Import on another PC or for a friend)
-    local shareCard = page:Card({ Title = "Share Default", Icon = "share-2" })
+    local shareCard = page:Card({}) -- (a plain card: no title row, just the code block)
     local shareCode = shareCard:Code({ Title = "share code", Code = "", CopyIcon = false, Highlight = false, Truncate = true })
     local function updateShare()
         local name = store.Active or "Default"
         local code = shareCodeOf(name, store.Active == nil)
-        shareCard:SetTitle("Share " .. name)
         if code and code ~= shareCode.Value then shareCode:Set(code) end
     end
 
