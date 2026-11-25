@@ -294,18 +294,7 @@ return function(window, page, defaults)
         local button = create("TextButton", { Name = column.title, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = position, Size = size, Parent = head })
         local text = label(button, column.title, 9, { Name = "Text", Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamMedium })
         Theme.bind(text, "TextColor3", "muted")
-        local arrow = Icons.themed(button, "chevron-down", 10, "accent", { Name = "Arrow", AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, Util.textWidth(column.title, 9, Enum.Font.GothamMedium) + 3, 0.5, 0), Visible = false })
-        -- the sort arrow sits right after the title as it is really drawn (the estimate could put it on the last letter)
-        if arrow then
-            local function place()
-                local width = text.TextBounds.X
-                if width > 0 then arrow.Position = UDim2.new(0, math.ceil(width) + 3, 0.5, 0) end
-            end
-            text:GetPropertyChangedSignal("TextBounds"):Connect(place)
-            place()
-        end
-        headers[column.key] = { text = text, arrow = arrow }
+        headers[column.key] = { text = text }
         if column.sort then
             button.Activated:Connect(function()
                 if sortKey == column.key then descending = not descending
@@ -539,11 +528,8 @@ return function(window, page, defaults)
         for order, info in ipairs(rows) do drawRow(info, order) end
         for key, header in pairs(headers) do
             local on = sortKey == key
+            -- (the sorted column's title is in the accent colour; no arrow)
             Theme.bind(header.text, "TextColor3", on and "accent" or "muted")
-            if header.arrow then
-                header.arrow.Visible = on
-                header.arrow.Rotation = descending and 0 or 180
-            end
         end
         search.Visible = #names > 3 or q ~= ""
         empty.Text = #names == 0 and "No saved profiles yet - type a name below and press Create." or (#rows == 0 and ("No profile matches \"" .. query .. "\"") or "")
