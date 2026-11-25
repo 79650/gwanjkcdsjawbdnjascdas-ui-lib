@@ -7307,11 +7307,7 @@ __modules["font"]=function()
 local Util=require("util")
 local UIFont={current="Montserrat",guis={}}
 UIFont.order={"Montserrat","Ubuntu","Work Sans","Josefin Sans","Michroma"}
-UIFont.Families={
-Montserrat="rbxasset://fonts/families/Montserrat.json",Ubuntu="rbxasset://fonts/families/Ubuntu.json",
-["Josefin Sans"]="rbxasset://fonts/families/JosefinSans.json",Michroma="rbxasset://fonts/families/Michroma.json",
-["Work Sans"]="rbxassetid://12187373327",
-}
+UIFont.Families={Montserrat="Montserrat",Ubuntu="Ubuntu",["Josefin Sans"]="JosefinSans",Michroma="Michroma",["Work Sans"]=12187373327}
 UIFont.Fit={Michroma=1.12,["Josefin Sans"]=0.96}
 UIFont.Width={
 Montserrat={regular=1.08,heavy=1.08},Ubuntu={regular=0.97,heavy=0.98},["Work Sans"]={regular=1.0,heavy=1.01},
@@ -7327,8 +7323,13 @@ end
 local function familyOf(name)
 name=tostring(name)
 local family=UIFont.Families[name]or name
+if type(family)=="number"then
+local ok,face=pcall(Font.fromId,family)
+return ok and face and face.Family or nil
+end
 if family:match("^rbxasset")then return family end
-local ok,face=pcall(function()return Font.fromEnum(Enum.Font[family])end)
+local ok,face=pcall(Font.fromName,family)
+if not(ok and face)then ok,face=pcall(function()return Font.fromEnum(Enum.Font[family])end)end
 return ok and face and face.Family or nil
 end
 local function targetFor(object,uiTarget)
@@ -7426,6 +7427,57 @@ changed()
 end
 end)
 end
+local glyphs={}
+local GLYPH_WEIGHTS={"Regular","Medium","Bold"}
+function UIFont.measureGlyphs(name)
+local family=familyOf(name or UIFont.current)
+if not family then return end
+for _,weightName in ipairs(GLYPH_WEIGHTS)do
+local key=family.."\0"..weightName
+if glyphs[key]==nil then
+glyphs[key]=false
+task.spawn(function()
+local TextService=Util.Services.TextService
+local face=Font.new(family,Enum.FontWeight[weightName])
+local function width(text)
+local params=Instance.new("GetTextBoundsParams")
+params.Text,params.Font,params.Size,params.Width=text,face,100,100000
+return TextService:GetTextBoundsAsync(params).X
+end
+local ok,made=pcall(function()
+local widths={}
+for code=33,126 do widths[code]=width(string.char(code))end
+widths[32]=math.max(0,width("a a")-width("aa"))
+return widths
+end)
+if ok then
+glyphs[key]=made
+changed()
+end
+end)
+end
+end
+end
+local function weightOf(font,drawn)
+local name=typeof(font)=="EnumItem"and font.Name or""
+if name:find("Bold")or name:find("Black")or name:find("Heavy")then return"Bold"end
+if name:find("Medium")or name:find("Semibold")then return"Medium"end
+return drawn<=UIFont.MediumBelow and"Medium"or"Regular"
+end
+function UIFont.textWidth(text,size,font)
+local family=familyOf(UIFont.current)
+if not family then return nil end
+size=tonumber(size)or 10
+local drawn=UIFont.drawnSize(size)
+local widths=glyphs[family.."\0"..weightOf(font,drawn)]
+if not widths then return nil end
+local total,fallback=0,widths[111]or 55
+local ok=pcall(function()
+for _,code in utf8.codes(tostring(text))do total=total+(widths[code]or fallback)end
+end)
+if not ok then return nil end
+return total*drawn/100
+end
 function UIFont.refresh()
 local target=familyOf(UIFont.current)
 for gui in pairs(UIFont.guis)do
@@ -7436,6 +7488,7 @@ UIFont.guis[gui]=nil
 end
 end
 UIFont.measure(UIFont.current)
+UIFont.measureGlyphs(UIFont.current)
 changed()
 end
 function UIFont.set(name)
@@ -12296,9 +12349,15 @@ end
 return maid
 end
 local widthCache,widthCount={},0
+local fontModule
 function Util.textWidth(text,size,font)
 text=tostring(text)
 if typeof(font)~="EnumItem"or font==Enum.Font.Unknown then font=Enum.Font.Gotham end
+if font~=Enum.Font.Code and font~=Enum.Font.RobotoMono then
+if fontModule==nil then Util._fontFactor(font,size)end
+local measured=fontModule and fontModule.textWidth and fontModule.textWidth(text,size,font)
+if measured then return measured end
+end
 local key=text.."\0"..tostring(size).."\0"..tostring(font)
 local width=widthCache[key]
 if width then return width*Util._fontFactor(font,size)end
@@ -12315,7 +12374,6 @@ local stop=font.onChange(function()if object.Parent then fn()end end)
 object.Destroying:Connect(stop)
 return stop
 end
-local fontModule
 function Util._fontFactor(font,size)
 if fontModule==nil then
 local ok,module=pcall(require,"font")

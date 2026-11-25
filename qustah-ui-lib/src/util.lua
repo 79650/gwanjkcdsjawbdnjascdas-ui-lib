@@ -270,11 +270,18 @@ end
 
 -- text widths are asked for a lot (buttons fitting their text, the tour, tooltips): remembered, the table starts over at 1000
 local widthCache, widthCount = {}, 0
+local fontModule -- (the font module, found on first use: it requires util itself)
 -- (font: an Enum.Font. A label drawn in a font from Roblox's font library or a downloaded one reports
 -- Enum.Font.Unknown, which GetTextSize refuses: Gotham stands in, about as wide.)
 function Util.textWidth(text, size, font)
     text = tostring(text)
     if typeof(font) ~= "EnumItem" or font == Enum.Font.Unknown then font = Enum.Font.Gotham end
+    -- the UI font's own measured widths when they are there (code fonts keep their Enum.Font size)
+    if font ~= Enum.Font.Code and font ~= Enum.Font.RobotoMono then
+        if fontModule == nil then Util._fontFactor(font, size) end
+        local measured = fontModule and fontModule.textWidth and fontModule.textWidth(text, size, font)
+        if measured then return measured end
+    end
     local key = text .. "\0" .. tostring(size) .. "\0" .. tostring(font)
     local width = widthCache[key]
     if width then return width * Util._fontFactor(font, size) end
@@ -294,7 +301,6 @@ function Util.onTextMetrics(object, fn)
     return stop
 end
 -- (the UI font's width next to Gotham, set by the font module; 1 until it loads)
-local fontModule
 function Util._fontFactor(font, size)
     if fontModule == nil then
         local ok, module = pcall(require, "font")

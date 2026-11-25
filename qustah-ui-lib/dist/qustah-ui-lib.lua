@@ -9293,12 +9293,9 @@ local Util = require("util")
 local UIFont = { current = "Montserrat", guis = {} }
 
 UIFont.order = { "Montserrat", "Ubuntu", "Work Sans", "Josefin Sans", "Michroma" }
--- name -> its Roblox font family: built into the client (rbxasset) or from Roblox's font library (rbxassetid)
-UIFont.Families = {
-    Montserrat = "rbxasset://fonts/families/Montserrat.json", Ubuntu = "rbxasset://fonts/families/Ubuntu.json",
-    ["Josefin Sans"] = "rbxasset://fonts/families/JosefinSans.json", Michroma = "rbxasset://fonts/families/Michroma.json",
-    ["Work Sans"] = "rbxassetid://12187373327",
-}
+-- name -> its Roblox font family: a built-in family's name for Font.fromName (letters only, no spaces) or a font
+-- library asset id for Font.fromId
+UIFont.Families = { Montserrat = "Montserrat", Ubuntu = "Ubuntu", ["Josefin Sans"] = "JosefinSans", Michroma = "Michroma", ["Work Sans"] = 12187373327 }
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
 -- doesn't push labels out of their rows. Code text has its own font.
 UIFont.Fit = { Michroma = 1.12, ["Josefin Sans"] = 0.96 }
@@ -9327,8 +9324,13 @@ end
 local function familyOf(name)
     name = tostring(name)
     local family = UIFont.Families[name] or name
+    if type(family) == "number" then
+        local ok, face = pcall(Font.fromId, family)
+        return ok and face and face.Family or nil
+    end
     if family:match("^rbxasset") then return family end
-    local ok, face = pcall(function() return Font.fromEnum(Enum.Font[family]) end)
+    local ok, face = pcall(Font.fromName, family)
+    if not (ok and face) then ok, face = pcall(function() return Font.fromEnum(Enum.Font[family]) end) end
     return ok and face and face.Family or nil
 end
 
@@ -9447,6 +9449,64 @@ function UIFont.measure(name)
     end)
 end
 
+-- Real text widths: every printable ASCII character of the font in use measured once per weight (Regular, Medium,
+-- Bold) with TextService:GetTextBoundsAsync, in that font itself. Until a font's table is there (it is measured on
+-- its own thread: the call yields) widths are Gotham's times the font's ratio (UIFont.Width).
+local glyphs = {} -- family .. "\0" .. weight -> { [codepoint] = width at size 100 } (false while measuring)
+local GLYPH_WEIGHTS = { "Regular", "Medium", "Bold" }
+function UIFont.measureGlyphs(name)
+    local family = familyOf(name or UIFont.current)
+    if not family then return end
+    for _, weightName in ipairs(GLYPH_WEIGHTS) do
+        local key = family .. "\0" .. weightName
+        if glyphs[key] == nil then
+            glyphs[key] = false
+            task.spawn(function()
+                local TextService = Util.Services.TextService
+                local face = Font.new(family, Enum.FontWeight[weightName])
+                local function width(text)
+                    local params = Instance.new("GetTextBoundsParams")
+                    params.Text, params.Font, params.Size, params.Width = text, face, 100, 100000
+                    return TextService:GetTextBoundsAsync(params).X
+                end
+                local ok, made = pcall(function()
+                    local widths = {}
+                    for code = 33, 126 do widths[code] = width(string.char(code)) end
+                    widths[32] = math.max(0, width("a a") - width("aa")) -- (a lone space measures 0)
+                    return widths
+                end)
+                if ok then
+                    glyphs[key] = made
+                    changed()
+                end
+            end)
+        end
+    end
+end
+-- the weight a text of this Enum font and drawn size has on screen (see apply: small regular text is Medium)
+local function weightOf(font, drawn)
+    local name = typeof(font) == "EnumItem" and font.Name or ""
+    if name:find("Bold") or name:find("Black") or name:find("Heavy") then return "Bold" end
+    if name:find("Medium") or name:find("Semibold") then return "Medium" end
+    return drawn <= UIFont.MediumBelow and "Medium" or "Regular"
+end
+-- width of `text` written at `size` (the size the lib gives it: drawn bigger by the readable steps and the text size
+-- setting) in the font in use, or nil while that font is not measured yet
+function UIFont.textWidth(text, size, font)
+    local family = familyOf(UIFont.current)
+    if not family then return nil end
+    size = tonumber(size) or 10
+    local drawn = UIFont.drawnSize(size)
+    local widths = glyphs[family .. "\0" .. weightOf(font, drawn)]
+    if not widths then return nil end
+    local total, fallback = 0, widths[111] or 55 -- (a character outside ASCII: about an "o")
+    local ok = pcall(function()
+        for _, code in utf8.codes(tostring(text)) do total = total + (widths[code] or fallback) end
+    end)
+    if not ok then return nil end
+    return total * drawn / 100
+end
+
 -- Re-applies the current font to every registered gui.
 function UIFont.refresh()
     local target = familyOf(UIFont.current)
@@ -9458,6 +9518,7 @@ function UIFont.refresh()
         end
     end
     UIFont.measure(UIFont.current)
+    UIFont.measureGlyphs(UIFont.current)
     changed()
 end
 
@@ -15075,11 +15136,18 @@ end
 
 -- text widths are asked for a lot (buttons fitting their text, the tour, tooltips): remembered, the table starts over at 1000
 local widthCache, widthCount = {}, 0
+local fontModule -- (the font module, found on first use: it requires util itself)
 -- (font: an Enum.Font. A label drawn in a font from Roblox's font library or a downloaded one reports
 -- Enum.Font.Unknown, which GetTextSize refuses: Gotham stands in, about as wide.)
 function Util.textWidth(text, size, font)
     text = tostring(text)
     if typeof(font) ~= "EnumItem" or font == Enum.Font.Unknown then font = Enum.Font.Gotham end
+    -- the UI font's own measured widths when they are there (code fonts keep their Enum.Font size)
+    if font ~= Enum.Font.Code and font ~= Enum.Font.RobotoMono then
+        if fontModule == nil then Util._fontFactor(font, size) end
+        local measured = fontModule and fontModule.textWidth and fontModule.textWidth(text, size, font)
+        if measured then return measured end
+    end
     local key = text .. "\0" .. tostring(size) .. "\0" .. tostring(font)
     local width = widthCache[key]
     if width then return width * Util._fontFactor(font, size) end
@@ -15099,7 +15167,6 @@ function Util.onTextMetrics(object, fn)
     return stop
 end
 -- (the UI font's width next to Gotham, set by the font module; 1 until it loads)
-local fontModule
 function Util._fontFactor(font, size)
     if fontModule == nil then
         local ok, module = pcall(require, "font")
