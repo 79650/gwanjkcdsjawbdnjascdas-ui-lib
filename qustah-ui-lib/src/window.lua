@@ -101,7 +101,7 @@ function Window:_build()
     maid:give(gui)
     self.gui = gui
     UIFont.register(gui, maid)
-    -- The window waits for the downloads (icon sheets, fonts) and opens when the download strip is done, instead of
+    -- The window waits for the downloads (icon sheets) and opens when the download strip is done, instead of
     -- showing half-drawn icons under it. CreateWindow({ WaitForDownloads = false }) opens it at once.
     if self._waitForDownloads then
         gui.Enabled = false

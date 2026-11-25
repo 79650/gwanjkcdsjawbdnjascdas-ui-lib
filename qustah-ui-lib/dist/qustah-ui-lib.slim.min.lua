@@ -7307,17 +7307,9 @@ __modules["font"]=function()
 local Util=require("util")
 local UIFont={current="Montserrat",guis={}}
 UIFont.order={"Montserrat","Ubuntu","Work Sans","Josefin Sans","Michroma"}
-UIFont.Source="https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah-ui-lib/fonts/files/"
-UIFont.Folder="QustahUI/fonts"
-UIFont.Files={
-Montserrat={Regular="Montserrat-Regular.ttf",SemiBold="Montserrat-SemiBold.ttf"},
-Ubuntu={Regular="Ubuntu-Regular.ttf",SemiBold="Ubuntu-SemiBold.ttf"},
-["Work Sans"]={Regular="WorkSans-Regular.ttf",SemiBold="WorkSans-SemiBold.ttf"},
-["Josefin Sans"]={Regular="JosefinSans-Regular.ttf",SemiBold="JosefinSans-SemiBold.ttf"},
-Michroma={Regular="Michroma-Regular.ttf"},
-}
-UIFont.Fallback={
-Montserrat="Montserrat",Ubuntu="Ubuntu",["Josefin Sans"]="JosefinSans",Michroma="Michroma",
+UIFont.Families={
+Montserrat="rbxasset://fonts/families/Montserrat.json",Ubuntu="rbxasset://fonts/families/Ubuntu.json",
+["Josefin Sans"]="rbxasset://fonts/families/JosefinSans.json",Michroma="rbxasset://fonts/families/Michroma.json",
 ["Work Sans"]="rbxassetid://12187373327",
 }
 UIFont.Fit={Michroma=1.12,["Josefin Sans"]=0.96}
@@ -7326,68 +7318,18 @@ Montserrat={regular=1.08,heavy=1.08},Ubuntu={regular=0.97,heavy=0.98},["Work San
 ["Josefin Sans"]={regular=0.9,heavy=0.92},Michroma={regular=1.32,heavy=1.32},
 }
 UIFont.measured={}
-UIFont.failed={}
 UIFont.code="RobotoMono"
 UIFont.textScale=1
-UIFont.downloaded={}
 function UIFont.available()return table.clone(UIFont.order)end
 local function isText(object)
 return object:IsA("TextLabel")or object:IsA("TextButton")or object:IsA("TextBox")
 end
 local function familyOf(name)
 name=tostring(name)
-if UIFont.downloaded[name]then return UIFont.downloaded[name]end
-local fallback=UIFont.Fallback[name]or name
-if fallback:match("^rbxasset")then return fallback end
-local ok,face=pcall(function()return Font.fromEnum(Enum.Font[fallback])end)
+local family=UIFont.Families[name]or name
+if family:match("^rbxasset")then return family end
+local ok,face=pcall(function()return Font.fromEnum(Enum.Font[family])end)
 return ok and face and face.Family or nil
-end
-local function isFont(body)
-local magic=body:sub(1,4)
-return magic=="\0\1\0\0"or magic=="true"or magic=="OTTO"
-end
-local failListeners={}
-local started=false
-function UIFont._resetDownload()started=false table.clear(UIFont.downloaded)end
-function UIFont.download()
-if started then return end
-started=true
-local files={}
-for _,name in ipairs(UIFont.order)do
-for _,file in pairs(UIFont.Files[name]or{})do
-files[#files+1]={path=UIFont.Folder.."/"..file,url=UIFont.Source..file,check=isFont}
-end
-end
-Util.cacheFiles(files,function(ids)
-local custom=getcustomasset or getsynasset
-local HttpService=Util.Services.HttpService
-for _,name in ipairs(UIFont.order)do
-local set=UIFont.Files[name]
-local regular=ids[UIFont.Folder.."/"..set.Regular]
-local heavy=set.SemiBold and ids[UIFont.Folder.."/"..set.SemiBold]or regular
-local faces={}
-for _,weight in ipairs({100,200,300,400,500,600,700,800,900})do
-faces[#faces+1]={name=tostring(weight),weight=weight,style="normal",assetId=weight<=400 and regular or heavy}
-end
-local ok,err=pcall(function()
-local path=UIFont.Folder.."/"..name:gsub(" ","")..".json"
-writefile(path,HttpService:JSONEncode({name=name,faces=faces}))
-UIFont.downloaded[name]=custom(path)
-end)
-if not ok then
-Util.log("[qustah-ui-lib] font "..name.." could not be set up: "..tostring(err))
-UIFont.failed[name]=tostring(err)
-for fn in pairs(failListeners)do Util.safe(fn,name,tostring(err))end
-end
-end
-UIFont.refresh()
-end,function(reason)
-if Util.canCustomAsset()then
-Util.log("[qustah-ui-lib] fonts could not be downloaded ("..tostring(reason).."); using Roblox's copies")
-for _,name in ipairs(UIFont.order)do UIFont.failed[name]=tostring(reason)end
-for fn in pairs(failListeners)do Util.safe(fn,UIFont.current,tostring(reason))end
-end
-end,"fonts")
 end
 local function targetFor(object,uiTarget)
 if object:GetAttribute("QFixedFont")then return nil end
@@ -7450,10 +7392,6 @@ for fn in pairs(listeners)do Util.safe(fn)end
 end)
 end
 UIFont._changed=changed
-function UIFont.onFailed(fn)
-failListeners[fn]=true
-return function()failListeners[fn]=nil end
-end
 function UIFont.widthFactor(font,size)
 local ratio=UIFont.Width[UIFont.current]
 size=tonumber(size)or 10
@@ -7530,7 +7468,6 @@ end)
 end)
 if maid then maid:give(connection)end
 task.defer(UIFont.refresh)
-UIFont.download()
 end
 return UIFont
 end
@@ -10297,12 +10234,6 @@ if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not a
 end,
 })
 UIFont.set(startFont)
-local toldFont=false
-window.maid:give(UIFont.onFailed(function(name)
-if toldFont or not window.alive then return end
-toldFont=true
-window:Notify({Title="Font",Content="Couldn't download "..tostring(name).."; Roblox's copy is used for now",Color="warning"})
-end))
 if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont)end
 local TEXT_SIZES={Small=0.9,Normal=1,Large=1.1}
 fontTab:Segment({

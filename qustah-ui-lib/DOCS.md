@@ -22,7 +22,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `ToggleKey` | `RightShift` | key that opens and closes the menu |
 | `Accent` | Qustah grey | `Color3` |
 | `Theme` | `"Charcoal"` | starting theme: `"Charcoal"`, `"Charcoal Deep"`, `"Charcoal Rose"`, `"Ice"`, `"Ash"`, `"Forest"`, `"Wine"`, `"Peach"` (see [Themes](#themes)) |
-| `WaitForDownloads` | `true` | the window stays hidden while the download strip shows (icon sheets, fonts) and opens when it is done; `false` opens it at once |
+| `WaitForDownloads` | `true` | the window stays hidden while the download strip shows (icon sheets) and opens when it is done; `false` opens it at once |
 | `DownloadTimeout` | `30` | seconds the window waits for the downloads at most |
 | `Footer` | the game's name | text in the status bar, after the status |
 | `KeyHints` | `true` | the `[RSHIFT] MENU` key cap on the right of the status bar |
@@ -799,10 +799,7 @@ The theme editor in Settings lets you:
 
 Fonts (Settings › Interface › Text): **Montserrat** (the default), **Ubuntu**, **Work Sans**, **Josefin Sans** and **Michroma** (wide, for a techy look).
 
-They are the `.ttf` files in `fonts/files`:
-- downloaded once into `QustahUI/fonts` (the download strip shows it);
-- each family is written next to them as a font JSON (Regular for light / normal text, SemiBold for medium and bold) and shown through `getcustomasset`;
-- until they are there, or where the executor has no `getcustomasset`, Roblox's own copy of the same family is used.
+They are Roblox's own font families (`Lib.Fonts.Families`: built into Roblox, Work Sans as an `rbxassetid`), so nothing is downloaded and every executor shows them.
 
 In the font list every name is drawn in its own font. Code, Console and Log text use Roblox's monospace RobotoMono, or another `Enum.Font` with `CreateWindow({ CodeFont = "Code" })`.
 
@@ -814,7 +811,7 @@ In the font list every name is drawn in its own font. Code, Console and Log text
 
 **Profile files.** A profile keeps only the settings that differ from the defaults, named in words (`"ui accent"`, `"sa enabled"`) and written as indented JSON. Loading one puts every setting it doesn't list back to its default; files with every setting or the old names load the same way.
 
-**Text widths follow the font.** `Lib.Util.textWidth(text, size, font)` measures with Gotham and scales by the chosen font's width (measured once with `TextService:GetTextBoundsAsync`, estimated until then) and by the text size setting, so buttons, tabs and pills fit their words in every font. Something you lay out by text width can size itself again when the font or text size changes: `Lib.Util.onTextMetrics(frame, function() ... end)` (stops when `frame` is destroyed). A font whose download fails shows a one-time notice and Roblox's own copy of the family is used.
+**Text widths follow the font.** `Lib.Util.textWidth(text, size, font)` measures with Gotham and scales by the chosen font's width (measured once with `TextService:GetTextBoundsAsync`, estimated until then) and by the text size setting, so buttons, tabs and pills fit their words in every font. Something you lay out by text width can size itself again when the font or text size changes: `Lib.Util.onTextMetrics(frame, function() ... end)` (stops when `frame` is destroyed).
 
 **Icons.** The lib's own icons (and Qustah's) come from its sheet in `qustah/icons`: filled icons (Solar Bold, a few Material Design Icons where Solar has none) drawn at 14, 16, 20, 24, 28 and 30 px, every pixel on or off (no grey edges), downloaded once into `QustahUI/icons` and shown through `getcustomasset` with nearest-pixel sampling. `src/icons_qustah.lua` says where each one is; `tools/qustah_icons.json` which icon is drawn for which lucide name. Any other lucide icon comes from the 16 / 32 px lucide sheets, and without `getcustomasset` from its asset id.
 
@@ -822,7 +819,7 @@ In the font list every name is drawn in its own font. Code, Console and Log text
 
 **Redrawing the sheet.** `python3 tools/gen_filled_sheet.py --iconify <icon-sets>/json --review out/` (needs Playwright's Chromium and the `json` folder of github.com/iconify/icon-sets). Each icon is drawn several ways at each size (candidates A - D); `tools/qustah_picks.json` holds the choices made by eye (`"eye@20": "C"`) and pixels fixed by hand (`"edits": { "user@14": ["6,1=1"] }`). Icons drawn by hand pixel by pixel live in `tools/qustah_drawn.json` (`"save": { "14": ["..##..", ...] }`) and replace that size outright; the other sizes are made from the drawing (doubled where they can be, fitted otherwise), so a drawn icon looks the same at every UI scale. `--review` writes contact sheets to look at; `--only eye,user` tries a few icons without writing the sheet.
 
-**Download strip.** While the library fetches files (fonts, the icon sheets, a script's own sheet) a thin strip at the top of the screen says so, with the progress. It only shows when something is really downloaded, so later starts (everything already on disk) show nothing. `Lib.Loader.enabled = false` hides it. A download that never answers is given up after `Lib.Util.downloadTimeout` (20 s) and the plain icons are used. `Lib.Icons.Preload()` starts the sharp icon download early and `Lib.Loader.Wait(30)` (before `CreateWindow`) keeps the window back until the downloads are done.
+**Download strip.** While the library fetches files (the icon sheets, a script's own sheet) a thin strip at the top of the screen says so, with the progress. It only shows when something is really downloaded, so later starts (everything already on disk) show nothing. `Lib.Loader.enabled = false` hides it. A download that never answers is given up after `Lib.Util.downloadTimeout` (20 s) and the plain icons are used. `Lib.Icons.Preload()` starts the sharp icon download early and `Lib.Loader.Wait(30)` (before `CreateWindow`) keeps the window back until the downloads are done.
 
 <p align="center"><img src="assets/screens/strip.png" alt="Download strip" width="500"></p>
 
