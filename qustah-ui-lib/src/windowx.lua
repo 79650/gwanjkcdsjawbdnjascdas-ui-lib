@@ -273,14 +273,21 @@ return function(Window)
         if cfg.FullscreenButton == true then
             self._fullscreenButton = self:HeaderButton({ Name = "Fullscreen", Icon = "maximize-2", Tooltip = "Fullscreen", Callback = function() self:ToggleFullscreen() end })
         end
-        -- double click on the header toggles fullscreen too
+        -- double click on the header toggles fullscreen too - only a real double click: two presses on the same spot
+        -- with no window move in between (grabbing the header twice quickly while dragging it around is not one)
         local header = self.main:FindFirstChild("Header")
-        local lastClick = 0
+        local lastClick, lastPoint, lastTopLeft = 0, nil, nil
         if header then
             self.maid:connect(header.InputBegan, function(input)
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-                local now = os.clock()
-                if now - lastClick < 0.3 then lastClick = 0 self:ToggleFullscreen() else lastClick = now end
+                local now, point = os.clock(), Util.pointer(input)
+                local still = lastPoint and (point - lastPoint).Magnitude < 6 and lastTopLeft == self.topLeft
+                if now - lastClick < 0.3 and still then
+                    lastClick, lastPoint, lastTopLeft = 0, nil, nil
+                    self:ToggleFullscreen()
+                else
+                    lastClick, lastPoint, lastTopLeft = now, point, self.topLeft
+                end
             end)
         end
         if cfg.Background then self:SetBackgroundImage(cfg.Background, cfg.BackgroundImageTransparency) end
