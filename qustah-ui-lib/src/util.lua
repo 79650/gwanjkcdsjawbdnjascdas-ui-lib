@@ -176,12 +176,11 @@ end
 -- Every missing file is downloaded once and kept on disk; done gets { [path] = getcustomasset id }. It runs at once
 -- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
 -- the executor can't show downloaded files or a download / check fails.
--- A slow connection gets a second and third try (the files that did arrive are on disk by then, so only the rest is
--- fetched again) before the caller falls back - one slow file no longer meant plain icons for the whole session.
-Util.downloadTimeout = 45
-Util.downloadTries = 3
-function Util.cacheFiles(files, done, fail, what, try)
-    try = try or 1
+Util.downloadTimeout = 20
+-- how many files are fetched at the same time (a burst of requests to the same host got connections reset)
+Util.downloadParallel = 2
+local activeDownloads = 0
+function Util.cacheFiles(files, done, fail, what)
     fail = fail or function() end
     if not Util.canCustomAsset() then fail("getcustomasset is not available") return end
     local custom = getcustomasset or getsynasset
@@ -202,8 +201,9 @@ function Util.cacheFiles(files, done, fail, what, try)
     if #missing == 0 then finish() return end
     -- (required here, not at the top: the strip itself is built from util)
     local job = what and require("loader").start(what, #missing)
-    -- every missing file at once (one after the other, the strip sat at 0% through the whole first sheet). An http
-    -- request reaches any host (raw.githubusercontent.com works with HttpGet too). A request that never answers
+    -- at most Util.downloadParallel files at a time, over every caller (fonts, sheets): firing them all at once got
+    -- the connections reset. An http request reaches any host (raw.githubusercontent.com works with HttpGet too).
+    -- A request that never answers
     -- would keep the strip (and whoever waits for it) forever: given up after Util.downloadTimeout seconds, the
     -- caller falls back (plain icons).
     local request = (syn and syn.request) or http_request or request
@@ -213,22 +213,12 @@ function Util.cacheFiles(files, done, fail, what, try)
         left = left - 1
         if left > 0 then return end
         if job then job.finish() end
-        if failed == nil then
-            finish()
-        elseif try < Util.downloadTries then
-            Util.log("[qustah-ui-lib] " .. (what and (tostring(what) .. ": ") or "") .. tostring(failed) .. " - trying again (" .. (try + 1) .. "/" .. Util.downloadTries .. ")")
-            -- (a job holds the strip - and a window waiting for it - through the pause)
-            local hold = what and require("loader").start(what, 1)
-            task.delay(2, function()
-                Util.cacheFiles(files, done, fail, what, try + 1)
-                if hold then hold.finish() end
-            end)
-        else
-            fail(tostring(failed))
-        end
+        if failed == nil then finish() else fail(tostring(failed)) end
     end
     for _, file in ipairs(missing) do
         task.spawn(function()
+            while activeDownloads >= Util.downloadParallel do task.wait(0.05) end
+            activeDownloads = activeDownloads + 1
             local body, finished, failure = nil, false, nil
             local worker = task.spawn(function()
                 local got, value = pcall(function()
@@ -250,6 +240,7 @@ function Util.cacheFiles(files, done, fail, what, try)
                 makeFolders(file.path)
                 writefile(file.path, body)
             end)
+            activeDownloads = activeDownloads - 1
             if ok and job then job.step() end
             settle(not ok and reason or nil)
         end)

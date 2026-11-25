@@ -42,7 +42,7 @@ function Window.new(Lib, cfg)
     }, Window)
     require("loader").setTitle(self.Title) -- the download strip says whose files these are
     self._waitForDownloads = cfg.WaitForDownloads ~= false
-    self._downloadTimeout = tonumber(cfg.DownloadTimeout) or 60
+    self._downloadTimeout = tonumber(cfg.DownloadTimeout) or 30
     -- key conflicts the script starts with are only marked; later ones also get a notification
     task.delay(3, function() self._keysSettled = true end)
 
