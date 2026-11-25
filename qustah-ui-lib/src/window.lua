@@ -56,7 +56,7 @@ function Window.new(Lib, cfg)
     end
     env.__QustahUIWindows[self.Title] = self
 
-    -- CreateWindow({ Theme = "Glass" }): the pack it starts with (Midnight otherwise; Settings › Theme changes it)
+    -- CreateWindow({ Theme = "Forest" }): the pack it starts with (Charcoal otherwise; Settings › Theme changes it)
     Theme.applyPack(Theme.packs[cfg.Theme] and cfg.Theme or Theme.defaultPack)
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
     if cfg.Secure then Util.secure = true end

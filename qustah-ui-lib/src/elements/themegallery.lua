@@ -13,7 +13,7 @@ local Icons = require("icons")
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 local TILE_HEIGHT, SHOT_HEIGHT, GAP = 78, 52, 7
 
--- a pack's colour for a role: its own, or the base palette's (Graphite brings none of its own)
+-- a pack's colour for a role: its own, or the base palette's
 local function packColor(name, role)
     local pack = Theme.packs[name]
     local own = pack and pack[role]

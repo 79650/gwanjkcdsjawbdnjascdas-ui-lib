@@ -8506,7 +8506,7 @@ local Icons = require("icons")
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
 local TILE_HEIGHT, SHOT_HEIGHT, GAP = 78, 52, 7
 
--- a pack's colour for a role: its own, or the base palette's (Graphite brings none of its own)
+-- a pack's colour for a role: its own, or the base palette's
 local function packColor(name, role)
     local pack = Theme.packs[name]
     local own = pack and pack[role]
@@ -14320,9 +14320,6 @@ end
 --   Charcoal       soft dark grey, the default     Charcoal Deep  the same, darker
 --   Charcoal Rose  Charcoal with a rose accent     Forest         dark green, mint accent
 --   Wine           dark red-brown, pink accent     Pastel Night   dark violet, lilac accent
---   Midnight       deep blue-black                 Graphite       neutral grey (Qustah 1.x)
---   Glass          see-through window and cards, light edges, the game blurred behind
---   OLED           true black                      Light          light
 -- extras.plainSelection: the selected sidebar row keeps a grey fill instead of the accent's tint.
 Theme.packs = {
     Charcoal = {
@@ -14360,38 +14357,15 @@ Theme.packs = {
         buttonEdge = rgb(78, 77, 92), text = rgb(216, 215, 232), muted = rgb(149, 146, 173), heading = rgb(228, 227, 243), knob = rgb(255, 255, 255),
         accent = rgb(203, 166, 247),
     },
-    Midnight = {
-        base = rgb(13, 14, 17), footer = rgb(11, 12, 15), dock = rgb(13, 14, 17), selected = rgb(30, 32, 39), icon = rgb(150, 155, 168),
-        card = rgb(20, 21, 26), input = rgb(25, 26, 32), hover = rgb(30, 32, 39), line = rgb(33, 35, 42), edge = rgb(31, 33, 40),
-        buttonEdge = rgb(44, 46, 55), text = rgb(196, 199, 207), muted = rgb(110, 115, 128), heading = rgb(238, 240, 244), knob = rgb(255, 255, 255),
-    },
-    Graphite = {},
-    Glass = {
-        base = rgb(14, 15, 19), footer = rgb(14, 15, 19), dock = rgb(14, 15, 19), selected = rgb(52, 55, 66), icon = rgb(170, 175, 188),
-        card = rgb(40, 43, 52), input = rgb(48, 51, 61), hover = rgb(55, 58, 69), line = rgb(78, 82, 95), edge = rgb(92, 96, 110),
-        buttonEdge = rgb(70, 74, 86), text = rgb(206, 209, 216), muted = rgb(140, 145, 158), heading = rgb(245, 246, 250), knob = rgb(255, 255, 255),
-        extras = {
-            -- (BackgroundTransparency per role: the window and dock let the game through, cards are lighter panes)
-            alpha = { base = 0.3, footer = 1, dock = 0.3, card = 0.55, input = 0.45 },
-            blur = true,
-        },
-    },
-    OLED = {
-        base = rgb(0, 0, 0), footer = rgb(0, 0, 0), dock = rgb(0, 0, 0), selected = rgb(26, 26, 28), icon = rgb(190, 190, 190),
-        card = rgb(9, 9, 10), input = rgb(17, 17, 19), hover = rgb(26, 26, 28), line = rgb(34, 34, 37), edge = rgb(36, 36, 38),
-        buttonEdge = rgb(46, 46, 50), text = rgb(176, 176, 180), muted = rgb(118, 118, 124), heading = rgb(225, 225, 230), knob = rgb(255, 255, 255),
-    },
-    Light = {
-        base = rgb(238, 238, 241), footer = rgb(229, 229, 233), dock = rgb(234, 234, 238), selected = rgb(216, 216, 222), icon = rgb(85, 85, 95),
-        card = rgb(247, 247, 249), input = rgb(231, 231, 235), hover = rgb(221, 221, 226), line = rgb(214, 214, 220), edge = rgb(200, 200, 206),
-        buttonEdge = rgb(190, 190, 198), text = rgb(62, 62, 70), muted = rgb(120, 120, 130), heading = rgb(25, 25, 30), knob = rgb(255, 255, 255),
-        success = rgb(30, 135, 70), warning = rgb(165, 105, 15), danger = rgb(190, 55, 55),
-        dangerDeep = rgb(252, 230, 230), dangerEdge = rgb(225, 150, 150), dangerText = rgb(170, 40, 40),
-        codeKeyword = rgb(135, 55, 195), codeString = rgb(35, 125, 55), codeNumber = rgb(195, 85, 35),
-        codeComment = rgb(135, 135, 145), codeGlobal = rgb(35, 95, 200), codeCall = rgb(150, 100, 0),
-    },
 }
--- Custom themes (Settings › Theme editor): a few colours, the rest derived with the same steps as Graphite (card /
+-- state and code colours that read on a light background (light custom themes take these)
+local LIGHT_STATES = {
+    success = rgb(30, 135, 70), warning = rgb(165, 105, 15), danger = rgb(190, 55, 55),
+    dangerDeep = rgb(252, 230, 230), dangerEdge = rgb(225, 150, 150), dangerText = rgb(170, 40, 40),
+    codeKeyword = rgb(135, 55, 195), codeString = rgb(35, 125, 55), codeNumber = rgb(195, 85, 35),
+    codeComment = rgb(135, 135, 145), codeGlobal = rgb(35, 95, 200), codeCall = rgb(150, 100, 0),
+}
+-- Custom themes (Settings › Theme editor): a few colours, the rest derived in fixed steps (card /
 -- input / hover / outline at fixed distances between the background and the text), then checked: text at least
 -- 4.5:1 and muted text 3:1 on cards.
 local hex = function(text) return Color3.fromRGB(tonumber(text:sub(2, 3), 16), tonumber(text:sub(4, 5), 16), tonumber(text:sub(6, 7), 16)) end
@@ -14412,16 +14386,17 @@ function Theme.makePack(p)
     for _ = 1, 10 do if contrast(pack.buttonEdge, pack.card) >= 1.35 then break end pack.buttonEdge = pack.buttonEdge:Lerp(text, 0.08) end
     return pack
 end
-Theme.packOrder = { "Charcoal", "Charcoal Deep", "Charcoal Rose", "Forest", "Wine", "Pastel Night", "Midnight", "Graphite", "Glass", "OLED", "Light" }
+Theme.packOrder = { "Charcoal", "Charcoal Deep", "Charcoal Rose", "Forest", "Wine", "Pastel Night" }
 Theme.defaultPack = "Charcoal"
 local DEFAULTS = {}
 for role, color in pairs(Theme.colors) do DEFAULTS[role] = color end
 Theme.defaults = DEFAULTS
--- The accent a pack starts with ("Neutral" preset): Light a dark grey, the others Qustah grey.
+-- The accent a pack starts with ("Neutral" preset): its own, else dark grey on a light pack and Qustah grey on a dark one.
+local NEUTRAL_DARK, NEUTRAL_LIGHT = rgb(177, 178, 183), rgb(70, 70, 80)
 function Theme.neutral(pack)
     local data = Theme.packs[pack]
     if data and data.accent then return data.accent end
-    return pack == "Light" and rgb(70, 70, 80) or rgb(177, 178, 183)
+    return (data and data.base and luminance(data.base) > 0.5) and NEUTRAL_LIGHT or NEUTRAL_DARK
 end
 
 -- Transparency per role (Glass): a surface bound to one of these roles takes its BackgroundTransparency (only
@@ -14480,7 +14455,7 @@ function Theme.applyPack(name)
     for role, color in pairs(pack) do if role ~= "accent" and typeof(color) == "Color3" then colors[role] = color end end
     -- the pack's own accent follows the pack; an accent the user picked is kept
     local accent = Theme.colors.accentUser
-    if accent == Theme.neutral(Theme.pack) or accent == Theme.neutral("Graphite") or accent == Theme.neutral("Light") then colors.accentUser = Theme.neutral(name) end
+    if accent == Theme.neutral(Theme.pack) or accent == NEUTRAL_DARK or accent == NEUTRAL_LIGHT then colors.accentUser = Theme.neutral(name) end
     Theme.pack = name
     Theme.extras = pack.extras or {}
     Theme.alpha = Theme.extras.alpha or {}
@@ -14489,7 +14464,7 @@ function Theme.applyPack(name)
     for _, listener in ipairs(extrasListeners) do Util.safe(listener, Theme.extras) end
     return true
 end
-Theme.pack = "Graphite"
+Theme.pack = "Charcoal"
 
 -- Custom themes: { base = "#101010", card = ..., accent = ... } (hex per role) <-> packs
 Theme.EDITABLE = { "base", "card", "input", "line", "text", "muted", "heading", "dock", "icon", "accent" }
@@ -14512,8 +14487,7 @@ function Theme.registerCustom(name, data)
         if data.icon then made.icon = hex(data.icon) end
         -- light custom themes get the light state / code colours
         if luminance(made.base) > 0.5 then
-            for role, color in pairs(Theme.packs.Light) do if made[role] == nil or role:match("^code") or role:match("^danger") or role == "success" or role == "warning" then made[role] = made[role] or color end end
-            for _, role in ipairs({ "success", "warning", "danger", "dangerDeep", "dangerEdge", "dangerText", "codeKeyword", "codeString", "codeNumber", "codeComment", "codeGlobal", "codeCall" }) do made[role] = Theme.packs.Light[role] end
+            for role, color in pairs(LIGHT_STATES) do made[role] = color end
         end
         made.custom = true
         return made
@@ -15808,7 +15782,7 @@ function Window.new(Lib, cfg)
     end
     env.__QustahUIWindows[self.Title] = self
 
-    -- CreateWindow({ Theme = "Glass" }): the pack it starts with (Midnight otherwise; Settings › Theme changes it)
+    -- CreateWindow({ Theme = "Forest" }): the pack it starts with (Charcoal otherwise; Settings › Theme changes it)
     Theme.applyPack(Theme.packs[cfg.Theme] and cfg.Theme or Theme.defaultPack)
     if typeof(cfg.Accent) == "Color3" then Theme.set("accent", cfg.Accent) end
     if cfg.Secure then Util.secure = true end
