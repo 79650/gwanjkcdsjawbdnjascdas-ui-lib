@@ -152,7 +152,7 @@ return function(Window)
         elseif limited then
             text, color = "Limited", YELLOW
         else
-            text, color = "Connected", GREEN
+            text, color = "Connected", "live"
         end
         self.statusText = text
         self.statusLabel.Text = text

@@ -21,7 +21,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Size`, `MinSize`, `MaxSize` | `540×390` | `Vector2`; resized from the corner, scaled down on small screens |
 | `ToggleKey` | `RightShift` | key that opens and closes the menu |
 | `Accent` | Qustah grey | `Color3` |
-| `Theme` | `"Charcoal"` | starting theme: `"Charcoal"`, `"Charcoal Deep"`, `"Charcoal Rose"`, `"Forest"`, `"Wine"`, `"Pastel Night"` (see [Themes](#themes)) |
+| `Theme` | `"Charcoal"` | starting theme: `"Charcoal"`, `"Charcoal Deep"`, `"Charcoal Rose"`, `"Ice"`, `"Ash"`, `"Forest"`, `"Wine"`, `"Peach"` (see [Themes](#themes)) |
 | `Footer` | the game's name | text in the status bar, after the status |
 | `KeyHints` | `true` | the `[RSHIFT] MENU` key cap on the right of the status bar |
 | `CloseAction` | `"Hide"` | the X button: `"Hide"` hides the menu and shows how to reopen it, `"Destroy"` unloads everything |
@@ -765,13 +765,17 @@ Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Sid
 
 ## Themes
 
-There are 6 built-in themes (`CreateWindow({ Theme = "Forest" })`, Settings › Interface › Theme):
+There are 8 built-in themes (`CreateWindow({ Theme = "Forest" })`, Settings › Interface › Theme):
 - **Charcoal** (default): soft dark grey, neutral accent
 - **Charcoal Deep**: the same, darker
 - **Charcoal Rose**: Charcoal with a rose accent (the selected sidebar row stays grey)
+- **Ice**: Charcoal Deep with an ice blue accent
+- **Ash**: lighter grey, white accent
 - **Forest**: dark green, mint accent
 - **Wine**: dark red-brown, pink accent
-- **Pastel Night**: dark violet, lilac accent
+- **Peach**: charcoal-brown, peach accent
+
+The "live" dots (footer Connected, a tab's active dot, the profile dot) take the theme's accent; when the accent is a grey they stay green. Their role is `live`.
 
 A theme can bring more than colours: `Theme.packs[name].extras` (`alpha` per colour role, `blur = true`, `plainSelection = true`).
 `Lib.Theme.extras` is the current set; `Lib.Theme.onExtras(fn)` runs when it changes.

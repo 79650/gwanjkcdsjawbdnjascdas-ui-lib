@@ -13461,7 +13461,7 @@ return function(Window)
         elseif limited then
             text, color = "Limited", YELLOW
         else
-            text, color = "Connected", GREEN
+            text, color = "Connected", "live"
         end
         self.statusText = text
         self.statusLabel.Text = text
@@ -14007,7 +14007,7 @@ end
 -- tab:SetBadge(3) / ("NEW") / (true) a dot / (nil, 0, false) hides it; color: a theme role or Color3 (default "accent").
 -- A small tag on the tab's dock button (new messages, an error, an update...).
 -- tab:SetActive(true): a small green dot at the bottom-right of the dock button, or at the right end of the row in
--- the sidebar (something in this tab is running); SetActive(false) hides it. Color: a theme role or Color3 (default "success"). Kept apart from SetBadge.
+-- the sidebar (something in this tab is running); SetActive(false) hides it. Color: a theme role or Color3 (default "live": the theme's colour). Kept apart from SetBadge.
 function Tab:SetActive(on, color)
     self.Active = on == true
     local dot = self._activeDot
@@ -14018,7 +14018,7 @@ function Tab:SetActive(on, color)
         Theme.bind(Util.stroke(dot, nil, 0, 1.5), "Color", "dock")
         self._activeDot = dot
     end
-    Theme.bind(dot, "BackgroundColor3", color or "success")
+    Theme.bind(dot, "BackgroundColor3", color or "live")
     dot.Visible = self.Active
     self:_placeDot()
 end
@@ -14194,6 +14194,10 @@ local function derive()
     -- knob / tick / text on an accent fill: whichever of the background and white reads better
     local white = Color3.new(1, 1, 1)
     colors.onAccent = contrast(colors.base, colors.accent) > contrast(white, colors.accent) and colors.base or white
+    -- "live" dots (footer Connected, sidebar tab dot, profile dot): the theme's colour, or green when the accent is a grey
+    local a = colors.accentUser or colors.accent
+    local saturated = math.max(a.R, a.G, a.B) - math.min(a.R, a.G, a.B) > 0.12
+    colors.live = saturated and colors.accent or colors.success
 end
 derive()
 
@@ -14299,7 +14303,7 @@ function Theme.set(role, color)
     if role == "accent" then role = "accentUser" end
     local before = table.clone(Theme.colors)
     Theme.colors[role] = color
-    if role == "accentUser" or role == "base" or role == "input" or role == "card" or role == "muted" or role == "text" or role == "dock" then derive() end
+    if role == "accentUser" or role == "base" or role == "input" or role == "card" or role == "muted" or role == "text" or role == "dock" or role == "success" then derive() end
     recolour(before)
     for _, listener in ipairs(listeners) do Util.safe(listener, role, color) end
 end
@@ -14319,7 +14323,8 @@ end
 -- own accent), and what else the pack brings to the window (Theme.packs[name].extras: see Theme.extras). Built in:
 --   Charcoal       soft dark grey, the default     Charcoal Deep  the same, darker
 --   Charcoal Rose  Charcoal with a rose accent     Forest         dark green, mint accent
---   Wine           dark red-brown, pink accent     Pastel Night   dark violet, lilac accent
+--   Ice            Charcoal Deep with ice blue     Ash            lighter grey, white accent
+--   Wine           dark red-brown, pink accent     Peach          charcoal-brown, peach accent
 -- extras.plainSelection: the selected sidebar row keeps a grey fill instead of the accent's tint.
 -- A pack may also bring its own success / warning / danger (footer dot, profile dot, module rows); the rest keep the defaults.
 Theme.packs = {
@@ -14341,6 +14346,20 @@ Theme.packs = {
         success = rgb(140, 212, 168), warning = rgb(232, 196, 140), danger = rgb(236, 140, 152),
         extras = { plainSelection = true }, -- (the selected sidebar row stays grey, not rose)
     },
+    Ice = {
+        base = rgb(24, 25, 27), footer = rgb(21, 22, 24), dock = rgb(24, 25, 27), selected = rgb(58, 59, 62), icon = rgb(198, 202, 207),
+        card = rgb(33, 34, 37), input = rgb(47, 49, 52), hover = rgb(58, 59, 62), line = rgb(54, 55, 58), edge = rgb(46, 47, 49),
+        buttonEdge = rgb(79, 80, 83), text = rgb(226, 229, 233), muted = rgb(146, 152, 160), heading = rgb(240, 243, 246), knob = rgb(255, 255, 255),
+        accent = rgb(184, 216, 240),
+        success = rgb(148, 220, 192), warning = rgb(230, 204, 148), danger = rgb(236, 162, 166),
+    },
+    Ash = {
+        base = rgb(35, 35, 38), footer = rgb(31, 31, 33), dock = rgb(35, 35, 38), selected = rgb(69, 69, 72), icon = rgb(203, 203, 208),
+        card = rgb(45, 45, 49), input = rgb(59, 59, 63), hover = rgb(69, 69, 72), line = rgb(65, 65, 68), edge = rgb(56, 56, 59),
+        buttonEdge = rgb(88, 88, 92), text = rgb(229, 229, 232), muted = rgb(156, 156, 164), heading = rgb(242, 242, 244), knob = rgb(255, 255, 255),
+        accent = rgb(214, 214, 220),
+        success = rgb(159, 214, 176), warning = rgb(226, 200, 150), danger = rgb(230, 160, 164),
+    },
     Forest = {
         base = rgb(20, 26, 23), footer = rgb(18, 23, 20), dock = rgb(20, 26, 23), selected = rgb(53, 61, 57), icon = rgb(194, 207, 200),
         card = rgb(28, 36, 32), input = rgb(43, 50, 46), hover = rgb(53, 61, 57), line = rgb(49, 57, 53), edge = rgb(42, 48, 45),
@@ -14355,12 +14374,12 @@ Theme.packs = {
         accent = rgb(231, 163, 179),
         success = rgb(152, 206, 160), warning = rgb(232, 184, 128), danger = rgb(240, 128, 140),
     },
-    ["Pastel Night"] = {
-        base = rgb(27, 26, 38), footer = rgb(24, 23, 33), dock = rgb(27, 26, 38), selected = rgb(59, 58, 73), icon = rgb(192, 191, 212),
-        card = rgb(36, 35, 50), input = rgb(49, 48, 64), hover = rgb(59, 58, 73), line = rgb(55, 54, 69), edge = rgb(47, 46, 58),
-        buttonEdge = rgb(78, 77, 92), text = rgb(216, 215, 232), muted = rgb(149, 146, 173), heading = rgb(228, 227, 243), knob = rgb(255, 255, 255),
-        accent = rgb(203, 166, 247),
-        success = rgb(150, 224, 186), warning = rgb(240, 206, 150), danger = rgb(243, 139, 168),
+    Peach = {
+        base = rgb(31, 26, 25), footer = rgb(27, 23, 22), dock = rgb(31, 26, 25), selected = rgb(66, 59, 57), icon = rgb(210, 198, 194),
+        card = rgb(42, 35, 33), input = rgb(56, 49, 47), hover = rgb(66, 59, 57), line = rgb(62, 55, 53), edge = rgb(52, 47, 46),
+        buttonEdge = rgb(87, 80, 77), text = rgb(234, 225, 221), muted = rgb(166, 150, 143), heading = rgb(246, 238, 235), knob = rgb(255, 255, 255),
+        accent = rgb(245, 189, 148),
+        success = rgb(166, 214, 166), warning = rgb(240, 204, 138), danger = rgb(238, 154, 152),
     },
 }
 -- state and code colours that read on a light background (light custom themes take these)
@@ -14391,7 +14410,7 @@ function Theme.makePack(p)
     for _ = 1, 10 do if contrast(pack.buttonEdge, pack.card) >= 1.35 then break end pack.buttonEdge = pack.buttonEdge:Lerp(text, 0.08) end
     return pack
 end
-Theme.packOrder = { "Charcoal", "Charcoal Deep", "Charcoal Rose", "Forest", "Wine", "Pastel Night" }
+Theme.packOrder = { "Charcoal", "Charcoal Deep", "Charcoal Rose", "Ice", "Ash", "Forest", "Wine", "Peach" }
 Theme.defaultPack = "Charcoal"
 local DEFAULTS = {}
 for role, color in pairs(Theme.colors) do DEFAULTS[role] = color end
@@ -15948,7 +15967,7 @@ function Window:_build()
         Name = "StatusDot", Image = "rbxassetid://122485335253573", BackgroundTransparency = 1, BorderSizePixel = 0,
         AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 16, 0.5, 0), Size = UDim2.fromOffset(9, 9), Parent = footer,
     })
-    Theme.bind(dot, "ImageColor3", "success")
+    Theme.bind(dot, "ImageColor3", "live")
     -- one status bar: [dot] Connected   Mock Place ........ [NUM 8] ESP / SILENT AIM   [RSHIFT] MENU
     local status = label(footer, "Connected", 10, { Name = "Status", Position = UDim2.fromOffset(31, 0), Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None })
     Theme.bind(status, "TextColor3", "text")
@@ -17261,7 +17280,7 @@ return function(Window)
             BorderSizePixel = 0, ZIndex = 45, Parent = picture,
         })
         corner(dot, 4)
-        Theme.bind(dot, "BackgroundColor3", "success")
+        Theme.bind(dot, "BackgroundColor3", "live")
         Theme.bind(stroke(dot, nil, 0, 1.5), "Color", "input")
         -- the pulse behind the dot while something runs (Window:SetProfileStatus("live"))
         local pulse = create("Frame", {
@@ -17269,7 +17288,7 @@ return function(Window)
             BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 44, Parent = dot,
         })
         corner(pulse, 8)
-        Theme.bind(pulse, "BackgroundColor3", "success")
+        Theme.bind(pulse, "BackgroundColor3", "live")
         self._profileDot, self._profilePulse = dot, pulse
         local name = Util.label(card, player.DisplayName, 11, {
             Name = "Name", Position = UDim2.fromOffset(40, 6), Size = UDim2.new(1, -66, 0, 15), Font = Enum.Font.GothamBold, ZIndex = 43,
@@ -17326,7 +17345,7 @@ return function(Window)
         local dot, pulse = self._profileDot, self._profilePulse
         if not dot or state == self._profileStatus then return end
         self._profileStatus = state
-        Theme.tweenTo(dot, "BackgroundColor3", state == "waiting" and "warning" or state == "idle" and "muted" or "success", 0.2)
+        Theme.tweenTo(dot, "BackgroundColor3", state == "waiting" and "warning" or state == "idle" and "muted" or "live", 0.2)
         if self._profilePulseTween then self._profilePulseTween:Cancel() self._profilePulseTween = nil end
         pulse.Size, pulse.BackgroundTransparency = UDim2.fromOffset(8, 8), 1
         if state == "live" then

@@ -217,7 +217,7 @@ function Window:_build()
         Name = "StatusDot", Image = "rbxassetid://122485335253573", BackgroundTransparency = 1, BorderSizePixel = 0,
         AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 16, 0.5, 0), Size = UDim2.fromOffset(9, 9), Parent = footer,
     })
-    Theme.bind(dot, "ImageColor3", "success")
+    Theme.bind(dot, "ImageColor3", "live")
     -- one status bar: [dot] Connected   Mock Place ........ [NUM 8] ESP / SILENT AIM   [RSHIFT] MENU
     local status = label(footer, "Connected", 10, { Name = "Status", Position = UDim2.fromOffset(31, 0), Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None })
     Theme.bind(status, "TextColor3", "text")

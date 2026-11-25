@@ -525,7 +525,7 @@ end
 -- tab:SetBadge(3) / ("NEW") / (true) a dot / (nil, 0, false) hides it; color: a theme role or Color3 (default "accent").
 -- A small tag on the tab's dock button (new messages, an error, an update...).
 -- tab:SetActive(true): a small green dot at the bottom-right of the dock button, or at the right end of the row in
--- the sidebar (something in this tab is running); SetActive(false) hides it. Color: a theme role or Color3 (default "success"). Kept apart from SetBadge.
+-- the sidebar (something in this tab is running); SetActive(false) hides it. Color: a theme role or Color3 (default "live": the theme's colour). Kept apart from SetBadge.
 function Tab:SetActive(on, color)
     self.Active = on == true
     local dot = self._activeDot
@@ -536,7 +536,7 @@ function Tab:SetActive(on, color)
         Theme.bind(Util.stroke(dot, nil, 0, 1.5), "Color", "dock")
         self._activeDot = dot
     end
-    Theme.bind(dot, "BackgroundColor3", color or "success")
+    Theme.bind(dot, "BackgroundColor3", color or "live")
     dot.Visible = self.Active
     self:_placeDot()
 end

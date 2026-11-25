@@ -139,7 +139,7 @@ return function(Window)
             BorderSizePixel = 0, ZIndex = 45, Parent = picture,
         })
         corner(dot, 4)
-        Theme.bind(dot, "BackgroundColor3", "success")
+        Theme.bind(dot, "BackgroundColor3", "live")
         Theme.bind(stroke(dot, nil, 0, 1.5), "Color", "input")
         -- the pulse behind the dot while something runs (Window:SetProfileStatus("live"))
         local pulse = create("Frame", {
@@ -147,7 +147,7 @@ return function(Window)
             BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 44, Parent = dot,
         })
         corner(pulse, 8)
-        Theme.bind(pulse, "BackgroundColor3", "success")
+        Theme.bind(pulse, "BackgroundColor3", "live")
         self._profileDot, self._profilePulse = dot, pulse
         local name = Util.label(card, player.DisplayName, 11, {
             Name = "Name", Position = UDim2.fromOffset(40, 6), Size = UDim2.new(1, -66, 0, 15), Font = Enum.Font.GothamBold, ZIndex = 43,
@@ -204,7 +204,7 @@ return function(Window)
         local dot, pulse = self._profileDot, self._profilePulse
         if not dot or state == self._profileStatus then return end
         self._profileStatus = state
-        Theme.tweenTo(dot, "BackgroundColor3", state == "waiting" and "warning" or state == "idle" and "muted" or "success", 0.2)
+        Theme.tweenTo(dot, "BackgroundColor3", state == "waiting" and "warning" or state == "idle" and "muted" or "live", 0.2)
         if self._profilePulseTween then self._profilePulseTween:Cancel() self._profilePulseTween = nil end
         pulse.Size, pulse.BackgroundTransparency = UDim2.fromOffset(8, 8), 1
         if state == "live" then
