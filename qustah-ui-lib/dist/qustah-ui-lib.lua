@@ -11045,16 +11045,16 @@ __modules["icons_qustah"] = function()
 -- (Solar Bold, a few Material Design Icons) at 14, 16, 20, 24, 28, 30 px, pixel for pixel with no grey edges.
 -- Downloaded once and used before the lucide sheets (icons.lua); icons are snapped to these sizes.
 return {
-    Id = "qustah", Version = 28,
-    Files = { "qustah-v28-1.png" },
-    Names = "activity,app-window,arrow-down-to-line,arrow-right,axe,ban,bed,bell,bell-off,bell-ring,blend,bookmark,box,box-expand,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-stop,circle-x,clipboard-copy,clock,clock-4,code,coins,copy,crosshair,crown,dices,dna,dock,dot,download,droplet,dumbbell,earth,ellipsis,eye,eye-off,fast-forward,flame,folder-open,footprints,frog,gamepad-2,gauge,ghost,gift,graduation-cap,hand,hand-fist,hash,hat-glasses,heading,heart,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,lightbulb,link,list,list-checks,loader,loader-circle,lock,log-in,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,record,refresh-cw,repeat,rotate-ccw,ruler,save,scan,scan-eye,scan-search,scroll,scroll-text,search,send,server,server-off,settings,settings-2,share-2,shield,shield-alert,shield-check,shirt,shuffle,skull,sliders-horizontal,soup,sparkle,sparkles,spline,square,square-check-fill,square-info-fill,square-terminal,star,star-off,sticky-note,store,sun,sword,swords,table,tag,target,target-in-sight,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,user-round,user-round-cog,users,venetian-mask,video,volume,volume-2,waypoints,wifi,wind,x,zap",
+    Id = "qustah", Version = 29,
+    Files = { "qustah-v29-1.png" },
+    Names = "activity,app-window,arrow-down-to-line,arrow-right,axe,ban,bed,bell,bell-off,bell-ring,blend,book,bookmark,box,box-expand,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-stop,circle-x,clipboard-copy,clock,clock-4,code,coins,copy,crosshair,crown,dices,dna,dock,dot,download,droplet,dumbbell,earth,ellipsis,eye,eye-off,fast-forward,flame,folder-open,footprints,frog,gamepad-2,gauge,ghost,gift,graduation-cap,hand,hand-fist,hash,hat-glasses,heading,heart,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,lightbulb,link,list,list-checks,loader,loader-circle,lock,log-in,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,record,refresh-cw,repeat,rotate-ccw,ruler,save,scan,scan-eye,scan-search,scroll,scroll-text,search,send,server,server-off,settings,settings-2,share-2,shield,shield-alert,shield-check,shirt,shuffle,skull,sliders-horizontal,soup,sparkle,sparkles,spline,square,square-check-fill,square-info-fill,square-terminal,star,star-off,sticky-note,store,sun,sword,swords,table,tag,target,target-in-sight,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,user-round,user-round-cog,users,venetian-mask,video,volume,volume-2,waypoints,wifi,wind,x,zap",
     Sizes = {
         [14] = { 1, 0, 64 },
         [16] = { 1, 48, 56 },
         [20] = { 1, 120, 46 },
-        [24] = { 1, 208, 39 },
-        [28] = { 1, 338, 34 },
-        [30] = { 1, 518, 32 },
+        [24] = { 1, 230, 39 },
+        [28] = { 1, 360, 34 },
+        [30] = { 1, 540, 32 },
     },
 }
 end
@@ -12916,10 +12916,11 @@ return function(window, cfg)
 
     ------------------------------------------------------------ info
     ------------------------------------------------------------ keys
-    -- every key the menu listens to: switches / buttons with a bind, keybinds, key hints and the menu key. A key
-    -- used twice is marked (!); a click on a row opens the setting it belongs to.
+    -- every key the menu listens to: switches / buttons with a bind, keybinds (unbound ones too, so they can be set
+    -- here), key hints and the menu key. A key used twice is marked (!). A click on a row waits for a new key for it
+    -- (Escape: keep the old one, Backspace: no key).
     do
-        local card = keysPage:Card({ Title = "Keys", Icon = "keyboard", Wide = true, Desc = "Every bound key" })
+        local card = keysPage:Card({ Title = "Keys", Icon = "keyboard", Wide = true, Desc = "Click a key to change it" })
         local list
         local rows = {}
         local function where(element)
@@ -12928,6 +12929,13 @@ return function(window, cfg)
             local owner = page and page.tab
             if not owner then return "" end
             return #owner.Pages > 1 and (owner.Title .. " › " .. page.Name) or owner.Title
+        end
+        -- (the card's title in front when the element's own one says little: "Click to Teleport › Keys")
+        local function titleOf(element)
+            local title = tostring(element.ListTitle or element.Title or element.Type or "Key")
+            local cardTitle = element.Card and element.Card.title
+            if type(cardTitle) == "string" and cardTitle ~= "" and cardTitle ~= title and #title <= 8 then title = cardTitle .. " › " .. title end
+            return title
         end
         local function refresh()
             local conflicts = window:GetKeyConflicts()
@@ -12940,17 +12948,25 @@ return function(window, cfg)
                         name = Util.keyName(element.Chord[1]) .. " + " .. Util.keyName(element.Chord[2])
                     end
                     if name ~= "None" then
-                        -- (the card's title in front when the element's own one says little: "Click to Teleport › Keys")
-                        local title = tostring(element.ListTitle or element.Title or element.Type or "Key")
-                        local cardTitle = element.Card and element.Card.title
-                        if type(cardTitle) == "string" and cardTitle ~= "" and cardTitle ~= title and #title <= 8 then title = cardTitle .. " › " .. title end
-                        rows[#rows + 1] = { key = name, title = title, place = where(element), element = element,
+                        rows[#rows + 1] = { key = name, title = titleOf(element), place = where(element), element = element,
                             clash = conflicts[name] ~= nil }
                     end
                 end
             end
+            -- keybinds without a key yet, so they can be given one here
+            for _, element in pairs(window.flags) do
+                if element.Type == "Keybind" and element.Value == nil and element.Row and element.Row.Parent
+                    and not (type(element.Flag) == "string" and element.Flag:sub(1, 2) == "__") then
+                    rows[#rows + 1] = { key = "—", title = titleOf(element), place = where(element), element = element }
+                end
+            end
             if conflicts[Util.keyName(window.key)] then rows[1].clash = true end
-            table.sort(rows, function(a, b) if a.key ~= b.key then return a.key < b.key end return a.title < b.title end)
+            -- bound keys first (A-Z), the unbound ones after them
+            table.sort(rows, function(a, b)
+                if (a.key == "—") ~= (b.key == "—") then return b.key == "—" end
+                if a.key ~= b.key then return a.key < b.key end
+                return a.title < b.title
+            end)
             local items, clashes = {}, {}
             for _, row in ipairs(rows) do
                 items[#items + 1] = { (row.clash and "! " or "") .. row.key, row.title, row.place }
@@ -12958,20 +12974,38 @@ return function(window, cfg)
             end
             local count = 0
             for _ in pairs(clashes) do count = count + 1 end
-            card:SetDesc(#rows .. " keys" .. (count > 0 and (" · " .. count .. " used twice (!)") or " · no key used twice"))
+            card:SetDesc("Click a key to change it" .. (count > 0 and (" · " .. count .. " used twice (!)") or ""))
             list:SetItems(items)
         end
+        -- the new key for a row: the menu key through Settings' own Menu key, a keybind its value, a switch / button
+        -- its bind
+        local function rebind(row, key)
+            local element = row.element
+            if not element then
+                local menuKeyElement = window.flags.__ui_menu_key
+                if key == nil then return end -- (the menu always keeps a key)
+                if menuKeyElement then menuKeyElement:Set(key) else window:SetToggleKey(key) end
+            elseif element.Type == "Keybind" then
+                element:Set(key)
+            elseif element.SetBind then
+                element:SetBind(key)
+            end
+        end
         list = card:Table({
-            Height = 230, Search = true, Columns = { { Title = "Key", Width = 0.26 }, { Title = "Setting", Width = 0.4 }, "Where" },
+            Height = 140, Columns = { { Title = "Key", Width = 0.26 }, { Title = "Setting", Width = 0.4 }, "Where" },
             Items = {},
             RowColor = function(row) return tostring(row[1]):sub(1, 2) == "! " and "danger" or nil end,
             OnRowClick = function(_, index)
                 local row = rows[index]
-                local element = row and row.element
-                local page = element and element.Card and element.Card.page
-                if not page then return end
-                page.tab:Select() page:Select()
-                task.defer(function() pcall(element.Flash, element) end)
+                if not row or (row.element and row.element.Chord) then return end -- (a two-key chord is set on its own row)
+                list:UpdateRow(index, { "Press a key...", row.title, row.place })
+                window._capture = function(key)
+                    if key == Enum.KeyCode.Escape then refresh() return end
+                    if key == Enum.KeyCode.Backspace then key = nil end
+                    if row.element and key == window.key then refresh() return end -- the menu key stays the menu key
+                    pcall(rebind, row, key)
+                    refresh()
+                end
             end,
         })
         -- (filled when the page opens, and again after a key changes while it is open)
@@ -13100,7 +13134,7 @@ return function(window, cfg)
     update()
     -- this session: how long, the script's own counters (Window:Count), Lua memory
     window._startedAt = window._startedAt or os.clock()
-    local sessionCard = infoPage:Card({ Title = "This session", Side = "Right", Icon = "timer" })
+    local sessionCard = infoPage:Card({ Title = "This session", Side = "Right", Icon = "book" })
     local uptimeRow = sessionCard:Info({ Title = "Running for", Value = "0s" })
     local countRows = {}
     local memoryRow = sessionCard:Info({ Title = "Lua memory", Value = "--" })
