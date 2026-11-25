@@ -205,6 +205,7 @@ end
 --   Charcoal Rose  Charcoal with a rose accent     Forest         dark green, mint accent
 --   Wine           dark red-brown, pink accent     Pastel Night   dark violet, lilac accent
 -- extras.plainSelection: the selected sidebar row keeps a grey fill instead of the accent's tint.
+-- A pack may also bring its own success / warning / danger (footer dot, profile dot, module rows); the rest keep the defaults.
 Theme.packs = {
     Charcoal = {
         base = rgb(27, 27, 30), footer = rgb(24, 24, 26), dock = rgb(27, 27, 30), selected = rgb(61, 61, 64), icon = rgb(200, 200, 204),
@@ -221,6 +222,7 @@ Theme.packs = {
         card = rgb(36, 36, 40), input = rgb(50, 50, 54), hover = rgb(61, 61, 64), line = rgb(57, 57, 60), edge = rgb(48, 48, 51),
         buttonEdge = rgb(81, 81, 85), text = rgb(228, 228, 231), muted = rgb(148, 148, 155), heading = rgb(242, 242, 244), knob = rgb(255, 255, 255),
         accent = rgb(236, 159, 178),
+        success = rgb(140, 212, 168), warning = rgb(232, 196, 140), danger = rgb(236, 140, 152),
         extras = { plainSelection = true }, -- (the selected sidebar row stays grey, not rose)
     },
     Forest = {
@@ -228,22 +230,25 @@ Theme.packs = {
         card = rgb(28, 36, 32), input = rgb(43, 50, 46), hover = rgb(53, 61, 57), line = rgb(49, 57, 53), edge = rgb(42, 48, 45),
         buttonEdge = rgb(74, 82, 78), text = rgb(222, 231, 226), muted = rgb(142, 163, 152), heading = rgb(236, 243, 239), knob = rgb(255, 255, 255),
         accent = rgb(143, 209, 168),
+        success = rgb(143, 209, 168), warning = rgb(222, 196, 128), danger = rgb(226, 138, 128),
     },
     Wine = {
         base = rgb(30, 21, 24), footer = rgb(26, 18, 21), dock = rgb(30, 21, 24), selected = rgb(66, 54, 58), icon = rgb(211, 195, 201),
         card = rgb(41, 29, 33), input = rgb(55, 43, 47), hover = rgb(66, 54, 58), line = rgb(62, 50, 54), edge = rgb(52, 42, 46),
         buttonEdge = rgb(86, 75, 78), text = rgb(234, 222, 226), muted = rgb(168, 145, 154), heading = rgb(246, 236, 239), knob = rgb(255, 255, 255),
         accent = rgb(231, 163, 179),
+        success = rgb(152, 206, 160), warning = rgb(232, 184, 128), danger = rgb(240, 128, 140),
     },
     ["Pastel Night"] = {
         base = rgb(27, 26, 38), footer = rgb(24, 23, 33), dock = rgb(27, 26, 38), selected = rgb(59, 58, 73), icon = rgb(192, 191, 212),
         card = rgb(36, 35, 50), input = rgb(49, 48, 64), hover = rgb(59, 58, 73), line = rgb(55, 54, 69), edge = rgb(47, 46, 58),
         buttonEdge = rgb(78, 77, 92), text = rgb(216, 215, 232), muted = rgb(149, 146, 173), heading = rgb(228, 227, 243), knob = rgb(255, 255, 255),
         accent = rgb(203, 166, 247),
+        success = rgb(150, 224, 186), warning = rgb(240, 206, 150), danger = rgb(243, 139, 168),
     },
 }
 -- state and code colours that read on a light background (light custom themes take these)
-local LIGHT_STATES = {
+local lightStates = {
     success = rgb(30, 135, 70), warning = rgb(165, 105, 15), danger = rgb(190, 55, 55),
     dangerDeep = rgb(252, 230, 230), dangerEdge = rgb(225, 150, 150), dangerText = rgb(170, 40, 40),
     codeKeyword = rgb(135, 55, 195), codeString = rgb(35, 125, 55), codeNumber = rgb(195, 85, 35),
@@ -276,11 +281,11 @@ local DEFAULTS = {}
 for role, color in pairs(Theme.colors) do DEFAULTS[role] = color end
 Theme.defaults = DEFAULTS
 -- The accent a pack starts with ("Neutral" preset): its own, else dark grey on a light pack and Qustah grey on a dark one.
-local NEUTRAL_DARK, NEUTRAL_LIGHT = rgb(177, 178, 183), rgb(70, 70, 80)
+local neutralDark, neutralLight = rgb(177, 178, 183), rgb(70, 70, 80)
 function Theme.neutral(pack)
     local data = Theme.packs[pack]
     if data and data.accent then return data.accent end
-    return (data and data.base and luminance(data.base) > 0.5) and NEUTRAL_LIGHT or NEUTRAL_DARK
+    return (data and data.base and luminance(data.base) > 0.5) and neutralLight or neutralDark
 end
 
 -- Transparency per role (Glass): a surface bound to one of these roles takes its BackgroundTransparency (only
@@ -339,7 +344,7 @@ function Theme.applyPack(name)
     for role, color in pairs(pack) do if role ~= "accent" and typeof(color) == "Color3" then colors[role] = color end end
     -- the pack's own accent follows the pack; an accent the user picked is kept
     local accent = Theme.colors.accentUser
-    if accent == Theme.neutral(Theme.pack) or accent == NEUTRAL_DARK or accent == NEUTRAL_LIGHT then colors.accentUser = Theme.neutral(name) end
+    if accent == Theme.neutral(Theme.pack) or accent == neutralDark or accent == neutralLight then colors.accentUser = Theme.neutral(name) end
     Theme.pack = name
     Theme.extras = pack.extras or {}
     Theme.alpha = Theme.extras.alpha or {}
@@ -371,7 +376,7 @@ function Theme.registerCustom(name, data)
         if data.icon then made.icon = hex(data.icon) end
         -- light custom themes get the light state / code colours
         if luminance(made.base) > 0.5 then
-            for role, color in pairs(LIGHT_STATES) do made[role] = color end
+            for role, color in pairs(lightStates) do made[role] = color end
         end
         made.custom = true
         return made
