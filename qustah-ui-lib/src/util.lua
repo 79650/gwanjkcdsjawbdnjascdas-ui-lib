@@ -177,9 +177,6 @@ end
 -- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
 -- the executor can't show downloaded files or a download / check fails.
 Util.downloadTimeout = 20
--- how many files are fetched at the same time (a burst of requests to the same host got connections reset)
-Util.downloadParallel = 2
-local activeDownloads = 0
 function Util.cacheFiles(files, done, fail, what)
     fail = fail or function() end
     if not Util.canCustomAsset() then fail("getcustomasset is not available") return end
@@ -201,9 +198,8 @@ function Util.cacheFiles(files, done, fail, what)
     if #missing == 0 then finish() return end
     -- (required here, not at the top: the strip itself is built from util)
     local job = what and require("loader").start(what, #missing)
-    -- at most Util.downloadParallel files at a time, over every caller (fonts, sheets): firing them all at once got
-    -- the connections reset. An http request reaches any host (raw.githubusercontent.com works with HttpGet too).
-    -- A request that never answers
+    -- every missing file at once (one after the other, the strip sat at 0% through the whole first sheet). An http
+    -- request reaches any host (raw.githubusercontent.com works with HttpGet too). A request that never answers
     -- would keep the strip (and whoever waits for it) forever: given up after Util.downloadTimeout seconds, the
     -- caller falls back (plain icons).
     local request = (syn and syn.request) or http_request or request
@@ -217,8 +213,6 @@ function Util.cacheFiles(files, done, fail, what)
     end
     for _, file in ipairs(missing) do
         task.spawn(function()
-            while activeDownloads >= Util.downloadParallel do task.wait(0.05) end
-            activeDownloads = activeDownloads + 1
             local body, finished, failure = nil, false, nil
             local worker = task.spawn(function()
                 local got, value = pcall(function()
@@ -240,7 +234,6 @@ function Util.cacheFiles(files, done, fail, what)
                 makeFolders(file.path)
                 writefile(file.path, body)
             end)
-            activeDownloads = activeDownloads - 1
             if ok and job then job.step() end
             settle(not ok and reason or nil)
         end)

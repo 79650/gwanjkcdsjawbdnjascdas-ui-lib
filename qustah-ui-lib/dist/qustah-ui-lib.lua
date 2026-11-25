@@ -9401,45 +9401,46 @@ local function isFont(body)
 end
 -- callbacks told when a font could not be set up (UIFont.onFailed); declared before download() uses them
 local failListeners = {}
-local started = {}
+local started = false
 -- (tests) start over: forget the downloaded fonts
-function UIFont._resetDownload() table.clear(started) table.clear(UIFont.downloaded) end
--- Downloads one font (its Regular and SemiBold files, ~300 KB), only when it is the one in use: the others come when
--- they are picked in Settings. UIFont.download() fetches the current font.
-function UIFont.download(name)
-    name = tostring(name or UIFont.current)
-    local set = UIFont.Files[name]
-    if not set or started[name] then return end
-    started[name] = true
+function UIFont._resetDownload() started = false table.clear(UIFont.downloaded) end
+function UIFont.download()
+    if started then return end
+    started = true
     local files = {}
-    for _, file in pairs(set) do
-        files[#files + 1] = { path = UIFont.Folder .. "/" .. file, url = UIFont.Source .. file, check = isFont }
+    for _, name in ipairs(UIFont.order) do
+        for _, file in pairs(UIFont.Files[name] or {}) do
+            files[#files + 1] = { path = UIFont.Folder .. "/" .. file, url = UIFont.Source .. file, check = isFont }
+        end
     end
     Util.cacheFiles(files, function(ids)
         local custom = getcustomasset or getsynasset
         local HttpService = Util.Services.HttpService
-        local regular = ids[UIFont.Folder .. "/" .. set.Regular]
-        local heavy = set.SemiBold and ids[UIFont.Folder .. "/" .. set.SemiBold] or regular
-        local faces = {}
-        for _, weight in ipairs({ 100, 200, 300, 400, 500, 600, 700, 800, 900 }) do
-            faces[#faces + 1] = { name = tostring(weight), weight = weight, style = "normal", assetId = weight <= 400 and regular or heavy }
-        end
-        local ok, err = pcall(function()
-            local path = UIFont.Folder .. "/" .. name:gsub(" ", "") .. ".json"
-            writefile(path, HttpService:JSONEncode({ name = name, faces = faces }))
-            UIFont.downloaded[name] = custom(path)
-        end)
-        if not ok then
-            Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err))
-            UIFont.failed[name] = tostring(err)
-            for fn in pairs(failListeners) do Util.safe(fn, name, tostring(err)) end
+        for _, name in ipairs(UIFont.order) do
+            local set = UIFont.Files[name]
+            local regular = ids[UIFont.Folder .. "/" .. set.Regular]
+            local heavy = set.SemiBold and ids[UIFont.Folder .. "/" .. set.SemiBold] or regular
+            local faces = {}
+            for _, weight in ipairs({ 100, 200, 300, 400, 500, 600, 700, 800, 900 }) do
+                faces[#faces + 1] = { name = tostring(weight), weight = weight, style = "normal", assetId = weight <= 400 and regular or heavy }
+            end
+            local ok, err = pcall(function()
+                local path = UIFont.Folder .. "/" .. name:gsub(" ", "") .. ".json"
+                writefile(path, HttpService:JSONEncode({ name = name, faces = faces }))
+                UIFont.downloaded[name] = custom(path)
+            end)
+            if not ok then
+                Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err))
+                UIFont.failed[name] = tostring(err)
+                for fn in pairs(failListeners) do Util.safe(fn, name, tostring(err)) end
+            end
         end
         UIFont.refresh()
     end, function(reason)
         if Util.canCustomAsset() then
-            Util.log("[qustah-ui-lib] font " .. name .. " could not be downloaded (" .. tostring(reason) .. "); using Roblox's copy")
-            UIFont.failed[name] = tostring(reason)
-            for fn in pairs(failListeners) do Util.safe(fn, name, tostring(reason)) end
+            Util.log("[qustah-ui-lib] fonts could not be downloaded (" .. tostring(reason) .. "); using Roblox's copies")
+            for _, name in ipairs(UIFont.order) do UIFont.failed[name] = tostring(reason) end
+            for fn in pairs(failListeners) do Util.safe(fn, UIFont.current, tostring(reason)) end
         end
     end, "fonts")
 end
@@ -9583,7 +9584,6 @@ function UIFont.set(name)
     name = tostring(name or "Montserrat")
     if not table.find(UIFont.order, name) or not familyOf(name) then return false end
     UIFont.current = name
-    UIFont.download(name)
     UIFont.refresh()
     return true
 end
@@ -10472,20 +10472,12 @@ local function redrawSharp()
     for image, name in pairs(sharpImages) do if name and image.Parent then pcall(applySharp, image, name) end end
 end
 
--- the lib's own sheet (~50 KB: every icon the lib itself draws, at every size)
-local ownSheet = false
-local function startOwnSheet()
-    if ownSheet then return end
-    ownSheet = true
-    if Icons.Sharp == false then return end
-    Icons.UseSheet(require("icons_qustah"), Icons.SheetSource)
-end
--- the lucide sheets (~1 MB): only once an icon is drawn that no sheet of the lib / the script has
 local function startAtlas()
-    startOwnSheet()
     if atlas.started then return end
     atlas.started = true
     if Icons.Sharp == false then return end
+    -- the lib's own sheet first (its icons at every size), the lucide sheets for every other icon
+    Icons.UseSheet(require("icons_qustah"), Icons.SheetSource)
     local files = {}
     for _, list in pairs(Atlas.Pages) do for _, file in ipairs(list) do files[#files + 1] = file end end
     loadFiles("v" .. Atlas.Version .. "-", Icons.Source .. "atlas/", files, function(ids)
@@ -10545,7 +10537,7 @@ local function sheetRect(name, pixels)
 end
 
 -- (tests) start over: forget the loaded sheets
-function Icons._resetAtlas() atlas.started, atlas.ready, atlas.pages = false, false, {} ownSheet = false table.clear(customSheets) end
+function Icons._resetAtlas() atlas.started, atlas.ready, atlas.pages = false, false, {} table.clear(customSheets) end
 Icons._atlas = atlas
 
 -- the lucide name behind an icon name ("eye", "lucide:eye"), when the sheets have it
@@ -10577,7 +10569,7 @@ local function inSheet(name)
     for _, sheet in ipairs(customSheets) do if sheet.index[name] then return true end end
     return false
 end
-Icons._sheetHas = function(name) startOwnSheet() return inSheet(name) end
+Icons._sheetHas = function(name) startAtlas() return inSheet(name) end
 local function resize(image, size)
     local old = image.Size.X.Offset
     image.Size = UDim2.fromOffset(size, size)
@@ -10685,8 +10677,7 @@ function Icons.Apply(image, name)
     if not icon then sharpImages[image] = nil return false end
     local sharp = not icon.Url and lucideName(name)
     if sharp then
-        startOwnSheet()
-        if not inSheet(sharp) then startAtlas() end
+        startAtlas()
         if sharpImages[image] == nil then
             -- a bigger / smaller menu (UI scale) can move the icon to the other sheet
             image:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
@@ -15201,9 +15192,6 @@ end
 -- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
 -- the executor can't show downloaded files or a download / check fails.
 Util.downloadTimeout = 20
--- how many files are fetched at the same time (a burst of requests to the same host got connections reset)
-Util.downloadParallel = 2
-local activeDownloads = 0
 function Util.cacheFiles(files, done, fail, what)
     fail = fail or function() end
     if not Util.canCustomAsset() then fail("getcustomasset is not available") return end
@@ -15225,9 +15213,8 @@ function Util.cacheFiles(files, done, fail, what)
     if #missing == 0 then finish() return end
     -- (required here, not at the top: the strip itself is built from util)
     local job = what and require("loader").start(what, #missing)
-    -- at most Util.downloadParallel files at a time, over every caller (fonts, sheets): firing them all at once got
-    -- the connections reset. An http request reaches any host (raw.githubusercontent.com works with HttpGet too).
-    -- A request that never answers
+    -- every missing file at once (one after the other, the strip sat at 0% through the whole first sheet). An http
+    -- request reaches any host (raw.githubusercontent.com works with HttpGet too). A request that never answers
     -- would keep the strip (and whoever waits for it) forever: given up after Util.downloadTimeout seconds, the
     -- caller falls back (plain icons).
     local request = (syn and syn.request) or http_request or request
@@ -15241,8 +15228,6 @@ function Util.cacheFiles(files, done, fail, what)
     end
     for _, file in ipairs(missing) do
         task.spawn(function()
-            while activeDownloads >= Util.downloadParallel do task.wait(0.05) end
-            activeDownloads = activeDownloads + 1
             local body, finished, failure = nil, false, nil
             local worker = task.spawn(function()
                 local got, value = pcall(function()
@@ -15264,7 +15249,6 @@ function Util.cacheFiles(files, done, fail, what)
                 makeFolders(file.path)
                 writefile(file.path, body)
             end)
-            activeDownloads = activeDownloads - 1
             if ok and job then job.step() end
             settle(not ok and reason or nil)
         end)

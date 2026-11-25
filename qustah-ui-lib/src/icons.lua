@@ -176,20 +176,12 @@ local function redrawSharp()
     for image, name in pairs(sharpImages) do if name and image.Parent then pcall(applySharp, image, name) end end
 end
 
--- the lib's own sheet (~50 KB: every icon the lib itself draws, at every size)
-local ownSheet = false
-local function startOwnSheet()
-    if ownSheet then return end
-    ownSheet = true
-    if Icons.Sharp == false then return end
-    Icons.UseSheet(require("icons_qustah"), Icons.SheetSource)
-end
--- the lucide sheets (~1 MB): only once an icon is drawn that no sheet of the lib / the script has
 local function startAtlas()
-    startOwnSheet()
     if atlas.started then return end
     atlas.started = true
     if Icons.Sharp == false then return end
+    -- the lib's own sheet first (its icons at every size), the lucide sheets for every other icon
+    Icons.UseSheet(require("icons_qustah"), Icons.SheetSource)
     local files = {}
     for _, list in pairs(Atlas.Pages) do for _, file in ipairs(list) do files[#files + 1] = file end end
     loadFiles("v" .. Atlas.Version .. "-", Icons.Source .. "atlas/", files, function(ids)
@@ -249,7 +241,7 @@ local function sheetRect(name, pixels)
 end
 
 -- (tests) start over: forget the loaded sheets
-function Icons._resetAtlas() atlas.started, atlas.ready, atlas.pages = false, false, {} ownSheet = false table.clear(customSheets) end
+function Icons._resetAtlas() atlas.started, atlas.ready, atlas.pages = false, false, {} table.clear(customSheets) end
 Icons._atlas = atlas
 
 -- the lucide name behind an icon name ("eye", "lucide:eye"), when the sheets have it
@@ -281,7 +273,7 @@ local function inSheet(name)
     for _, sheet in ipairs(customSheets) do if sheet.index[name] then return true end end
     return false
 end
-Icons._sheetHas = function(name) startOwnSheet() return inSheet(name) end
+Icons._sheetHas = function(name) startAtlas() return inSheet(name) end
 local function resize(image, size)
     local old = image.Size.X.Offset
     image.Size = UDim2.fromOffset(size, size)
@@ -389,8 +381,7 @@ function Icons.Apply(image, name)
     if not icon then sharpImages[image] = nil return false end
     local sharp = not icon.Url and lucideName(name)
     if sharp then
-        startOwnSheet()
-        if not inSheet(sharp) then startAtlas() end
+        startAtlas()
         if sharpImages[image] == nil then
             -- a bigger / smaller menu (UI scale) can move the icon to the other sheet
             image:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()

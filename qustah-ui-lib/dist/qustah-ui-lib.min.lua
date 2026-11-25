@@ -8269,20 +8269,22 @@ local magic=body:sub(1,4)
 return magic=="\0\1\0\0"or magic=="true"or magic=="OTTO"
 end
 local failListeners={}
-local started={}
-function UIFont._resetDownload()table.clear(started)table.clear(UIFont.downloaded)end
-function UIFont.download(name)
-name=tostring(name or UIFont.current)
-local set=UIFont.Files[name]
-if not set or started[name]then return end
-started[name]=true
+local started=false
+function UIFont._resetDownload()started=false table.clear(UIFont.downloaded)end
+function UIFont.download()
+if started then return end
+started=true
 local files={}
-for _,file in pairs(set)do
+for _,name in ipairs(UIFont.order)do
+for _,file in pairs(UIFont.Files[name]or{})do
 files[#files+1]={path=UIFont.Folder.."/"..file,url=UIFont.Source..file,check=isFont}
+end
 end
 Util.cacheFiles(files,function(ids)
 local custom=getcustomasset or getsynasset
 local HttpService=Util.Services.HttpService
+for _,name in ipairs(UIFont.order)do
+local set=UIFont.Files[name]
 local regular=ids[UIFont.Folder.."/"..set.Regular]
 local heavy=set.SemiBold and ids[UIFont.Folder.."/"..set.SemiBold]or regular
 local faces={}
@@ -8299,12 +8301,13 @@ Util.log("[qustah-ui-lib] font "..name.." could not be set up: "..tostring(err))
 UIFont.failed[name]=tostring(err)
 for fn in pairs(failListeners)do Util.safe(fn,name,tostring(err))end
 end
+end
 UIFont.refresh()
 end,function(reason)
 if Util.canCustomAsset()then
-Util.log("[qustah-ui-lib] font "..name.." could not be downloaded ("..tostring(reason).."); using Roblox's copy")
-UIFont.failed[name]=tostring(reason)
-for fn in pairs(failListeners)do Util.safe(fn,name,tostring(reason))end
+Util.log("[qustah-ui-lib] fonts could not be downloaded ("..tostring(reason).."); using Roblox's copies")
+for _,name in ipairs(UIFont.order)do UIFont.failed[name]=tostring(reason)end
+for fn in pairs(failListeners)do Util.safe(fn,UIFont.current,tostring(reason))end
 end
 end,"fonts")
 end
@@ -8423,7 +8426,6 @@ function UIFont.set(name)
 name=tostring(name or"Montserrat")
 if not table.find(UIFont.order,name)or not familyOf(name)then return false end
 UIFont.current=name
-UIFont.download(name)
 UIFont.refresh()
 return true
 end
@@ -9182,18 +9184,11 @@ end
 local function redrawSharp()
 for image,name in pairs(sharpImages)do if name and image.Parent then pcall(applySharp,image,name)end end
 end
-local ownSheet=false
-local function startOwnSheet()
-if ownSheet then return end
-ownSheet=true
-if Icons.Sharp==false then return end
-Icons.UseSheet(require("icons_qustah"),Icons.SheetSource)
-end
 local function startAtlas()
-startOwnSheet()
 if atlas.started then return end
 atlas.started=true
 if Icons.Sharp==false then return end
+Icons.UseSheet(require("icons_qustah"),Icons.SheetSource)
 local files={}
 for _,list in pairs(Atlas.Pages)do for _,file in ipairs(list)do files[#files+1]=file end end
 loadFiles("v"..Atlas.Version.."-",Icons.Source.."atlas/",files,function(ids)
@@ -9240,7 +9235,7 @@ end
 end
 end
 end
-function Icons._resetAtlas()atlas.started,atlas.ready,atlas.pages=false,false,{}ownSheet=false table.clear(customSheets)end
+function Icons._resetAtlas()atlas.started,atlas.ready,atlas.pages=false,false,{}table.clear(customSheets)end
 Icons._atlas=atlas
 local function lucideName(name)
 if type(name)~="string"then return nil end
@@ -9264,7 +9259,7 @@ local function inSheet(name)
 for _,sheet in ipairs(customSheets)do if sheet.index[name]then return true end end
 return false
 end
-Icons._sheetHas=function(name)startOwnSheet()return inSheet(name)end
+Icons._sheetHas=function(name)startAtlas()return inSheet(name)end
 local function resize(image,size)
 local old=image.Size.X.Offset
 image.Size=UDim2.fromOffset(size,size)
@@ -9358,8 +9353,7 @@ local icon=Icons.Get(name)
 if not icon then sharpImages[image]=nil return false end
 local sharp=not icon.Url and lucideName(name)
 if sharp then
-startOwnSheet()
-if not inSheet(sharp)then startAtlas()end
+startAtlas()
 if sharpImages[image]==nil then
 image:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 local current=sharpImages[image]
@@ -13286,8 +13280,6 @@ if not isfolder(built)then makefolder(built)end
 end
 end
 Util.downloadTimeout=20
-Util.downloadParallel=2
-local activeDownloads=0
 function Util.cacheFiles(files,done,fail,what)
 fail=fail or function()end
 if not Util.canCustomAsset()then fail("getcustomasset is not available")return end
@@ -13319,8 +13311,6 @@ if failed==nil then finish()else fail(tostring(failed))end
 end
 for _,file in ipairs(missing)do
 task.spawn(function()
-while activeDownloads>=Util.downloadParallel do task.wait(0.05)end
-activeDownloads=activeDownloads+1
 local body,finished,failure=nil,false,nil
 local worker=task.spawn(function()
 local got,value=pcall(function()
@@ -13342,7 +13332,6 @@ if file.check then assert(file.check(body),"unexpected file")end
 makeFolders(file.path)
 writefile(file.path,body)
 end)
-activeDownloads=activeDownloads-1
 if ok and job then job.step()end
 settle(not ok and reason or nil)
 end)

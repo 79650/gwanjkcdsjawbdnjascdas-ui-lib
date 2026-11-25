@@ -69,45 +69,46 @@ local function isFont(body)
 end
 -- callbacks told when a font could not be set up (UIFont.onFailed); declared before download() uses them
 local failListeners = {}
-local started = {}
+local started = false
 -- (tests) start over: forget the downloaded fonts
-function UIFont._resetDownload() table.clear(started) table.clear(UIFont.downloaded) end
--- Downloads one font (its Regular and SemiBold files, ~300 KB), only when it is the one in use: the others come when
--- they are picked in Settings. UIFont.download() fetches the current font.
-function UIFont.download(name)
-    name = tostring(name or UIFont.current)
-    local set = UIFont.Files[name]
-    if not set or started[name] then return end
-    started[name] = true
+function UIFont._resetDownload() started = false table.clear(UIFont.downloaded) end
+function UIFont.download()
+    if started then return end
+    started = true
     local files = {}
-    for _, file in pairs(set) do
-        files[#files + 1] = { path = UIFont.Folder .. "/" .. file, url = UIFont.Source .. file, check = isFont }
+    for _, name in ipairs(UIFont.order) do
+        for _, file in pairs(UIFont.Files[name] or {}) do
+            files[#files + 1] = { path = UIFont.Folder .. "/" .. file, url = UIFont.Source .. file, check = isFont }
+        end
     end
     Util.cacheFiles(files, function(ids)
         local custom = getcustomasset or getsynasset
         local HttpService = Util.Services.HttpService
-        local regular = ids[UIFont.Folder .. "/" .. set.Regular]
-        local heavy = set.SemiBold and ids[UIFont.Folder .. "/" .. set.SemiBold] or regular
-        local faces = {}
-        for _, weight in ipairs({ 100, 200, 300, 400, 500, 600, 700, 800, 900 }) do
-            faces[#faces + 1] = { name = tostring(weight), weight = weight, style = "normal", assetId = weight <= 400 and regular or heavy }
-        end
-        local ok, err = pcall(function()
-            local path = UIFont.Folder .. "/" .. name:gsub(" ", "") .. ".json"
-            writefile(path, HttpService:JSONEncode({ name = name, faces = faces }))
-            UIFont.downloaded[name] = custom(path)
-        end)
-        if not ok then
-            Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err))
-            UIFont.failed[name] = tostring(err)
-            for fn in pairs(failListeners) do Util.safe(fn, name, tostring(err)) end
+        for _, name in ipairs(UIFont.order) do
+            local set = UIFont.Files[name]
+            local regular = ids[UIFont.Folder .. "/" .. set.Regular]
+            local heavy = set.SemiBold and ids[UIFont.Folder .. "/" .. set.SemiBold] or regular
+            local faces = {}
+            for _, weight in ipairs({ 100, 200, 300, 400, 500, 600, 700, 800, 900 }) do
+                faces[#faces + 1] = { name = tostring(weight), weight = weight, style = "normal", assetId = weight <= 400 and regular or heavy }
+            end
+            local ok, err = pcall(function()
+                local path = UIFont.Folder .. "/" .. name:gsub(" ", "") .. ".json"
+                writefile(path, HttpService:JSONEncode({ name = name, faces = faces }))
+                UIFont.downloaded[name] = custom(path)
+            end)
+            if not ok then
+                Util.log("[qustah-ui-lib] font " .. name .. " could not be set up: " .. tostring(err))
+                UIFont.failed[name] = tostring(err)
+                for fn in pairs(failListeners) do Util.safe(fn, name, tostring(err)) end
+            end
         end
         UIFont.refresh()
     end, function(reason)
         if Util.canCustomAsset() then
-            Util.log("[qustah-ui-lib] font " .. name .. " could not be downloaded (" .. tostring(reason) .. "); using Roblox's copy")
-            UIFont.failed[name] = tostring(reason)
-            for fn in pairs(failListeners) do Util.safe(fn, name, tostring(reason)) end
+            Util.log("[qustah-ui-lib] fonts could not be downloaded (" .. tostring(reason) .. "); using Roblox's copies")
+            for _, name in ipairs(UIFont.order) do UIFont.failed[name] = tostring(reason) end
+            for fn in pairs(failListeners) do Util.safe(fn, UIFont.current, tostring(reason)) end
         end
     end, "fonts")
 end
@@ -251,7 +252,6 @@ function UIFont.set(name)
     name = tostring(name or "Montserrat")
     if not table.find(UIFont.order, name) or not familyOf(name) then return false end
     UIFont.current = name
-    UIFont.download(name)
     UIFont.refresh()
     return true
 end
