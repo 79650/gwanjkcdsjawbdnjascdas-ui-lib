@@ -254,6 +254,7 @@ function Card:Tabs(names, cfg)
             Name = name, AutoButtonColor = false, BorderSizePixel = 0, Text = name, TextSize = 9, Font = Enum.Font.GothamMedium,
             Size = UDim2.fromOffset(Util.textWidth(name, 9, Enum.Font.GothamMedium) + 16, 18), LayoutOrder = index, Parent = holder,
         })
+        Util.fitText(button, button, 16)
         corner(button, 9)
         buttons[name] = button
         local body = create("Frame", { Name = "Section_" .. name, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Visible = false, Parent = self.body })
@@ -349,6 +350,7 @@ function Card:Presets(list, cfg)
             Name = name, AutoButtonColor = false, BorderSizePixel = 0, Text = name, TextSize = 9, Font = Enum.Font.GothamMedium,
             Size = UDim2.fromOffset(Util.textWidth(name, 9, Enum.Font.GothamMedium) + 16, 18), LayoutOrder = order, Parent = holder,
         })
+        Util.fitText(button, button, 16)
         corner(button, 9)
         stroke(button, nil, 0.6)
         chips[name] = button
@@ -593,7 +595,8 @@ function Card:HeaderButton(cfg)
     Theme.bind(button, "BackgroundColor3", "input")
     corner(button, 6)
     Theme.bind(stroke(button, nil, 0.2), "Color", "buttonEdge")
-    local caption = label(button, text, 9, { Name = "Title", Position = UDim2.fromOffset(cfg.Icon and 22 or 8, 0), Size = UDim2.new(1, cfg.Icon and -28 or -16, 1, 0), Font = Enum.Font.GothamMedium })
+    local caption = label(button, text, 9, { Name = "Title", Position = UDim2.fromOffset(cfg.Icon and 22 or 8, 0), Size = UDim2.new(1, cfg.Icon and -28 or -16, 1, 0), Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None })
+    Util.fitText(button, caption, cfg.Icon and 30 or 16)
     Theme.bind(caption, "TextColor3", "text")
     if cfg.Icon then Icons.themed(button, cfg.Icon, 11, "text", { Name = "Icon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) }) end
     local used = right + width + 6

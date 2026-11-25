@@ -33,6 +33,13 @@ return function(card, cfg)
             Position = UDim2.new(0, x + Util.textWidth(tostring(cfg.Title or ""), 11, Enum.Font.Gotham) + 6, 0, cfg.Desc and 14 or 18) })
         tag.Size = UDim2.fromOffset(tag.Size.X.Offset, 15)
         tag:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 4)
+        -- right after the title as it is really drawn
+        local function place()
+            local width = title.TextBounds.X
+            if width > 0 then tag.Position = UDim2.new(0, x + math.ceil(width) + 6, tag.Position.Y.Scale, tag.Position.Y.Offset) end
+        end
+        title:GetPropertyChangedSignal("TextBounds"):Connect(place)
+        task.defer(place)
     end
     local desc
     if cfg.Desc then

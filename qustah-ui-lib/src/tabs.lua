@@ -570,6 +570,7 @@ function Tab:SetBadge(value, color)
         if tonumber(value) and tonumber(value) > 99 then text = "99+" end
         self._badgeText.Text = text
         badge.Size = UDim2.fromOffset(math.max(14, Util.textWidth(text, 8, Enum.Font.GothamBold) + 8), 14)
+        if not self._badgeFit then self._badgeFit = Util.fitText(badge, self._badgeText, 8, 14) end
         badge.Position = UDim2.new(1, 3, 0, -2)
     end
     badge.Visible = true

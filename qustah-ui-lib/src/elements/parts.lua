@@ -62,6 +62,7 @@ function Parts.chip(parent, text, role, iconName, props)
     end
     local text_ = label(frame, text, 9, { Name = "Text", Position = UDim2.fromOffset(x, 0), Size = UDim2.new(1, -x - 6, 1, 0), Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None })
     Theme.bind(text_, "TextColor3", role or "text")
+    Util.fitText(frame, text_, x + 16)
     local function resize(value)
         text_.Text = tostring(value)
         frame.Size = UDim2.fromOffset(Util.textWidth(text_.Text, 9, Enum.Font.GothamMedium) + x + 16, 18)

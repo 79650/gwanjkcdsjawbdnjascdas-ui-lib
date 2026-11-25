@@ -271,12 +271,14 @@ return function(card, cfg)
         baseStyle = STYLES[self.Style]
         paint(0.12)
     end
+    local badgeFit
     function element:SetBadge(text)
         local shown = text ~= nil and text ~= false and tostring(text) ~= "" and tostring(text) ~= "0"
         badge.Visible = shown
         if shown then
             badgeText.Text = tostring(text)
             badge.Size = UDim2.fromOffset(math.max(13, Util.textWidth(badgeText.Text, 8, Enum.Font.GothamBold) + 8), 13)
+            if not badgeFit then badgeFit = Util.fitText(badge, badgeText, 8, 13) end
         end
         self.Badge = shown and tostring(text) or nil
     end
@@ -447,6 +449,7 @@ return function(card, cfg)
 
     ------------------------------------------------------------ key bind
     local bindable = cfg.Bindable == true or cfg.Bind ~= nil
+    local keyFit
     function element:SetBind(key)
         key = Util.toKey(key)
         self.BindKey = key
@@ -455,6 +458,7 @@ return function(card, cfg)
         if key then
             keyText.Text = Util.keyName(key)
             keyCap.Size = UDim2.fromOffset(math.max(16, Util.textWidth(keyText.Text, 8, Enum.Font.GothamMedium) + 10), keyCap.Size.Y.Offset)
+            if not keyFit then keyFit = Util.fitText(keyCap, keyText, 10, 16, layoutRight) end
         end
         layoutRight()
     end

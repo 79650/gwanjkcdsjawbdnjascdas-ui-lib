@@ -31,14 +31,17 @@ return function(card, cfg)
     })
     corner(button, 6)
     local buttonEdge = stroke(button)
+    local box
 
-    local box = create("TextBox", {
+    box = create("TextBox", {
         Name = "Box", Text = "", PlaceholderText = tostring(cfg.Placeholder or ""), TextSize = 10, Font = Enum.Font.Gotham,
         TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, BackgroundTransparency = 1, ClipsDescendants = true,
         Position = UDim2.fromOffset(left, 0), Size = UDim2.new(1, -(left + buttonWidth + 14), 1, 0), Parent = field,
     })
     Theme.bind(box, "TextColor3", "heading")
     Theme.bind(box, "PlaceholderColor3", "muted")
+    -- the button as wide as its word is really drawn; the box takes the rest
+    Util.fitText(button, button, 26, nil, function(width) box.Size = UDim2.new(1, -(left + width + 14), 1, 0) end)
 
     local hintRow = create("Frame", { Name = "HintRow", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 14), LayoutOrder = 2, Parent = holder })
     local hintDot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 3, 0.5, 0), Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, Visible = false, Parent = hintRow })

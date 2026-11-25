@@ -269,6 +269,7 @@ function Card:Tabs(names, cfg)
             Name = name, AutoButtonColor = false, BorderSizePixel = 0, Text = name, TextSize = 9, Font = Enum.Font.GothamMedium,
             Size = UDim2.fromOffset(Util.textWidth(name, 9, Enum.Font.GothamMedium) + 16, 18), LayoutOrder = index, Parent = holder,
         })
+        Util.fitText(button, button, 16)
         corner(button, 9)
         buttons[name] = button
         local body = create("Frame", { Name = "Section_" .. name, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = self:_order(), Visible = false, Parent = self.body })
@@ -364,6 +365,7 @@ function Card:Presets(list, cfg)
             Name = name, AutoButtonColor = false, BorderSizePixel = 0, Text = name, TextSize = 9, Font = Enum.Font.GothamMedium,
             Size = UDim2.fromOffset(Util.textWidth(name, 9, Enum.Font.GothamMedium) + 16, 18), LayoutOrder = order, Parent = holder,
         })
+        Util.fitText(button, button, 16)
         corner(button, 9)
         stroke(button, nil, 0.6)
         chips[name] = button
@@ -608,7 +610,8 @@ function Card:HeaderButton(cfg)
     Theme.bind(button, "BackgroundColor3", "input")
     corner(button, 6)
     Theme.bind(stroke(button, nil, 0.2), "Color", "buttonEdge")
-    local caption = label(button, text, 9, { Name = "Title", Position = UDim2.fromOffset(cfg.Icon and 22 or 8, 0), Size = UDim2.new(1, cfg.Icon and -28 or -16, 1, 0), Font = Enum.Font.GothamMedium })
+    local caption = label(button, text, 9, { Name = "Title", Position = UDim2.fromOffset(cfg.Icon and 22 or 8, 0), Size = UDim2.new(1, cfg.Icon and -28 or -16, 1, 0), Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None })
+    Util.fitText(button, caption, cfg.Icon and 30 or 16)
     Theme.bind(caption, "TextColor3", "text")
     if cfg.Icon then Icons.themed(button, cfg.Icon, 11, "text", { Name = "Icon", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) }) end
     local used = right + width + 6
@@ -1899,14 +1902,17 @@ return function(card, cfg)
     })
     corner(button, 6)
     local buttonEdge = stroke(button)
+    local box
 
-    local box = create("TextBox", {
+    box = create("TextBox", {
         Name = "Box", Text = "", PlaceholderText = tostring(cfg.Placeholder or ""), TextSize = 10, Font = Enum.Font.Gotham,
         TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, BackgroundTransparency = 1, ClipsDescendants = true,
         Position = UDim2.fromOffset(left, 0), Size = UDim2.new(1, -(left + buttonWidth + 14), 1, 0), Parent = field,
     })
     Theme.bind(box, "TextColor3", "heading")
     Theme.bind(box, "PlaceholderColor3", "muted")
+    -- the button as wide as its word is really drawn; the box takes the rest
+    Util.fitText(button, button, 26, nil, function(width) box.Size = UDim2.new(1, -(left + width + 14), 1, 0) end)
 
     local hintRow = create("Frame", { Name = "HintRow", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 14), LayoutOrder = 2, Parent = holder })
     local hintDot = create("Frame", { Name = "Dot", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 3, 0.5, 0), Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, Visible = false, Parent = hintRow })
@@ -2784,12 +2790,14 @@ return function(card, cfg)
         baseStyle = STYLES[self.Style]
         paint(0.12)
     end
+    local badgeFit
     function element:SetBadge(text)
         local shown = text ~= nil and text ~= false and tostring(text) ~= "" and tostring(text) ~= "0"
         badge.Visible = shown
         if shown then
             badgeText.Text = tostring(text)
             badge.Size = UDim2.fromOffset(math.max(13, Util.textWidth(badgeText.Text, 8, Enum.Font.GothamBold) + 8), 13)
+            if not badgeFit then badgeFit = Util.fitText(badge, badgeText, 8, 13) end
         end
         self.Badge = shown and tostring(text) or nil
     end
@@ -2960,6 +2968,7 @@ return function(card, cfg)
 
     ------------------------------------------------------------ key bind
     local bindable = cfg.Bindable == true or cfg.Bind ~= nil
+    local keyFit
     function element:SetBind(key)
         key = Util.toKey(key)
         self.BindKey = key
@@ -2968,6 +2977,7 @@ return function(card, cfg)
         if key then
             keyText.Text = Util.keyName(key)
             keyCap.Size = UDim2.fromOffset(math.max(16, Util.textWidth(keyText.Text, 8, Enum.Font.GothamMedium) + 10), keyCap.Size.Y.Offset)
+            if not keyFit then keyFit = Util.fitText(keyCap, keyText, 10, 16, layoutRight) end
         end
         layoutRight()
     end
@@ -5439,7 +5449,11 @@ return function(card, cfg)
         local valueNeed = Util.textWidth(value.Text, 10, Enum.Font.GothamMedium)
         -- 42% for the name; less when the value needs it (never less than the name needs), more when a long name fits
         local titleWidth = width * 0.42
-        if need > titleWidth then
+        -- both fit: the name gets everything the value does not use (the value is right-aligned, so nothing moves;
+        -- an estimate a few px short no longer cuts the name: "Lua me...")
+        if need + valueNeed * 1.1 + 16 <= width then
+            titleWidth = math.max(titleWidth, width - valueNeed * 1.1 - 16)
+        elseif need > titleWidth then
             titleWidth = math.max(titleWidth, math.min(need, width - valueNeed - 8)) -- a long name takes what a short value leaves
         elseif valueNeed + 10 > width - titleWidth then
             titleWidth = math.max(need, width - valueNeed - 10) -- (a little slack: fonts measure a few px wider on some screens)
@@ -5642,6 +5656,7 @@ return function(card, cfg)
         local width = Util.textWidth(text, 10, Enum.Font.GothamMedium) + 20
         local b = create("TextButton", { Name = text, Text = text, AutoButtonColor = false, BorderSizePixel = 0, Size = UDim2.fromOffset(width, 22), TextSize = 10, Font = Enum.Font.GothamMedium, Parent = parent })
         for key, value in pairs(props or {}) do b[key] = value end
+        Util.fitText(b, b, 20)
         corner(b, 6)
         Theme.bind(b, "BackgroundColor3", "card")
         Theme.bind(b, "TextColor3", "text")
@@ -5885,16 +5900,21 @@ return function(card, cfg)
 
     local element = Base.element(card, "Keybind", cfg, row, title, desc)
     element._keyLabel, element._keyStroke = badge, outline -- (yellow on a key conflict)
-    local function show(text)
-        badge.Text = text
-        local width = math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18)
-        badge.Size = UDim2.fromOffset(width, 22)
-        -- title / description use the room the badge leaves
+    -- title / description use the room the badge leaves
+    local function leaveRoom(width)
         local reserve = math.max(width, 60) + 12
         if cfg.Help then reserve = (chordMode and 130 or 100) + 16 end
         title.Size = UDim2.new(1, -reserve, 0, title.Size.Y.Offset)
         if desc then desc.Size = UDim2.new(1, -reserve, 0, desc.Size.Y.Offset) end
     end
+    local function show(text)
+        badge.Text = text
+        local width = math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18)
+        badge.Size = UDim2.fromOffset(width, 22)
+        leaveRoom(width)
+    end
+    -- (then as wide as the key name is really drawn)
+    Util.fitText(badge, badge, 18, 48, leaveRoom)
     local function chordName(chord)
         if not chord or not chord[2] then return "None" end
         return (chord[1] and (Util.keyName(chord[1]) .. " + ") or "") .. Util.keyName(chord[2])
@@ -6050,6 +6070,13 @@ return function(card, cfg)
             Position = UDim2.new(0, x + Util.textWidth(tostring(cfg.Title or ""), 11, Enum.Font.Gotham) + 6, 0, cfg.Desc and 14 or 18) })
         tag.Size = UDim2.fromOffset(tag.Size.X.Offset, 15)
         tag:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 4)
+        -- right after the title as it is really drawn
+        local function place()
+            local width = title.TextBounds.X
+            if width > 0 then tag.Position = UDim2.new(0, x + math.ceil(width) + 6, tag.Position.Y.Scale, tag.Position.Y.Offset) end
+        end
+        title:GetPropertyChangedSignal("TextBounds"):Connect(place)
+        task.defer(place)
     end
     local desc
     if cfg.Desc then
@@ -6249,6 +6276,7 @@ function Parts.chip(parent, text, role, iconName, props)
     end
     local text_ = label(frame, text, 9, { Name = "Text", Position = UDim2.fromOffset(x, 0), Size = UDim2.new(1, -x - 6, 1, 0), Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None })
     Theme.bind(text_, "TextColor3", role or "text")
+    Util.fitText(frame, text_, x + 16)
     local function resize(value)
         text_.Text = tostring(value)
         frame.Size = UDim2.fromOffset(Util.textWidth(text_.Text, 9, Enum.Font.GothamMedium) + x + 16, 18)
@@ -7121,6 +7149,8 @@ return function(card, cfg)
         elseif style == "Pills" then
             corner(button, 12)
             button.Size = UDim2.fromOffset(Util.textWidth(option, 10, Enum.Font.GothamMedium) + 26, 24)
+            button.TextTruncate = Enum.TextTruncate.None
+            Util.fitText(button, button, 26)
         else
             button.BackgroundTransparency = 1
             if style == "Capsule" then
@@ -8130,6 +8160,13 @@ return function(card, cfg)
                 Position = UDim2.new(0, x + Util.textWidth(tostring(spec.Title or ""), 10, Enum.Font.Gotham) + 6, 0.5, 0) })
             tag.Size = UDim2.fromOffset(tag.Size.X.Offset, 15)
             tag:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 4)
+            -- right after the name as it is really drawn
+            local function place()
+                local width = title.TextBounds.X
+                if width > 0 then tag.Position = UDim2.new(0, x + math.ceil(width) + 6, 0.5, 0) end
+            end
+            title:GetPropertyChangedSignal("TextBounds"):Connect(place)
+            task.defer(place)
         end
         if spec.Tooltip then
             box.MouseEnter:Connect(function() card.window:_tip(tostring(spec.Tooltip)) end)
@@ -8993,8 +9030,16 @@ return function(card, cfg)
         Theme.bind(badge, "BackgroundColor3", "input")
         corner(badge, 6)
         Theme.bind(Util.stroke(badge, nil, 0.45), "Color", "buttonEdge")
-        local badgeText = Util.label(badge, text, 9, { Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamMedium })
+        local badgeText = Util.label(badge, text, 9, { Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None })
         Theme.bind(badgeText, "TextColor3", "muted")
+        Util.fitText(badge, badgeText, 16)
+        -- right after the title as it is really drawn
+        local function place()
+            local drawn = title.TextBounds.X
+            if drawn > 0 then badge.Position = UDim2.new(0, title.Position.X.Offset + math.ceil(drawn) + 10, 0, badge.Position.Y.Offset) end
+        end
+        title:GetPropertyChangedSignal("TextBounds"):Connect(place)
+        task.defer(place)
     end
 
     local element = Base.element(card, "Toggle", cfg, row, title, desc)
@@ -11901,6 +11946,7 @@ function Notify.show(Lib, cfg)
                 Name = text, Text = text, TextSize = 9, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
                 Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + 20, 22), LayoutOrder = index, Parent = row,
             })
+            Util.fitText(button, button, 20)
             corner(button, 6)
             local outline = stroke(button)
             if spec.Style == "Primary" or index == 1 then
@@ -12091,19 +12137,52 @@ local Icons = require("icons")
 local Parts = require("elements/parts")
 
 local create, corner, stroke, label = Util.create, Util.corner, Util.stroke, Util.label
-local RED, GREEN, YELLOW = "danger", "success", "warning" -- theme roles
+local RED, YELLOW = "danger", "warning" -- theme roles
 
 local ROW, HEAD = 30, 24
 local AUTO_W, LOAD_W, ACTIONS_W = 40, 52, 70
-local FIXED = AUTO_W + LOAD_W + ACTIONS_W
--- the columns left of the fixed ones share what is left: key, title, part, sortable
+-- the share / duplicate / delete icons show from this table width on (narrower: they stay in the right click menu)
+local ICONS_FROM = 420
+-- the columns left of the fixed ones share what is left: key, title, part, sortable, the narrowest they may get and
+-- which goes first when the table is too narrow for all of them (lowest first; the name always stays)
 local COLUMNS = {
-    { key = "name", title = "Name", part = 0.31, sort = true },
-    { key = "note", title = "Note", part = 0.27 },
-    { key = "saved", title = "Saved", part = 0.15, sort = true },
-    { key = "count", title = "Settings", part = 0.14, sort = true },
-    { key = "differs", title = "Differs", part = 0.13, sort = true },
+    { key = "name", title = "Name", part = 0.35, sort = true, min = 150, keep = 5 },
+    { key = "note", title = "Note", part = 0.23, min = 80, keep = 1 },
+    { key = "saved", title = "Saved", part = 0.15, sort = true, min = 60, keep = 4 },
+    { key = "count", title = "Settings", part = 0.14, sort = true, min = 62, keep = 3 },
+    { key = "differs", title = "Differs", part = 0.13, sort = true, min = 56, keep = 2 },
 }
+-- below this card width Create and Import sit under each other
+local STACK_BELOW = 470
+
+-- Which columns fit a table this wide and where they go: { fixed, icons, shown = { key = true }, x = {}, w = {} }
+local function columnLayout(width)
+    if not width or width < 50 then width = 600 end -- (not laid out yet)
+    local icons = width >= ICONS_FROM
+    local fixed = AUTO_W + LOAD_W + (icons and ACTIONS_W or 0)
+    local room = width - fixed - 10
+    local shown = {}
+    for _, column in ipairs(COLUMNS) do shown[column.key] = true end
+    local byKeep = table.clone(COLUMNS)
+    table.sort(byKeep, function(a, b) return a.keep < b.keep end)
+    for _, column in ipairs(byKeep) do
+        local need = 0
+        for _, other in ipairs(COLUMNS) do if shown[other.key] then need = need + other.min end end
+        if need <= room or column.key == "name" then break end
+        shown[column.key] = nil
+    end
+    local total = 0
+    for _, column in ipairs(COLUMNS) do if shown[column.key] then total = total + column.part end end
+    local x, w, at = {}, {}, 10
+    for _, column in ipairs(COLUMNS) do
+        if shown[column.key] then
+            local width_ = math.floor(room * column.part / total)
+            x[column.key], w[column.key] = at, math.max(column.min - 10, width_ - 10)
+            at = at + width_
+        end
+    end
+    return { fixed = fixed, icons = icons, shown = shown, x = x, w = w }
+end
 
 return function(window, page, defaults)
     local store = window.Config
@@ -12269,6 +12348,7 @@ return function(window, page, defaults)
             Name = text, Text = text, TextSize = 9, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
             Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + 20, 22), LayoutOrder = order, Parent = parent,
         })
+        Util.fitText(button, button, 20)
         corner(button, 6)
         local outline = stroke(button)
         if style == "Primary" then
@@ -12290,11 +12370,15 @@ return function(window, page, defaults)
 
     ------------------------------------------------------------ top: active profile, unsaved, Revert / Save
     local top = create("Frame", { Name = "Current", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 26), LayoutOrder = card:_order(), Parent = card.body })
-    local activeName = label(top, "Default", 13, { Name = "Profile", Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None, Font = Enum.Font.GothamMedium })
+    -- name and "· saved" side by side (a list layout places them by their real width); the buttons keep their room
+    local current = create("Frame", { Name = "Name", BackgroundTransparency = 1, ClipsDescendants = true, Size = UDim2.new(1, -150, 1, 0), Parent = top })
+    Util.list(current, 7, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+    local activeName = label(current, "Default", 13, { Name = "Profile", Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X, Font = Enum.Font.GothamMedium, LayoutOrder = 1 })
     Theme.bind(activeName, "TextColor3", "heading")
-    local changesButton = create("TextButton", { Name = "Changes", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 120, 1, 0), Parent = top })
-    local changesText = label(changesButton, "", 10, { Name = "Text", Size = UDim2.fromScale(1, 1) })
-    local topButtons = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(0, 200, 0, 22), Parent = top })
+    local nameLimit = create("UISizeConstraint", { MaxSize = Vector2.new(180, math.huge), Parent = activeName })
+    local changesButton = create("TextButton", { Name = "Changes", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 2, Parent = current })
+    local changesText = label(changesButton, "", 10, { Name = "Text", Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None })
+    local topButtons = create("Frame", { Name = "Buttons", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(0, 140, 0, 22), Parent = top })
     Util.list(topButtons, 6, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Right)
     smallButton(topButtons, "Revert", 1).Activated:Connect(function()
         local changes = store:Changes()
@@ -12333,7 +12417,6 @@ return function(window, page, defaults)
         local changes = store:Changes()
         changesText.Text = changes > 0 and ("· " .. changes .. " unsaved") or "· saved"
         Theme.bind(changesText, "TextColor3", changes > 0 and YELLOW or "muted")
-        changesButton.Position = UDim2.new(0, Util.textWidth(activeName.Text, 13, Enum.Font.GothamMedium) + 7, 0, 0)
     end
 
     ------------------------------------------------------------ search
@@ -12356,14 +12439,13 @@ return function(window, page, defaults)
     Theme.bind(stroke(box), "Color", "line")
     Util.list(box, 0)
 
-    -- (x, width) of a scaled column: the scaled ones share the width left of the fixed columns
+    local layout = columnLayout(0)
+    -- (x, width) of a shown column
     local function span(index)
-        local start = 0
-        for i = 1, index - 1 do start = start + COLUMNS[i].part end
-        local part = COLUMNS[index].part
-        return UDim2.new(start, -FIXED * start + 10, 0, 0), UDim2.new(part, -FIXED * part - 12, 1, 0)
+        local key = COLUMNS[index].key
+        return UDim2.fromOffset(layout.x[key] or 0, 0), UDim2.new(0, layout.w[key] or 0, 1, 0)
     end
-    local function fixedX(offset) return UDim2.new(1, -FIXED + offset, 0, 0) end
+    local function fixedX(offset) return UDim2.new(1, -layout.fixed + offset, 0, 0) end
 
     local head = create("Frame", { Name = "Head", Size = UDim2.new(1, 0, 0, HEAD), BorderSizePixel = 0, LayoutOrder = 0, Parent = box })
     Theme.bind(head, "BackgroundColor3", "input")
@@ -12373,9 +12455,18 @@ return function(window, page, defaults)
         local button = create("TextButton", { Name = column.title, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Position = position, Size = size, Parent = head })
         local text = label(button, column.title, 9, { Name = "Text", Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamMedium })
         Theme.bind(text, "TextColor3", "muted")
+        -- the sort arrow sits right after the title as it is really drawn (TextBounds), whatever the font
         local arrow = Icons.themed(button, "chevron-down", 10, "accent", { Name = "Arrow", AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, Util.textWidth(column.title, 9, Enum.Font.GothamMedium) + 2, 0.5, 0), Visible = false })
-        headers[column.key] = { text = text, arrow = arrow }
+            Position = UDim2.new(0, Util.textWidth(column.title, 9, Enum.Font.GothamMedium) + 3, 0.5, 0), Visible = false })
+        if arrow then
+            local function place()
+                local width = text.TextBounds.X
+                if width > 0 then arrow.Position = UDim2.new(0, math.ceil(width) + 3, 0.5, 0) end
+            end
+            text:GetPropertyChangedSignal("TextBounds"):Connect(place)
+            place()
+        end
+        headers[column.key] = { text = text, arrow = arrow, button = button }
         if column.sort then
             button.Activated:Connect(function()
                 if sortKey == column.key then descending = not descending
@@ -12386,6 +12477,16 @@ return function(window, page, defaults)
     end
     local autoHead = label(head, "Auto", 9, { Name = "Auto", Position = fixedX(6), Size = UDim2.new(0, AUTO_W, 1, 0), Font = Enum.Font.GothamMedium })
     Theme.bind(autoHead, "TextColor3", "muted")
+    local function placeHeaders()
+        for index, column in ipairs(COLUMNS) do
+            local header = headers[column.key]
+            local position, size = span(index)
+            header.button.Visible = layout.shown[column.key] == true
+            header.button.Position, header.button.Size = position, size
+        end
+        autoHead.Position = fixedX(6)
+    end
+    placeHeaders()
     local rowsFrame = create("Frame", { Name = "Rows", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 1, Parent = box })
     Util.list(rowsFrame, 0)
     local empty = label(card.body, "", 9, { Name = "Empty", Size = UDim2.new(1, 0, 0, 14), LayoutOrder = card:_order(), Visible = false })
@@ -12434,23 +12535,36 @@ return function(window, page, defaults)
             row.MouseLeave:Connect(function() Util.tween(row, 0.08, { BackgroundTransparency = 1 }) end)
         end
 
-        -- name: dot, name, tags
+        -- name: dot, name, tags in a row laid out by their real widths. A long name is cut ("…"); tags that do not
+        -- fit next to it are left out, the last one first.
         local position, size = span(1)
+        local cellWidth = layout.w.name or 100
         local nameCell = create("Frame", { Name = "Name", BackgroundTransparency = 1, Position = position, Size = size, ClipsDescendants = true, Parent = row })
-        local dot = create("Frame", { Name = "Dot", BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(7, 7), BackgroundColor3 = colorOf(info.name), Parent = nameCell })
+        local cellList = Util.list(nameCell, 6, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+        local dot = create("Frame", { Name = "Dot", BorderSizePixel = 0, Size = UDim2.fromOffset(7, 7), BackgroundColor3 = colorOf(info.name), LayoutOrder = 1, Parent = nameCell })
         corner(dot, 4)
-        local nameWidth = Util.textWidth(info.name, 10, Enum.Font.GothamMedium)
-        local nameText = label(nameCell, info.name, 10, { Name = "Text", Position = UDim2.fromOffset(13, 0), Size = UDim2.new(0, nameWidth + 2, 1, 0), Font = Enum.Font.GothamMedium })
+        local nameText = label(nameCell, info.name, 10, { Name = "Text", Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X, Font = Enum.Font.GothamMedium, LayoutOrder = 2 })
+        create("UISizeConstraint", { MaxSize = Vector2.new(math.max(30, cellWidth - 13), math.huge), Parent = nameText })
         Theme.bind(nameText, "TextColor3", info.active and "heading" or "text")
-        local tags = create("Frame", { Name = "Tags", BackgroundTransparency = 1, Position = UDim2.fromOffset(13 + nameWidth + 6, 0), Size = UDim2.new(1, -(19 + nameWidth), 1, 0), Parent = nameCell })
-        Util.list(tags, 3, Enum.FillDirection.Horizontal, nil, Enum.VerticalAlignment.Center)
+        local chips = {}
         for tagOrder, tag in ipairs(info.tags) do
-            local chip = Parts.chip(tags, tag[1], tag[2], nil, { LayoutOrder = tagOrder })
-            chip.Size = UDim2.fromOffset(chip.Size.X.Offset - 6, 14)
-            chip:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0, 4)
-            local text = chip:FindFirstChild("Text")
-            if text then text.TextSize = 7 text.Position = UDim2.fromOffset(5, 0) Theme.bind(text, "TextColor3", tag[2]) end
+            local chip = create("Frame", { Name = "Tag", Size = UDim2.fromOffset(0, 14), AutomaticSize = Enum.AutomaticSize.X, BorderSizePixel = 0, LayoutOrder = 2 + tagOrder, Parent = nameCell })
+            Theme.bind(chip, "BackgroundColor3", "input")
+            corner(chip, 4)
+            Theme.bind(stroke(chip, nil, 0.3), "Color", "buttonEdge")
+            Util.padding(chip, 5, 5, 0, 0)
+            local text = label(chip, tag[1], 7, { Name = "Text", Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X, Font = Enum.Font.GothamBold, TextTruncate = Enum.TextTruncate.None })
+            Theme.bind(text, "TextColor3", tag[2])
+            chips[#chips + 1] = chip
         end
+        local function fitTags()
+            if cellList.AbsoluteContentSize.X <= nameCell.AbsoluteSize.X + 1 then return end
+            for index = #chips, 1, -1 do
+                if chips[index].Visible then chips[index].Visible = false return end
+            end
+        end
+        cellList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(fitTags)
+        task.defer(fitTags)
 
         local function cell(index, text, role)
             local p, s = span(index)
@@ -12458,12 +12572,12 @@ return function(window, page, defaults)
             Theme.bind(object, "TextColor3", role)
             return object
         end
-        cell(2, info.note or "", "muted")
-        cell(3, info.when, "text")
-        cell(4, info.count and tostring(info.count) or "—", "text")
-        cell(5, info.differs and tostring(info.differs) or "—", info.active and info.differs and info.differs > 0 and YELLOW or "text")
+        if layout.shown.note then cell(2, info.note or "", "muted") end
+        if layout.shown.saved then cell(3, info.when, "text") end
+        if layout.shown.count then cell(4, info.count and tostring(info.count) or "—", "text") end
+        if layout.shown.differs then cell(5, info.differs and tostring(info.differs) or "—", info.active and info.differs and info.differs > 0 and YELLOW or "text") end
 
-        local fixed = create("Frame", { Name = "Fixed", BackgroundTransparency = 1, Position = fixedX(0), Size = UDim2.new(0, FIXED, 1, 0), Parent = row })
+        local fixed = create("Frame", { Name = "Fixed", BackgroundTransparency = 1, Position = fixedX(0), Size = UDim2.new(0, layout.fixed, 1, 0), Parent = row })
         switch(fixed, info.auto, function(on) setAuto(info.name, info.locked, on) end)
         if not info.active then
             local load = smallButton(fixed, "Load", 0)
@@ -12472,11 +12586,13 @@ return function(window, page, defaults)
             load.Size = UDim2.fromOffset(LOAD_W - 8, 20)
             load.Activated:Connect(function() loadProfile(info.name, info.locked) end)
         end
-        local x = AUTO_W + LOAD_W
-        iconButton(fixed, "share-2", x, "heading", "Share code", function() shareProfile(info.name, info.locked) end)
-        iconButton(fixed, "copy", x + 21, "heading", "Duplicate", function() duplicateProfile(info.name, info.locked) end)
-        if not info.locked then
-            iconButton(fixed, "trash-2", x + 42, RED, "Delete", function() deleteProfile(info.name) end)
+        if layout.icons then
+            local x = AUTO_W + LOAD_W
+            iconButton(fixed, "share-2", x, "heading", "Share code", function() shareProfile(info.name, info.locked) end)
+            iconButton(fixed, "copy", x + 21, "heading", "Duplicate", function() duplicateProfile(info.name, info.locked) end)
+            if not info.locked then
+                iconButton(fixed, "trash-2", x + 42, RED, "Delete", function() deleteProfile(info.name) end)
+            end
         end
 
         -- right click (long press on touch): the row's menu
@@ -12534,6 +12650,39 @@ return function(window, page, defaults)
         element.Row.Size = UDim2.new(0.5, -4, 0, 0)
     end
 
+    ------------------------------------------------------------ narrow windows
+    -- The table drops columns (Note first, then Differs, Settings, Saved) and its row icons as it gets narrower,
+    -- instead of squeezing every column into "S…"; Create and Import go under each other.
+    local bottomList = bottom:FindFirstChildOfClass("UIListLayout")
+    local stacked
+    local pending = false
+    local function relayout()
+        pending = false
+        local width = box.AbsoluteSize.X
+        local next_ = columnLayout(width)
+        local changed = next_.fixed ~= layout.fixed
+        for _, column in ipairs(COLUMNS) do
+            if next_.x[column.key] ~= layout.x[column.key] or next_.w[column.key] ~= layout.w[column.key] then changed = true end
+        end
+        if changed then
+            layout = next_
+            placeHeaders()
+            if refresh then refresh() end
+        end
+        local stack = width > 50 and width < STACK_BELOW
+        if stack ~= stacked then
+            stacked = stack
+            if bottomList then bottomList.FillDirection = stack and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal end
+            for _, element in ipairs({ create_, import }) do element.Row.Size = stack and UDim2.new(1, 0, 0, 0) or UDim2.new(0.5, -4, 0, 0) end
+        end
+        nameLimit.MaxSize = Vector2.new(math.max(60, top.AbsoluteSize.X - 150 - 90), math.huge)
+    end
+    box:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+        if pending then return end
+        pending = true
+        task.defer(relayout)
+    end)
+
     ------------------------------------------------------------ share
     -- the active profile's share code, ready to copy (paste it into Import on another PC or for a friend)
     local shareCard = page:Card({ Title = "Share Default", Icon = "share-2" })
@@ -12558,7 +12707,7 @@ return function(window, page, defaults)
             local note = locked and "Starting values" or (info.note and tostring(info.note) or nil)
             local active = (locked and store.Active == nil) or store.Active == name
             local tags = {}
-            if active then tags[#tags + 1] = { "ACTIVE", GREEN } end
+            if active then tags[#tags + 1] = { "ACTIVE", "live" } end
             if locked then tags[#tags + 1] = { "LOCKED", "muted" } end
             rows[#rows + 1] = {
                 name = name, locked = locked, active = active, note = note, time = when or 0,
@@ -12608,6 +12757,7 @@ return function(window, page, defaults)
     end
     search:GetPropertyChangedSignal("Text"):Connect(function() query = search.Text refresh() end)
     store:OnActiveChanged(function() if page.frame.Visible then refresh() end end)
+    relayout()
     refresh()
     -- files may change outside the menu - re-read when the page is shown; the change counter ticks while it is open
     page.frame:GetPropertyChangedSignal("Visible"):Connect(function() if page.frame.Visible then refresh() end end)
@@ -14052,6 +14202,7 @@ function Tab:SetBadge(value, color)
         if tonumber(value) and tonumber(value) > 99 then text = "99+" end
         self._badgeText.Text = text
         badge.Size = UDim2.fromOffset(math.max(14, Util.textWidth(text, 8, Enum.Font.GothamBold) + 8), 14)
+        if not self._badgeFit then self._badgeFit = Util.fitText(badge, self._badgeText, 8, 14) end
         badge.Position = UDim2.new(1, 3, 0, -2)
     end
     badge.Visible = true
@@ -15145,6 +15296,26 @@ function Util.textWidth(text, size, font)
     if widthCount >= 1000 then widthCache, widthCount = {}, 0 end
     widthCache[key], widthCount = width, widthCount + 1
     return width * Util._fontFactor(font, size)
+end
+-- Util.fitText(frame, text, pad, min, onFit): keeps `frame` as wide as `text` is really drawn (TextBounds) plus
+-- `pad`, at least `min`. Util.textWidth is an estimate (Gotham times the font's average ratio); capitals, digits and
+-- short words can come out a few px wider, and a chip / key cap / small button then cuts its own text. `text` must
+-- not truncate (its TextBounds would be the cut width). onFit(width) runs after a change, to move what sits next to it.
+function Util.fitText(frame, text, pad, min, onFit)
+    local function fit()
+        if not frame.Parent or text.Text == "" or frame.Size.X.Scale ~= 0 then return end
+        local bounds = text.TextBounds.X
+        if bounds <= 0 then return end
+        local width = math.max(min or 0, math.ceil(bounds) + (pad or 0))
+        if math.abs(frame.Size.X.Offset - width) < 1 then return end
+        frame.Size = UDim2.new(0, width, frame.Size.Y.Scale, frame.Size.Y.Offset)
+        if onFit then onFit(width) end
+    end
+    pcall(function() text:GetPropertyChangedSignal("TextBounds"):Connect(fit) end)
+    -- (code that sets the estimated size again - a new key, a new badge - is corrected right after)
+    pcall(function() frame:GetPropertyChangedSignal("Size"):Connect(fit) end)
+    task.defer(function() pcall(fit) end)
+    return fit
 end
 -- Util.onTextMetrics(object, fn): fn runs whenever text widths change (another font, text size, a measured font)
 -- while `object` is alive, so something laid out by Util.textWidth can size itself again.
@@ -16774,6 +16945,7 @@ function Window:KeyHint(cfg)
         badge.Text = text
         badge.Size = UDim2.fromOffset(math.max(28, Util.textWidth(text, 9, Enum.Font.GothamMedium) + 12), 18)
     end
+    Util.fitText(badge, badge, 12, 28)
     function hint:Set(key, silent)
         key = Util.toKey(key)
         if cfg.Menu and not key then key = window.key end
