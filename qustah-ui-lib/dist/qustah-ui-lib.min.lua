@@ -11169,7 +11169,8 @@ Title="Text glow",Desc="Shine on the title and highlights",Flag="__ui_glow",Defa
 Callback=function(on)Glow.setEnabled(on)end,
 })end
 local scaleDropdown
-local menu=interface:Card({Title="Behaviour",Side="Right",Icon="settings-2",Compact=simple or nil})
+local menuTabs=simple and interface:Card({Title="Menu",Side="Right",Icon="settings-2",Compact=true}):Tabs({"Behaviour","Window"})or nil
+local menu=menuTabs and menuTabs.Behaviour or interface:Card({Title="Behaviour",Side="Right",Icon="settings-2"})
 local menuKey=menu:Keybind({
 Title="Menu key",Desc="Opens and closes the menu",Flag="__ui_menu_key",Default=window.key,
 Callback=function(key)window:SetToggleKey(key)end,
@@ -11248,7 +11249,7 @@ if scaleDropdown then scaleDropdown:Set("100%",true)end
 window:Notify({Title="Interface reset",Content="The menu looks like the first time",Icon="paintbrush"})
 end,"Reset")
 end})end
-local windowCard=interface:Card({Title="Window",Side="Right",Icon="app-window",Compact=simple or nil})
+local windowCard=menuTabs and menuTabs.Window or interface:Card({Title="Window",Side="Right",Icon="app-window"})
 local windowTabs=not simple and windowCard:Tabs({"Look","Background","Overlays"})or nil
 local look2=windowTabs and windowTabs.Look or windowCard
 look2:Slider({Title="Transparency",Flag="__ui_transparency",Min=0,Max=60,Default=0,Suffix="%",

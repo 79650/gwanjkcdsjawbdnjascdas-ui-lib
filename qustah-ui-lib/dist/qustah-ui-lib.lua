@@ -12613,8 +12613,8 @@ __modules["settings"] = function()
 --   Keys       every bound key, the ones used twice in red; a click opens the setting
 --   Info       modules, executor, errors (Copy debug info / Clear), what's new, this session
 -- Simple = true: for a small script - the same four pages, Interface with the everyday settings only: an
---   Appearance card (Theme | Text tabs), Behaviour (menu key, scale, free mouse, anonymous, reset layout / unload) and
---   Window (transparency, blur) as compact cards. No dock choice: the dock stays where the script put it.
+--   Appearance card (Theme | Text tabs) and a compact Menu card with Behaviour (menu key, scale, free mouse, anonymous,
+--   reset layout / unload) and Window (transparency, blur) tabs. No dock choice: the dock stays where the script put it.
 local Util = require("util")
 local Theme = require("theme")
 local Glow = require("glow")
@@ -12720,8 +12720,9 @@ return function(window, cfg)
     }) end
 
     local scaleDropdown
-    -- (Simple: Behaviour and Window as compact cards - check boxes, shorter rows)
-    local menu = interface:Card({ Title = "Behaviour", Side = "Right", Icon = "settings-2", Compact = simple or nil })
+    -- (Simple: Behaviour and Window are the two tabs of one compact Menu card - check boxes, shorter rows)
+    local menuTabs = simple and interface:Card({ Title = "Menu", Side = "Right", Icon = "settings-2", Compact = true }):Tabs({ "Behaviour", "Window" }) or nil
+    local menu = menuTabs and menuTabs.Behaviour or interface:Card({ Title = "Behaviour", Side = "Right", Icon = "settings-2" })
     local menuKey = menu:Keybind({
         Title = "Menu key", Desc = "Opens and closes the menu", Flag = "__ui_menu_key", Default = window.key,
         Callback = function(key) window:SetToggleKey(key) end,
@@ -12807,7 +12808,7 @@ return function(window, cfg)
 
     -- Window: Look (transparency, where the tab icons and page names sit, edge glow, blur), Background (image,
     -- animated glow), Overlays
-    local windowCard = interface:Card({ Title = "Window", Side = "Right", Icon = "app-window", Compact = simple or nil })
+    local windowCard = menuTabs and menuTabs.Window or interface:Card({ Title = "Window", Side = "Right", Icon = "app-window" })
     -- (Simple: one plain card, no Background / Overlays tabs)
     local windowTabs = not simple and windowCard:Tabs({ "Look", "Background", "Overlays" }) or nil
     local look2 = windowTabs and windowTabs.Look or windowCard

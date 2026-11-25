@@ -524,7 +524,7 @@ Window:Tab({ Title = "Combat", Icon = "crosshair", Compact = true })   -- every 
 Tab:Page("Movement", { Compact = true })                               -- one page
 Page:Card({ Title = "FOV", Compact = false })                          -- a card can opt out (or in)
 Window:SettingsTab({ Compact = true })
-Window:SettingsTab({ Simple = true })   -- a small script: all four pages, Interface with the everyday settings only (Appearance with Theme | Text tabs, compact Behaviour and Window, no dock choice) (theme, font, text size, menu key, scale, free mouse, anonymous, reset layout / unload, transparency, dock, blur)
+Window:SettingsTab({ Simple = true })   -- a small script: all four pages, Interface with the everyday settings only (Appearance with Theme | Text tabs, a compact Menu card with Behaviour | Window tabs, no dock choice) (theme, font, text size, menu key, scale, free mouse, anonymous, reset layout / unload, transparency, dock, blur)
 ```
 Compact cards have tighter padding, a line under the title, 6 px shorter rows, slimmer buttons and sliders, and a check box in place of each toggle's switch (same element, same flag).
 
