@@ -64,6 +64,7 @@ return function(card, cfg)
     end
 
     local element = Base.element(card, "Toggle", cfg, row, title, desc)
+    element.Bindable = bindable -- (the Keys page lists a bindable toggle without a key, so it can get one there)
     element.Value = cfg.Default == true
 
     local function render(animate)

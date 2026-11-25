@@ -360,9 +360,10 @@ return function(window, cfg)
                     end
                 end
             end
-            -- keybinds without a key yet, so they can be given one here
+            -- keybinds and bindable switches without a key yet, so they can be given one here
             for _, element in pairs(window.flags) do
-                if element.Type == "Keybind" and element.Value == nil and element.Row and element.Row.Parent
+                local unbound = (element.Type == "Keybind" and element.Value == nil) or (element.Bindable and element.BindKey == nil)
+                if unbound and element.Row and element.Row.Parent
                     and not (type(element.Flag) == "string" and element.Flag:sub(1, 2) == "__") then
                     rows[#rows + 1] = { key = "—", title = titleOf(element), place = where(element), element = element }
                 end

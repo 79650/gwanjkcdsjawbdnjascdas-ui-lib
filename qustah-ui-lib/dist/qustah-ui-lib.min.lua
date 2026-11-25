@@ -7931,6 +7931,7 @@ local badgeText=Util.label(badge,text,9,{Size=UDim2.fromScale(1,1),TextXAlignmen
 Theme.bind(badgeText,"TextColor3","muted")
 end
 local element=Base.element(card,"Toggle",cfg,row,title,desc)
+element.Bindable=bindable
 element.Value=cfg.Default==true
 local function render(animate)
 local on=element.Value
@@ -11399,7 +11400,8 @@ end
 end
 end
 for _,element in pairs(window.flags)do
-if element.Type=="Keybind"and element.Value==nil and element.Row and element.Row.Parent
+local unbound=(element.Type=="Keybind"and element.Value==nil)or(element.Bindable and element.BindKey==nil)
+if unbound and element.Row and element.Row.Parent
 and not(type(element.Flag)=="string"and element.Flag:sub(1,2)=="__")then
 rows[#rows+1]={key="—",title=titleOf(element),place=where(element),element=element}
 end
