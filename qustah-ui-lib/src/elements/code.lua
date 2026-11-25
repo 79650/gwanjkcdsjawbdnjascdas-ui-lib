@@ -1,4 +1,6 @@
 -- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, CopyIcon = true, CopyText = true, MaxHeight = 200, Truncate = false })
+-- CopyValue = function() return text end: what Copy copies (default: the code); CopyTooltip: its tooltip.
+-- Actions = { { Icon = "trash-2", Tooltip = "Clear", Callback = fn } }: more icons in the header, left of Copy.
 -- A code block: monospace, Lua colouring (keywords, strings, numbers, comments, functions), scrolls sideways for long
 -- lines and down past MaxHeight. Copy button in the header. :Set(code).
 -- Truncate = true: one line that ends in "..." inside the box (the same room left and right) instead of scrolling -
@@ -121,11 +123,11 @@ return function(card, cfg)
             })
             local copyIcon = Icons.themed(copy, "copy", 14, "muted", { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
             local busy = false
-            copy.MouseEnter:Connect(function() if not busy and copyIcon then Theme.tweenTo(copyIcon, "ImageColor3", "heading", 0.1) end window:_tip("Copy") end)
+            copy.MouseEnter:Connect(function() if not busy and copyIcon then Theme.tweenTo(copyIcon, "ImageColor3", "heading", 0.1) end window:_tip(cfg.CopyTooltip or "Copy") end)
             copy.MouseLeave:Connect(function() if not busy and copyIcon then Theme.tweenTo(copyIcon, "ImageColor3", "muted", 0.1) end window:_hideTip() end)
             copy.Activated:Connect(function()
                 local clipboard = setclipboard or toclipboard
-                local ok = type(clipboard) == "function" and pcall(clipboard, element.Value)
+                local ok = type(clipboard) == "function" and pcall(function() clipboard(type(cfg.CopyValue) == "function" and cfg.CopyValue() or element.Value) end)
                 if ok and cfg.OnCopy then window:_safe("Code", cfg.OnCopy) end
                 if not copyIcon then return end
                 busy = true
@@ -152,7 +154,7 @@ return function(card, cfg)
             local copyIcon = withIcon and Icons.themed(copy, "copy", 10, "text", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 7, 0.5, 0) }) or nil
             copy.Activated:Connect(function()
                 local clipboard = setclipboard or toclipboard
-                local ok = type(clipboard) == "function" and pcall(clipboard, element.Value)
+                local ok = type(clipboard) == "function" and pcall(function() clipboard(type(cfg.CopyValue) == "function" and cfg.CopyValue() or element.Value) end)
                 copyText.Text = ok and "Copied" or "Failed"
                 if copyIcon then Icons.Apply(copyIcon, ok and "check" or "x") end
                 if ok and cfg.OnCopy then window:_safe("Code", cfg.OnCopy) end
@@ -162,6 +164,23 @@ return function(card, cfg)
             end)
         end
     end
+    -- more header icons, right to left from the Copy button
+    local x = cfg.Copy == false and 8 or (cfg.CopyText == false and 8 + 18 + 6 or 6 + 52 + 8)
+    element.Actions = {}
+    for index, action in ipairs(cfg.Actions or {}) do
+        local button = create("ImageButton", {
+            Name = tostring(action.Tooltip or ("Action" .. index)), Image = "", BackgroundTransparency = 1, AutoButtonColor = false,
+            AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -x, 0.5, 0), Size = UDim2.fromOffset(18, 18), Parent = head,
+        })
+        local icon = Icons.themed(button, action.Icon, 14, "muted", { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+        local hover = action.Danger and "danger" or "heading"
+        button.MouseEnter:Connect(function() if icon then Theme.tweenTo(icon, "ImageColor3", hover, 0.1) end if action.Tooltip then window:_tip(action.Tooltip) end end)
+        button.MouseLeave:Connect(function() if icon then Theme.tweenTo(icon, "ImageColor3", "muted", 0.1) end window:_hideTip() end)
+        button.Activated:Connect(function() if action.Callback then window:_safe("Code", action.Callback) end end)
+        element.Actions[index] = button
+        x = x + 18 + 6
+    end
+    title.Size = UDim2.new(1, -(28 + x + 4), 1, 0)
     element:Set(cfg.Code or "")
     element.Maid:give(Theme.onChange(function() if holder.Parent then element:Set(element.Value) end end))
     return element

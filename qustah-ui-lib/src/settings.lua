@@ -3,7 +3,7 @@
 --              keybind list, session bar, performance monitor), window reset / unload
 --   Profiles   see profiles.lua (active profile + unsaved changes, share codes, notes, search...)
 --   Keys       every bound key, the ones used twice in red; a click opens the setting
---   Info       modules, executor, errors (Copy debug info / Clear), what's new, this session
+--   Info       modules, executor, errors (copy debug info / clear icons), what's new, this session
 -- Simple = true: for a small script - the same four pages, Interface with the everyday settings only: an
 --   Appearance card (Theme | Text tabs) and a compact Menu card with Behaviour (menu key, scale, free mouse, anonymous,
 --   reset layout / unload) and Window (transparency, blur) tabs. No dock choice: the dock stays where the script put it.
@@ -426,14 +426,6 @@ return function(window, cfg)
     end)
     local function has(name) return type(getfenv(0)[name]) == "function" or (getgenv and type(getgenv()[name]) == "function") end
     local files = type(writefile) == "function" and type(readfile) == "function"
-    local function copyDebug()
-        local clipboard = setclipboard or toclipboard
-        if type(clipboard) == "function" and pcall(clipboard, window:GetDebugInfo()) then
-            window:Notify({ Title = "Copied", Content = "Debug info copied - paste it into your bug report", Icon = "clipboard-copy" })
-        else
-            window:Notify({ Title = "Clipboard", Content = "setclipboard is not available", Color = RED })
-        end
-    end
 
     -- CreateWindow({ Info = { { "Discord", "qustah" } }, Links = ..., Tour = ... }): an About card, only when given
     local hasLinks = type(window.cfg.Links) == "table" and #window.cfg.Links > 0
@@ -480,7 +472,7 @@ return function(window, cfg)
 
     infoPage:Card({ Title = "Executor", Side = "Left", Icon = "square-terminal", Desc = executorName }):Checklist({ Items = {
         { Title = "File access", Ok = files, Note = "profiles, themes" },
-        { Title = "getcustomasset", Ok = has("getcustomasset"), Note = "sharp icons" },
+        { Title = "getcustomasset", Ok = has("getcustomasset"), Note = "icon sheet" },
         { Title = "gethui", Ok = has("gethui"), Note = "hidden interface" },
         { Title = "Drawing", Ok = (function() local d = getfenv(0).Drawing return type(d) == "table" and type(d.new) == "function" end)(), Note = "screen drawings" },
         { Title = "getconnections", Ok = has("getconnections"), Note = "connection control" },
@@ -492,12 +484,14 @@ return function(window, cfg)
     -- debug mode: a small switch in the card's title row (a notification for every new error)
     errorsCard:HeaderSwitch({ Title = "Debug", Flag = "__ui_debug", Default = window.cfg.Debug == true, Tooltip = "A notification for every new error",
         Callback = function(on) window.debug = on end })
-    -- the newest errors as a code block (its Copy button copies them all)
+    -- the newest errors as a code block; in its header the copy icon (the whole debug info: executor, versions,
+    -- game, modules and every error - for a bug report) and a bin that clears them
     local noErrors = errorsCard:Label("No errors in this session")
-    local errorText = errorsCard:Code({ Title = "Last errors", Code = "", MaxHeight = 180 })
-    local errorButtons = errorsCard:Row()
-    errorButtons:Button({ Title = "Copy debug info", Tooltip = "Executor, versions, game, modules and errors - paste it into a bug report", Callback = copyDebug })
-    local clearErrors = errorButtons:Button({ Title = "Clear", Callback = function() window:ClearErrors() end })
+    local errorText = errorsCard:Code({
+        Title = "Last errors", Code = "", MaxHeight = 180, CopyText = false,
+        CopyValue = function() return window:GetDebugInfo() end, CopyTooltip = "Copy debug info",
+        Actions = { { Icon = "trash-2", Tooltip = "Clear", Danger = true, Callback = function() window:ClearErrors() end } },
+    })
 
     -- release notes (CreateWindow({ Changelog = { Version, Items, History } }))
     if type(window.cfg.Changelog) == "table" then
@@ -523,11 +517,10 @@ return function(window, cfg)
                 table.insert(lines, 1, head .. "\n" .. tostring(entry.message))
             end
         end
-        if #errors > 8 then lines[#lines + 1] = "-- +" .. (#errors - 8) .. " older (Copy debug info)" end
+        if #errors > 8 then lines[#lines + 1] = "-- +" .. (#errors - 8) .. " older (the copy icon copies them all)" end
         errorText:Set(table.concat(lines, "\n\n"))
         errorText:SetVisible(#lines > 0)
         noErrors:SetVisible(#lines == 0)
-        clearErrors:SetVisible(#errors > 0)
     end
 
     window:OnStatusChanged(update)

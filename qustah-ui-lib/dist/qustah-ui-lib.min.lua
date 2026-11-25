@@ -3178,11 +3178,11 @@ Position=UDim2.new(1,-8,0.5,0),Size=UDim2.fromOffset(18,18),Parent=head,
 })
 local copyIcon=Icons.themed(copy,"copy",14,"muted",{Name="Icon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
 local busy=false
-copy.MouseEnter:Connect(function()if not busy and copyIcon then Theme.tweenTo(copyIcon,"ImageColor3","heading",0.1)end window:_tip("Copy")end)
+copy.MouseEnter:Connect(function()if not busy and copyIcon then Theme.tweenTo(copyIcon,"ImageColor3","heading",0.1)end window:_tip(cfg.CopyTooltip or"Copy")end)
 copy.MouseLeave:Connect(function()if not busy and copyIcon then Theme.tweenTo(copyIcon,"ImageColor3","muted",0.1)end window:_hideTip()end)
 copy.Activated:Connect(function()
 local clipboard=setclipboard or toclipboard
-local ok=type(clipboard)=="function"and pcall(clipboard,element.Value)
+local ok=type(clipboard)=="function"and pcall(function()clipboard(type(cfg.CopyValue)=="function"and cfg.CopyValue()or element.Value)end)
 if ok and cfg.OnCopy then window:_safe("Code",cfg.OnCopy)end
 if not copyIcon then return end
 busy=true
@@ -3208,7 +3208,7 @@ Theme.bind(copyText,"TextColor3","text")
 local copyIcon=withIcon and Icons.themed(copy,"copy",10,"text",{AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,7,0.5,0)})or nil
 copy.Activated:Connect(function()
 local clipboard=setclipboard or toclipboard
-local ok=type(clipboard)=="function"and pcall(clipboard,element.Value)
+local ok=type(clipboard)=="function"and pcall(function()clipboard(type(cfg.CopyValue)=="function"and cfg.CopyValue()or element.Value)end)
 copyText.Text=ok and"Copied"or"Failed"
 if copyIcon then Icons.Apply(copyIcon,ok and"check"or"x")end
 if ok and cfg.OnCopy then window:_safe("Code",cfg.OnCopy)end
@@ -3218,6 +3218,22 @@ end)
 end)
 end
 end
+local x=cfg.Copy==false and 8 or(cfg.CopyText==false and 8+18+6 or 6+52+8)
+element.Actions={}
+for index,action in ipairs(cfg.Actions or{})do
+local button=create("ImageButton",{
+Name=tostring(action.Tooltip or("Action"..index)),Image="",BackgroundTransparency=1,AutoButtonColor=false,
+AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-x,0.5,0),Size=UDim2.fromOffset(18,18),Parent=head,
+})
+local icon=Icons.themed(button,action.Icon,14,"muted",{Name="Icon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+local hover=action.Danger and"danger"or"heading"
+button.MouseEnter:Connect(function()if icon then Theme.tweenTo(icon,"ImageColor3",hover,0.1)end if action.Tooltip then window:_tip(action.Tooltip)end end)
+button.MouseLeave:Connect(function()if icon then Theme.tweenTo(icon,"ImageColor3","muted",0.1)end window:_hideTip()end)
+button.Activated:Connect(function()if action.Callback then window:_safe("Code",action.Callback)end end)
+element.Actions[index]=button
+x=x+18+6
+end
+title.Size=UDim2.new(1,-(28+x+4),1,0)
 element:Set(cfg.Code or"")
 element.Maid:give(Theme.onChange(function()if holder.Parent then element:Set(element.Value)end end))
 return element
@@ -11454,14 +11470,6 @@ elseif type(getexecutorname)=="function"then executorName=tostring(getexecutorna
 end)
 local function has(name)return type(getfenv(0)[name])=="function"or(getgenv and type(getgenv()[name])=="function")end
 local files=type(writefile)=="function"and type(readfile)=="function"
-local function copyDebug()
-local clipboard=setclipboard or toclipboard
-if type(clipboard)=="function"and pcall(clipboard,window:GetDebugInfo())then
-window:Notify({Title="Copied",Content="Debug info copied - paste it into your bug report",Icon="clipboard-copy"})
-else
-window:Notify({Title="Clipboard",Content="setclipboard is not available",Color=RED})
-end
-end
 local hasLinks=type(window.cfg.Links)=="table"and#window.cfg.Links>0
 if(cfg.Info and#cfg.Info>0)or hasLinks or window.cfg.Tour then
 local about=infoPage:Card({Title="About",Side="Left",Icon="info"})
@@ -11501,7 +11509,7 @@ end
 end)
 infoPage:Card({Title="Executor",Side="Left",Icon="square-terminal",Desc=executorName}):Checklist({Items={
 {Title="File access",Ok=files,Note="profiles, themes"},
-{Title="getcustomasset",Ok=has("getcustomasset"),Note="sharp icons"},
+{Title="getcustomasset",Ok=has("getcustomasset"),Note="icon sheet"},
 {Title="gethui",Ok=has("gethui"),Note="hidden interface"},
 {Title="Drawing",Ok=(function()local d=getfenv(0).Drawing return type(d)=="table"and type(d.new)=="function"end)(),Note="screen drawings"},
 {Title="getconnections",Ok=has("getconnections"),Note="connection control"},
@@ -11512,10 +11520,11 @@ local errorsCard=infoPage:Card({Title="Errors",Side="Right",Icon="bug"})
 errorsCard:HeaderSwitch({Title="Debug",Flag="__ui_debug",Default=window.cfg.Debug==true,Tooltip="A notification for every new error",
 Callback=function(on)window.debug=on end})
 local noErrors=errorsCard:Label("No errors in this session")
-local errorText=errorsCard:Code({Title="Last errors",Code="",MaxHeight=180})
-local errorButtons=errorsCard:Row()
-errorButtons:Button({Title="Copy debug info",Tooltip="Executor, versions, game, modules and errors - paste it into a bug report",Callback=copyDebug})
-local clearErrors=errorButtons:Button({Title="Clear",Callback=function()window:ClearErrors()end})
+local errorText=errorsCard:Code({
+Title="Last errors",Code="",MaxHeight=180,CopyText=false,
+CopyValue=function()return window:GetDebugInfo()end,CopyTooltip="Copy debug info",
+Actions={{Icon="trash-2",Tooltip="Clear",Danger=true,Callback=function()window:ClearErrors()end}},
+})
 if type(window.cfg.Changelog)=="table"then
 local log=window.cfg.Changelog
 local entries={{Version=tostring(log.Version or window.Version),Time="this version",Items=log.Items or{}}}
@@ -11538,11 +11547,10 @@ local head=string.format("[%s] %s%s",os.date("%H:%M:%S",entry.last or os.time())
 table.insert(lines,1,head.."\n"..tostring(entry.message))
 end
 end
-if#errors>8 then lines[#lines+1]="-- +"..(#errors-8).." older (Copy debug info)"end
+if#errors>8 then lines[#lines+1]="-- +"..(#errors-8).." older (the copy icon copies them all)"end
 errorText:Set(table.concat(lines,"\n\n"))
 errorText:SetVisible(#lines>0)
 noErrors:SetVisible(#lines==0)
-clearErrors:SetVisible(#errors>0)
 end
 window:OnStatusChanged(update)
 Theme.onChange(function()if infoPage.frame.Parent then update()end end)

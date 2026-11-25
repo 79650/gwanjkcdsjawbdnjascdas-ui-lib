@@ -419,6 +419,7 @@ Card:Info({ Title = "User ID", Value = "#123", Copy = true })   -- a "name .....
 Card:Divider()
 Card:Code({ Title = "loader.lua", Code = 'print("hi")', Copy = true, MaxHeight = 200 })   -- Lua highlighting
 -- (CopyText = false: the Copy button is just the copy icon; CopyIcon = false: just the word)
+-- (CopyValue = function() return text end: what Copy copies; Actions = { { Icon, Tooltip, Callback, Danger } }: more header icons)
 ```
 
 ### Live data: Progress, Stat, Graph, Console and Table
@@ -748,7 +749,7 @@ Window:SettingsTab()                                                            
 
 **Settings › Keys:** every key the menu listens to (switch / button binds, keybinds, key hints, the menu key) with the setting and where it is; a key used twice is red with a `!`, and a click on a row opens that setting.
 
-**Settings › Info:** Modules (each module's state over the last 15 minutes) and Executor (which functions it has and what they are needed for) on the left, Errors (a Debug switch in the card's title, the last errors, Copy debug info and Clear), "What's new" and This session (uptime, your `Window:Count` counters, Lua memory) on the right. With `Info` rows, `Links` or `Tour` an About card holds them.
+**Settings › Info:** Modules (each module's state over the last 15 minutes) and Executor (which functions it has and what they are needed for) on the left, Errors (a Debug switch in the card's title, the last errors with a copy icon for the debug info and a bin that clears them), "What's new" and This session (uptime, your `Window:Count` counters, Lua memory) on the right. With `Info` rows, `Links` or `Tour` an About card holds them.
 
 ## Overlays
 
@@ -984,7 +985,7 @@ Window:GetCounts()                 -- order, { [name] = value }
 Lib:CreateWindow({ Links = { { Title = "Discord", Url = "https://discord.gg/...", Icon = "message-circle" }, { Title = "Website", Url = "https://..." } } })
 ```
 
-Settings › Info › About gets a button for each link (two per row); a click copies the link, since a game can't open a browser. Errors › **Copy debug info** (`Window:GetDebugInfo()`) copies the versions, executor, game, screen, theme, modules and errors in one go for a bug report.
+Settings › Info › About gets a button for each link (two per row); a click copies the link, since a game can't open a browser. Errors › the copy icon (`Window:GetDebugInfo()`) copies the versions, executor, game, screen, theme, modules and errors in one go for a bug report.
 
 ## Secure mode
 
