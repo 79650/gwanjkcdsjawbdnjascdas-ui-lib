@@ -9707,9 +9707,9 @@ return{
 end
 __modules["icons_qustah"]=function()
 return{
-Id="qustah",Version=27,
-Files={"qustah-v27-1.png"},
-Names="activity,app-window,arrow-down-to-line,arrow-right,axe,ban,bed,bell,bell-off,bell-ring,blend,bookmark,box,box-expand,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-stop,circle-x,clipboard-copy,clock,clock-4,code,coins,copy,crosshair,crown,dices,dna,dock,dot,download,droplet,dumbbell,earth,ellipsis,eye,eye-off,fast-forward,flame,folder-open,footprints,frog,gamepad-2,gauge,ghost,gift,graduation-cap,hand,hand-fist,hash,hat-glasses,heading,heart,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,lightbulb,link,list,list-checks,loader,loader-circle,lock,log-in,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,record,refresh-cw,repeat,rotate-ccw,ruler,save,scan,scan-eye,scan-search,scroll,scroll-text,search,send,server,server-off,settings,settings-2,share-2,shield,shield-alert,shield-check,shirt,shuffle,skull,sliders-horizontal,soup,sparkle,sparkles,spline,square,square-terminal,star,star-off,sticky-note,store,sun,sword,swords,table,tag,target,target-in-sight,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,user-round,user-round-cog,users,venetian-mask,video,volume,volume-2,waypoints,wifi,wind,x,zap",
+Id="qustah",Version=28,
+Files={"qustah-v28-1.png"},
+Names="activity,app-window,arrow-down-to-line,arrow-right,axe,ban,bed,bell,bell-off,bell-ring,blend,bookmark,box,box-expand,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-stop,circle-x,clipboard-copy,clock,clock-4,code,coins,copy,crosshair,crown,dices,dna,dock,dot,download,droplet,dumbbell,earth,ellipsis,eye,eye-off,fast-forward,flame,folder-open,footprints,frog,gamepad-2,gauge,ghost,gift,graduation-cap,hand,hand-fist,hash,hat-glasses,heading,heart,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,lightbulb,link,list,list-checks,loader,loader-circle,lock,log-in,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,record,refresh-cw,repeat,rotate-ccw,ruler,save,scan,scan-eye,scan-search,scroll,scroll-text,search,send,server,server-off,settings,settings-2,share-2,shield,shield-alert,shield-check,shirt,shuffle,skull,sliders-horizontal,soup,sparkle,sparkles,spline,square,square-check-fill,square-info-fill,square-terminal,star,star-off,sticky-note,store,sun,sword,swords,table,tag,target,target-in-sight,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,user-round,user-round-cog,users,venetian-mask,video,volume,volume-2,waypoints,wifi,wind,x,zap",
 Sizes={
 [14]={1,0,64},
 [16]={1,48,56},
@@ -10752,25 +10752,11 @@ items[#items+1]={Title="Delete",Icon="trash-2",Style="Danger",Callback=function(
 end
 window:Menu({Items=items,Owner=row})
 end
-local ICONS={Save="save",Revert="rotate-ccw"}
 local function smallButton(parent,text,order,style)
-local iconName=ICONS[text]
 local button=create("TextButton",{
 Name=text,Text=text,TextSize=9,Font=Enum.Font.GothamMedium,AutoButtonColor=false,BorderSizePixel=0,
-Size=UDim2.fromOffset(Util.textWidth(text,9,Enum.Font.GothamMedium)+(iconName and 34 or 20),22),LayoutOrder=order,Parent=parent,
+Size=UDim2.fromOffset(Util.textWidth(text,9,Enum.Font.GothamMedium)+20,22),LayoutOrder=order,Parent=parent,
 })
-local icon=iconName and Icons.Image(iconName,{Name="ButtonIcon",Size=UDim2.fromOffset(11,11)})
-if icon then
-local content=create("Frame",{Name="Content",BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromScale(0,1),AutomaticSize=Enum.AutomaticSize.X,Parent=button})
-Util.list(content,5,Enum.FillDirection.Horizontal,Enum.HorizontalAlignment.Center,Enum.VerticalAlignment.Center)
-icon.LayoutOrder=1
-icon.Parent=content
-local text_=label(content,text,9,{Name="Label",Size=UDim2.fromScale(0,1),AutomaticSize=Enum.AutomaticSize.X,TextTruncate=Enum.TextTruncate.None,Font=Enum.Font.GothamMedium,LayoutOrder=2})
-button.TextTransparency=1
-local function tint()icon.ImageColor3=button.TextColor3 text_.TextColor3=button.TextColor3 end
-button:GetPropertyChangedSignal("TextColor3"):Connect(tint)
-task.defer(tint)
-end
 corner(button,6)
 local outline=stroke(button)
 if style=="Primary"then
@@ -11169,7 +11155,7 @@ Title="Text glow",Desc="Shine on the title and highlights",Flag="__ui_glow",Defa
 Callback=function(on)Glow.setEnabled(on)end,
 })end
 local scaleDropdown
-local menuTabs=simple and interface:Card({Title="Menu",Side="Right",Icon="sliders-horizontal",Compact=true}):Tabs({"Behaviour","Window"})or nil
+local menuTabs=simple and interface:Card({Title="Menu",Side="Right",Icon="settings-2",Compact=true}):Tabs({"Behaviour","Window"})or nil
 local menu=menuTabs and menuTabs.Behaviour or interface:Card({Title="Behaviour",Side="Right",Icon="settings-2"})
 local menuKey=menu:Keybind({
 Title="Menu key",Desc="Opens and closes the menu",Flag="__ui_menu_key",Default=window.key,

@@ -179,27 +179,12 @@ return function(window, page, defaults)
         window:Menu({ Items = items, Owner = row })
     end
 
-    ------------------------------------------------------------ small buttons (Save, Revert, Load)
-    local ICONS = { Save = "save", Revert = "rotate-ccw" }
+    ------------------------------------------------------------ small buttons (Save, Revert, Load): text only
     local function smallButton(parent, text, order, style)
-        local iconName = ICONS[text]
         local button = create("TextButton", {
             Name = text, Text = text, TextSize = 9, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
-            Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + (iconName and 34 or 20), 22), LayoutOrder = order, Parent = parent,
+            Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + 20, 22), LayoutOrder = order, Parent = parent,
         })
-        -- icon + text centred together; both follow the button's TextColor3 (the button's own text is hidden)
-        local icon = iconName and Icons.Image(iconName, { Name = "ButtonIcon", Size = UDim2.fromOffset(11, 11) })
-        if icon then
-            local content = create("Frame", { Name = "Content", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, Parent = button })
-            Util.list(content, 5, Enum.FillDirection.Horizontal, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
-            icon.LayoutOrder = 1
-            icon.Parent = content
-            local text_ = label(content, text, 9, { Name = "Label", Size = UDim2.fromScale(0, 1), AutomaticSize = Enum.AutomaticSize.X, TextTruncate = Enum.TextTruncate.None, Font = Enum.Font.GothamMedium, LayoutOrder = 2 })
-            button.TextTransparency = 1
-            local function tint() icon.ImageColor3 = button.TextColor3 text_.TextColor3 = button.TextColor3 end
-            button:GetPropertyChangedSignal("TextColor3"):Connect(tint)
-            task.defer(tint)
-        end
         corner(button, 6)
         local outline = stroke(button)
         if style == "Primary" then
