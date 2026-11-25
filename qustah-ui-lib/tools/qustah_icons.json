@@ -77,7 +77,7 @@
   "info": "solar:info-circle",
   "key": "solar:key",
   "key-round": "solar:key-minimalistic",
-  "keyboard": "solar:keyboard",
+  "keyboard": "mdi:keyboard",
   "layers": "solar:layers",
   "layout-dashboard": "solar:widget-6",
   "layout-grid": "solar:widget-6",

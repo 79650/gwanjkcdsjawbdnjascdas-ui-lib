@@ -11045,8 +11045,8 @@ __modules["icons_qustah"] = function()
 -- (Solar Bold, a few Material Design Icons) at 14, 16, 20, 24, 28, 30 px, pixel for pixel with no grey edges.
 -- Downloaded once and used before the lucide sheets (icons.lua); icons are snapped to these sizes.
 return {
-    Id = "qustah", Version = 26,
-    Files = { "qustah-v26-1.png" },
+    Id = "qustah", Version = 27,
+    Files = { "qustah-v27-1.png" },
     Names = "activity,app-window,arrow-down-to-line,arrow-right,axe,ban,bed,bell,bell-off,bell-ring,blend,bookmark,box,box-expand,boxes,brick-wall,bug,camera,chart-bar,chart-column,check,check-check,chevron-down,chevron-right,chevron-up,circle,circle-alert,circle-check,circle-dashed,circle-dot,circle-stop,circle-x,clipboard-copy,clock,clock-4,code,coins,copy,crosshair,crown,dices,dna,dock,dot,download,droplet,dumbbell,earth,ellipsis,eye,eye-off,fast-forward,flame,folder-open,footprints,frog,gamepad-2,gauge,ghost,gift,graduation-cap,hand,hand-fist,hash,hat-glasses,heading,heart,heart-pulse,history,hourglass,house,id-card,image,import,inbox,info,key,key-round,keyboard,layers,layout-dashboard,layout-grid,lightbulb,link,list,list-checks,loader,loader-circle,lock,log-in,log-out,map,map-pin,maximize-2,menu,message-circle,minimize-2,minus,monitor,mouse,mouse-pointer,move,navigation,newspaper,paint-bucket,paintbrush,palette,pen-line,pencil,percent,person-standing,pin,plus,power,rabbit,rainbow,record,refresh-cw,repeat,rotate-ccw,ruler,save,scan,scan-eye,scan-search,scroll,scroll-text,search,send,server,server-off,settings,settings-2,share-2,shield,shield-alert,shield-check,shirt,shuffle,skull,sliders-horizontal,soup,sparkle,sparkles,spline,square,square-terminal,star,star-off,sticky-note,store,sun,sword,swords,table,tag,target,target-in-sight,terminal,timer,toggle-right,toolbox,trash-2,trending-down,trending-up,triangle-alert,type,undo-2,upload,user,user-round,user-round-cog,users,venetian-mask,video,volume,volume-2,waypoints,wifi,wind,x,zap",
     Sizes = {
         [14] = { 1, 0, 64 },
@@ -12721,7 +12721,7 @@ return function(window, cfg)
 
     local scaleDropdown
     -- (Simple: Behaviour and Window are the two tabs of one compact Menu card - check boxes, shorter rows)
-    local menuTabs = simple and interface:Card({ Title = "Menu", Side = "Right", Icon = "settings-2", Compact = true }):Tabs({ "Behaviour", "Window" }) or nil
+    local menuTabs = simple and interface:Card({ Title = "Menu", Side = "Right", Icon = "sliders-horizontal", Compact = true }):Tabs({ "Behaviour", "Window" }) or nil
     local menu = menuTabs and menuTabs.Behaviour or interface:Card({ Title = "Behaviour", Side = "Right", Icon = "settings-2" })
     local menuKey = menu:Keybind({
         Title = "Menu key", Desc = "Opens and closes the menu", Flag = "__ui_menu_key", Default = window.key,
@@ -17204,7 +17204,9 @@ return function(Window)
             Name = "Anonymous", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -5, 0.5, 0), Size = UDim2.fromOffset(22, 22),
             BackgroundTransparency = 1, AutoButtonColor = false, Image = "", ZIndex = 43, Parent = card,
         })
-        local eyeIcon = Icons.themed(eye, "eye", 14, "muted", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 44 })
+        -- incognito glasses: muted while you are shown, bright while anonymous
+        local function rest() return self.anonymous and "heading" or "muted" end
+        local eyeIcon = Icons.themed(eye, "hat-glasses", 14, rest(), { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 44 })
         local function tip()
             self:_dockTip(self.anonymous and "Anonymous · click to show" or (player.DisplayName .. " · click to hide"),
                 self.dock.Size.Y.Offset - 46)
@@ -17214,7 +17216,7 @@ return function(Window)
             tip()
         end)
         eye.MouseLeave:Connect(function()
-            if eyeIcon then Theme.tweenTo(eyeIcon, "ImageColor3", "muted", 0.1) end
+            if eyeIcon then Theme.tweenTo(eyeIcon, "ImageColor3", rest(), 0.1) end
             self:_hideTip()
         end)
         eye.Activated:Connect(function()
@@ -17225,7 +17227,7 @@ return function(Window)
             picture.Image = on and "" or avatar
             if mask then mask.Visible = on end
             name.Text = on and "Anonymous" or player.DisplayName
-            if eyeIcon then Icons.Apply(eyeIcon, on and "eye-off" or "eye") end
+            if eyeIcon then Theme.tweenTo(eyeIcon, "ImageColor3", rest(), 0.1) end
         end)
         -- session time, once a second while the card is on screen
         local started = os.clock()

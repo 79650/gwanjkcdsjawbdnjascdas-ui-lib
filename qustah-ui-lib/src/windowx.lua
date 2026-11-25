@@ -153,7 +153,9 @@ return function(Window)
             Name = "Anonymous", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -5, 0.5, 0), Size = UDim2.fromOffset(22, 22),
             BackgroundTransparency = 1, AutoButtonColor = false, Image = "", ZIndex = 43, Parent = card,
         })
-        local eyeIcon = Icons.themed(eye, "eye", 14, "muted", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 44 })
+        -- incognito glasses: muted while you are shown, bright while anonymous
+        local function rest() return self.anonymous and "heading" or "muted" end
+        local eyeIcon = Icons.themed(eye, "hat-glasses", 14, rest(), { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 44 })
         local function tip()
             self:_dockTip(self.anonymous and "Anonymous · click to show" or (player.DisplayName .. " · click to hide"),
                 self.dock.Size.Y.Offset - 46)
@@ -163,7 +165,7 @@ return function(Window)
             tip()
         end)
         eye.MouseLeave:Connect(function()
-            if eyeIcon then Theme.tweenTo(eyeIcon, "ImageColor3", "muted", 0.1) end
+            if eyeIcon then Theme.tweenTo(eyeIcon, "ImageColor3", rest(), 0.1) end
             self:_hideTip()
         end)
         eye.Activated:Connect(function()
@@ -174,7 +176,7 @@ return function(Window)
             picture.Image = on and "" or avatar
             if mask then mask.Visible = on end
             name.Text = on and "Anonymous" or player.DisplayName
-            if eyeIcon then Icons.Apply(eyeIcon, on and "eye-off" or "eye") end
+            if eyeIcon then Theme.tweenTo(eyeIcon, "ImageColor3", rest(), 0.1) end
         end)
         -- session time, once a second while the card is on screen
         local started = os.clock()

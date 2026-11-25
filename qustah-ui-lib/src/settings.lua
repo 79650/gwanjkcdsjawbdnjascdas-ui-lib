@@ -113,7 +113,7 @@ return function(window, cfg)
 
     local scaleDropdown
     -- (Simple: Behaviour and Window are the two tabs of one compact Menu card - check boxes, shorter rows)
-    local menuTabs = simple and interface:Card({ Title = "Menu", Side = "Right", Icon = "settings-2", Compact = true }):Tabs({ "Behaviour", "Window" }) or nil
+    local menuTabs = simple and interface:Card({ Title = "Menu", Side = "Right", Icon = "sliders-horizontal", Compact = true }):Tabs({ "Behaviour", "Window" }) or nil
     local menu = menuTabs and menuTabs.Behaviour or interface:Card({ Title = "Behaviour", Side = "Right", Icon = "settings-2" })
     local menuKey = menu:Keybind({
         Title = "Menu key", Desc = "Opens and closes the menu", Flag = "__ui_menu_key", Default = window.key,
