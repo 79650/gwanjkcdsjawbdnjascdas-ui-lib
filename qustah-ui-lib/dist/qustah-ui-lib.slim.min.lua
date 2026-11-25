@@ -8120,13 +8120,9 @@ _failed={},
 }
 local Theme=require("theme")
 local Util=require("util")
-local lucideOrder={}
 do
 local list,set=require("icons_lucide"),{}
-for i=1,#list,2 do
-set[list[i]]=list[i+1]
-lucideOrder[#lucideOrder+1]=list[i]
-end
+for i=1,#list,2 do set[list[i]]=list[i+1]end
 Icons.Sets.lucide=set
 end
 local ZERO=Vector2.new(0,0)
@@ -8206,64 +8202,34 @@ Util.log("[qustah-ui-lib] image "..url.." could not be loaded: "..tostring(reaso
 end)
 end
 Icons.Sharp=true
-Icons.AtlasFolder="QustahUI/icons"
+Icons.SheetFolder="QustahUI/icons"
 Icons.SheetSource="https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah/icons/"
-local Atlas=require("icons_atlas")
-local atlas={started=false,ready=false,index=nil,pages={}}
 local sharpImages=setmetatable({},{__mode="k"})
 local applySharp
 local queueSnap
-local function atlasIndex()
-if not atlas.index then
-local missing={}
-for name in string.gmatch(Atlas.Missing or"","[^,]+")do missing[name]=true end
-atlas.index={}
-local i=0
-for _,name in ipairs(lucideOrder)do
-if not missing[name]then i=i+1 atlas.index[name]=i end
-end
-end
-return atlas.index
-end
-local function atlasRect(index,pixels)
-local size=pixels<=16 and 16 or 32
-local sheet=Atlas.Sheets[size]
-local page=math.floor((index-1)/sheet.PerPage)+1
-local k=(index-1)%sheet.PerPage
-local pitch=size+2
-local image=atlas.pages[Atlas.Pages[size][page]]
-if not image then return nil end
-return image,Vector2.new((k%sheet.Columns)*pitch+1,math.floor(k/sheet.Columns)*pitch+1),Vector2.new(size,size)
-end
 local function isPng(body)return body:sub(2,4)=="PNG"end
 local function loadFiles(prefix,source,files,done)
 local list={}
 for _,file in ipairs(files)do
-list[#list+1]={path=Icons.AtlasFolder.."/"..prefix..file,url=source..file,check=isPng,name=file}
+list[#list+1]={path=Icons.SheetFolder.."/"..prefix..file,url=source..file,check=isPng,name=file}
 end
 Util.cacheFiles(list,function(ids)
 local byName={}
 for _,file in ipairs(list)do byName[file.name]=ids[file.path]end
 done(byName)
 end,function(reason)
-if Util.canCustomAsset()then Util.log("[qustah-ui-lib] sharp icons could not be loaded ("..tostring(reason).."); using the plain ones")end
+if Util.canCustomAsset()then Util.log("[qustah-ui-lib] icon sheet could not be loaded ("..tostring(reason).."); using the asset ids")end
 end,"icons")
 end
 local function redrawSharp()
 for image,name in pairs(sharpImages)do if name and image.Parent then pcall(applySharp,image,name)end end
 end
-local function startAtlas()
-if atlas.started then return end
-atlas.started=true
+local ownSheet=false
+local function startOwnSheet()
+if ownSheet then return end
+ownSheet=true
 if Icons.Sharp==false then return end
 Icons.UseSheet(require("icons_qustah"),Icons.SheetSource)
-local files={}
-for _,list in pairs(Atlas.Pages)do for _,file in ipairs(list)do files[#files+1]=file end end
-loadFiles("v"..Atlas.Version.."-",Icons.Source.."atlas/",files,function(ids)
-atlas.pages=ids
-atlas.ready=true
-redrawSharp()
-end)
 end
 Icons.Sizes={14,16,20,24,28,30}
 function Icons.fitSize(size)
@@ -8287,7 +8253,7 @@ sheet.ready=true
 redrawSharp()
 end)
 end
-function Icons.Preload()startAtlas()end
+function Icons.Preload()startOwnSheet()end
 local function sheetRect(name,pixels)
 local size=math.floor(pixels+0.5)
 for _,sheet in ipairs(customSheets)do
@@ -8303,14 +8269,12 @@ end
 end
 end
 end
-function Icons._resetAtlas()atlas.started,atlas.ready,atlas.pages=false,false,{}table.clear(customSheets)end
-Icons._atlas=atlas
-local function lucideName(name)
+function Icons._resetSheets()ownSheet=false table.clear(customSheets)end
+local function sheetName(name)
 if type(name)~="string"then return nil end
 local set,icon=name:match("^([%w_%-]+):(.+)$")
 if set then if set:lower()~="lucide"then return nil end name=icon
 elseif Icons.Default~="lucide"then return nil end
-if atlasIndex()[name]then return name end
 for _,sheet in ipairs(customSheets)do if sheet.index[name]then return name end end
 return nil
 end
@@ -8327,7 +8291,7 @@ local function inSheet(name)
 for _,sheet in ipairs(customSheets)do if sheet.index[name]then return true end end
 return false
 end
-Icons._sheetHas=function(name)startAtlas()return inSheet(name)end
+Icons._sheetHas=function(name)startOwnSheet()return inSheet(name)end
 local function resize(image,size)
 local old=image.Size.X.Offset
 image.Size=UDim2.fromOffset(size,size)
@@ -8406,10 +8370,6 @@ pcall(snapPosition,image)
 local pixels=pixelsOf(image)
 local picture,offset,size=sheetRect(name,pixels)
 pcall(function()image.ResampleMode=picture and Enum.ResamplerMode.Pixelated or Enum.ResamplerMode.Default end)
-if not picture then
-if not atlas.ready or not atlasIndex()[name]then return false end
-picture,offset,size=atlasRect(atlasIndex()[name],pixels)
-end
 if not picture then return false end
 image.Image,image.ImageRectOffset,image.ImageRectSize=picture,offset,size
 return true
@@ -8419,9 +8379,9 @@ image:SetAttribute("QIcon",name)
 for _,child in ipairs(image:GetChildren())do if child.Name=="IconPart"then child:Destroy()end end
 local icon=Icons.Get(name)
 if not icon then sharpImages[image]=nil return false end
-local sharp=not icon.Url and lucideName(name)
+startOwnSheet()
+local sharp=not icon.Url and sheetName(name)
 if sharp then
-startAtlas()
 if sharpImages[image]==nil then
 image:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 local current=sharpImages[image]
@@ -8523,14 +8483,6 @@ table.sort(names)
 return names
 end
 return Icons
-end
-__modules["icons_atlas"]=function()
-return{
-Version=1,
-Sheets={[16]={Columns=56,PerPage=10000},[32]={Columns=30,PerPage=900}},
-Pages={[16]={"lucide-16.png"},[32]={"lucide-32-1.png","lucide-32-2.png"}},
-Missing="chromium,codepen,codesandbox,dribbble,facebook,figma,framer,github,gitlab,instagram,linkedin,pocket,rail-symbol,slack,trello,twitch,twitter,youtube",
-}
 end
 __modules["icons_lucide"]=function()
 return{

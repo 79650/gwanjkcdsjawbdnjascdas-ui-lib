@@ -10255,14 +10255,10 @@ local Icons = {
 local Theme = require("theme")
 local Util = require("util")
 
--- lucide is embedded as name, asset number pairs (in the order the sharp sheets use)
-local lucideOrder = {}
+-- lucide is embedded as name, asset number pairs
 do
     local list, set = require("icons_lucide"), {}
-    for i = 1, #list, 2 do
-        set[list[i]] = list[i + 1]
-        lucideOrder[#lucideOrder + 1] = list[i]
-    end
+    for i = 1, #list, 2 do set[list[i]] = list[i + 1] end
     Icons.Sets.lucide = set
 end
 
@@ -10353,59 +10349,30 @@ local function fetch(url, done)
     end)
 end
 
--- Sharp lucide icons. Roblox shrinks a big image badly (it skips pixels, so a 256 px icon drawn at 14 px looks
--- jagged), so lucide icons come from small sheets drawn at 16 and 32 px (icons/atlas, tools/gen_atlas.py): the
--- 16 px sheet for icons up to 16 px on screen, the 32 px sheet above. The sheets are downloaded once into
--- QustahUI/icons and shown through getcustomasset; without it (or before they are ready) the asset ids are used.
--- Lib.Icons.Sharp = false before the first window turns this off.
+-- The lib's own icons (icons_qustah: drawn pixel for pixel at every size it uses) come from its sheet, downloaded
+-- once into QustahUI/icons and shown through getcustomasset. Every other icon (lucide and the other sets) is a Roblox
+-- asset id: nothing else is downloaded. A script can also pass "rbxassetid://..." or a number as an icon.
+-- Lib.Icons.Sharp = false before the first window keeps the sheet off too (asset ids only).
 Icons.Sharp = true
-Icons.AtlasFolder = "QustahUI/icons"
+Icons.SheetFolder = "QustahUI/icons"
 Icons.SheetSource = "https://raw.githubusercontent.com/79650/gwanjkcdsjawbdnjascdas-ui-lib/refs/heads/main/qustah/icons/"
-local Atlas = require("icons_atlas")
-local atlas = { started = false, ready = false, index = nil, pages = {} }
-local sharpImages = setmetatable({}, { __mode = "k" }) -- image -> lucide name, so they switch sheets / get re-drawn
+local sharpImages = setmetatable({}, { __mode = "k" }) -- image -> sheet icon name, so it is re-drawn when the sheet is there
 local applySharp
 local queueSnap
 
--- name -> place in the sheets: lucide's order without the names lucide no longer has
-local function atlasIndex()
-    if not atlas.index then
-        local missing = {}
-        for name in string.gmatch(Atlas.Missing or "", "[^,]+") do missing[name] = true end
-        atlas.index = {}
-        local i = 0
-        for _, name in ipairs(lucideOrder) do
-            if not missing[name] then i = i + 1 atlas.index[name] = i end
-        end
-    end
-    return atlas.index
-end
-
--- the place of icon number `index` for an icon `pixels` tall on screen: image, offset, size
-local function atlasRect(index, pixels)
-    local size = pixels <= 16 and 16 or 32
-    local sheet = Atlas.Sheets[size]
-    local page = math.floor((index - 1) / sheet.PerPage) + 1
-    local k = (index - 1) % sheet.PerPage
-    local pitch = size + 2
-    local image = atlas.pages[Atlas.Pages[size][page]]
-    if not image then return nil end
-    return image, Vector2.new((k % sheet.Columns) * pitch + 1, math.floor(k / sheet.Columns) * pitch + 1), Vector2.new(size, size)
-end
-
--- The sheets' files in AtlasFolder (as <prefix><file>), downloaded once; done(ids by file name).
+-- A sheet's files in SheetFolder (as <prefix><file>), downloaded once; done(ids by file name).
 local function isPng(body) return body:sub(2, 4) == "PNG" end
 local function loadFiles(prefix, source, files, done)
     local list = {}
     for _, file in ipairs(files) do
-        list[#list + 1] = { path = Icons.AtlasFolder .. "/" .. prefix .. file, url = source .. file, check = isPng, name = file }
+        list[#list + 1] = { path = Icons.SheetFolder .. "/" .. prefix .. file, url = source .. file, check = isPng, name = file }
     end
     Util.cacheFiles(list, function(ids)
         local byName = {}
         for _, file in ipairs(list) do byName[file.name] = ids[file.path] end
         done(byName)
     end, function(reason)
-        if Util.canCustomAsset() then Util.log("[qustah-ui-lib] sharp icons could not be loaded (" .. tostring(reason) .. "); using the plain ones") end
+        if Util.canCustomAsset() then Util.log("[qustah-ui-lib] icon sheet could not be loaded (" .. tostring(reason) .. "); using the asset ids") end
     end, "icons")
 end
 
@@ -10413,19 +10380,13 @@ local function redrawSharp()
     for image, name in pairs(sharpImages) do if name and image.Parent then pcall(applySharp, image, name) end end
 end
 
-local function startAtlas()
-    if atlas.started then return end
-    atlas.started = true
+-- the lib's own sheet: started with the first icon drawn
+local ownSheet = false
+local function startOwnSheet()
+    if ownSheet then return end
+    ownSheet = true
     if Icons.Sharp == false then return end
-    -- the lib's own sheet first (its icons at every size), the lucide sheets for every other icon
     Icons.UseSheet(require("icons_qustah"), Icons.SheetSource)
-    local files = {}
-    for _, list in pairs(Atlas.Pages) do for _, file in ipairs(list) do files[#files + 1] = file end end
-    loadFiles("v" .. Atlas.Version .. "-", Icons.Source .. "atlas/", files, function(ids)
-        atlas.pages = ids
-        atlas.ready = true
-        redrawSharp()
-    end)
 end
 
 -- The sizes icons are drawn at (the qustah sheet has each one, pixel for pixel): a requested size and the size on
@@ -10439,8 +10400,8 @@ function Icons.fitSize(size)
     return best
 end
 
--- A script's own sheet (tools/gen_sheet.py): its icons drawn at every on-screen size, used before the lucide
--- sheets whenever an icon's size is in it. Lib.Icons.UseSheet(manifest, "https://.../folder/") before the window.
+-- A script's own sheet (tools/gen_sheet.py): its icons drawn at every on-screen size, used before the asset id
+-- whenever an icon's size is in it. Lib.Icons.UseSheet(manifest, "https://.../folder/") before the window.
 local customSheets = {}
 function Icons.UseSheet(manifest, source)
     if type(manifest) ~= "table" or type(source) ~= "string" then return end
@@ -10456,9 +10417,9 @@ function Icons.UseSheet(manifest, source)
     end)
 end
 
--- Starts the download of the sharp lucide sheets now (they otherwise start with the first icon drawn), so a
--- script can wait for them with Lib.Loader.Wait before its window opens.
-function Icons.Preload() startAtlas() end
+-- Starts the lib's sheet download now (it otherwise starts with the first icon drawn), so a script can wait for it
+-- with Lib.Loader.Wait before its window opens.
+function Icons.Preload() startOwnSheet() end
 
 -- the exact cell for an icon `pixels` tall, from a script sheet: image, offset, size
 local function sheetRect(name, pixels)
@@ -10478,16 +10439,14 @@ local function sheetRect(name, pixels)
 end
 
 -- (tests) start over: forget the loaded sheets
-function Icons._resetAtlas() atlas.started, atlas.ready, atlas.pages = false, false, {} table.clear(customSheets) end
-Icons._atlas = atlas
+function Icons._resetSheets() ownSheet = false table.clear(customSheets) end
 
--- the lucide name behind an icon name ("eye", "lucide:eye"), when the sheets have it
-local function lucideName(name)
+-- the sheet name behind an icon name ("eye", "lucide:eye"), when a sheet (the lib's or a script's) has it
+local function sheetName(name)
     if type(name) ~= "string" then return nil end
     local set, icon = name:match("^([%w_%-]+):(.+)$")
     if set then if set:lower() ~= "lucide" then return nil end name = icon
     elseif Icons.Default ~= "lucide" then return nil end
-    if atlasIndex()[name] then return name end
     for _, sheet in ipairs(customSheets) do if sheet.index[name] then return name end end
     return nil
 end
@@ -10510,7 +10469,7 @@ local function inSheet(name)
     for _, sheet in ipairs(customSheets) do if sheet.index[name] then return true end end
     return false
 end
-Icons._sheetHas = function(name) startAtlas() return inSheet(name) end
+Icons._sheetHas = function(name) startOwnSheet() return inSheet(name) end
 local function resize(image, size)
     local old = image.Size.X.Offset
     image.Size = UDim2.fromOffset(size, size)
@@ -10598,13 +10557,9 @@ applySharp = function(image, name)
     pcall(snapPosition, image)
     local pixels = pixelsOf(image)
     local picture, offset, size = sheetRect(name, pixels)
-    -- a sheet cell is drawn 1:1, so nearest-pixel sampling keeps it sharp even half a pixel off; a lucide cell can be
-    -- scaled a little and keeps the smooth filter
+    -- a sheet cell is drawn 1:1, so nearest-pixel sampling keeps it sharp even half a pixel off; an asset id image
+    -- is scaled and keeps the smooth filter
     pcall(function() image.ResampleMode = picture and Enum.ResamplerMode.Pixelated or Enum.ResamplerMode.Default end)
-    if not picture then
-        if not atlas.ready or not atlasIndex()[name] then return false end
-        picture, offset, size = atlasRect(atlasIndex()[name], pixels)
-    end
     if not picture then return false end
     image.Image, image.ImageRectOffset, image.ImageRectSize = picture, offset, size
     return true
@@ -10616,9 +10571,9 @@ function Icons.Apply(image, name)
     for _, child in ipairs(image:GetChildren()) do if child.Name == "IconPart" then child:Destroy() end end
     local icon = Icons.Get(name)
     if not icon then sharpImages[image] = nil return false end
-    local sharp = not icon.Url and lucideName(name)
+    startOwnSheet() -- (a sheet icon is only known once the sheet's names are in)
+    local sharp = not icon.Url and sheetName(name)
     if sharp then
-        startAtlas()
         if sharpImages[image] == nil then
             -- a bigger / smaller menu (UI scale) can move the icon to the other sheet
             image:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
@@ -10737,19 +10692,8 @@ end
 return Icons
 end
 
-__modules["icons_atlas"] = function()
--- Layout of icons/atlas/*.png, generated by tools/gen_atlas.py. Do not edit by hand.
-return {
-    Version = 1,
-    Sheets = { [16] = { Columns = 56, PerPage = 10000 }, [32] = { Columns = 30, PerPage = 900 } },
-    Pages = { [16] = { "lucide-16.png" }, [32] = { "lucide-32-1.png", "lucide-32-2.png" } },
-    -- every lucide icon in icons_lucide.lua order, except these (no longer in lucide)
-    Missing = "chromium,codepen,codesandbox,dribbble,facebook,figma,framer,github,gitlab,instagram,linkedin,pocket,rail-symbol,slack,trello,twitch,twitter,youtube",
-}
-end
-
 __modules["icons_lucide"] = function()
--- Lucide icons as name, asset id pairs in a fixed order (the sharp sheets in icons/atlas follow the same order),
+-- Lucide icons as name, asset id pairs in a fixed order,
 -- generated by tools/gen_lucide.py from Footagesus/Icons (MIT, see icons/LICENSE). Do not edit by hand.
 return {
 	"a-arrow-down",92867583610071,"a-arrow-up",132318504999733,"a-large-small",111491496660216,"accessibility",114029945302017,"activity",94212016861936,"air-vent",81517226012329,

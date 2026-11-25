@@ -845,7 +845,7 @@ Lib:CreateWindow({ Title = "Qustāh", Icon = "https://example.com/logo.png" })
 
 Sets other than lucide download once, the first time you use them.
 
-**Sharp lucide icons.** Roblox shrinks a big image badly, so a lucide icon drawn small from its asset looks jagged. The library draws lucide icons from small sheets instead (16 px for icons up to 16 px on screen, 32 px above, picked again when the UI scale changes). The sheets (about 1 MB) are downloaded once into `QustahUI/icons` and shown through `getcustomasset`; without that function, or until the download is done, the asset ids are used. `Lib.Icons.Sharp = false` (before the first window) turns this off. `tools/gen_atlas.py` redraws the sheets from lucide's SVGs.
+**Icons.** The library's own icons are drawn pixel for pixel at every size it uses (the qustah sheet, about 50 KB, downloaded once into `QustahUI/icons` and shown through `getcustomasset`). Every other icon, lucide and the other sets, is a Roblox asset id, so nothing else is downloaded. An icon can also be your own upload: `Icon = "rbxassetid://123456"` or just the number. `Lib.Icons.Sharp = false` (before the first window) keeps the sheet off too.
 
 **A script's own sheet.** For the sharpest result, draw just your script's icons at every size they show at (no scaling at all; small sizes get slightly bolder lines): `python3 tools/gen_sheet.py <lucide icons dir> myscript 1 "eye,ghost,settings" 7-22 out/`. Host `out/myscript-1.png` somewhere raw and load it before the window:
 
