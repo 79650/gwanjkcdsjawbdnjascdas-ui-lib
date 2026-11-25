@@ -8491,7 +8491,7 @@ end
 end
 
 __modules["elements/themegallery"] = function()
--- card:ThemeGallery({ Flag, Items = Theme.packOrder, Default = "Midnight", Callback = function(name) end,
+-- card:ThemeGallery({ Flag, Items = Theme.packOrder, Default = "Charcoal", Callback = function(name) end,
 --                     New = function() end, NewTitle = "New theme", NewDesc = "From Edit colours" })
 -- The theme packs as a grid of small windows, three to a row. Each tile is drawn in that pack's own colours (window,
 -- cards with their outline, the pack's accent) whatever theme is on, so the choice is made by looking; the chosen one
@@ -13926,7 +13926,7 @@ function Tab.new(window, cfg)
         Name = self.Title .. "Tab", BackgroundTransparency = 1, Text = "", AutoButtonColor = false, BorderSizePixel = 0,
         Position = UDim2.fromOffset(5, DOCK_TOP), Size = UDim2.fromOffset(DOCK_BUTTON, DOCK_BUTTON), ZIndex = 42, Parent = window.dock,
     })
-    Theme.bind(button, "BackgroundColor3", "accentDeep")
+    Theme.bind(button, "BackgroundColor3", "dockSelected")
     self.buttonCorner = corner(button, 15)
     local icon
     -- Icon: a name ("eye", "solar:eye-bold"), an asset id or nothing (first letter of the title)
@@ -14179,6 +14179,8 @@ local function derive()
     colors.accent = accent
     Theme.isLight = light
     colors.accentDeep = colors.base:Lerp(colors.accent, 0.12) -- selected dock button / indicator fill
+    -- the selected sidebar row: the accent's tint, or plain grey when the pack asks for it
+    colors.dockSelected = (Theme.extras and Theme.extras.plainSelection) and (colors.selected or colors.accentDeep) or colors.accentDeep
     -- muted text is also the placeholder colour inside input boxes: keep it readable there (3:1)
     if colors.muted and colors.input and colors.text then
         for _ = 1, 10 do
@@ -14313,12 +14315,51 @@ function Theme.setMany(colors)
     for _, listener in ipairs(listeners) do Util.safe(listener, "*", nil) end
 end
 
--- Theme packs: the background / text roles (the accent stays the user's), and what else the pack brings to the
--- window (Theme.packs[name].extras: see Theme.extras). Five built in:
---   Midnight  deep blue-black, the default        Graphite  neutral grey (Qustah 1.x)
---   Glass     see-through window and cards, light edges, the game blurred behind
---   OLED      true black                          Light     light
+-- Theme packs: the background / text roles (the accent stays the user's unless it is the neutral one: then the pack's
+-- own accent), and what else the pack brings to the window (Theme.packs[name].extras: see Theme.extras). Built in:
+--   Charcoal       soft dark grey, the default     Charcoal Deep  the same, darker
+--   Charcoal Rose  Charcoal with a rose accent     Forest         dark green, mint accent
+--   Wine           dark red-brown, pink accent     Pastel Night   dark violet, lilac accent
+--   Midnight       deep blue-black                 Graphite       neutral grey (Qustah 1.x)
+--   Glass          see-through window and cards, light edges, the game blurred behind
+--   OLED           true black                      Light          light
+-- extras.plainSelection: the selected sidebar row keeps a grey fill instead of the accent's tint.
 Theme.packs = {
+    Charcoal = {
+        base = rgb(27, 27, 30), footer = rgb(24, 24, 26), dock = rgb(27, 27, 30), selected = rgb(61, 61, 64), icon = rgb(200, 200, 204),
+        card = rgb(36, 36, 40), input = rgb(50, 50, 54), hover = rgb(61, 61, 64), line = rgb(57, 57, 60), edge = rgb(48, 48, 51),
+        buttonEdge = rgb(81, 81, 85), text = rgb(228, 228, 231), muted = rgb(148, 148, 155), heading = rgb(242, 242, 244), knob = rgb(255, 255, 255),
+    },
+    ["Charcoal Deep"] = {
+        base = rgb(20, 20, 22), footer = rgb(18, 18, 19), dock = rgb(20, 20, 22), selected = rgb(54, 54, 58), icon = rgb(195, 195, 201),
+        card = rgb(29, 29, 33), input = rgb(44, 44, 48), hover = rgb(54, 54, 58), line = rgb(50, 50, 54), edge = rgb(42, 42, 44),
+        buttonEdge = rgb(75, 75, 79), text = rgb(224, 224, 228), muted = rgb(142, 142, 150), heading = rgb(239, 239, 242), knob = rgb(255, 255, 255),
+    },
+    ["Charcoal Rose"] = {
+        base = rgb(27, 27, 30), footer = rgb(24, 24, 26), dock = rgb(27, 27, 30), selected = rgb(61, 61, 64), icon = rgb(200, 200, 204),
+        card = rgb(36, 36, 40), input = rgb(50, 50, 54), hover = rgb(61, 61, 64), line = rgb(57, 57, 60), edge = rgb(48, 48, 51),
+        buttonEdge = rgb(81, 81, 85), text = rgb(228, 228, 231), muted = rgb(148, 148, 155), heading = rgb(242, 242, 244), knob = rgb(255, 255, 255),
+        accent = rgb(236, 159, 178),
+        extras = { plainSelection = true }, -- (the selected sidebar row stays grey, not rose)
+    },
+    Forest = {
+        base = rgb(20, 26, 23), footer = rgb(18, 23, 20), dock = rgb(20, 26, 23), selected = rgb(53, 61, 57), icon = rgb(194, 207, 200),
+        card = rgb(28, 36, 32), input = rgb(43, 50, 46), hover = rgb(53, 61, 57), line = rgb(49, 57, 53), edge = rgb(42, 48, 45),
+        buttonEdge = rgb(74, 82, 78), text = rgb(222, 231, 226), muted = rgb(142, 163, 152), heading = rgb(236, 243, 239), knob = rgb(255, 255, 255),
+        accent = rgb(143, 209, 168),
+    },
+    Wine = {
+        base = rgb(30, 21, 24), footer = rgb(26, 18, 21), dock = rgb(30, 21, 24), selected = rgb(66, 54, 58), icon = rgb(211, 195, 201),
+        card = rgb(41, 29, 33), input = rgb(55, 43, 47), hover = rgb(66, 54, 58), line = rgb(62, 50, 54), edge = rgb(52, 42, 46),
+        buttonEdge = rgb(86, 75, 78), text = rgb(234, 222, 226), muted = rgb(168, 145, 154), heading = rgb(246, 236, 239), knob = rgb(255, 255, 255),
+        accent = rgb(231, 163, 179),
+    },
+    ["Pastel Night"] = {
+        base = rgb(27, 26, 38), footer = rgb(24, 23, 33), dock = rgb(27, 26, 38), selected = rgb(59, 58, 73), icon = rgb(192, 191, 212),
+        card = rgb(36, 35, 50), input = rgb(49, 48, 64), hover = rgb(59, 58, 73), line = rgb(55, 54, 69), edge = rgb(47, 46, 58),
+        buttonEdge = rgb(78, 77, 92), text = rgb(216, 215, 232), muted = rgb(149, 146, 173), heading = rgb(228, 227, 243), knob = rgb(255, 255, 255),
+        accent = rgb(203, 166, 247),
+    },
     Midnight = {
         base = rgb(13, 14, 17), footer = rgb(11, 12, 15), dock = rgb(13, 14, 17), selected = rgb(30, 32, 39), icon = rgb(150, 155, 168),
         card = rgb(20, 21, 26), input = rgb(25, 26, 32), hover = rgb(30, 32, 39), line = rgb(33, 35, 42), edge = rgb(31, 33, 40),
@@ -14371,8 +14412,8 @@ function Theme.makePack(p)
     for _ = 1, 10 do if contrast(pack.buttonEdge, pack.card) >= 1.35 then break end pack.buttonEdge = pack.buttonEdge:Lerp(text, 0.08) end
     return pack
 end
-Theme.packOrder = { "Midnight", "Graphite", "Glass", "OLED", "Light" }
-Theme.defaultPack = "Midnight"
+Theme.packOrder = { "Charcoal", "Charcoal Deep", "Charcoal Rose", "Forest", "Wine", "Pastel Night", "Midnight", "Graphite", "Glass", "OLED", "Light" }
+Theme.defaultPack = "Charcoal"
 local DEFAULTS = {}
 for role, color in pairs(Theme.colors) do DEFAULTS[role] = color end
 Theme.defaults = DEFAULTS

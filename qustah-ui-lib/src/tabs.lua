@@ -444,7 +444,7 @@ function Tab.new(window, cfg)
         Name = self.Title .. "Tab", BackgroundTransparency = 1, Text = "", AutoButtonColor = false, BorderSizePixel = 0,
         Position = UDim2.fromOffset(5, DOCK_TOP), Size = UDim2.fromOffset(DOCK_BUTTON, DOCK_BUTTON), ZIndex = 42, Parent = window.dock,
     })
-    Theme.bind(button, "BackgroundColor3", "accentDeep")
+    Theme.bind(button, "BackgroundColor3", "dockSelected")
     self.buttonCorner = corner(button, 15)
     local icon
     -- Icon: a name ("eye", "solar:eye-bold"), an asset id or nothing (first letter of the title)
