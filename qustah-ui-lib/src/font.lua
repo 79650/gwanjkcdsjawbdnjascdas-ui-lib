@@ -67,6 +67,8 @@ local function isFont(body)
     local magic = body:sub(1, 4)
     return magic == "\0\1\0\0" or magic == "true" or magic == "OTTO"
 end
+-- callbacks told when a font could not be set up (UIFont.onFailed); declared before download() uses them
+local failListeners = {}
 local started = false
 -- (tests) start over: forget the downloaded fonts
 function UIFont._resetDownload() started = false table.clear(UIFont.downloaded) end
@@ -171,7 +173,7 @@ function UIFont.family(name) return familyOf(name) end
 
 -- Things that lay out by text width (the window, segments, header buttons...) call UIFont.onChange(fn): fn runs
 -- after the font, the text size or a font's measured width changes. Returns a function that stops it.
-local listeners, failListeners = {}, {}
+local listeners = {}
 function UIFont.onChange(fn)
     listeners[fn] = true
     return function() listeners[fn] = nil end

@@ -41,6 +41,8 @@ function Window.new(Lib, cfg)
         pageTabs = cfg.PageTabs == "Row" and "Row" or "Header", -- page names in the middle of the header (Row: over the cards)
     }, Window)
     require("loader").setTitle(self.Title) -- the download strip says whose files these are
+    self._waitForDownloads = cfg.WaitForDownloads ~= false
+    self._downloadTimeout = tonumber(cfg.DownloadTimeout) or 60
     -- key conflicts the script starts with are only marked; later ones also get a notification
     task.delay(3, function() self._keysSettled = true end)
 
@@ -99,6 +101,16 @@ function Window:_build()
     maid:give(gui)
     self.gui = gui
     UIFont.register(gui, maid)
+    -- The window waits for the downloads (icon sheets, fonts) and opens when the download strip is done, instead of
+    -- showing half-drawn icons under it. CreateWindow({ WaitForDownloads = false }) opens it at once.
+    if self._waitForDownloads then
+        gui.Enabled = false
+        task.spawn(function()
+            task.wait(0.15) -- (the script builds its tabs first: their icons are what start the downloads)
+            require("loader").Wait(self._downloadTimeout)
+            if self.alive and gui.Parent then gui.Enabled = true end
+        end)
+    end
 
     -- a plain Frame: a CanvasGroup would draw the whole menu into a texture (softer icons and text in game)
     local main = create("Frame", {

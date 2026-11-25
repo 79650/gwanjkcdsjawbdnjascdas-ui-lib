@@ -18,7 +18,7 @@ if genv.__QustahLoaderGui then
     genv.__QustahLoaderGui = nil
 end
 -- a job never ends later than this (a download that hangs past Util.downloadTimeout, a callback that broke)
-local JOB_LIMIT = 45
+local JOB_LIMIT = 60
 local function build()
     -- a strip left by an earlier run of the script (a download that never finished there) goes first
     if genv.__QustahLoaderGui then pcall(function() genv.__QustahLoaderGui:Destroy() end) end

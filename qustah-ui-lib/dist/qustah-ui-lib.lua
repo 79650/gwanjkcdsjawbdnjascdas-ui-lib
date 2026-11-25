@@ -9399,6 +9399,8 @@ local function isFont(body)
     local magic = body:sub(1, 4)
     return magic == "\0\1\0\0" or magic == "true" or magic == "OTTO"
 end
+-- callbacks told when a font could not be set up (UIFont.onFailed); declared before download() uses them
+local failListeners = {}
 local started = false
 -- (tests) start over: forget the downloaded fonts
 function UIFont._resetDownload() started = false table.clear(UIFont.downloaded) end
@@ -9503,7 +9505,7 @@ function UIFont.family(name) return familyOf(name) end
 
 -- Things that lay out by text width (the window, segments, header buttons...) call UIFont.onChange(fn): fn runs
 -- after the font, the text size or a font's measured width changes. Returns a function that stops it.
-local listeners, failListeners = {}, {}
+local listeners = {}
 function UIFont.onChange(fn)
     listeners[fn] = true
     return function() listeners[fn] = nil end
@@ -11448,7 +11450,7 @@ if genv.__QustahLoaderGui then
     genv.__QustahLoaderGui = nil
 end
 -- a job never ends later than this (a download that hangs past Util.downloadTimeout, a callback that broke)
-local JOB_LIMIT = 45
+local JOB_LIMIT = 60
 local function build()
     -- a strip left by an earlier run of the script (a download that never finished there) goes first
     if genv.__QustahLoaderGui then pcall(function() genv.__QustahLoaderGui:Destroy() end) end
@@ -15189,8 +15191,12 @@ end
 -- Every missing file is downloaded once and kept on disk; done gets { [path] = getcustomasset id }. It runs at once
 -- when everything is already there (so the first frame can use it), after the download otherwise. fail runs when
 -- the executor can't show downloaded files or a download / check fails.
-Util.downloadTimeout = 20
-function Util.cacheFiles(files, done, fail, what)
+-- A slow connection gets a second and third try (the files that did arrive are on disk by then, so only the rest is
+-- fetched again) before the caller falls back - one slow file no longer meant plain icons for the whole session.
+Util.downloadTimeout = 45
+Util.downloadTries = 3
+function Util.cacheFiles(files, done, fail, what, try)
+    try = try or 1
     fail = fail or function() end
     if not Util.canCustomAsset() then fail("getcustomasset is not available") return end
     local custom = getcustomasset or getsynasset
@@ -15222,7 +15228,19 @@ function Util.cacheFiles(files, done, fail, what)
         left = left - 1
         if left > 0 then return end
         if job then job.finish() end
-        if failed == nil then finish() else fail(tostring(failed)) end
+        if failed == nil then
+            finish()
+        elseif try < Util.downloadTries then
+            Util.log("[qustah-ui-lib] " .. (what and (tostring(what) .. ": ") or "") .. tostring(failed) .. " - trying again (" .. (try + 1) .. "/" .. Util.downloadTries .. ")")
+            -- (a job holds the strip - and a window waiting for it - through the pause)
+            local hold = what and require("loader").start(what, 1)
+            task.delay(2, function()
+                Util.cacheFiles(files, done, fail, what, try + 1)
+                if hold then hold.finish() end
+            end)
+        else
+            fail(tostring(failed))
+        end
     end
     for _, file in ipairs(missing) do
         task.spawn(function()
@@ -15962,6 +15980,8 @@ function Window.new(Lib, cfg)
         pageTabs = cfg.PageTabs == "Row" and "Row" or "Header", -- page names in the middle of the header (Row: over the cards)
     }, Window)
     require("loader").setTitle(self.Title) -- the download strip says whose files these are
+    self._waitForDownloads = cfg.WaitForDownloads ~= false
+    self._downloadTimeout = tonumber(cfg.DownloadTimeout) or 60
     -- key conflicts the script starts with are only marked; later ones also get a notification
     task.delay(3, function() self._keysSettled = true end)
 
@@ -16020,6 +16040,16 @@ function Window:_build()
     maid:give(gui)
     self.gui = gui
     UIFont.register(gui, maid)
+    -- The window waits for the downloads (icon sheets, fonts) and opens when the download strip is done, instead of
+    -- showing half-drawn icons under it. CreateWindow({ WaitForDownloads = false }) opens it at once.
+    if self._waitForDownloads then
+        gui.Enabled = false
+        task.spawn(function()
+            task.wait(0.15) -- (the script builds its tabs first: their icons are what start the downloads)
+            require("loader").Wait(self._downloadTimeout)
+            if self.alive and gui.Parent then gui.Enabled = true end
+        end)
+    end
 
     -- a plain Frame: a CanvasGroup would draw the whole menu into a texture (softer icons and text in game)
     local main = create("Frame", {

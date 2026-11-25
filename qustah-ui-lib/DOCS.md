@@ -22,6 +22,8 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `ToggleKey` | `RightShift` | key that opens and closes the menu |
 | `Accent` | Qustah grey | `Color3` |
 | `Theme` | `"Charcoal"` | starting theme: `"Charcoal"`, `"Charcoal Deep"`, `"Charcoal Rose"`, `"Ice"`, `"Ash"`, `"Forest"`, `"Wine"`, `"Peach"` (see [Themes](#themes)) |
+| `WaitForDownloads` | `true` | the window stays hidden while the download strip shows (icon sheets, fonts) and opens when it is done; `false` opens it at once |
+| `DownloadTimeout` | `60` | seconds the window waits for the downloads at most |
 | `Footer` | the game's name | text in the status bar, after the status |
 | `KeyHints` | `true` | the `[RSHIFT] MENU` key cap on the right of the status bar |
 | `CloseAction` | `"Hide"` | the X button: `"Hide"` hides the menu and shows how to reopen it, `"Destroy"` unloads everything |

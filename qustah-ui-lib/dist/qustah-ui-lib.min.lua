@@ -8268,6 +8268,7 @@ local function isFont(body)
 local magic=body:sub(1,4)
 return magic=="\0\1\0\0"or magic=="true"or magic=="OTTO"
 end
+local failListeners={}
 local started=false
 function UIFont._resetDownload()started=false table.clear(UIFont.downloaded)end
 function UIFont.download()
@@ -8356,7 +8357,7 @@ if face.Family~=target or face.Weight~=weight then object.FontFace=Font.new(targ
 end)
 end
 function UIFont.family(name)return familyOf(name)end
-local listeners,failListeners={},{}
+local listeners={}
 function UIFont.onChange(fn)
 listeners[fn]=true
 return function()listeners[fn]=nil end
@@ -10049,7 +10050,7 @@ if genv.__QustahLoaderGui then
 pcall(function()genv.__QustahLoaderGui:Destroy()end)
 genv.__QustahLoaderGui=nil
 end
-local JOB_LIMIT=45
+local JOB_LIMIT=60
 local function build()
 if genv.__QustahLoaderGui then pcall(function()genv.__QustahLoaderGui:Destroy()end)end
 local gui=Util.screenGui("QustahUI_Loading",65)
@@ -13278,8 +13279,10 @@ built=built==""and part or(built.."/"..part)
 if not isfolder(built)then makefolder(built)end
 end
 end
-Util.downloadTimeout=20
-function Util.cacheFiles(files,done,fail,what)
+Util.downloadTimeout=45
+Util.downloadTries=3
+function Util.cacheFiles(files,done,fail,what,try)
+try=try or 1
 fail=fail or function()end
 if not Util.canCustomAsset()then fail("getcustomasset is not available")return end
 local custom=getcustomasset or getsynasset
@@ -13306,7 +13309,18 @@ if reason~=nil and failed==nil then failed=reason end
 left=left-1
 if left>0 then return end
 if job then job.finish()end
-if failed==nil then finish()else fail(tostring(failed))end
+if failed==nil then
+finish()
+elseif try<Util.downloadTries then
+Util.log("[qustah-ui-lib] "..(what and(tostring(what)..": ")or"")..tostring(failed).." - trying again ("..(try+1).."/"..Util.downloadTries..")")
+local hold=what and require("loader").start(what,1)
+task.delay(2,function()
+Util.cacheFiles(files,done,fail,what,try+1)
+if hold then hold.finish()end
+end)
+else
+fail(tostring(failed))
+end
 end
 for _,file in ipairs(missing)do
 task.spawn(function()
@@ -13954,6 +13968,8 @@ dockSide=(cfg.DockSide=="Bottom"or cfg.DockSide=="Side")and cfg.DockSide or"Righ
 pageTabs=cfg.PageTabs=="Row"and"Row"or"Header",
 },Window)
 require("loader").setTitle(self.Title)
+self._waitForDownloads=cfg.WaitForDownloads~=false
+self._downloadTimeout=tonumber(cfg.DownloadTimeout)or 60
 task.delay(3,function()self._keysSettled=true end)
 local env=(getgenv and getgenv())or _G
 env.__QustahUIWindows=env.__QustahUIWindows or{}
@@ -14001,6 +14017,14 @@ local gui=Util.screenGui("QustahUI_"..self.Title:gsub("%W",""),50)
 maid:give(gui)
 self.gui=gui
 UIFont.register(gui,maid)
+if self._waitForDownloads then
+gui.Enabled=false
+task.spawn(function()
+task.wait(0.15)
+require("loader").Wait(self._downloadTimeout)
+if self.alive and gui.Parent then gui.Enabled=true end
+end)
+end
 local main=create("Frame",{
 Name="Window",Size=UDim2.fromOffset(self.width,self.height),BorderSizePixel=0,
 ClipsDescendants=true,Parent=gui,
