@@ -1,6 +1,8 @@
--- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, CopyIcon = true, MaxHeight = 200 })
+-- card:Code({ Title = "loader.lua", Code = "print('hi')", Copy = true, CopyIcon = true, MaxHeight = 200, Truncate = false })
 -- A code block: monospace, Lua colouring (keywords, strings, numbers, comments, functions), scrolls sideways for long
 -- lines and down past MaxHeight. Copy button in the header. :Set(code).
+-- Truncate = true: one line that ends in "..." inside the box (the same room left and right) instead of scrolling -
+-- for a long token to copy, like a share code.
 local Util = require("util")
 local Theme = require("theme")
 local Base = require("elements/base")
@@ -82,14 +84,21 @@ return function(card, cfg)
     })
     Theme.bind(scroller, "ScrollBarImageColor3", "muted")
     Util.fadeScrollbar(scroller)
+    local truncate = cfg.Truncate == true
     local text = create("TextLabel", {
-        Name = "Code", BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 8), Size = UDim2.fromOffset(0, 0), AutomaticSize = Enum.AutomaticSize.XY,
+        Name = "Code", BackgroundTransparency = 1, Position = UDim2.fromOffset(10, 8), Size = truncate and UDim2.new(1, -20, 0, 14) or UDim2.fromOffset(0, 0),
+        AutomaticSize = truncate and Enum.AutomaticSize.None or Enum.AutomaticSize.XY,
         Font = Enum.Font.Code, TextSize = 11, RichText = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
-        TextWrapped = false, Text = "", Parent = scroller,
+        TextWrapped = false, TextTruncate = truncate and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None, Text = "", Parent = scroller,
     })
     text:SetAttribute("QCode", true) -- the code font (RobotoMono / CreateWindow CodeFont)
     Theme.bind(text, "TextColor3", "heading")
-    create("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingBottom = UDim.new(0, 10), Parent = text })
+    if truncate then
+        scroller.ScrollingEnabled = false
+        scroller.AutomaticCanvasSize = Enum.AutomaticSize.None
+    else
+        create("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingBottom = UDim.new(0, 10), Parent = text })
+    end
 
     local element = Base.element(card, "Code", {}, holder, title, nil)
     local function fit()
