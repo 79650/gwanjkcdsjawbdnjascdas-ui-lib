@@ -14183,6 +14183,13 @@ BorderSizePixel=0,ZIndex=45,Parent=picture,
 corner(dot,4)
 Theme.bind(dot,"BackgroundColor3","success")
 Theme.bind(stroke(dot,nil,0,1.5),"Color","input")
+local pulse=create("Frame",{
+Name="Pulse",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(8,8),
+BackgroundTransparency=1,BorderSizePixel=0,ZIndex=44,Parent=dot,
+})
+corner(pulse,8)
+Theme.bind(pulse,"BackgroundColor3","success")
+self._profileDot,self._profilePulse=dot,pulse
 local name=Util.label(card,player.DisplayName,11,{
 Name="Name",Position=UDim2.fromOffset(40,6),Size=UDim2.new(1,-66,0,15),Font=Enum.Font.GothamBold,ZIndex=43,
 })
@@ -14227,6 +14234,21 @@ task.wait(1)
 end
 end)
 self._profileCard=card
+end
+function Window:SetProfileStatus(state)
+local dot,pulse=self._profileDot,self._profilePulse
+if not dot or state==self._profileStatus then return end
+self._profileStatus=state
+Theme.tweenTo(dot,"BackgroundColor3",state=="waiting"and"warning"or state=="idle"and"muted"or"success",0.2)
+if self._profilePulseTween then self._profilePulseTween:Cancel()self._profilePulseTween=nil end
+pulse.Size,pulse.BackgroundTransparency=UDim2.fromOffset(8,8),1
+if state=="live"then
+pulse.BackgroundTransparency=0.35
+local tween=Util.Services.TweenService:Create(pulse,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out,-1),
+{Size=UDim2.fromOffset(18,18),BackgroundTransparency=1})
+tween:Play()
+self._profilePulseTween=tween
+end
 end
 function Window:SetMouseUnlock(on)
 self.unlockMouse=on~=false

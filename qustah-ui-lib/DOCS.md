@@ -64,6 +64,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Window:SetToggleKey(key)` | changes the menu key (the badge and Settings update too) |
 | `Window:SelectTab(tab or "Title")` | opens a tab |
 | `Window:SetFooter(text)`, `:SetStatus(text, color)` | footer texts |
+| `Window:SetProfileStatus("live" / "waiting" / "idle")` | the sidebar profile card's avatar dot: green and pulsing / yellow / grey (untouched: green) |
 | `Window:Notify(cfg)`, `:Toast(cfg)` | a notification, or a small pill notification |
 | `Window:Destroy()` | closes everything (`OnClose` runs) |
 
