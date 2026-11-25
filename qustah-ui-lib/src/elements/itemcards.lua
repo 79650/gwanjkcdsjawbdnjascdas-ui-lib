@@ -24,7 +24,6 @@ return function(card, cfg)
         local width = Util.textWidth(text, 10, Enum.Font.GothamMedium) + 20
         local b = create("TextButton", { Name = text, Text = text, AutoButtonColor = false, BorderSizePixel = 0, Size = UDim2.fromOffset(width, 22), TextSize = 10, Font = Enum.Font.GothamMedium, Parent = parent })
         for key, value in pairs(props or {}) do b[key] = value end
-        Util.fitText(b, b, 20)
         corner(b, 6)
         Theme.bind(b, "BackgroundColor3", "card")
         Theme.bind(b, "TextColor3", "text")

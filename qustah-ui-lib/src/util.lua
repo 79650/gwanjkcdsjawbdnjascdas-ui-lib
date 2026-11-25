@@ -284,26 +284,6 @@ function Util.textWidth(text, size, font)
     widthCache[key], widthCount = width, widthCount + 1
     return width * Util._fontFactor(font, size)
 end
--- Util.fitText(frame, text, pad, min, onFit): keeps `frame` as wide as `text` is really drawn (TextBounds) plus
--- `pad`, at least `min`. Util.textWidth is an estimate (Gotham times the font's average ratio); capitals, digits and
--- short words can come out a few px wider, and a chip / key cap / small button then cuts its own text. `text` must
--- not truncate (its TextBounds would be the cut width). onFit(width) runs after a change, to move what sits next to it.
-function Util.fitText(frame, text, pad, min, onFit)
-    local function fit()
-        if not frame.Parent or text.Text == "" or frame.Size.X.Scale ~= 0 then return end
-        local bounds = text.TextBounds.X
-        if bounds <= 0 then return end
-        local width = math.max(min or 0, math.ceil(bounds) + (pad or 0))
-        if math.abs(frame.Size.X.Offset - width) < 1 then return end
-        frame.Size = UDim2.new(0, width, frame.Size.Y.Scale, frame.Size.Y.Offset)
-        if onFit then onFit(width) end
-    end
-    pcall(function() text:GetPropertyChangedSignal("TextBounds"):Connect(fit) end)
-    -- (code that sets the estimated size again - a new key, a new badge - is corrected right after)
-    pcall(function() frame:GetPropertyChangedSignal("Size"):Connect(fit) end)
-    task.defer(function() pcall(fit) end)
-    return fit
-end
 -- Util.onTextMetrics(object, fn): fn runs whenever text widths change (another font, text size, a measured font)
 -- while `object` is alive, so something laid out by Util.textWidth can size itself again.
 function Util.onTextMetrics(object, fn)

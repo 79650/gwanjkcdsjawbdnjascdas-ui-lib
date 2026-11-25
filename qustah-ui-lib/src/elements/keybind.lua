@@ -27,21 +27,16 @@ return function(card, cfg)
 
     local element = Base.element(card, "Keybind", cfg, row, title, desc)
     element._keyLabel, element._keyStroke = badge, outline -- (yellow on a key conflict)
-    -- title / description use the room the badge leaves
-    local function leaveRoom(width)
+    local function show(text)
+        badge.Text = text
+        local width = math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18)
+        badge.Size = UDim2.fromOffset(width, 22)
+        -- title / description use the room the badge leaves
         local reserve = math.max(width, 60) + 12
         if cfg.Help then reserve = (chordMode and 130 or 100) + 16 end
         title.Size = UDim2.new(1, -reserve, 0, title.Size.Y.Offset)
         if desc then desc.Size = UDim2.new(1, -reserve, 0, desc.Size.Y.Offset) end
     end
-    local function show(text)
-        badge.Text = text
-        local width = math.max(48, Util.textWidth(text, 10, Enum.Font.GothamMedium) + 18)
-        badge.Size = UDim2.fromOffset(width, 22)
-        leaveRoom(width)
-    end
-    -- (then as wide as the key name is really drawn)
-    Util.fitText(badge, badge, 18, 48, leaveRoom)
     local function chordName(chord)
         if not chord or not chord[2] then return "None" end
         return (chord[1] and (Util.keyName(chord[1]) .. " + ") or "") .. Util.keyName(chord[2])

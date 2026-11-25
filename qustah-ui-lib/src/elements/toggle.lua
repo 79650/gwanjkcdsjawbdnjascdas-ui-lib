@@ -59,16 +59,8 @@ return function(card, cfg)
         Theme.bind(badge, "BackgroundColor3", "input")
         corner(badge, 6)
         Theme.bind(Util.stroke(badge, nil, 0.45), "Color", "buttonEdge")
-        local badgeText = Util.label(badge, text, 9, { Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.None })
+        local badgeText = Util.label(badge, text, 9, { Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center, Font = Enum.Font.GothamMedium })
         Theme.bind(badgeText, "TextColor3", "muted")
-        Util.fitText(badge, badgeText, 16)
-        -- right after the title as it is really drawn
-        local function place()
-            local drawn = title.TextBounds.X
-            if drawn > 0 then badge.Position = UDim2.new(0, title.Position.X.Offset + math.ceil(drawn) + 10, 0, badge.Position.Y.Offset) end
-        end
-        title:GetPropertyChangedSignal("TextBounds"):Connect(place)
-        task.defer(place)
     end
 
     local element = Base.element(card, "Toggle", cfg, row, title, desc)

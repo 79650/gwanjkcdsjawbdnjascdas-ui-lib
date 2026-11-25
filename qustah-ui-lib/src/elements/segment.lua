@@ -139,8 +139,6 @@ return function(card, cfg)
         elseif style == "Pills" then
             corner(button, 12)
             button.Size = UDim2.fromOffset(Util.textWidth(option, 10, Enum.Font.GothamMedium) + 26, 24)
-            button.TextTruncate = Enum.TextTruncate.None
-            Util.fitText(button, button, 26)
         else
             button.BackgroundTransparency = 1
             if style == "Capsule" then

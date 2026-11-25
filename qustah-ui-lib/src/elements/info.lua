@@ -30,11 +30,7 @@ return function(card, cfg)
         local valueNeed = Util.textWidth(value.Text, 10, Enum.Font.GothamMedium)
         -- 42% for the name; less when the value needs it (never less than the name needs), more when a long name fits
         local titleWidth = width * 0.42
-        -- both fit: the name gets everything the value does not use (the value is right-aligned, so nothing moves;
-        -- an estimate a few px short no longer cuts the name: "Lua me...")
-        if need + valueNeed * 1.1 + 16 <= width then
-            titleWidth = math.max(titleWidth, width - valueNeed * 1.1 - 16)
-        elseif need > titleWidth then
+        if need > titleWidth then
             titleWidth = math.max(titleWidth, math.min(need, width - valueNeed - 8)) -- a long name takes what a short value leaves
         elseif valueNeed + 10 > width - titleWidth then
             titleWidth = math.max(need, width - valueNeed - 10) -- (a little slack: fonts measure a few px wider on some screens)

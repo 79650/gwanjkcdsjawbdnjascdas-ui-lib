@@ -157,7 +157,6 @@ function Notify.show(Lib, cfg)
                 Name = text, Text = text, TextSize = 9, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
                 Size = UDim2.fromOffset(Util.textWidth(text, 9, Enum.Font.GothamMedium) + 20, 22), LayoutOrder = index, Parent = row,
             })
-            Util.fitText(button, button, 20)
             corner(button, 6)
             local outline = stroke(button)
             if spec.Style == "Primary" or index == 1 then

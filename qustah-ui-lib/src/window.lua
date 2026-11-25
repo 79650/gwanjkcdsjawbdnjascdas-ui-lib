@@ -1036,7 +1036,6 @@ function Window:KeyHint(cfg)
         badge.Text = text
         badge.Size = UDim2.fromOffset(math.max(28, Util.textWidth(text, 9, Enum.Font.GothamMedium) + 12), 18)
     end
-    Util.fitText(badge, badge, 12, 28)
     function hint:Set(key, silent)
         key = Util.toKey(key)
         if cfg.Menu and not key then key = window.key end
