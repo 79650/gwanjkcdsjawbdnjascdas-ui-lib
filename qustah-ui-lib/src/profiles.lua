@@ -430,7 +430,7 @@ return function(window, page, defaults)
     local bottom = create("Frame", { Name = "Bottom", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = card:_order(), Parent = card.body })
     Util.list(bottom, 8, Enum.FillDirection.Horizontal)
     local create_ = card:ActionInput({
-        Name = "CreateProfile", Icon = "plus", Placeholder = "New profile name", Button = "Create",
+        Name = "CreateProfile", Placeholder = "New profile name", Button = "Create", ButtonIcon = "plus",
         Hint = "Saves your current settings",
         Validate = function(name)
             local bad = badName(name)
@@ -443,7 +443,7 @@ return function(window, page, defaults)
         end,
     })
     local import = card:ActionInput({
-        Name = "ImportProfile", Icon = "import", Placeholder = "Paste a share code", Button = "Import",
+        Name = "ImportProfile", Placeholder = "Paste a share code", Button = "Import", ButtonIcon = "import",
         Hint = "Get one with the share icon on a row",
         Validate = function(code)
             local name, flags = store:Decode(code)

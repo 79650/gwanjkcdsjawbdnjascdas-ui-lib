@@ -1866,8 +1866,9 @@ end
 end
 
 __modules["elements/actioninput"] = function()
--- card:ActionInput({ Icon = "plus", Placeholder, Button = "Create", Hint, Validate, Callback = function(text) end, ClearOnAction = true })
--- One field with an icon, the text and an action button inside it (Enter also runs it). Under it a hint line
+-- card:ActionInput({ Icon = "plus", Placeholder, Button = "Create", ButtonIcon, Hint, Validate, Callback = function(text) end, ClearOnAction = true })
+-- One field with an icon, the text and an action button inside it (Enter also runs it). ButtonIcon = "plus": the
+-- button is just that icon at the field's right end (muted, the accent once the text is good); Button is its tooltip. Under it a hint line
 -- that Validate(text) can turn into live feedback: return ok, message ("ok" green, false red, nil = plain hint).
 -- :SetHint(text, state) shows a message ("ok" / "error" / nil); :Focus(); :Set(text).
 local Util = require("util")
@@ -1892,13 +1893,23 @@ return function(card, cfg)
     if icon then left = 33 end
 
     local buttonText = tostring(cfg.Button or "OK")
-    local buttonWidth = Util.textWidth(buttonText, 10, Enum.Font.GothamMedium) + 26
-    local button = create("TextButton", {
-        Name = "Action", Text = buttonText, TextSize = 10, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
-        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -5, 0.5, 0), Size = UDim2.fromOffset(buttonWidth, 24), Parent = field,
-    })
-    corner(button, 6)
-    local buttonEdge = stroke(button)
+    local button, buttonEdge, buttonIcon, buttonWidth
+    if cfg.ButtonIcon then
+        buttonWidth = 22
+        button = create("ImageButton", {
+            Name = "Action", Image = "", BackgroundTransparency = 1, AutoButtonColor = false,
+            AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -7, 0.5, 0), Size = UDim2.fromOffset(buttonWidth, 22), Parent = field,
+        })
+        buttonIcon = Icons.themed(button, cfg.ButtonIcon, 14, "muted", { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+    else
+        buttonWidth = Util.textWidth(buttonText, 10, Enum.Font.GothamMedium) + 26
+        button = create("TextButton", {
+            Name = "Action", Text = buttonText, TextSize = 10, Font = Enum.Font.GothamMedium, AutoButtonColor = false, BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -5, 0.5, 0), Size = UDim2.fromOffset(buttonWidth, 24), Parent = field,
+        })
+        corner(button, 6)
+        buttonEdge = stroke(button)
+    end
 
     local box = create("TextBox", {
         Name = "Box", Text = "", PlaceholderText = tostring(cfg.Placeholder or ""), TextSize = 10, Font = Enum.Font.Gotham,
@@ -1919,6 +1930,10 @@ return function(card, cfg)
     element.Value = ""
     local ready = false
     local function style()
+        if cfg.ButtonIcon then
+            if buttonIcon then Theme.tweenTo(buttonIcon, "ImageColor3", ready and "accent" or "muted", 0.1) end
+            return
+        end
         Theme.tweenTo(button, "BackgroundColor3", ready and "accentDeep" or "base", 0.1)
         Theme.tweenTo(button, "TextColor3", ready and "accent" or "muted", 0.1)
         Theme.tweenTo(buttonEdge, "Color", ready and "accent" or "line", 0.1)
@@ -1963,8 +1978,18 @@ return function(card, cfg)
         if enter then run() end
     end)
     button.Activated:Connect(run)
-    button.MouseEnter:Connect(function() if ready then Theme.tweenTo(button, "TextColor3", "heading", 0.1) end end)
-    button.MouseLeave:Connect(style)
+    button.MouseEnter:Connect(function()
+        if cfg.ButtonIcon then
+            card.window:_tip(buttonText)
+            if buttonIcon then Theme.tweenTo(buttonIcon, "ImageColor3", ready and "heading" or "text", 0.1) end
+        elseif ready then
+            Theme.tweenTo(button, "TextColor3", "heading", 0.1)
+        end
+    end)
+    button.MouseLeave:Connect(function()
+        if cfg.ButtonIcon then card.window:_hideTip() end
+        style()
+    end)
 
     function element:Set(text) box.Text = tostring(text or "") validate() end
     function element:Get() return self.Value end
@@ -12465,7 +12490,7 @@ return function(window, page, defaults)
     local bottom = create("Frame", { Name = "Bottom", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = card:_order(), Parent = card.body })
     Util.list(bottom, 8, Enum.FillDirection.Horizontal)
     local create_ = card:ActionInput({
-        Name = "CreateProfile", Icon = "plus", Placeholder = "New profile name", Button = "Create",
+        Name = "CreateProfile", Placeholder = "New profile name", Button = "Create", ButtonIcon = "plus",
         Hint = "Saves your current settings",
         Validate = function(name)
             local bad = badName(name)
@@ -12478,7 +12503,7 @@ return function(window, page, defaults)
         end,
     })
     local import = card:ActionInput({
-        Name = "ImportProfile", Icon = "import", Placeholder = "Paste a share code", Button = "Import",
+        Name = "ImportProfile", Placeholder = "Paste a share code", Button = "Import", ButtonIcon = "import",
         Hint = "Get one with the share icon on a row",
         Validate = function(code)
             local name, flags = store:Decode(code)
