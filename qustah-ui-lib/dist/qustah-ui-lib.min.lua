@@ -8265,8 +8265,17 @@ end
 __modules["font"]=function()
 local Util=require("util")
 local UIFont={current="Ubuntu",guis={}}
-UIFont.order={"Ubuntu","Jura","Roboto","Michroma","Josefin Sans"}
-UIFont.Families={Ubuntu="Ubuntu",Jura="Jura",Roboto="Roboto",Michroma="Michroma",["Josefin Sans"]="JosefinSans"}
+UIFont.order={
+"Ubuntu","Jura","Roboto","Michroma","Josefin Sans",
+"Inter","Poppins","Rubik","Mulish","Nunito Sans","Barlow","Rajdhani","Audiowide","Teko","Unica One","Kanit",
+"Silkscreen","Sono Monospace",
+}
+UIFont.Families={
+Ubuntu="Ubuntu",Jura="Jura",Roboto="Roboto",Michroma="Michroma",["Josefin Sans"]="JosefinSans",
+Inter=12187365364,Poppins=11702779409,Rubik=12187365977,Mulish=12187372629,["Nunito Sans"]=12187363368,
+Barlow=12187372847,Rajdhani=12187375422,Audiowide=12187360881,Teko=12187376174,["Unica One"]=12187364842,
+Kanit=12187373592,Silkscreen=12187371840,["Sono Monospace"]=12187362578,
+}
 UIFont.DefaultSize={Ubuntu="Normal",Jura="Large",Roboto="Normal",Michroma="Normal",["Josefin Sans"]="Small"}
 UIFont.Fit={Michroma=1.12,["Josefin Sans"]=0.96}
 UIFont.code="RobotoMono"
