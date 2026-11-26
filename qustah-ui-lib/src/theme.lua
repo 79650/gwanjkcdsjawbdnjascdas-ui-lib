@@ -329,10 +329,14 @@ Theme.glassRoles = {
     base = true, footer = true, dock = true, card = true, input = true, hover = true, selected = true, dockSelected = true,
     line = true, edge = true, buttonEdge = true,
 }
-local function see(own, role)
+-- A band that lies on the window's own back and covers it edge to edge (the footer, a side dock: GlassLayer
+-- attribute) would let through only a fraction of what the window around it does - two see-through layers - and
+-- stand out as a darker strip. Its own fill fades much further, so the band lets about as much through as the rest
+-- of the window and keeps only a hint of its own shade.
+local function see(own, role, layer)
     local glass = Theme.glassRoles[role] and Theme.glass or 0
     local wanted = Theme.alpha[role] or own
-    if glass > 0 then wanted = 1 - (1 - wanted) * (1 - glass) end
+    if glass > 0 then wanted = 1 - (1 - wanted) * (1 - glass) ^ (layer and 6 or 1) end
     return wanted
 end
 local function alphaOf(object, entry)
@@ -359,7 +363,7 @@ local function alphaOf(object, entry)
             if object.BackgroundTransparency >= 1 then return end
             entry.__alpha = object.BackgroundTransparency
         end
-        local wanted = see(entry.__alpha, role)
+        local wanted = see(entry.__alpha, role, object:GetAttribute("GlassLayer") == true)
         if object.BackgroundTransparency ~= wanted then object.BackgroundTransparency = wanted end
     elseif entry.__alpha ~= nil then
         object.BackgroundTransparency = entry.__alpha
@@ -373,6 +377,11 @@ local function applyAlpha()
     end
 end
 
+-- (an object that became / stopped being a GlassLayer)
+function Theme.refreshGlass(object)
+    local entry = Theme._bound()[object]
+    if entry then pcall(alphaOf, object, entry) end
+end
 -- Theme.setGlass(0 - 0.9): see Theme.glass
 function Theme.setGlass(value)
     Theme.glass = math.clamp(tonumber(value) or 0, 0, 0.9)

@@ -11740,10 +11740,10 @@ Theme.glassRoles={
 base=true,footer=true,dock=true,card=true,input=true,hover=true,selected=true,dockSelected=true,
 line=true,edge=true,buttonEdge=true,
 }
-local function see(own,role)
+local function see(own,role,layer)
 local glass=Theme.glassRoles[role]and Theme.glass or 0
 local wanted=Theme.alpha[role]or own
-if glass>0 then wanted=1-(1-wanted)*(1-glass)end
+if glass>0 then wanted=1-(1-wanted)*(1-glass)^(layer and 6 or 1)end
 return wanted
 end
 local function alphaOf(object,entry)
@@ -11770,7 +11770,7 @@ if entry.__alpha==nil then
 if object.BackgroundTransparency>=1 then return end
 entry.__alpha=object.BackgroundTransparency
 end
-local wanted=see(entry.__alpha,role)
+local wanted=see(entry.__alpha,role,object:GetAttribute("GlassLayer")==true)
 if object.BackgroundTransparency~=wanted then object.BackgroundTransparency=wanted end
 elseif entry.__alpha~=nil then
 object.BackgroundTransparency=entry.__alpha
@@ -11782,6 +11782,10 @@ local function applyAlpha()
 for object,entry in pairs(Theme._bound())do
 if object.Parent and(entry.BackgroundColor3 or entry.Color)then pcall(alphaOf,object,entry)end
 end
+end
+function Theme.refreshGlass(object)
+local entry=Theme._bound()[object]
+if entry then pcall(alphaOf,object,entry)end
 end
 function Theme.setGlass(value)
 Theme.glass=math.clamp(tonumber(value)or 0,0,0.9)
@@ -13092,9 +13096,11 @@ self.body=body
 self.stripHolder=create("Frame",{Name="Strip",BackgroundTransparency=1,Position=UDim2.fromOffset(16,6),Size=UDim2.new(1,-32,0,26),Parent=body})
 self.pages=create("Frame",{Name="Pages",BackgroundTransparency=1,Position=UDim2.fromOffset(0,6),Size=UDim2.new(1,0,1,-6),Parent=body})
 local footer=create("Frame",{Name="Footer",Position=UDim2.new(0,0,1,-FOOTER),Size=UDim2.new(1,0,0,FOOTER),BorderSizePixel=0,Parent=main})
+footer:SetAttribute("GlassLayer",true)
 Theme.bind(footer,"BackgroundColor3","footer")
 corner(footer,12)
 local footerFill=create("Frame",{Name="TopFill",Size=UDim2.new(1,0,0,13),BorderSizePixel=0,ZIndex=0,Parent=footer})
+footerFill:SetAttribute("GlassLayer",true)
 Theme.bind(footerFill,"BackgroundColor3","footer")
 local footerLine=create("Frame",{Name="Line",Size=UDim2.new(1,0,0,1),BorderSizePixel=0,BackgroundTransparency=0.35,Parent=footer})
 Theme.bind(footerLine,"BackgroundColor3","line")
@@ -13312,6 +13318,10 @@ local y=math.floor(math.clamp(self.topLeft.Y,8,math.max(8,viewport.Y-(self.folde
 self.topLeft=Vector2.new(x,y)
 self.main.Position=UDim2.fromOffset(x,y)
 local length=self.dockHeight or DOCK_TOP
+if(self.dock:GetAttribute("GlassLayer")==true)~=(side==true)then
+self.dock:SetAttribute("GlassLayer",side==true)
+Theme.refreshGlass(self.dock)
+end
 if side then
 self.dock.Size=UDim2.fromOffset(SIDE_WIDTH,self.height-HEADER-1-FOOTER)
 self.dock.Position=UDim2.fromOffset(0,HEADER+1)

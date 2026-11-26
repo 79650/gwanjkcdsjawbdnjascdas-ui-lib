@@ -217,10 +217,12 @@ function Window:_build()
 
     ---------------------------------------------------------------- footer
     local footer = create("Frame", { Name = "Footer", Position = UDim2.new(0, 0, 1, -FOOTER), Size = UDim2.new(1, 0, 0, FOOTER), BorderSizePixel = 0, Parent = main })
+    footer:SetAttribute("GlassLayer", true) -- (it lies on the window's own back: see Theme.glass)
     Theme.bind(footer, "BackgroundColor3", "footer")
     -- rounded bottom corners like the window (its clipping is square now), square top edge
     corner(footer, 12)
     local footerFill = create("Frame", { Name = "TopFill", Size = UDim2.new(1, 0, 0, 13), BorderSizePixel = 0, ZIndex = 0, Parent = footer })
+    footerFill:SetAttribute("GlassLayer", true)
     Theme.bind(footerFill, "BackgroundColor3", "footer")
     local footerLine = create("Frame", { Name = "Line", Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0, BackgroundTransparency = 0.35, Parent = footer })
     Theme.bind(footerLine, "BackgroundColor3", "line")
@@ -466,6 +468,11 @@ function Window:_layout()
     self.topLeft = Vector2.new(x, y)
     self.main.Position = UDim2.fromOffset(x, y)
     local length = self.dockHeight or DOCK_TOP
+    -- (a side dock lies on the window's own back: see Theme.glass, GlassLayer)
+    if (self.dock:GetAttribute("GlassLayer") == true) ~= (side == true) then
+        self.dock:SetAttribute("GlassLayer", side == true)
+        Theme.refreshGlass(self.dock)
+    end
     if side then
         self.dock.Size = UDim2.fromOffset(SIDE_WIDTH, self.height - HEADER - 1 - FOOTER)
         self.dock.Position = UDim2.fromOffset(0, HEADER + 1)
