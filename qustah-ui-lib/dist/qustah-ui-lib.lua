@@ -4355,7 +4355,10 @@ return function(card, cfg)
     -- the opener on the right: a thin divider and three dots
     local divider = create("Frame", { Name = "Divider", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -26, 0.5, 0), Size = UDim2.fromOffset(1, 14), BorderSizePixel = 0, Parent = button })
     Theme.bind(divider, "BackgroundColor3", "buttonEdge")
-    local dots = Icons.themed(button, "ellipsis", 12, "muted", { Name = "Dots", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -7, 0.5, 0) })
+    -- (the dots sit centred in their own 26 px slot right of the divider: an icon resized onto a sharp sheet size or
+    -- a whole pixel then stays in the middle of it instead of drifting towards the edge)
+    local opener = create("Frame", { Name = "Opener", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0, 26, 1, 0), Parent = button })
+    local dots = Icons.themed(opener, "ellipsis", 12, "muted", { Name = "Dots", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
     local function tintArrow(role) if dots then Theme.tweenTo(dots, "ImageColor3", role, 0.1) end end
 
     local element = Base.element(card, "Dropdown", cfg, row, title, desc)
@@ -4463,7 +4466,8 @@ return function(card, cfg)
         -- (open: the same divider and dots, lit)
         local headerDivider = create("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -26, 0.5, 0), Size = UDim2.fromOffset(1, 14), BorderSizePixel = 0, ZIndex = 262, Parent = header })
         Theme.bind(headerDivider, "BackgroundColor3", "buttonEdge")
-        Icons.themed(header, "ellipsis", 12, "accent", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -7, 0.5, 0), ZIndex = 262 })
+        local headerOpener = create("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0, 26, 1, 0), ZIndex = 262, Parent = header })
+        Icons.themed(headerOpener, "ellipsis", 12, "accent", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 262 })
         header.Activated:Connect(function() window:_closePopup() end)
         local separator = create("Frame", {
             Position = UDim2.new(0, 6, 0, below and 24 or total - 25), Size = UDim2.new(1, -12, 0, 1), BorderSizePixel = 0, ZIndex = 261, Parent = popup,
