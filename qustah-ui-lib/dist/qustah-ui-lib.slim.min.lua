@@ -14264,7 +14264,8 @@ if glow then self:SetAccentGlow(true)end
 self:SetEdgeGradient(cfg.EdgeGradient~=false)
 local blur=memory.blur
 if blur==nil then blur=cfg.Blur==true end
-if blur then self:SetBlur(true,tonumber(cfg.BlurSize))end
+if tonumber(cfg.BlurSize)then self.blurSize=math.clamp(tonumber(cfg.BlurSize),2,40)end
+if blur then self:SetBlur(true)end
 self.maid:give(function()self.blur=false self:_applyBlur()end)
 self._themeBlur=Theme.extras.blur==true
 if self._themeBlur then self:SetBlur(true)end

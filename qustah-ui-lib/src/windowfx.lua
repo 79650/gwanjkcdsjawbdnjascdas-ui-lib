@@ -276,7 +276,9 @@ return function(Window)
         self:SetEdgeGradient(cfg.EdgeGradient ~= false)
         local blur = memory.blur
         if blur == nil then blur = cfg.Blur == true end
-        if blur then self:SetBlur(true, tonumber(cfg.BlurSize)) end
+        -- (BlurSize holds even when the blur starts off and the Settings switch turns it on later)
+        if tonumber(cfg.BlurSize) then self.blurSize = math.clamp(tonumber(cfg.BlurSize), 2, 40) end
+        if blur then self:SetBlur(true) end
         self.maid:give(function() self.blur = false self:_applyBlur() end)
         -- a theme that blurs the game (Glass): on with it; off again after it unless the Blur game switch is on
         self._themeBlur = Theme.extras.blur == true
