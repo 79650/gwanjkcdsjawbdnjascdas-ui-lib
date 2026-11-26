@@ -14152,7 +14152,7 @@ if self._edgeGradient then self._edgeGradient:Destroy()self._edgeGradient=nil en
 if self.edgeGradient then
 self._edgeGradient=create("UIGradient",{
 Name="EdgeGradient",Rotation=35,Parent=edge,
-Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(0.5,1),NumberSequenceKeypoint.new(1,0.1)}),
+Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.5),NumberSequenceKeypoint.new(0.5,1),NumberSequenceKeypoint.new(1,0.5)}),
 })
 end
 self:SetAccentGlow(self.accentGlow)

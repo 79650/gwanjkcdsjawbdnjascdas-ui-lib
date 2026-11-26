@@ -130,10 +130,10 @@ return function(Window)
         if not edge then return end
         if self._edgeGradient then self._edgeGradient:Destroy() self._edgeGradient = nil end
         if self.edgeGradient then
-            -- (top-left and bottom-right corners lit at 90 %, the middle of each side clear)
+            -- (top-left and bottom-right corners lit at 50 %, the middle of each side clear)
             self._edgeGradient = create("UIGradient", {
                 Name = "EdgeGradient", Rotation = 35, Parent = edge,
-                Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(0.5, 1), NumberSequenceKeypoint.new(1, 0.1) }),
+                Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(0.5, 1), NumberSequenceKeypoint.new(1, 0.5) }),
             })
         end
         self:SetAccentGlow(self.accentGlow)
