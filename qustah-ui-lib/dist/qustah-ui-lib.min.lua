@@ -8264,8 +8264,8 @@ end
 end
 __modules["font"]=function()
 local Util=require("util")
-local UIFont={current="Ubuntu",guis={}}
-UIFont.order={"Ubuntu","Jura","Roboto","Michroma","Josefin Sans"}
+local UIFont={current="Jura",guis={}}
+UIFont.order={"Jura","Ubuntu","Roboto","Michroma","Josefin Sans"}
 UIFont.Families={Ubuntu="Ubuntu",Jura="Jura",Roboto="Roboto",Michroma="Michroma",["Josefin Sans"]="JosefinSans"}
 UIFont.DefaultSize={Ubuntu="Normal",Jura="Large",Roboto="Normal",Michroma="Normal",["Josefin Sans"]="Small"}
 UIFont.Fit={Michroma=1.12,["Josefin Sans"]=0.96}
@@ -8416,7 +8416,7 @@ UIFont.measureGlyphs(UIFont.current)
 changed()
 end
 function UIFont.set(name)
-name=tostring(name or"Ubuntu")
+name=tostring(name or"Jura")
 if not table.find(UIFont.order,name)or not familyOf(name)then return false end
 UIFont.current=name
 UIFont.refresh()
@@ -11162,7 +11162,7 @@ local fonts=UIFont.available()
 local wanted=type(window.cfg.Font)=="table"and window.cfg.Font or{window.cfg.Font}
 local usable={}
 for _,name in ipairs(wanted)do if table.find(fonts,tostring(name))then usable[#usable+1]=tostring(name)end end
-local startFont=usable[1]or"Ubuntu"
+local startFont=usable[1]or"Jura"
 local fontOptions={}
 for _,name in ipairs(fonts)do fontOptions[#fontOptions+1]={Title=name,Font=UIFont.family(name)}end
 local fontTab=appearanceTabs and appearanceTabs.Text or interface:Card({Title="Text",Side="Left",Icon="type"})

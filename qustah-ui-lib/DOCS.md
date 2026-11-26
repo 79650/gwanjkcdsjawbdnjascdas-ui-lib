@@ -37,7 +37,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
-| `Font` | `"Ubuntu"` | starting font: `"Jura"`, `"Roboto"`, `"Michroma"`, `"Josefin Sans"`, or a list such as `{ "Jura", "Roboto" }` (the first known one) (see [Themes](#themes)) |
+| `Font` | `"Jura"` | starting font: `"Ubuntu"`, `"Roboto"`, `"Michroma"`, `"Josefin Sans"`, or a list such as `{ "Ubuntu", "Roboto" }` (the first known one) (see [Themes](#themes)) |
 | `CodeFont` | `"RobotoMono"` | font of Code, Console and Log text (an `Enum.Font` name) |
 | `SegmentStyle` | `"Underline"` | look of every Segment: `"Underline"`, `"Boxed"`, `"Tab"`, `"Line"`, `"Dot"`, `"Divided"`, `"Ghost"`, `"Track"`, `"Pills"`, `"Capsule"` (see [Segment](#dropdown-segment-and-radio)) |
 | `DockSide` | `"Right"` | where the tabs sit: `"Right"` (icons beside the window), `"Bottom"` (in a row under it) or `"Side"` (a sidebar inside the window with the tab names; the window grows by its 132 px so the pages keep their width; the profile becomes a card at its bottom: avatar, name, session time and an eye for anonymous mode); Settings › Interface › Window › Look › Dock, `Window:SetDockSide` |
@@ -801,7 +801,7 @@ The theme editor in Settings lets you:
 - save the result under a name;
 - share or import it with a `QTHEME1:` code.
 
-Fonts (Settings › Interface › Text): **Ubuntu** (the default), **Jura**, **Roboto**, **Michroma** (wide, for a techy look) and **Josefin Sans**. Picking one also picks the text size that suits it (Jura Large, Josefin Sans Small, the rest Normal: `Lib.Fonts.DefaultSize`); the size can be changed after, and a loaded profile keeps its own.
+Fonts (Settings › Interface › Text): **Jura** (the default, Large text), **Ubuntu**, **Roboto**, **Michroma** (wide, for a techy look) and **Josefin Sans**. Picking one also picks the text size that suits it (Jura Large, Josefin Sans Small, the rest Normal: `Lib.Fonts.DefaultSize`); the size can be changed after, and a loaded profile keeps its own.
 
 They are Roblox's own font families (`Lib.Fonts.Families`, through `Font.fromName`), so nothing is downloaded and every executor shows them.
 

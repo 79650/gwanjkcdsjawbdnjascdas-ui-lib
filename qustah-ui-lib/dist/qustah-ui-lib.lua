@@ -9375,9 +9375,9 @@ __modules["font"] = function()
 -- The fonts are Roblox's own font families (UIFont.Families: built in or an rbxassetid), so nothing is downloaded.
 local Util = require("util")
 
-local UIFont = { current = "Ubuntu", guis = {} }
+local UIFont = { current = "Jura", guis = {} }
 
-UIFont.order = { "Ubuntu", "Jura", "Roboto", "Michroma", "Josefin Sans" }
+UIFont.order = { "Jura", "Ubuntu", "Roboto", "Michroma", "Josefin Sans" }
 -- name -> its Roblox font family: a built-in family's name for Font.fromName (letters only, no spaces) or a font
 -- library asset id for Font.fromId
 UIFont.Families = { Ubuntu = "Ubuntu", Jura = "Jura", Roboto = "Roboto", Michroma = "Michroma", ["Josefin Sans"] = "JosefinSans" }
@@ -9569,7 +9569,7 @@ function UIFont.refresh()
 end
 
 function UIFont.set(name)
-    name = tostring(name or "Ubuntu")
+    name = tostring(name or "Jura")
     if not table.find(UIFont.order, name) or not familyOf(name) then return false end
     UIFont.current = name
     UIFont.refresh()
@@ -12711,13 +12711,13 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- the fonts (font.lua: Roblox's own families). CreateWindow({ Font = "Ubuntu" }) starts with one;
+    -- the fonts (font.lua: Roblox's own families). CreateWindow({ Font = "Ubuntu" }) starts with one (else Jura);
     -- a list ({ "Jura", "Roboto" }) starts with the first known name
     local fonts = UIFont.available()
     local wanted = type(window.cfg.Font) == "table" and window.cfg.Font or { window.cfg.Font }
     local usable = {}
     for _, name in ipairs(wanted) do if table.find(fonts, tostring(name)) then usable[#usable + 1] = tostring(name) end end
-    local startFont = usable[1] or "Ubuntu"
+    local startFont = usable[1] or "Jura"
     -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
