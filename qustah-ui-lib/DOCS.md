@@ -21,7 +21,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Size`, `MinSize`, `MaxSize` | `540×390` | `Vector2`; resized from the corner, scaled down on small screens |
 | `ToggleKey` | `RightShift` | key that opens and closes the menu |
 | `Accent` | Qustah grey | `Color3` |
-| `Theme` | `"Ash"` | starting theme: `"Ash"`, `"Charcoal"`, `"Charcoal Rose"`, `"Ice"`, `"Forest"`, `"Wine"`, `"Peach"` (see [Themes](#themes)) |
+| `Theme` | `"Ash"` | starting theme: `"Ash"`, `"Charcoal"`, `"Onyx"`, `"Charcoal Rose"`, `"Ice"`, `"Forest"`, `"Wine"`, `"Peach"`, `"Rust"` (see [Themes](#themes)) |
 | `WaitForDownloads` | `true` | the window stays hidden while the download strip shows (icon sheets) and opens when it is done; `false` opens it at once |
 | `DownloadTimeout` | `30` | seconds the window waits for the downloads at most |
 | `Footer` | the game's name | text in the status bar, after the status |
@@ -770,14 +770,16 @@ Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Sid
 
 ## Themes
 
-There are 7 built-in themes (`CreateWindow({ Theme = "Forest" })`, Settings › Interface › Theme):
+There are 9 built-in themes (`CreateWindow({ Theme = "Forest" })`, Settings › Interface › Theme):
 - **Ash** (default): grey, white accent
 - **Charcoal**: dark grey, neutral accent
+- **Onyx**: near black, white accent
 - **Charcoal Rose**: Charcoal with a rose accent (the selected sidebar row stays grey)
 - **Ice**: near black with an ice blue accent (the selected sidebar row stays grey)
 - **Forest**: soft dark green, mint accent
 - **Wine**: soft red-brown, pink accent
 - **Peach**: charcoal-brown, peach accent
+- **Rust**: burnt brown, copper accent
 
 The "live" dots (footer Connected, a tab's active dot, the profile dot) take the theme's accent; when the accent is a grey they stay green. Their role is `live`.
 

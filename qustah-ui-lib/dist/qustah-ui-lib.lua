@@ -14333,7 +14333,8 @@ end
 --   Ash            grey, white accent (the default) Charcoal      dark grey
 --   Charcoal Rose  Charcoal with a rose accent     Ice            near black with ice blue
 --   Forest         soft dark green, mint accent    Wine           soft red-brown, pink accent
---   Peach          charcoal-brown, peach accent
+--   Peach          charcoal-brown, peach accent    Onyx           near black, white accent
+--   Rust           burnt brown, copper accent
 -- extras.plainSelection: the selected sidebar row keeps a grey fill instead of the accent's tint.
 -- A pack may also bring its own success / warning / danger (footer dot, profile dot, module rows); the rest keep the defaults.
 Theme.packs = {
@@ -14341,6 +14342,13 @@ Theme.packs = {
         base = rgb(19, 19, 22), footer = rgb(17, 17, 19), dock = rgb(19, 19, 22), selected = rgb(44, 44, 46), icon = rgb(200, 200, 204),
         card = rgb(26, 26, 29), input = rgb(36, 36, 39), hover = rgb(44, 44, 46), line = rgb(41, 41, 43), edge = rgb(35, 35, 37),
         buttonEdge = rgb(58, 58, 61), text = rgb(228, 228, 231), muted = rgb(148, 148, 155), heading = rgb(242, 242, 244), knob = rgb(255, 255, 255),
+    },
+    Onyx = {
+        base = rgb(14, 14, 15), footer = rgb(12, 12, 13), dock = rgb(14, 14, 15), selected = rgb(48, 48, 49), icon = rgb(193, 193, 195),
+        card = rgb(22, 22, 23), input = rgb(37, 37, 38), hover = rgb(48, 48, 49), line = rgb(43, 43, 44), edge = rgb(36, 36, 37),
+        buttonEdge = rgb(69, 69, 70), text = rgb(222, 222, 222), muted = rgb(141, 141, 144), heading = rgb(236, 236, 236), knob = rgb(255, 255, 255),
+        accent = rgb(232, 232, 232),
+        success = rgb(159, 214, 176), warning = rgb(226, 200, 150), danger = rgb(230, 160, 164),
     },
     ["Charcoal Rose"] = {
         base = rgb(19, 19, 22), footer = rgb(17, 17, 19), dock = rgb(19, 19, 22), selected = rgb(44, 44, 46), icon = rgb(200, 200, 204),
@@ -14386,6 +14394,13 @@ Theme.packs = {
         accent = rgb(245, 189, 148),
         success = rgb(166, 214, 166), warning = rgb(240, 204, 138), danger = rgb(238, 154, 152),
     },
+    Rust = {
+        base = rgb(28, 20, 18), footer = rgb(25, 18, 16), dock = rgb(28, 20, 18), selected = rgb(63, 53, 50), icon = rgb(210, 195, 189),
+        card = rgb(38, 28, 25), input = rgb(52, 42, 39), hover = rgb(63, 53, 50), line = rgb(59, 49, 46), edge = rgb(50, 42, 39),
+        buttonEdge = rgb(84, 74, 70), text = rgb(233, 222, 216), muted = rgb(167, 147, 138), heading = rgb(245, 235, 230), knob = rgb(255, 255, 255),
+        accent = rgb(238, 159, 116),
+        success = rgb(168, 208, 160), warning = rgb(239, 196, 128), danger = rgb(236, 143, 134),
+    },
 }
 -- state and code colours that read on a light background (light custom themes take these)
 local lightStates = {
@@ -14415,7 +14430,7 @@ function Theme.makePack(p)
     for _ = 1, 10 do if contrast(pack.buttonEdge, pack.card) >= 1.35 then break end pack.buttonEdge = pack.buttonEdge:Lerp(text, 0.08) end
     return pack
 end
-Theme.packOrder = { "Ash", "Charcoal", "Charcoal Rose", "Ice", "Forest", "Wine", "Peach" }
+Theme.packOrder = { "Ash", "Charcoal", "Onyx", "Charcoal Rose", "Ice", "Forest", "Wine", "Peach", "Rust" }
 Theme.defaultPack = "Ash"
 local DEFAULTS = {}
 for role, color in pairs(Theme.colors) do DEFAULTS[role] = color end
