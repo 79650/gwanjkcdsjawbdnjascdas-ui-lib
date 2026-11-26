@@ -1,4 +1,4 @@
--- card:ThemeGallery({ Flag, Items = Theme.packOrder, Default = "Charcoal", Callback = function(name) end,
+-- card:ThemeGallery({ Flag, Items = Theme.packOrder, Default = "Ash", Callback = function(name) end,
 --                     New = function() end, NewTitle = "New theme", NewDesc = "From Edit colours" })
 -- The theme packs as a grid of small windows, three to a row. Each tile is drawn in that pack's own colours (window,
 -- cards with their outline, the pack's accent) whatever theme is on, so the choice is made by looking; the chosen one

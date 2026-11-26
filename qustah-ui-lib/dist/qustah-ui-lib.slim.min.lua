@@ -11661,11 +11661,6 @@ base=rgb(19,19,22),footer=rgb(17,17,19),dock=rgb(19,19,22),selected=rgb(44,44,46
 card=rgb(26,26,29),input=rgb(36,36,39),hover=rgb(44,44,46),line=rgb(41,41,43),edge=rgb(35,35,37),
 buttonEdge=rgb(58,58,61),text=rgb(228,228,231),muted=rgb(148,148,155),heading=rgb(242,242,244),knob=rgb(255,255,255),
 },
-["Charcoal Deep"]={
-base=rgb(14,14,16),footer=rgb(13,13,14),dock=rgb(14,14,16),selected=rgb(39,39,42),icon=rgb(195,195,201),
-card=rgb(21,21,24),input=rgb(32,32,35),hover=rgb(39,39,42),line=rgb(36,36,39),edge=rgb(30,30,32),
-buttonEdge=rgb(54,54,57),text=rgb(224,224,228),muted=rgb(142,142,150),heading=rgb(239,239,242),knob=rgb(255,255,255),
-},
 ["Charcoal Rose"]={
 base=rgb(19,19,22),footer=rgb(17,17,19),dock=rgb(19,19,22),selected=rgb(44,44,46),icon=rgb(200,200,204),
 card=rgb(26,26,29),input=rgb(36,36,39),hover=rgb(44,44,46),line=rgb(41,41,43),edge=rgb(35,35,37),
@@ -11734,8 +11729,8 @@ for _=1,10 do if contrast(pack.muted,pack.card)>=3 then break end pack.muted=pac
 for _=1,10 do if contrast(pack.buttonEdge,pack.card)>=1.35 then break end pack.buttonEdge=pack.buttonEdge:Lerp(text,0.08)end
 return pack
 end
-Theme.packOrder={"Charcoal","Charcoal Deep","Charcoal Rose","Ice","Ash","Forest","Wine","Peach"}
-Theme.defaultPack="Charcoal"
+Theme.packOrder={"Ash","Charcoal","Charcoal Rose","Ice","Forest","Wine","Peach"}
+Theme.defaultPack="Ash"
 local DEFAULTS={}
 for role,color in pairs(Theme.colors)do DEFAULTS[role]=color end
 Theme.defaults=DEFAULTS
@@ -11836,7 +11831,7 @@ applyAlpha()
 for _,listener in ipairs(extrasListeners)do Util.safe(listener,Theme.extras)end
 return true
 end
-Theme.pack="Charcoal"
+Theme.pack="Ash"
 Theme.EDITABLE={"base","card","input","line","text","muted","heading","dock","icon","accent"}
 function Theme.export()
 local data={}

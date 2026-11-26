@@ -21,7 +21,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Size`, `MinSize`, `MaxSize` | `540×390` | `Vector2`; resized from the corner, scaled down on small screens |
 | `ToggleKey` | `RightShift` | key that opens and closes the menu |
 | `Accent` | Qustah grey | `Color3` |
-| `Theme` | `"Charcoal"` | starting theme: `"Charcoal"`, `"Charcoal Deep"`, `"Charcoal Rose"`, `"Ice"`, `"Ash"`, `"Forest"`, `"Wine"`, `"Peach"` (see [Themes](#themes)) |
+| `Theme` | `"Ash"` | starting theme: `"Ash"`, `"Charcoal"`, `"Charcoal Rose"`, `"Ice"`, `"Forest"`, `"Wine"`, `"Peach"` (see [Themes](#themes)) |
 | `WaitForDownloads` | `true` | the window stays hidden while the download strip shows (icon sheets) and opens when it is done; `false` opens it at once |
 | `DownloadTimeout` | `30` | seconds the window waits for the downloads at most |
 | `Footer` | the game's name | text in the status bar, after the status |
@@ -588,7 +588,7 @@ Card:Gallery({ Flag = "theme", Default = "Dark", Items = {
     { Name = "Gotham", Font = Enum.Font.Gotham },                       -- an "Aa" font sample
 } })
 Card:ThemePreview({ Caption = "Gotham · Normal" })                     -- a tiny window in the live theme colours
-Card:ThemeGallery({ Flag = "theme", Default = "Charcoal", New = fn })   -- the theme packs as small windows in their own colours (value: pack name)
+Card:ThemeGallery({ Flag = "theme", Default = "Ash", New = fn })   -- the theme packs as small windows in their own colours (value: pack name)
 local nav = Card:SideNav({ Items = { { "Appearance", "palette" }, { "Behaviour", "sliders-horizontal" } },
     Footer = function(part) part:Button({ Title = "Unload" }) end })
 nav:Section("Appearance"):Toggle({ Title = "Text glow" })              -- each menu item has its own part
@@ -770,12 +770,11 @@ Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Sid
 
 ## Themes
 
-There are 8 built-in themes (`CreateWindow({ Theme = "Forest" })`, Settings › Interface › Theme):
-- **Charcoal** (default): dark grey, neutral accent
-- **Charcoal Deep**: the same, near black
+There are 7 built-in themes (`CreateWindow({ Theme = "Forest" })`, Settings › Interface › Theme):
+- **Ash** (default): grey, white accent
+- **Charcoal**: dark grey, neutral accent
 - **Charcoal Rose**: Charcoal with a rose accent (the selected sidebar row stays grey)
-- **Ice**: Charcoal Deep with an ice blue accent (the selected sidebar row stays grey)
-- **Ash**: grey, white accent
+- **Ice**: near black with an ice blue accent (the selected sidebar row stays grey)
 - **Forest**: soft dark green, mint accent
 - **Wine**: soft red-brown, pink accent
 - **Peach**: charcoal-brown, peach accent
