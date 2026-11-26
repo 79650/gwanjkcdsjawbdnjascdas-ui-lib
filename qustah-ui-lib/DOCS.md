@@ -771,13 +771,13 @@ Window:KeyHint({ Title = "ESP / SILENT AIM", Key = Enum.KeyCode.KeypadEight, Sid
 ## Themes
 
 There are 8 built-in themes (`CreateWindow({ Theme = "Forest" })`, Settings › Interface › Theme):
-- **Charcoal** (default): soft dark grey, neutral accent
-- **Charcoal Deep**: the same, darker
+- **Charcoal** (default): dark grey, neutral accent
+- **Charcoal Deep**: the same, near black
 - **Charcoal Rose**: Charcoal with a rose accent (the selected sidebar row stays grey)
-- **Ice**: Charcoal Deep with an ice blue accent
-- **Ash**: lighter grey, white accent
-- **Forest**: dark green, mint accent
-- **Wine**: dark red-brown, pink accent
+- **Ice**: Charcoal Deep with an ice blue accent (the selected sidebar row stays grey)
+- **Ash**: grey, white accent
+- **Forest**: soft dark green, mint accent
+- **Wine**: soft red-brown, pink accent
 - **Peach**: charcoal-brown, peach accent
 
 The "live" dots (footer Connected, a tab's active dot, the profile dot) take the theme's accent; when the accent is a grey they stay green. Their role is `live`.
