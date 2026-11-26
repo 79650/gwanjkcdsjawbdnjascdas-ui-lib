@@ -5,20 +5,10 @@ local Util = require("util")
 
 local UIFont = { current = "Ubuntu", guis = {} }
 
-UIFont.order = {
-    "Ubuntu", "Jura", "Roboto", "Michroma", "Josefin Sans",
-    -- (being tried out: Roblox's font library, by asset id)
-    "Inter", "Poppins", "Rubik", "Mulish", "Nunito Sans", "Barlow", "Rajdhani", "Audiowide", "Teko", "Unica One", "Kanit",
-    "Silkscreen", "Sono Monospace",
-}
+UIFont.order = { "Ubuntu", "Jura", "Roboto", "Michroma", "Josefin Sans" }
 -- name -> its Roblox font family: a built-in family's name for Font.fromName (letters only, no spaces) or a font
 -- library asset id for Font.fromId
-UIFont.Families = {
-    Ubuntu = "Ubuntu", Jura = "Jura", Roboto = "Roboto", Michroma = "Michroma", ["Josefin Sans"] = "JosefinSans",
-    Inter = 12187365364, Poppins = 11702779409, Rubik = 12187365977, Mulish = 12187372629, ["Nunito Sans"] = 12187363368,
-    Barlow = 12187372847, Rajdhani = 12187375422, Audiowide = 12187360881, Teko = 12187376174, ["Unica One"] = 12187364842,
-    Kanit = 12187373592, Silkscreen = 12187371840, ["Sono Monospace"] = 12187362578,
-}
+UIFont.Families = { Ubuntu = "Ubuntu", Jura = "Jura", Roboto = "Roboto", Michroma = "Michroma", ["Josefin Sans"] = "JosefinSans" }
 -- the text size (Settings › Text size) a font starts with when it is picked; the size can be changed after
 UIFont.DefaultSize = { Ubuntu = "Normal", Jura = "Large", Roboto = "Normal", Michroma = "Normal", ["Josefin Sans"] = "Small" }
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
