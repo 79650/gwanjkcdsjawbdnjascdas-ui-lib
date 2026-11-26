@@ -596,10 +596,11 @@ return function(card, cfg)
         button.InputEnded:Connect(function(input) if Util.isPress(input) then cancelHold() end end)
     end
     local armed = 0
-    button.Activated:Connect(function()
+    button.Activated:Connect(function(input)
         if holdTime > 0 then return end -- (a Hold button runs when the fill completes)
         require("sounds").Play("click")
         if element.Locked or loading or cooling or busy then return end
+        Util.ripple(button, input)
         if cfg.Confirm then
             if armed == 0 then
                 armed = armed + 1

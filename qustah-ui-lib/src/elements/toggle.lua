@@ -25,16 +25,42 @@ return function(card, cfg)
     local rim = Util.stroke(switch, nil, 0.18)
     local knob = create("Frame", { Name = "Knob", Position = UDim2.fromOffset(2, 2), Size = UDim2.fromOffset(14, 14), BorderSizePixel = 0, Visible = not box, Parent = switch })
     corner(knob, 7)
-    local tick                                                    -- the check mark: a short and a long stroke
+    local tick, strokes, pop                                      -- the check mark: a short and a long stroke
     if box then
         tick = create("Frame", { Name = "Tick", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = switch })
+        strokes = {}
         for _, part in ipairs({ { 4.5, 7.5, 5, 45 }, { 8, 6.5, 8, -50 } }) do
             local stroke = create("Frame", {
                 AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(part[1], part[2]), Size = UDim2.fromOffset(part[3], 1.75),
                 Rotation = part[4], BorderSizePixel = 0, Parent = tick,
             })
             Theme.bind(stroke, "BackgroundColor3", "base")
+            -- (where the stroke starts: it is drawn from there when the box gets ticked)
+            local angle = math.rad(part[4])
+            local half = Vector2.new(math.cos(angle), math.sin(angle)) * part[3] / 2
+            strokes[#strokes + 1] = { frame = stroke, centre = UDim2.fromOffset(part[1], part[2]), start = UDim2.fromOffset(part[1] - half.X, part[2] - half.Y), length = part[3] }
         end
+        pop = create("UIScale", { Parent = switch })
+    end
+    -- ticking the box: the fill comes in, the box pops a little and the tick draws itself, short stroke first
+    local drawing = 0
+    local function drawTick()
+        drawing = drawing + 1
+        local run = drawing
+        for _, part in ipairs(strokes) do part.frame.Size, part.frame.Position = UDim2.fromOffset(0, 1.75), part.start end
+        Util.tween(pop, 0.08, { Scale = 1.15 })
+        task.delay(0.08, function() if run == drawing then Util.tween(pop, 0.12, { Scale = 1 }) end end)
+        for index, part in ipairs(strokes) do
+            task.delay(0.04 + (index - 1) * 0.08, function()
+                if run ~= drawing then return end
+                Util.tween(part.frame, 0.08, { Size = UDim2.fromOffset(part.length, 1.75), Position = part.centre }, Enum.EasingStyle.Linear)
+            end)
+        end
+    end
+    local function settleTick()
+        drawing = drawing + 1
+        pop.Scale = 1
+        for _, part in ipairs(strokes) do part.frame.Size, part.frame.Position = UDim2.fromOffset(part.length, 1.75), part.centre end
     end
 
     -- Marker = true: accent bar on the left (a featured setting); Badge = "ANTI BB": small tag after the title
@@ -76,7 +102,9 @@ return function(card, cfg)
             Theme.tweenTo(switch, "BackgroundColor3", on and "accent" or "input", duration)
             Theme.tweenTo(rim, "Color", on and "accent" or "buttonEdge", duration)
             rim.Transparency = on and 0.2 or 0
+            local ticking = on and animate and Util.Motion and not tick.Visible
             tick.Visible = on
+            if ticking then drawTick() else settleTick() end
             return
         end
         Theme.tweenTo(switch, "BackgroundColor3", on and "toggleOn" or "buttonEdge", duration)

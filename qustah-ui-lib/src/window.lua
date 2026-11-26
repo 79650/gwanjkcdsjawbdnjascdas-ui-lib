@@ -64,6 +64,7 @@ function Window.new(Lib, cfg)
     if cfg.Secure then Util.secure = true end
     if cfg.ConsoleLog == false then Util.quiet = true end
     if cfg.Sounds ~= nil then require("sounds").Enabled = cfg.Sounds == true end
+    if cfg.Animations ~= nil then Util.Motion = cfg.Animations ~= false end
     self:_makeFlags()
     self.Config = Config.new(self, cfg.Folder or self.Title:gsub("[^%w_%- ]", ""))
     -- a file that was being written when the game closed came back from its .tmp copy

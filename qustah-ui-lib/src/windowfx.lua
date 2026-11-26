@@ -4,6 +4,8 @@
 --     Solid tags pick black or white text from the fill, so any colour stays readable.
 --   Window:SetLiveBackground(on)  a slow drifting accent gradient behind the content (LiveBackground = true)
 --   Window:SetAccentGlow(on)      the window edge breathes in the accent colour (AccentGlow = true)
+--   Window:SetEdgeGradient(on)    the window edge in the accent, bright at two corners and fading out between them
+--                                 (on by default; EdgeGradient = false / Settings turns it off)
 --   Welcome toast: "Signed in as <name>" the first time an account opens this UI (Welcome = false turns it off).
 --   Window:SetBlur(on, size)      blurs the game behind while the menu is open (Blur = true / Settings)
 --   Changelog = { Version = "1.2", Title = "What's new", Items = { "Added ...", "Fixed ..." } }: shown once per
@@ -104,8 +106,8 @@ return function(Window)
         local edge = self.mainStroke
         if not edge then return end
         if not self.accentGlow then
-            Theme.bind(edge, "Color", "edge")
-            Util.setRest(edge, 0) edge.Thickness = 1
+            Theme.bind(edge, "Color", self.edgeGradient and "accent" or "edge")
+            Util.setRest(edge, 0) edge.Thickness = self.edgeGradient and 1.5 or 1
             return
         end
         Theme.bind(edge, "Color", "accent")
@@ -119,6 +121,22 @@ return function(Window)
         end)
         self._glowConnection = { Disconnect = stop }
         self.maid:give(stop)
+    end
+
+    ------------------------------------------------------------------ gradient edge
+    function Window:SetEdgeGradient(on)
+        self.edgeGradient = on == true
+        local edge = self.mainStroke
+        if not edge then return end
+        if self._edgeGradient then self._edgeGradient:Destroy() self._edgeGradient = nil end
+        if self.edgeGradient then
+            -- (top-left and bottom-right corners lit, the middle of each side clear)
+            self._edgeGradient = create("UIGradient", {
+                Name = "EdgeGradient", Rotation = 35, Parent = edge,
+                Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.5, 1), NumberSequenceKeypoint.new(1, 0) }),
+            })
+        end
+        self:SetAccentGlow(self.accentGlow)
     end
 
     ------------------------------------------------------------------ background blur
@@ -255,6 +273,7 @@ return function(Window)
         local glow = memory.accentGlow
         if glow == nil then glow = cfg.AccentGlow == true end
         if glow then self:SetAccentGlow(true) end
+        self:SetEdgeGradient(cfg.EdgeGradient ~= false)
         local blur = memory.blur
         if blur == nil then blur = cfg.Blur == true end
         if blur then self:SetBlur(true, tonumber(cfg.BlurSize)) end

@@ -13,6 +13,7 @@ return function(card, cfg)
     local box = create("Frame", { Name = "Box", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, cfg.Desc and 12 or 14), Size = UDim2.fromOffset(16, 16), BorderSizePixel = 0, Parent = row })
     corner(box, 4)
     local edge = stroke(box)
+    local pop = create("UIScale", { Parent = box })
     local tick = Icons.themed(box, "check", 12, "onAccent", { Name = "Tick", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
     title.Position = UDim2.new(0, 26, 0, title.Position.Y.Offset)
     title.Size = UDim2.new(1, -26 - (cfg.Help and 16 or 0), 0, title.Size.Y.Offset)
@@ -26,7 +27,19 @@ return function(card, cfg)
         local duration = animate and 0.12 or nil
         Theme.tweenTo(box, "BackgroundColor3", on and "accent" or (hovered and "hover" or "input"), duration)
         Theme.tweenTo(edge, "Color", on and "accent" or "buttonEdge", duration)
-        if tick then tick.Visible = on end
+        if not tick then return end
+        local ticking = on and animate and Util.Motion and not tick.Visible
+        tick.Visible = on
+        -- ticking: the box pops a little and the tick grows in
+        local grow = tick:FindFirstChildOfClass("UIScale") or create("UIScale", { Parent = tick })
+        if ticking then
+            grow.Scale = 0.3
+            Util.tween(grow, 0.16, { Scale = 1 }, Enum.EasingStyle.Back)
+            Util.tween(pop, 0.08, { Scale = 1.15 })
+            task.delay(0.08, function() Util.tween(pop, 0.12, { Scale = 1 }) end)
+        else
+            grow.Scale, pop.Scale = 1, 1
+        end
     end
     function element:Set(value, silent)
         value = value == true

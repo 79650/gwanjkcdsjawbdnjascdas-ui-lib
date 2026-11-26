@@ -42,6 +42,8 @@ return function(card, cfg)
     local count = math.max(1, #options)
     -- the moving part of Track (a thumb behind the chosen word) and Underline (a bar under it)
     local thumb, bar
+    -- Pills: the filled pill is one frame that slides to the chosen word, in a layer behind the strip
+    local pillLayer, pillLayerMin, slide
     if style == "Track" then
         Theme.bind(strip, "BackgroundColor3", "input")
         strip.BackgroundTransparency = 0
@@ -87,6 +89,26 @@ return function(card, cfg)
         end
     elseif style == "Pills" then
         Util.list(strip, 6, Enum.FillDirection.Horizontal).VerticalAlignment = Enum.VerticalAlignment.Center
+        strip.ZIndex = 2
+        pillLayer = create("Frame", { Name = "PillLayer", BackgroundTransparency = 1, ZIndex = 1, Parent = row })
+        pillLayerMin = create("UISizeConstraint", { Parent = pillLayer })
+        -- (the same spots as the even pills of the strip: width 1/count less the gaps, 6 px apart)
+        for index = 1, count do
+            local spot = create("Frame", {
+                Name = "Spot", BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new((index - 1) / count, (index - 1) * 6 / count, 0.5, 0),
+                Size = UDim2.new(1 / count, -6 * (count - 1) / count, 0, 24), Parent = pillLayer,
+            })
+            Theme.bind(spot, "BackgroundColor3", "input")
+            corner(spot, 12)
+        end
+        slide = create("Frame", { Name = "Slide", BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.new(1 / count, -6 * (count - 1) / count, 0, 24), ZIndex = 2, Parent = pillLayer })
+        Theme.bind(slide, "BackgroundColor3", "accent")
+        corner(slide, 12)
+    end
+    -- the pill layer stays exactly under the strip (it moves under the title on a narrow card)
+    local function syncLayer()
+        if not pillLayer then return end
+        pillLayer.AnchorPoint, pillLayer.Position, pillLayer.Size = strip.AnchorPoint, strip.Position, strip.Size
     end
     local function render(animate)
         local duration = animate and 0.12 or nil
@@ -100,7 +122,6 @@ return function(card, cfg)
                 Theme.tweenTo(outlines[index], "Color", selected and "accent" or "line", duration)
                 outlines[index].Transparency = selected and 0.25 or 0.65
             elseif style == "Pills" then
-                Theme.tweenTo(button, "BackgroundColor3", selected and "accent" or "input", duration)
                 Theme.tweenTo(button, "TextColor3", selected and "base" or "muted", duration)
             elseif style == "Ghost" then
                 Theme.tweenTo(button, "TextColor3", selected and "heading" or "muted", duration)
@@ -123,6 +144,10 @@ return function(card, cfg)
             local width = Util.textWidth(options[chosen], 10, Enum.Font.GothamMedium) + (style == "Tab" and 16 or 6)
             if animate then Util.tween(bar, 0.16, { Size = UDim2.fromOffset(width, 2) }) else bar.Size = UDim2.fromOffset(width, 2) end
         end
+        if slide then
+            local spot = UDim2.new((chosen - 1) / count, (chosen - 1) * 6 / count, 0.5, 0)
+            if animate and Util.Motion then Util.tween(slide, 0.18, { Position = spot }) else slide.Position = spot end
+        end
         local moving = thumb or bar
         if moving then
             if animate then Util.tween(moving, 0.16, { Position = target }) else moving.Position = target end
@@ -140,6 +165,7 @@ return function(card, cfg)
         elseif style == "Pills" then
             corner(button, 12)
             button.Size = UDim2.new(1 / count, -6 * (count - 1) / count, 0, 24)
+            button.BackgroundTransparency = 1
         else
             button.BackgroundTransparency = 1
             if style == "Capsule" then
@@ -154,7 +180,11 @@ return function(card, cfg)
             end
         end
         buttons[index] = button
-        button.Activated:Connect(function() if not element.Locked then element:Set(option) end end)
+        button.Activated:Connect(function(input)
+            if element.Locked then return end
+            Util.ripple(button, input)
+            element:Set(option)
+        end)
         -- plain words: a word under the mouse brightens a little
         if style == "Tab" or style == "Capsule" then
             button.MouseEnter:Connect(function() if option ~= element.Value and not element.Locked then Theme.tweenTo(button, "TextColor3", "text", 0.08) end end)
@@ -178,6 +208,7 @@ return function(card, cfg)
             local widest = 0
             for _, option in ipairs(options) do widest = math.max(widest, Util.textWidth(option, 10, Enum.Font.GothamMedium) + 26) end
             pillsMin.MinSize = Vector2.new(widest * count + 6 * (count - 1), 0)
+            pillLayerMin.MinSize = pillsMin.MinSize
         end
     end
     sizeWords()
@@ -190,6 +221,7 @@ return function(card, cfg)
             row.Size = UDim2.new(1, 0, 0, baseHeight - 6)
             strip.AnchorPoint, strip.Position = Vector2.new(0, 0.5), UDim2.new(0, 0, 0.5, 0)
             if style ~= "Capsule" then strip.Size = UDim2.new(1, 0, 0, 28) end
+            syncLayer()
             return
         end
         local stacked = row.AbsoluteSize.X > 0 and row.AbsoluteSize.X < 300
@@ -205,6 +237,7 @@ return function(card, cfg)
             strip.Size = stacked and UDim2.new(1, 0, 0, 28) or UDim2.new(1, -120, 0, 28)
         end
         title.Size = UDim2.new(stacked and 1 or 0, stacked and 0 or 110, 0, cfg.Desc and 18 or (stacked and 28 or baseHeight))
+        syncLayer()
     end
     if wide then fit() end
     row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)

@@ -117,7 +117,7 @@ function Page.new(tab, name, cfg)
     button.MouseLeave:Connect(function()
         if tab.current ~= self then Theme.tweenTo(button, "TextColor3", (window.pagesInHeader and window.current == tab) and "muted" or "text", 0.12) end
     end)
-    button.Activated:Connect(function() self:Select() end)
+    button.Activated:Connect(function(input) Util.ripple(button, input) self:Select() end)
     self:_columns(window.width)
     return self
 end
@@ -477,8 +477,9 @@ function Tab.new(window, cfg)
         self:_render(true)
         window:_hideTip()
     end)
-    button.Activated:Connect(function()
+    button.Activated:Connect(function(input)
         window:_hideTip()
+        Util.ripple(button, input)
         if window.current ~= self then require("sounds").Play("tab") end
         self:Select()
     end)

@@ -3138,10 +3138,11 @@ return function(card, cfg)
         button.InputEnded:Connect(function(input) if Util.isPress(input) then cancelHold() end end)
     end
     local armed = 0
-    button.Activated:Connect(function()
+    button.Activated:Connect(function(input)
         if holdTime > 0 then return end -- (a Hold button runs when the fill completes)
         require("sounds").Play("click")
         if element.Locked or loading or cooling or busy then return end
+        Util.ripple(button, input)
         if cfg.Confirm then
             if armed == 0 then
                 armed = armed + 1
@@ -3299,6 +3300,7 @@ return function(card, cfg)
     local box = create("Frame", { Name = "Box", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0, cfg.Desc and 12 or 14), Size = UDim2.fromOffset(16, 16), BorderSizePixel = 0, Parent = row })
     corner(box, 4)
     local edge = stroke(box)
+    local pop = create("UIScale", { Parent = box })
     local tick = Icons.themed(box, "check", 12, "onAccent", { Name = "Tick", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
     title.Position = UDim2.new(0, 26, 0, title.Position.Y.Offset)
     title.Size = UDim2.new(1, -26 - (cfg.Help and 16 or 0), 0, title.Size.Y.Offset)
@@ -3312,7 +3314,19 @@ return function(card, cfg)
         local duration = animate and 0.12 or nil
         Theme.tweenTo(box, "BackgroundColor3", on and "accent" or (hovered and "hover" or "input"), duration)
         Theme.tweenTo(edge, "Color", on and "accent" or "buttonEdge", duration)
-        if tick then tick.Visible = on end
+        if not tick then return end
+        local ticking = on and animate and Util.Motion and not tick.Visible
+        tick.Visible = on
+        -- ticking: the box pops a little and the tick grows in
+        local grow = tick:FindFirstChildOfClass("UIScale") or create("UIScale", { Parent = tick })
+        if ticking then
+            grow.Scale = 0.3
+            Util.tween(grow, 0.16, { Scale = 1 }, Enum.EasingStyle.Back)
+            Util.tween(pop, 0.08, { Scale = 1.15 })
+            task.delay(0.08, function() Util.tween(pop, 0.12, { Scale = 1 }) end)
+        else
+            grow.Scale, pop.Scale = 1, 1
+        end
     end
     function element:Set(value, silent)
         value = value == true
@@ -7101,6 +7115,8 @@ return function(card, cfg)
     local count = math.max(1, #options)
     -- the moving part of Track (a thumb behind the chosen word) and Underline (a bar under it)
     local thumb, bar
+    -- Pills: the filled pill is one frame that slides to the chosen word, in a layer behind the strip
+    local pillLayer, pillLayerMin, slide
     if style == "Track" then
         Theme.bind(strip, "BackgroundColor3", "input")
         strip.BackgroundTransparency = 0
@@ -7146,6 +7162,26 @@ return function(card, cfg)
         end
     elseif style == "Pills" then
         Util.list(strip, 6, Enum.FillDirection.Horizontal).VerticalAlignment = Enum.VerticalAlignment.Center
+        strip.ZIndex = 2
+        pillLayer = create("Frame", { Name = "PillLayer", BackgroundTransparency = 1, ZIndex = 1, Parent = row })
+        pillLayerMin = create("UISizeConstraint", { Parent = pillLayer })
+        -- (the same spots as the even pills of the strip: width 1/count less the gaps, 6 px apart)
+        for index = 1, count do
+            local spot = create("Frame", {
+                Name = "Spot", BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new((index - 1) / count, (index - 1) * 6 / count, 0.5, 0),
+                Size = UDim2.new(1 / count, -6 * (count - 1) / count, 0, 24), Parent = pillLayer,
+            })
+            Theme.bind(spot, "BackgroundColor3", "input")
+            corner(spot, 12)
+        end
+        slide = create("Frame", { Name = "Slide", BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.new(1 / count, -6 * (count - 1) / count, 0, 24), ZIndex = 2, Parent = pillLayer })
+        Theme.bind(slide, "BackgroundColor3", "accent")
+        corner(slide, 12)
+    end
+    -- the pill layer stays exactly under the strip (it moves under the title on a narrow card)
+    local function syncLayer()
+        if not pillLayer then return end
+        pillLayer.AnchorPoint, pillLayer.Position, pillLayer.Size = strip.AnchorPoint, strip.Position, strip.Size
     end
     local function render(animate)
         local duration = animate and 0.12 or nil
@@ -7159,7 +7195,6 @@ return function(card, cfg)
                 Theme.tweenTo(outlines[index], "Color", selected and "accent" or "line", duration)
                 outlines[index].Transparency = selected and 0.25 or 0.65
             elseif style == "Pills" then
-                Theme.tweenTo(button, "BackgroundColor3", selected and "accent" or "input", duration)
                 Theme.tweenTo(button, "TextColor3", selected and "base" or "muted", duration)
             elseif style == "Ghost" then
                 Theme.tweenTo(button, "TextColor3", selected and "heading" or "muted", duration)
@@ -7182,6 +7217,10 @@ return function(card, cfg)
             local width = Util.textWidth(options[chosen], 10, Enum.Font.GothamMedium) + (style == "Tab" and 16 or 6)
             if animate then Util.tween(bar, 0.16, { Size = UDim2.fromOffset(width, 2) }) else bar.Size = UDim2.fromOffset(width, 2) end
         end
+        if slide then
+            local spot = UDim2.new((chosen - 1) / count, (chosen - 1) * 6 / count, 0.5, 0)
+            if animate and Util.Motion then Util.tween(slide, 0.18, { Position = spot }) else slide.Position = spot end
+        end
         local moving = thumb or bar
         if moving then
             if animate then Util.tween(moving, 0.16, { Position = target }) else moving.Position = target end
@@ -7199,6 +7238,7 @@ return function(card, cfg)
         elseif style == "Pills" then
             corner(button, 12)
             button.Size = UDim2.new(1 / count, -6 * (count - 1) / count, 0, 24)
+            button.BackgroundTransparency = 1
         else
             button.BackgroundTransparency = 1
             if style == "Capsule" then
@@ -7213,7 +7253,11 @@ return function(card, cfg)
             end
         end
         buttons[index] = button
-        button.Activated:Connect(function() if not element.Locked then element:Set(option) end end)
+        button.Activated:Connect(function(input)
+            if element.Locked then return end
+            Util.ripple(button, input)
+            element:Set(option)
+        end)
         -- plain words: a word under the mouse brightens a little
         if style == "Tab" or style == "Capsule" then
             button.MouseEnter:Connect(function() if option ~= element.Value and not element.Locked then Theme.tweenTo(button, "TextColor3", "text", 0.08) end end)
@@ -7237,6 +7281,7 @@ return function(card, cfg)
             local widest = 0
             for _, option in ipairs(options) do widest = math.max(widest, Util.textWidth(option, 10, Enum.Font.GothamMedium) + 26) end
             pillsMin.MinSize = Vector2.new(widest * count + 6 * (count - 1), 0)
+            pillLayerMin.MinSize = pillsMin.MinSize
         end
     end
     sizeWords()
@@ -7249,6 +7294,7 @@ return function(card, cfg)
             row.Size = UDim2.new(1, 0, 0, baseHeight - 6)
             strip.AnchorPoint, strip.Position = Vector2.new(0, 0.5), UDim2.new(0, 0, 0.5, 0)
             if style ~= "Capsule" then strip.Size = UDim2.new(1, 0, 0, 28) end
+            syncLayer()
             return
         end
         local stacked = row.AbsoluteSize.X > 0 and row.AbsoluteSize.X < 300
@@ -7264,6 +7310,7 @@ return function(card, cfg)
             strip.Size = stacked and UDim2.new(1, 0, 0, 28) or UDim2.new(1, -120, 0, 28)
         end
         title.Size = UDim2.new(stacked and 1 or 0, stacked and 0 or 110, 0, cfg.Desc and 18 or (stacked and 28 or baseHeight))
+        syncLayer()
     end
     if wide then fit() end
     row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
@@ -9045,16 +9092,42 @@ return function(card, cfg)
     local rim = Util.stroke(switch, nil, 0.18)
     local knob = create("Frame", { Name = "Knob", Position = UDim2.fromOffset(2, 2), Size = UDim2.fromOffset(14, 14), BorderSizePixel = 0, Visible = not box, Parent = switch })
     corner(knob, 7)
-    local tick                                                    -- the check mark: a short and a long stroke
+    local tick, strokes, pop                                      -- the check mark: a short and a long stroke
     if box then
         tick = create("Frame", { Name = "Tick", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = switch })
+        strokes = {}
         for _, part in ipairs({ { 4.5, 7.5, 5, 45 }, { 8, 6.5, 8, -50 } }) do
             local stroke = create("Frame", {
                 AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(part[1], part[2]), Size = UDim2.fromOffset(part[3], 1.75),
                 Rotation = part[4], BorderSizePixel = 0, Parent = tick,
             })
             Theme.bind(stroke, "BackgroundColor3", "base")
+            -- (where the stroke starts: it is drawn from there when the box gets ticked)
+            local angle = math.rad(part[4])
+            local half = Vector2.new(math.cos(angle), math.sin(angle)) * part[3] / 2
+            strokes[#strokes + 1] = { frame = stroke, centre = UDim2.fromOffset(part[1], part[2]), start = UDim2.fromOffset(part[1] - half.X, part[2] - half.Y), length = part[3] }
         end
+        pop = create("UIScale", { Parent = switch })
+    end
+    -- ticking the box: the fill comes in, the box pops a little and the tick draws itself, short stroke first
+    local drawing = 0
+    local function drawTick()
+        drawing = drawing + 1
+        local run = drawing
+        for _, part in ipairs(strokes) do part.frame.Size, part.frame.Position = UDim2.fromOffset(0, 1.75), part.start end
+        Util.tween(pop, 0.08, { Scale = 1.15 })
+        task.delay(0.08, function() if run == drawing then Util.tween(pop, 0.12, { Scale = 1 }) end end)
+        for index, part in ipairs(strokes) do
+            task.delay(0.04 + (index - 1) * 0.08, function()
+                if run ~= drawing then return end
+                Util.tween(part.frame, 0.08, { Size = UDim2.fromOffset(part.length, 1.75), Position = part.centre }, Enum.EasingStyle.Linear)
+            end)
+        end
+    end
+    local function settleTick()
+        drawing = drawing + 1
+        pop.Scale = 1
+        for _, part in ipairs(strokes) do part.frame.Size, part.frame.Position = UDim2.fromOffset(part.length, 1.75), part.centre end
     end
 
     -- Marker = true: accent bar on the left (a featured setting); Badge = "ANTI BB": small tag after the title
@@ -9096,7 +9169,9 @@ return function(card, cfg)
             Theme.tweenTo(switch, "BackgroundColor3", on and "accent" or "input", duration)
             Theme.tweenTo(rim, "Color", on and "accent" or "buttonEdge", duration)
             rim.Transparency = on and 0.2 or 0
+            local ticking = on and animate and Util.Motion and not tick.Visible
             tick.Visible = on
+            if ticking then drawTick() else settleTick() end
             return
         end
         Theme.tweenTo(switch, "BackgroundColor3", on and "toggleOn" or "buttonEdge", duration)
@@ -12782,6 +12857,8 @@ return function(window, cfg)
     window._scaleDropdown = scaleDropdown
     menu:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Flag = "__ui_mouse",
         Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
+    menu:Toggle({ Title = "Animations", Desc = "Ripples, sliding pills, ticks", Flag = "__ui_motion", Default = Util.Motion,
+        Callback = function(on) Util.Motion = on end })
     menu:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Flag = "__ui_anon", Default = window.anonymous == true,
         Callback = function(on) window:SetAnonymous(on) end })
     if window.OnAnonymousChanged then
@@ -12824,7 +12901,7 @@ return function(window, cfg)
     })
     -- the look of the menu back to its defaults (theme, accent, font, window, overlays, scale) - nothing else changes
     local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
-        "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats", "__ui_dock", "__ui_pagetabs" }
+        "__ui_live", "__ui_edge_glow", "__ui_edge_gradient", "__ui_motion", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats", "__ui_dock", "__ui_pagetabs" }
     if not simple then menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
         window:Confirm("Reset the interface?", "Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.", function()
             for _, flag in ipairs(LOOK_FLAGS) do
@@ -12869,6 +12946,8 @@ return function(window, cfg)
     end
     if not simple then look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
         Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end }) end
+    look2:Toggle({ Title = "Gradient border", Desc = "Accent fade on the window edge", Flag = "__ui_edge_gradient",
+        Default = window.edgeGradient == true, Callback = function(on) window:SetEdgeGradient(on) end })
     look2:Toggle({ Title = "Blur game", Desc = "Blurs the game while open", Flag = "__ui_blur",
         Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
 
@@ -13611,7 +13690,7 @@ function Page.new(tab, name, cfg)
     button.MouseLeave:Connect(function()
         if tab.current ~= self then Theme.tweenTo(button, "TextColor3", (window.pagesInHeader and window.current == tab) and "muted" or "text", 0.12) end
     end)
-    button.Activated:Connect(function() self:Select() end)
+    button.Activated:Connect(function(input) Util.ripple(button, input) self:Select() end)
     self:_columns(window.width)
     return self
 end
@@ -13971,8 +14050,9 @@ function Tab.new(window, cfg)
         self:_render(true)
         window:_hideTip()
     end)
-    button.Activated:Connect(function()
+    button.Activated:Connect(function(input)
         window:_hideTip()
+        Util.ripple(button, input)
         if window.current ~= self then require("sounds").Play("tab") end
         self:Select()
     end)
@@ -15044,6 +15124,38 @@ function Util.tween(object, duration, props, style, direction)
     return tween
 end
 
+-- Click feedback that Settings › Animations can turn off: ripples, the sliding segment pill, the check box tick.
+Util.Motion = true
+
+-- A soft circle that grows from the pointer inside a clicked button and fades. It lives in a clipping frame of
+-- its own, so the button's other children are never clipped.
+function Util.ripple(button, input)
+    if not Util.Motion or not button or not button.Parent then return end
+    local size = button.AbsoluteSize
+    if size.X < 1 or size.Y < 1 then return end
+    local at = Vector2.new(0.5, 0.5)
+    if input and typeof(input) == "Instance" and Util.isPress(input) then
+        local offset = Util.pointer(input) - Util.screenPos(button)
+        at = Vector2.new(math.clamp(offset.X / size.X, 0, 1), math.clamp(offset.Y / size.Y, 0, 1))
+    end
+    local clip = button:FindFirstChild("RippleClip")
+    if not clip then
+        clip = Util.create("Frame", {
+            Name = "RippleClip", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ClipsDescendants = true,
+            ZIndex = button.ZIndex, Active = false, Parent = button,
+        })
+    end
+    local color = button:IsA("TextButton") and button.Text ~= "" and button.TextColor3 or Color3.new(1, 1, 1)
+    local wave = Util.create("Frame", {
+        Name = "Ripple", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(at.X, at.Y), Size = UDim2.fromScale(0, 0),
+        SizeConstraint = Enum.SizeConstraint.RelativeXX, BackgroundColor3 = color, BackgroundTransparency = 0.78,
+        BorderSizePixel = 0, ZIndex = button.ZIndex, Active = false, Parent = clip,
+    })
+    Util.create("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = wave })
+    Util.tween(wave, 0.45, { Size = UDim2.fromScale(2.2, 2.2), BackgroundTransparency = 1 })
+    task.delay(0.5, function() wave:Destroy() end)
+end
+
 -- Fades a small piece of UI (toast, pill, key screen) by tweening each part's own transparency, so nothing is
 -- drawn through a CanvasGroup texture (sharp text and icons) and it can stay inside a list layout. Each part's
 -- resting transparency is remembered the first time. fromHidden: start everything invisible (a new toast).
@@ -15889,6 +16001,7 @@ function Window.new(Lib, cfg)
     if cfg.Secure then Util.secure = true end
     if cfg.ConsoleLog == false then Util.quiet = true end
     if cfg.Sounds ~= nil then require("sounds").Enabled = cfg.Sounds == true end
+    if cfg.Animations ~= nil then Util.Motion = cfg.Animations ~= false end
     self:_makeFlags()
     self.Config = Config.new(self, cfg.Folder or self.Title:gsub("[^%w_%- ]", ""))
     -- a file that was being written when the game closed came back from its .tmp copy
@@ -16959,6 +17072,8 @@ __modules["windowfx"] = function()
 --     Solid tags pick black or white text from the fill, so any colour stays readable.
 --   Window:SetLiveBackground(on)  a slow drifting accent gradient behind the content (LiveBackground = true)
 --   Window:SetAccentGlow(on)      the window edge breathes in the accent colour (AccentGlow = true)
+--   Window:SetEdgeGradient(on)    the window edge in the accent, bright at two corners and fading out between them
+--                                 (on by default; EdgeGradient = false / Settings turns it off)
 --   Welcome toast: "Signed in as <name>" the first time an account opens this UI (Welcome = false turns it off).
 --   Window:SetBlur(on, size)      blurs the game behind while the menu is open (Blur = true / Settings)
 --   Changelog = { Version = "1.2", Title = "What's new", Items = { "Added ...", "Fixed ..." } }: shown once per
@@ -17059,8 +17174,8 @@ return function(Window)
         local edge = self.mainStroke
         if not edge then return end
         if not self.accentGlow then
-            Theme.bind(edge, "Color", "edge")
-            Util.setRest(edge, 0) edge.Thickness = 1
+            Theme.bind(edge, "Color", self.edgeGradient and "accent" or "edge")
+            Util.setRest(edge, 0) edge.Thickness = self.edgeGradient and 1.5 or 1
             return
         end
         Theme.bind(edge, "Color", "accent")
@@ -17074,6 +17189,22 @@ return function(Window)
         end)
         self._glowConnection = { Disconnect = stop }
         self.maid:give(stop)
+    end
+
+    ------------------------------------------------------------------ gradient edge
+    function Window:SetEdgeGradient(on)
+        self.edgeGradient = on == true
+        local edge = self.mainStroke
+        if not edge then return end
+        if self._edgeGradient then self._edgeGradient:Destroy() self._edgeGradient = nil end
+        if self.edgeGradient then
+            -- (top-left and bottom-right corners lit, the middle of each side clear)
+            self._edgeGradient = create("UIGradient", {
+                Name = "EdgeGradient", Rotation = 35, Parent = edge,
+                Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.5, 1), NumberSequenceKeypoint.new(1, 0) }),
+            })
+        end
+        self:SetAccentGlow(self.accentGlow)
     end
 
     ------------------------------------------------------------------ background blur
@@ -17210,6 +17341,7 @@ return function(Window)
         local glow = memory.accentGlow
         if glow == nil then glow = cfg.AccentGlow == true end
         if glow then self:SetAccentGlow(true) end
+        self:SetEdgeGradient(cfg.EdgeGradient ~= false)
         local blur = memory.blur
         if blur == nil then blur = cfg.Blur == true end
         if blur then self:SetBlur(true, tonumber(cfg.BlurSize)) end

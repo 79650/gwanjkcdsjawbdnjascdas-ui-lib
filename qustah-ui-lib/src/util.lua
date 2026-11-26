@@ -110,6 +110,38 @@ function Util.tween(object, duration, props, style, direction)
     return tween
 end
 
+-- Click feedback that Settings › Animations can turn off: ripples, the sliding segment pill, the check box tick.
+Util.Motion = true
+
+-- A soft circle that grows from the pointer inside a clicked button and fades. It lives in a clipping frame of
+-- its own, so the button's other children are never clipped.
+function Util.ripple(button, input)
+    if not Util.Motion or not button or not button.Parent then return end
+    local size = button.AbsoluteSize
+    if size.X < 1 or size.Y < 1 then return end
+    local at = Vector2.new(0.5, 0.5)
+    if input and typeof(input) == "Instance" and Util.isPress(input) then
+        local offset = Util.pointer(input) - Util.screenPos(button)
+        at = Vector2.new(math.clamp(offset.X / size.X, 0, 1), math.clamp(offset.Y / size.Y, 0, 1))
+    end
+    local clip = button:FindFirstChild("RippleClip")
+    if not clip then
+        clip = Util.create("Frame", {
+            Name = "RippleClip", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ClipsDescendants = true,
+            ZIndex = button.ZIndex, Active = false, Parent = button,
+        })
+    end
+    local color = button:IsA("TextButton") and button.Text ~= "" and button.TextColor3 or Color3.new(1, 1, 1)
+    local wave = Util.create("Frame", {
+        Name = "Ripple", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(at.X, at.Y), Size = UDim2.fromScale(0, 0),
+        SizeConstraint = Enum.SizeConstraint.RelativeXX, BackgroundColor3 = color, BackgroundTransparency = 0.78,
+        BorderSizePixel = 0, ZIndex = button.ZIndex, Active = false, Parent = clip,
+    })
+    Util.create("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = wave })
+    Util.tween(wave, 0.45, { Size = UDim2.fromScale(2.2, 2.2), BackgroundTransparency = 1 })
+    task.delay(0.5, function() wave:Destroy() end)
+end
+
 -- Fades a small piece of UI (toast, pill, key screen) by tweening each part's own transparency, so nothing is
 -- drawn through a CanvasGroup texture (sharp text and icons) and it can stay inside a list layout. Each part's
 -- resting transparency is remembered the first time. fromHidden: start everything invisible (a new toast).

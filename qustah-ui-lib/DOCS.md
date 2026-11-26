@@ -34,6 +34,8 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `NotificationHistory` | `true` | the bell in the header (notification history) |
 | `Background`, `BackgroundTransparency` | — | background image, window transparency |
 | `LiveBackground`, `AccentGlow` | `false` | slow accent light drifting behind the content; window edge that pulses in the accent colour |
+| `EdgeGradient` | `true` | the window edge in the accent colour, lit at the top-left and bottom-right corners and fading out between them; Settings › Window › Gradient border, `Window:SetEdgeGradient` |
+| `Animations` | `true` | click feedback: a ripple from the pointer on buttons, segment words and tabs, the filled Pills pill sliding to the chosen word, a check box that pops and draws its tick; Settings › Menu › Animations (other transitions stay) |
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
@@ -246,7 +248,7 @@ Card:Dropdown({ Title = "Mode", Items = { pvp = "PvP mode", farm = "Auto farm" }
 Card:Segment({ Title = "Aim part", Flag = "aimPart", Items = { "Head", "Body", "Closest" }, Default = "Head" })
 -- Style (or CreateWindow({ SegmentStyle })): "Boxed" a framed button each · "Tab" words over a faint line, a short
 -- line slides under the chosen one · "Underline" / "Line" / "Dot" / "Divided" / "Ghost" lighter word styles ·
--- "Track" one track with a sliding thumb · "Pills" / "Capsule" pills as wide as their word
+-- "Track" one track with a sliding thumb · "Pills" / "Capsule" pills as wide as their word (the filled pill slides)
 
 Card:Radio({ Title = "Priority", Flag = "priority", Items = {         -- every option visible, one chosen
     "Closest",
@@ -530,7 +532,7 @@ Tab:Page("Movement", { Compact = true })                               -- one pa
 Page:Card({ Title = "FOV", Compact = false })                          -- a card can opt out (or in)
 Window:SettingsTab({ Compact = true })
 Window:SettingsTab({ Icon = false })   -- no icon in the sidebar (like tabs made without one)
-Window:SettingsTab({ Simple = true })   -- a small script: all four pages, Interface with the everyday settings only (Appearance with Theme | Text tabs, a compact Menu card with Behaviour | Window tabs, no dock choice) (theme, font, text size, menu key, scale, free mouse, anonymous, reset layout / unload, transparency, dock, blur)
+Window:SettingsTab({ Simple = true })   -- a small script: all four pages, Interface with the everyday settings only (Appearance with Theme | Text tabs, a compact Menu card with Behaviour | Window tabs, no dock choice) (theme, font, text size, menu key, scale, free mouse, animations, anonymous, reset layout / unload, transparency, gradient border, dock, blur)
 ```
 Compact cards have tighter padding, a line under the title, 6 px shorter rows, slimmer buttons and sliders, and a check box in place of each toggle's switch (same element, same flag).
 
@@ -909,6 +911,7 @@ Window:SetBackgroundImage("rbxassetid://123", 0.85)
 Window:SetBackgroundTransparency(0.2)            -- the whole window: every surface and outline (the Settings slider goes to 25 %)
 Window:SetLiveBackground(true)                  -- slow accent light drifting behind the content
 Window:SetAccentGlow(true)                      -- the window edge pulses in the accent colour
+Window:SetEdgeGradient(false)                   -- the plain edge instead of the accent fading between two corners
 
 Window:SetBlur(true)                            -- blurs the game behind the open menu
 Window:SetAnonymous(true)                       -- hides your name and avatar everywhere (the avatar button in the dock)

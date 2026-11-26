@@ -2772,10 +2772,11 @@ button.InputBegan:Connect(function(input)if Util.isPress(input)then startHold()e
 button.InputEnded:Connect(function(input)if Util.isPress(input)then cancelHold()end end)
 end
 local armed=0
-button.Activated:Connect(function()
+button.Activated:Connect(function(input)
 if holdTime>0 then return end
 require("sounds").Play("click")
 if element.Locked or loading or cooling or busy then return end
+Util.ripple(button,input)
 if cfg.Confirm then
 if armed==0 then
 armed=armed+1
@@ -2909,6 +2910,7 @@ local row,title,desc=Base.row(card,cfg,cfg.Desc and 40 or 28,{button=true,noIcon
 local box=create("Frame",{Name="Box",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0,cfg.Desc and 12 or 14),Size=UDim2.fromOffset(16,16),BorderSizePixel=0,Parent=row})
 corner(box,4)
 local edge=stroke(box)
+local pop=create("UIScale",{Parent=box})
 local tick=Icons.themed(box,"check",12,"onAccent",{Name="Tick",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
 title.Position=UDim2.new(0,26,0,title.Position.Y.Offset)
 title.Size=UDim2.new(1,-26-(cfg.Help and 16 or 0),0,title.Size.Y.Offset)
@@ -2921,7 +2923,18 @@ local on=element.Value
 local duration=animate and 0.12 or nil
 Theme.tweenTo(box,"BackgroundColor3",on and"accent"or(hovered and"hover"or"input"),duration)
 Theme.tweenTo(edge,"Color",on and"accent"or"buttonEdge",duration)
-if tick then tick.Visible=on end
+if not tick then return end
+local ticking=on and animate and Util.Motion and not tick.Visible
+tick.Visible=on
+local grow=tick:FindFirstChildOfClass("UIScale")or create("UIScale",{Parent=tick})
+if ticking then
+grow.Scale=0.3
+Util.tween(grow,0.16,{Scale=1},Enum.EasingStyle.Back)
+Util.tween(pop,0.08,{Scale=1.15})
+task.delay(0.08,function()Util.tween(pop,0.12,{Scale=1})end)
+else
+grow.Scale,pop.Scale=1,1
+end
 end
 function element:Set(value,silent)
 value=value==true
@@ -5579,6 +5592,7 @@ element.Items=options
 local buttons,outlines={},{}
 local count=math.max(1,#options)
 local thumb,bar
+local pillLayer,pillLayerMin,slide
 if style=="Track"then
 Theme.bind(strip,"BackgroundColor3","input")
 strip.BackgroundTransparency=0
@@ -5623,6 +5637,24 @@ Theme.bind(divider,"BackgroundColor3","line")
 end
 elseif style=="Pills"then
 Util.list(strip,6,Enum.FillDirection.Horizontal).VerticalAlignment=Enum.VerticalAlignment.Center
+strip.ZIndex=2
+pillLayer=create("Frame",{Name="PillLayer",BackgroundTransparency=1,ZIndex=1,Parent=row})
+pillLayerMin=create("UISizeConstraint",{Parent=pillLayer})
+for index=1,count do
+local spot=create("Frame",{
+Name="Spot",BorderSizePixel=0,AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new((index-1)/count,(index-1)*6/count,0.5,0),
+Size=UDim2.new(1/count,-6*(count-1)/count,0,24),Parent=pillLayer,
+})
+Theme.bind(spot,"BackgroundColor3","input")
+corner(spot,12)
+end
+slide=create("Frame",{Name="Slide",BorderSizePixel=0,AnchorPoint=Vector2.new(0,0.5),Size=UDim2.new(1/count,-6*(count-1)/count,0,24),ZIndex=2,Parent=pillLayer})
+Theme.bind(slide,"BackgroundColor3","accent")
+corner(slide,12)
+end
+local function syncLayer()
+if not pillLayer then return end
+pillLayer.AnchorPoint,pillLayer.Position,pillLayer.Size=strip.AnchorPoint,strip.Position,strip.Size
 end
 local function render(animate)
 local duration=animate and 0.12 or nil
@@ -5636,7 +5668,6 @@ Theme.tweenTo(button,"TextColor3",selected and"accent"or"muted",duration)
 Theme.tweenTo(outlines[index],"Color",selected and"accent"or"line",duration)
 outlines[index].Transparency=selected and 0.25 or 0.65
 elseif style=="Pills"then
-Theme.tweenTo(button,"BackgroundColor3",selected and"accent"or"input",duration)
 Theme.tweenTo(button,"TextColor3",selected and"base"or"muted",duration)
 elseif style=="Ghost"then
 Theme.tweenTo(button,"TextColor3",selected and"heading"or"muted",duration)
@@ -5659,6 +5690,10 @@ if(style=="Line"or style=="Tab")and options[chosen]then
 local width=Util.textWidth(options[chosen],10,Enum.Font.GothamMedium)+(style=="Tab"and 16 or 6)
 if animate then Util.tween(bar,0.16,{Size=UDim2.fromOffset(width,2)})else bar.Size=UDim2.fromOffset(width,2)end
 end
+if slide then
+local spot=UDim2.new((chosen-1)/count,(chosen-1)*6/count,0.5,0)
+if animate and Util.Motion then Util.tween(slide,0.18,{Position=spot})else slide.Position=spot end
+end
 local moving=thumb or bar
 if moving then
 if animate then Util.tween(moving,0.16,{Position=target})else moving.Position=target end
@@ -5676,6 +5711,7 @@ outlines[index]=stroke(button)
 elseif style=="Pills"then
 corner(button,12)
 button.Size=UDim2.new(1/count,-6*(count-1)/count,0,24)
+button.BackgroundTransparency=1
 else
 button.BackgroundTransparency=1
 if style=="Capsule"then
@@ -5690,7 +5726,11 @@ Theme.bind(outlines[index],"Color","accent")
 end
 end
 buttons[index]=button
-button.Activated:Connect(function()if not element.Locked then element:Set(option)end end)
+button.Activated:Connect(function(input)
+if element.Locked then return end
+Util.ripple(button,input)
+element:Set(option)
+end)
 if style=="Tab"or style=="Capsule"then
 button.MouseEnter:Connect(function()if option~=element.Value and not element.Locked then Theme.tweenTo(button,"TextColor3","text",0.08)end end)
 button.MouseLeave:Connect(function()if option~=element.Value then Theme.tweenTo(button,"TextColor3","muted",0.08)end end)
@@ -5711,6 +5751,7 @@ elseif style=="Pills"then
 local widest=0
 for _,option in ipairs(options)do widest=math.max(widest,Util.textWidth(option,10,Enum.Font.GothamMedium)+26)end
 pillsMin.MinSize=Vector2.new(widest*count+6*(count-1),0)
+pillLayerMin.MinSize=pillsMin.MinSize
 end
 end
 sizeWords()
@@ -5720,6 +5761,7 @@ if wide then
 row.Size=UDim2.new(1,0,0,baseHeight-6)
 strip.AnchorPoint,strip.Position=Vector2.new(0,0.5),UDim2.new(0,0,0.5,0)
 if style~="Capsule"then strip.Size=UDim2.new(1,0,0,28)end
+syncLayer()
 return
 end
 local stacked=row.AbsoluteSize.X>0 and row.AbsoluteSize.X<300
@@ -5734,6 +5776,7 @@ else
 strip.Size=stacked and UDim2.new(1,0,0,28)or UDim2.new(1,-120,0,28)
 end
 title.Size=UDim2.new(stacked and 1 or 0,stacked and 0 or 110,0,cfg.Desc and 18 or(stacked and 28 or baseHeight))
+syncLayer()
 end
 if wide then fit()end
 row:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
@@ -7087,16 +7130,40 @@ corner(switch,box and 4 or 9)
 local rim=Util.stroke(switch,nil,0.18)
 local knob=create("Frame",{Name="Knob",Position=UDim2.fromOffset(2,2),Size=UDim2.fromOffset(14,14),BorderSizePixel=0,Visible=not box,Parent=switch})
 corner(knob,7)
-local tick
+local tick,strokes,pop
 if box then
 tick=create("Frame",{Name="Tick",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Parent=switch})
+strokes={}
 for _,part in ipairs({{4.5,7.5,5,45},{8,6.5,8,-50}})do
 local stroke=create("Frame",{
 AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromOffset(part[1],part[2]),Size=UDim2.fromOffset(part[3],1.75),
 Rotation=part[4],BorderSizePixel=0,Parent=tick,
 })
 Theme.bind(stroke,"BackgroundColor3","base")
+local angle=math.rad(part[4])
+local half=Vector2.new(math.cos(angle),math.sin(angle))*part[3]/2
+strokes[#strokes+1]={frame=stroke,centre=UDim2.fromOffset(part[1],part[2]),start=UDim2.fromOffset(part[1]-half.X,part[2]-half.Y),length=part[3]}
 end
+pop=create("UIScale",{Parent=switch})
+end
+local drawing=0
+local function drawTick()
+drawing=drawing+1
+local run=drawing
+for _,part in ipairs(strokes)do part.frame.Size,part.frame.Position=UDim2.fromOffset(0,1.75),part.start end
+Util.tween(pop,0.08,{Scale=1.15})
+task.delay(0.08,function()if run==drawing then Util.tween(pop,0.12,{Scale=1})end end)
+for index,part in ipairs(strokes)do
+task.delay(0.04+(index-1)*0.08,function()
+if run~=drawing then return end
+Util.tween(part.frame,0.08,{Size=UDim2.fromOffset(part.length,1.75),Position=part.centre},Enum.EasingStyle.Linear)
+end)
+end
+end
+local function settleTick()
+drawing=drawing+1
+pop.Scale=1
+for _,part in ipairs(strokes)do part.frame.Size,part.frame.Position=UDim2.fromOffset(part.length,1.75),part.centre end
 end
 if cfg.Marker then
 local marker=create("Frame",{Name="Marker",AnchorPoint=Vector2.new(0,0.5),Position=UDim2.new(0,0,0.5,0),Size=UDim2.fromOffset(3,24),BorderSizePixel=0,BackgroundTransparency=0.15,Parent=row})
@@ -7131,7 +7198,9 @@ if box then
 Theme.tweenTo(switch,"BackgroundColor3",on and"accent"or"input",duration)
 Theme.tweenTo(rim,"Color",on and"accent"or"buttonEdge",duration)
 rim.Transparency=on and 0.2 or 0
+local ticking=on and animate and Util.Motion and not tick.Visible
 tick.Visible=on
+if ticking then drawTick()else settleTick()end
 return
 end
 Theme.tweenTo(switch,"BackgroundColor3",on and"toggleOn"or"buttonEdge",duration)
@@ -10332,6 +10401,8 @@ end
 window._scaleDropdown=scaleDropdown
 menu:Toggle({Title="Free mouse",Desc="Free cursor while open",Flag="__ui_mouse",
 Default=window.unlockMouse~=false,Callback=function(on)window:SetMouseUnlock(on)end})
+menu:Toggle({Title="Animations",Desc="Ripples, sliding pills, ticks",Flag="__ui_motion",Default=Util.Motion,
+Callback=function(on)Util.Motion=on end})
 menu:Toggle({Title="Anonymous mode",Desc="Hides your name and avatar",Flag="__ui_anon",Default=window.anonymous==true,
 Callback=function(on)window:SetAnonymous(on)end})
 if window.OnAnonymousChanged then
@@ -10372,7 +10443,7 @@ window:Confirm("Unload "..window.Title.."?","The menu and everything it runs wil
 end,
 })
 local LOOK_FLAGS={"__ui_theme","__ui_accent","__ui_font","__ui_textsize","__ui_glow","__ui_transparency","__ui_bg","__ui_bg_alpha",
-"__ui_live","__ui_edge_glow","__ui_blur","__ui_hud_watermark","__ui_hud_keys","__ui_hud_session","__ui_hud_stats","__ui_dock","__ui_pagetabs"}
+"__ui_live","__ui_edge_glow","__ui_edge_gradient","__ui_motion","__ui_blur","__ui_hud_watermark","__ui_hud_keys","__ui_hud_session","__ui_hud_stats","__ui_dock","__ui_pagetabs"}
 if not simple then menu:Button({Title="Reset interface",Icon="paintbrush",Style="Ghost",Callback=function()
 window:Confirm("Reset the interface?","Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.",function()
 for _,flag in ipairs(LOOK_FLAGS)do
@@ -10410,6 +10481,8 @@ Default=window.liveBackground==true,Callback=function(on)window:SetLiveBackgroun
 end
 if not simple then look2:Toggle({Title="Edge glow",Desc="Pulsing accent border",Flag="__ui_edge_glow",
 Default=window.accentGlow==true,Callback=function(on)window:SetAccentGlow(on)end})end
+look2:Toggle({Title="Gradient border",Desc="Accent fade on the window edge",Flag="__ui_edge_gradient",
+Default=window.edgeGradient==true,Callback=function(on)window:SetEdgeGradient(on)end})
 look2:Toggle({Title="Blur game",Desc="Blurs the game while open",Flag="__ui_blur",
 Default=window.blur==true,Callback=function(on)window:SetBlur(on)end})
 if not simple then
@@ -11044,7 +11117,7 @@ button.MouseEnter:Connect(function()if tab.current~=self then Theme.tweenTo(butt
 button.MouseLeave:Connect(function()
 if tab.current~=self then Theme.tweenTo(button,"TextColor3",(window.pagesInHeader and window.current==tab)and"muted"or"text",0.12)end
 end)
-button.Activated:Connect(function()self:Select()end)
+button.Activated:Connect(function(input)Util.ripple(button,input)self:Select()end)
 self:_columns(window.width)
 return self
 end
@@ -11360,8 +11433,9 @@ self.hovered=false
 self:_render(true)
 window:_hideTip()
 end)
-button.Activated:Connect(function()
+button.Activated:Connect(function(input)
 window:_hideTip()
+Util.ripple(button,input)
 if window.current~=self then require("sounds").Play("tab")end
 self:Select()
 end)
@@ -12266,6 +12340,33 @@ TweenInfo.new(duration,style or Enum.EasingStyle.Quad,direction or Enum.EasingDi
 tween:Play()
 return tween
 end
+Util.Motion=true
+function Util.ripple(button,input)
+if not Util.Motion or not button or not button.Parent then return end
+local size=button.AbsoluteSize
+if size.X<1 or size.Y<1 then return end
+local at=Vector2.new(0.5,0.5)
+if input and typeof(input)=="Instance"and Util.isPress(input)then
+local offset=Util.pointer(input)-Util.screenPos(button)
+at=Vector2.new(math.clamp(offset.X/size.X,0,1),math.clamp(offset.Y/size.Y,0,1))
+end
+local clip=button:FindFirstChild("RippleClip")
+if not clip then
+clip=Util.create("Frame",{
+Name="RippleClip",BackgroundTransparency=1,Size=UDim2.fromScale(1,1),ClipsDescendants=true,
+ZIndex=button.ZIndex,Active=false,Parent=button,
+})
+end
+local color=button:IsA("TextButton")and button.Text~=""and button.TextColor3 or Color3.new(1,1,1)
+local wave=Util.create("Frame",{
+Name="Ripple",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(at.X,at.Y),Size=UDim2.fromScale(0,0),
+SizeConstraint=Enum.SizeConstraint.RelativeXX,BackgroundColor3=color,BackgroundTransparency=0.78,
+BorderSizePixel=0,ZIndex=button.ZIndex,Active=false,Parent=clip,
+})
+Util.create("UICorner",{CornerRadius=UDim.new(0.5,0),Parent=wave})
+Util.tween(wave,0.45,{Size=UDim2.fromScale(2.2,2.2),BackgroundTransparency=1})
+task.delay(0.5,function()wave:Destroy()end)
+end
 local FADE_PROPS={
 {"GuiObject","BackgroundTransparency"},{"TextLabel","TextTransparency"},{"TextButton","TextTransparency"},
 {"TextBox","TextTransparency"},{"ImageLabel","ImageTransparency"},{"ImageButton","ImageTransparency"},
@@ -12995,6 +13096,7 @@ if typeof(cfg.Accent)=="Color3"then Theme.set("accent",cfg.Accent)end
 if cfg.Secure then Util.secure=true end
 if cfg.ConsoleLog==false then Util.quiet=true end
 if cfg.Sounds~=nil then require("sounds").Enabled=cfg.Sounds==true end
+if cfg.Animations~=nil then Util.Motion=cfg.Animations~=false end
 self:_makeFlags()
 self.Config=Config.new(self,cfg.Folder or self.Title:gsub("[^%w_%- ]",""))
 self.Config:OnRecovered(function(name)
@@ -14009,8 +14111,8 @@ if self._glowConnection then self._glowConnection:Disconnect()self._glowConnecti
 local edge=self.mainStroke
 if not edge then return end
 if not self.accentGlow then
-Theme.bind(edge,"Color","edge")
-Util.setRest(edge,0)edge.Thickness=1
+Theme.bind(edge,"Color",self.edgeGradient and"accent"or"edge")
+Util.setRest(edge,0)edge.Thickness=self.edgeGradient and 1.5 or 1
 return
 end
 Theme.bind(edge,"Color","accent")
@@ -14024,6 +14126,19 @@ Util.setRest(edge,0.55+math.sin(now*2.1)*0.25)
 end)
 self._glowConnection={Disconnect=stop}
 self.maid:give(stop)
+end
+function Window:SetEdgeGradient(on)
+self.edgeGradient=on==true
+local edge=self.mainStroke
+if not edge then return end
+if self._edgeGradient then self._edgeGradient:Destroy()self._edgeGradient=nil end
+if self.edgeGradient then
+self._edgeGradient=create("UIGradient",{
+Name="EdgeGradient",Rotation=35,Parent=edge,
+Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.5,1),NumberSequenceKeypoint.new(1,0)}),
+})
+end
+self:SetAccentGlow(self.accentGlow)
 end
 function Window:SetBlur(on,size)
 self.blur=on==true
@@ -14146,6 +14261,7 @@ if live then self:SetLiveBackground(true)end
 local glow=memory.accentGlow
 if glow==nil then glow=cfg.AccentGlow==true end
 if glow then self:SetAccentGlow(true)end
+self:SetEdgeGradient(cfg.EdgeGradient~=false)
 local blur=memory.blur
 if blur==nil then blur=cfg.Blur==true end
 if blur then self:SetBlur(true,tonumber(cfg.BlurSize))end

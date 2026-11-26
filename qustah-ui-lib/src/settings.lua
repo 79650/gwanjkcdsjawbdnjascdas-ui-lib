@@ -143,6 +143,8 @@ return function(window, cfg)
     window._scaleDropdown = scaleDropdown
     menu:Toggle({ Title = "Free mouse", Desc = "Free cursor while open", Flag = "__ui_mouse",
         Default = window.unlockMouse ~= false, Callback = function(on) window:SetMouseUnlock(on) end })
+    menu:Toggle({ Title = "Animations", Desc = "Ripples, sliding pills, ticks", Flag = "__ui_motion", Default = Util.Motion,
+        Callback = function(on) Util.Motion = on end })
     menu:Toggle({ Title = "Anonymous mode", Desc = "Hides your name and avatar", Flag = "__ui_anon", Default = window.anonymous == true,
         Callback = function(on) window:SetAnonymous(on) end })
     if window.OnAnonymousChanged then
@@ -185,7 +187,7 @@ return function(window, cfg)
     })
     -- the look of the menu back to its defaults (theme, accent, font, window, overlays, scale) - nothing else changes
     local LOOK_FLAGS = { "__ui_theme", "__ui_accent", "__ui_font", "__ui_textsize", "__ui_glow", "__ui_transparency", "__ui_bg", "__ui_bg_alpha",
-        "__ui_live", "__ui_edge_glow", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats", "__ui_dock", "__ui_pagetabs" }
+        "__ui_live", "__ui_edge_glow", "__ui_edge_gradient", "__ui_motion", "__ui_blur", "__ui_hud_watermark", "__ui_hud_keys", "__ui_hud_session", "__ui_hud_stats", "__ui_dock", "__ui_pagetabs" }
     if not simple then menu:Button({ Title = "Reset interface", Icon = "paintbrush", Style = "Ghost", Callback = function()
         window:Confirm("Reset the interface?", "Theme, accent, font, window look and overlays go back to their defaults. Your script settings stay.", function()
             for _, flag in ipairs(LOOK_FLAGS) do
@@ -230,6 +232,8 @@ return function(window, cfg)
     end
     if not simple then look2:Toggle({ Title = "Edge glow", Desc = "Pulsing accent border", Flag = "__ui_edge_glow",
         Default = window.accentGlow == true, Callback = function(on) window:SetAccentGlow(on) end }) end
+    look2:Toggle({ Title = "Gradient border", Desc = "Accent fade on the window edge", Flag = "__ui_edge_gradient",
+        Default = window.edgeGradient == true, Callback = function(on) window:SetEdgeGradient(on) end })
     look2:Toggle({ Title = "Blur game", Desc = "Blurs the game while open", Flag = "__ui_blur",
         Default = window.blur == true, Callback = function(on) window:SetBlur(on) end })
 
