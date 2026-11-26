@@ -14996,7 +14996,7 @@ local edge=self.mainStroke
 if not edge then return end
 if not self.accentGlow then
 Theme.bind(edge,"Color",self.edgeGradient and"accent"or"edge")
-Util.setRest(edge,0)edge.Thickness=self.edgeGradient and 1.5 or 1
+Util.setRest(edge,0)edge.Thickness=1
 return
 end
 Theme.bind(edge,"Color","accent")
