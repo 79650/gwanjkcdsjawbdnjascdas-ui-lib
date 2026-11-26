@@ -203,6 +203,7 @@ local function makeFolders(path)
 end
 
 -- Util.cacheFiles({ { path = "QustahUI/x.png", url = "https://...", check = function(body) return ok end }, ... },
+--     (urls = { "https://a/...", "https://b/..." } instead of url: tried in order until one works)
 --     done(ids), fail(reason), what)
 -- what ("icons"): shown in the download strip at the top of the screen while files are fetched.
 -- Every missing file is downloaded once and kept on disk; done gets { [path] = getcustomasset id }. It runs at once
@@ -243,31 +244,44 @@ function Util.cacheFiles(files, done, fail, what)
         if job then job.finish() end
         if failed == nil then finish() else fail(tostring(failed)) end
     end
+    -- one url: the body, or nil and why not
+    local function fetch(url, check)
+        local body, finished, failure = nil, false, nil
+        local worker = task.spawn(function()
+            local got, value = pcall(function()
+                if request and not url:find("githubusercontent", 1, true) then
+                    return request({ Url = url, Method = "GET" }).Body
+                end
+                return game:HttpGet(url)
+            end)
+            if got then body = value else failure = value end
+            finished = true
+        end)
+        local started = os.clock()
+        while not finished and os.clock() - started < Util.downloadTimeout do task.wait(0.1) end
+        local ok, reason = pcall(function()
+            if not finished then pcall(task.cancel, worker) error("timed out", 0) end
+            if failure ~= nil then error(failure, 0) end
+            assert(type(body) == "string" and #body > 0, "empty response")
+            if check then assert(check(body), "unexpected file") end
+        end)
+        if ok then return body end
+        return nil, reason
+    end
     for _, file in ipairs(missing) do
         task.spawn(function()
-            local body, finished, failure = nil, false, nil
-            local worker = task.spawn(function()
-                local got, value = pcall(function()
-                    if request and not file.url:find("githubusercontent", 1, true) then
-                        return request({ Url = file.url, Method = "GET" }).Body
-                    end
-                    return game:HttpGet(file.url)
-                end)
-                if got then body = value else failure = value end
-                finished = true
-            end)
-            local started = os.clock()
-            while not finished and os.clock() - started < Util.downloadTimeout do task.wait(0.1) end
-            local ok, reason = pcall(function()
-                if not finished then pcall(task.cancel, worker) error("timed out", 0) end
-                if failure ~= nil then error(failure, 0) end
-                assert(type(body) == "string" and #body > 0, "empty response")
-                if file.check then assert(file.check(body), "unexpected file") end
+            local body, reason
+            for _, url in ipairs(file.urls or { file.url }) do
+                body, reason = fetch(url, file.check)
+                if body then break end
+            end
+            local ok, writeError = pcall(function()
+                if not body then error(reason, 0) end
                 makeFolders(file.path)
                 writefile(file.path, body)
             end)
             if ok and job then job.step() end
-            settle(not ok and reason or nil)
+            settle(not ok and writeError or nil)
         end)
     end
 end
