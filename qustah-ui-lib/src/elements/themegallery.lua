@@ -70,10 +70,11 @@ return function(card, cfg)
     local function render()
         for name, tile in pairs(tiles) do
             local on = name == element.Value
-            Theme.bind(tile.ring, "Color", on and "heading" or "line")
+            -- (the chosen theme's frame and name in its own colour: it is the theme in use, so its accent)
+            Theme.bind(tile.ring, "Color", on and "accent" or "line")
             tile.ring.Thickness = on and 1.5 or 1
             tile.ring.Transparency = on and 0 or 0.35
-            Theme.bind(tile.caption, "TextColor3", on and "heading" or "text")
+            Theme.bind(tile.caption, "TextColor3", on and "accent" or "text")
         end
     end
     local function tileFrame(name, order)

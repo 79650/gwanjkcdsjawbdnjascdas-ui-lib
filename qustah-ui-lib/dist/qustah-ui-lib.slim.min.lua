@@ -6790,10 +6790,10 @@ local items,tiles={},{}
 local function render()
 for name,tile in pairs(tiles)do
 local on=name==element.Value
-Theme.bind(tile.ring,"Color",on and"heading"or"line")
+Theme.bind(tile.ring,"Color",on and"accent"or"line")
 tile.ring.Thickness=on and 1.5 or 1
 tile.ring.Transparency=on and 0 or 0.35
-Theme.bind(tile.caption,"TextColor3",on and"heading"or"text")
+Theme.bind(tile.caption,"TextColor3",on and"accent"or"text")
 end
 end
 local function tileFrame(name,order)
@@ -10230,7 +10230,9 @@ return function(window,cfg)
 cfg=cfg or{}
 local configured=typeof(window.cfg.Size)=="Vector2"and window.cfg.Size or Vector2.new(540,390)
 local defaultSize=Vector2.new(math.clamp(configured.X,window.minSize.X,window.maxSize.X),math.clamp(configured.Y,window.minSize.Y,window.maxSize.Y))
-local tab=window:Tab({Title=cfg.Title or"Settings",Icon=cfg.Icon or"settings",Divider=cfg.Divider~=false,Header=cfg.Header~=false,Compact=cfg.Compact==true})
+local icon=cfg.Icon
+if icon==nil then icon="settings"elseif icon==false then icon=nil end
+local tab=window:Tab({Title=cfg.Title or"Settings",Icon=icon,Divider=cfg.Divider~=false,Header=cfg.Header~=false,Compact=cfg.Compact==true})
 local interface=tab:Page("Interface")
 local profiles=tab:Page("Profiles",{Columns=1})
 local simple=cfg.Simple==true

@@ -1,4 +1,4 @@
--- Window:SettingsTab({ Title, Icon, Divider, Simple }) - ready-made tab (create it LAST, after every other tab):
+-- Window:SettingsTab({ Title, Icon (false: none), Divider, Simple }) - ready-made tab (create it LAST, after every other tab):
 --   Interface  theme pack, accent presets + custom colour, font, text glow, menu key, overlays (watermark,
 --              keybind list, session bar, performance monitor), window reset / unload
 --   Profiles   see profiles.lua (active profile + unsaved changes, share codes, notes, search...)
@@ -20,7 +20,10 @@ return function(window, cfg)
     -- Reset layout goes back to the script's own size (CreateWindow({ Size })), not to a size remembered from last time
     local configured = typeof(window.cfg.Size) == "Vector2" and window.cfg.Size or Vector2.new(540, 390)
     local defaultSize = Vector2.new(math.clamp(configured.X, window.minSize.X, window.maxSize.X), math.clamp(configured.Y, window.minSize.Y, window.maxSize.Y))
-    local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = cfg.Icon or "settings", Divider = cfg.Divider ~= false, Header = cfg.Header ~= false, Compact = cfg.Compact == true })
+    -- (Icon = false: no icon, like tabs made without one)
+    local icon = cfg.Icon
+    if icon == nil then icon = "settings" elseif icon == false then icon = nil end
+    local tab = window:Tab({ Title = cfg.Title or "Settings", Icon = icon, Divider = cfg.Divider ~= false, Header = cfg.Header ~= false, Compact = cfg.Compact == true })
     local interface = tab:Page("Interface")
     local profiles = tab:Page("Profiles", { Columns = 1 })
     local simple = cfg.Simple == true
