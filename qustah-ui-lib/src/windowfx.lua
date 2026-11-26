@@ -107,7 +107,7 @@ return function(Window)
         if not edge then return end
         if not self.accentGlow then
             Theme.bind(edge, "Color", self.edgeGradient and "accent" or "edge")
-            Util.setRest(edge, 0) edge.Thickness = 1
+            Util.setRest(edge, 0) edge.Thickness = self.edgeGradient and 1.5 or 1
             return
         end
         Theme.bind(edge, "Color", "accent")
@@ -130,10 +130,10 @@ return function(Window)
         if not edge then return end
         if self._edgeGradient then self._edgeGradient:Destroy() self._edgeGradient = nil end
         if self.edgeGradient then
-            -- (top-left and bottom-right corners lit, the middle of each side clear)
+            -- (top-left and bottom-right corners lit at 90 %, the middle of each side clear)
             self._edgeGradient = create("UIGradient", {
                 Name = "EdgeGradient", Rotation = 35, Parent = edge,
-                Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.5, 1), NumberSequenceKeypoint.new(1, 0) }),
+                Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(0.5, 1), NumberSequenceKeypoint.new(1, 0.1) }),
             })
         end
         self:SetAccentGlow(self.accentGlow)
