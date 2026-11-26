@@ -158,6 +158,16 @@ return function(Window)
             end)
             self._blurEffect = effect
         end
+        -- BlurEffect only reaches the 3D world, so a dark veil behind the window tones down the game's own GUI too
+        local veil = self._blurVeil
+        if want and not veil and self.gui then
+            veil = create("Frame", {
+                Name = "BlurVeil", BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0,
+                Size = UDim2.fromScale(1, 1), ZIndex = 0, Active = false, Parent = self.gui,
+            })
+            self._blurVeil = veil
+        end
+        if veil then tween(veil, 0.2, { BackgroundTransparency = want and 0.6 or 1 }) end
         if not effect then return end
         local target = want and (self.blurSize or 12) or 0
         tween(effect, 0.2, { Size = target })
@@ -168,6 +178,7 @@ return function(Window)
                 if self._blurToken == token and self._blurEffect == effect and not (self.blur and self.alive and self.visible) then
                     effect:Destroy()
                     self._blurEffect = nil
+                    if self._blurVeil then self._blurVeil:Destroy() self._blurVeil = nil end
                 end
             end)
         else

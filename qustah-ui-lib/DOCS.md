@@ -913,7 +913,8 @@ Window:SetLiveBackground(true)                  -- slow accent light drifting be
 Window:SetAccentGlow(true)                      -- the window edge pulses in the accent colour
 Window:SetEdgeGradient(false)                   -- the plain edge instead of the accent fading between two corners
 
-Window:SetBlur(true)                            -- blurs the game behind the open menu
+Window:SetBlur(true, 20)                        -- blurs the game behind the open menu (size 2-40, BlurSize; 12 by default)
+                                                -- and darkens the screen behind the window: BlurEffect never reaches the game's GUI
 Window:SetAnonymous(true)                       -- hides your name and avatar everywhere (the avatar button in the dock)
 Window:OnAnonymousChanged(function(on) end)     -- redraw your own name labels when it changes
 Window:SetMouseUnlock(false)
