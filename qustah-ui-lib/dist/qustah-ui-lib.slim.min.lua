@@ -13063,15 +13063,14 @@ if logo then self.logo=logo end
 end
 if self.Version~=""then
 local badge=create("Frame",{Name="Version",AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromOffset(0,16),LayoutOrder=2,Parent=titleRow})
-Theme.bind(badge,"BackgroundColor3","card")
-corner(badge,6)
-Theme.bind(stroke(badge,nil,0.5),"Color","accent")
-Util.padding(badge,6,6,0,0)
-local text=label(badge,self.Version,9,{
+Theme.bind(badge,"BackgroundColor3","accent")
+corner(badge,3)
+Util.padding(badge,5,5,0,0)
+local text=label(badge,string.upper(self.Version),8,{
 AutomaticSize=Enum.AutomaticSize.X,Size=UDim2.fromScale(0,1),TextXAlignment=Enum.TextXAlignment.Center,
-TextTruncate=Enum.TextTruncate.None,
+TextTruncate=Enum.TextTruncate.None,Font=Enum.Font.GothamBold,
 })
-Theme.bind(text,"TextColor3","accent")
+Theme.bind(text,"TextColor3","onAccent")
 require("words").Apply(text)
 end
 self.titleLabel,self.titleRow=title,titleRow
@@ -13565,7 +13564,7 @@ local ok,measured=pcall(function()return layout.AbsoluteContentSize.X end)
 if ok and type(measured)=="number"and measured>0 then return measured/(self.scale and self.scale.Scale or 1)end
 local width=Util.textWidth(self.Title,16,Enum.Font.GothamMedium)*1.05
 if self.logo then width=width+24 end
-if self.Version~=""then width=width+Util.textWidth(self.Version,9)+18 end
+if self.Version~=""then width=width+Util.textWidth(string.upper(self.Version),8,Enum.Font.GothamBold)+16 end
 for _,child in ipairs(self.titleRow and self.titleRow:GetChildren()or{})do
 if child.Name=="Tag"and child.Visible then
 local text=child:FindFirstChild("Text")
