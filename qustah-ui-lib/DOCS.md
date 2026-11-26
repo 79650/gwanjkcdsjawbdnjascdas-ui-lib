@@ -37,7 +37,7 @@ local Window = Lib:CreateWindow({ Title = "Qustāh", Version = "V1.00", Folder =
 | `Welcome` | `true` | "Signed in as" toast the first time an account opens the menu |
 | `AutoFlags` | `false` | gives elements without a Flag one based on their name (see [Flags](#flags)) |
 | `ResetButtons` | `true` | the small reset icon after a changed element's title (see [Flags](#flags)) |
-| `Font` | `"Montserrat"` | starting font: `"Ubuntu"`, `"Work Sans"`, `"Josefin Sans"`, `"Michroma"`, or a list such as `{ "Ubuntu", "Work Sans" }` (the first known one) (see [Themes](#themes)) |
+| `Font` | `"Ubuntu"` | starting font: `"Jura"`, `"Roboto"`, `"Michroma"`, `"Josefin Sans"`, or a list such as `{ "Jura", "Roboto" }` (the first known one) (see [Themes](#themes)) |
 | `CodeFont` | `"RobotoMono"` | font of Code, Console and Log text (an `Enum.Font` name) |
 | `SegmentStyle` | `"Underline"` | look of every Segment: `"Underline"`, `"Boxed"`, `"Tab"`, `"Line"`, `"Dot"`, `"Divided"`, `"Ghost"`, `"Track"`, `"Pills"`, `"Capsule"` (see [Segment](#dropdown-segment-and-radio)) |
 | `DockSide` | `"Right"` | where the tabs sit: `"Right"` (icons beside the window), `"Bottom"` (in a row under it) or `"Side"` (a sidebar inside the window with the tab names; the window grows by its 132 px so the pages keep their width; the profile becomes a card at its bottom: avatar, name, session time and an eye for anonymous mode); Settings › Interface › Window › Look › Dock, `Window:SetDockSide` |
@@ -800,15 +800,15 @@ The theme editor in Settings lets you:
 - save the result under a name;
 - share or import it with a `QTHEME1:` code.
 
-Fonts (Settings › Interface › Text): **Montserrat** (the default), **Ubuntu**, **Work Sans**, **Josefin Sans** and **Michroma** (wide, for a techy look).
+Fonts (Settings › Interface › Text): **Ubuntu** (the default), **Jura**, **Roboto**, **Michroma** (wide, for a techy look) and **Josefin Sans**. Picking one also picks the text size that suits it (Jura Large, Josefin Sans Small, the rest Normal: `Lib.Fonts.DefaultSize`); the size can be changed after, and a loaded profile keeps its own.
 
-They are Roblox's own font families (`Lib.Fonts.Families`: `Font.fromName` for the built-in ones, `Font.fromId` for Work Sans), so nothing is downloaded and every executor shows them.
+They are Roblox's own font families (`Lib.Fonts.Families`, through `Font.fromName`), so nothing is downloaded and every executor shows them.
 
 In the font list every name is drawn in its own font. Code, Console and Log text use Roblox's monospace RobotoMono, or another `Enum.Font` with `CreateWindow({ CodeFont = "Code" })`.
 
 **Text size** (Settings › Interface): Small, Normal or Large makes every text about 10 % smaller or larger while the menu keeps its size. Small print (9 px and under) stays as it is; in Large a long value in a narrow box can end in "…".
 
-`Lib.Fonts.set("Ubuntu")`, `Lib.Fonts.setCode("RobotoMono")` and `Lib.Fonts.setTextScale(1.1)` do the same from code. `CreateWindow({ Font = "Ubuntu" })` starts with a font; `Font = { "Ubuntu", "Work Sans" }` starts with the first known one.
+`Lib.Fonts.set("Ubuntu")`, `Lib.Fonts.setCode("RobotoMono")` and `Lib.Fonts.setTextScale(1.1)` do the same from code. `CreateWindow({ Font = "Jura" })` starts with a font (and its text size); `Font = { "Jura", "Roboto" }` starts with the first known one.
 
 **Readable small text.** Elements are written with small sizes; each is drawn a step bigger (8 and 9 -> 10, 10 -> 11, 11 -> 12, 12 -> 13, then the text size setting), and text drawn at 11 px or less is at least Medium so thin strokes don't fade. `Lib.Fonts.Readable` and `Lib.Fonts.MediumBelow` hold the table and the limit; text marked `QNoScale` keeps its size.
 

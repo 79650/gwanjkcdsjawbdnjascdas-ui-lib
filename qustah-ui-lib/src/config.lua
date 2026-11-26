@@ -86,7 +86,9 @@ function Config:_elementReady(flag, element)
     local value = self.pending[flag]
     if value ~= nil then
         self.pending[flag] = nil
+        self.applying = (self.applying or 0) + 1
         pcall(element._load, element, value)
+        self.applying = self.applying - 1
     end
 end
 
@@ -342,8 +344,10 @@ function Config:Apply(flags)
         end
         if not element then
             self.pending[flag] = value -- applied when the element is created
-        elseif not pcall(element._load, element, value) then
-            failed = failed + 1
+        else
+            self.applying = (self.applying or 0) + 1
+            if not pcall(element._load, element, value) then failed = failed + 1 end
+            self.applying = self.applying - 1
         end
     end
     return failed

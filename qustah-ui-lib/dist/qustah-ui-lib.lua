@@ -1008,7 +1008,9 @@ function Config:_elementReady(flag, element)
     local value = self.pending[flag]
     if value ~= nil then
         self.pending[flag] = nil
+        self.applying = (self.applying or 0) + 1
         pcall(element._load, element, value)
+        self.applying = self.applying - 1
     end
 end
 
@@ -1264,8 +1266,10 @@ function Config:Apply(flags)
         end
         if not element then
             self.pending[flag] = value -- applied when the element is created
-        elseif not pcall(element._load, element, value) then
-            failed = failed + 1
+        else
+            self.applying = (self.applying or 0) + 1
+            if not pcall(element._load, element, value) then failed = failed + 1 end
+            self.applying = self.applying - 1
         end
     end
     return failed
@@ -9363,20 +9367,14 @@ __modules["font"] = function()
 -- The fonts are Roblox's own font families (UIFont.Families: built in or an rbxassetid), so nothing is downloaded.
 local Util = require("util")
 
-local UIFont = { current = "Montserrat", guis = {} }
+local UIFont = { current = "Ubuntu", guis = {} }
 
-UIFont.order = {
-    "Montserrat", "Ubuntu", "Work Sans", "Josefin Sans", "Michroma",
-    -- (being tried out)
-    "Builder Sans", "Gotham SSm", "Roboto", "Roboto Condensed", "Nunito", "Source Sans Pro", "Titillium Web", "Arimo", "Jura", "Oswald",
-}
+UIFont.order = { "Ubuntu", "Jura", "Roboto", "Michroma", "Josefin Sans" }
 -- name -> its Roblox font family: a built-in family's name for Font.fromName (letters only, no spaces) or a font
 -- library asset id for Font.fromId
-UIFont.Families = {
-    Montserrat = "Montserrat", Ubuntu = "Ubuntu", ["Josefin Sans"] = "JosefinSans", Michroma = "Michroma", ["Work Sans"] = 12187373327,
-    ["Builder Sans"] = "BuilderSans", ["Gotham SSm"] = "GothamSSm", Roboto = "Roboto", ["Roboto Condensed"] = "RobotoCondensed",
-    Nunito = "Nunito", ["Source Sans Pro"] = "SourceSansPro", ["Titillium Web"] = "TitilliumWeb", Arimo = "Arimo", Jura = "Jura", Oswald = "Oswald",
-}
+UIFont.Families = { Ubuntu = "Ubuntu", Jura = "Jura", Roboto = "Roboto", Michroma = "Michroma", ["Josefin Sans"] = "JosefinSans" }
+-- the text size (Settings › Text size) a font starts with when it is picked; the size can be changed after
+UIFont.DefaultSize = { Ubuntu = "Normal", Jura = "Large", Roboto = "Normal", Michroma = "Normal", ["Josefin Sans"] = "Small" }
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
 -- doesn't push labels out of their rows. Code text has its own font.
 UIFont.Fit = { Michroma = 1.12, ["Josefin Sans"] = 0.96 }
@@ -9563,7 +9561,7 @@ function UIFont.refresh()
 end
 
 function UIFont.set(name)
-    name = tostring(name or "Montserrat")
+    name = tostring(name or "Ubuntu")
     if not table.find(UIFont.order, name) or not familyOf(name) then return false end
     UIFont.current = name
     UIFont.refresh()
@@ -12706,20 +12704,28 @@ return function(window, cfg)
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
     -- the fonts (font.lua: Roblox's own families). CreateWindow({ Font = "Ubuntu" }) starts with one;
-    -- a list ({ "Ubuntu", "Work Sans" }) starts with the first known name
+    -- a list ({ "Jura", "Roboto" }) starts with the first known name
     local fonts = UIFont.available()
     local wanted = type(window.cfg.Font) == "table" and window.cfg.Font or { window.cfg.Font }
     local usable = {}
     for _, name in ipairs(wanted) do if table.find(fonts, tostring(name)) then usable[#usable + 1] = tostring(name) end end
-    local startFont = usable[1] or "Montserrat"
+    local startFont = usable[1] or "Ubuntu"
     -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end
     local fontTab = appearanceTabs and appearanceTabs.Text or interface:Card({ Title = "Text", Side = "Left", Icon = "type" })
+    -- picking a font also picks the text size that suits it (UIFont.DefaultSize) - not while a profile loads (its
+    -- own text size stays) and not while the page is built
+    local textSize
+    local fontPicked = false
+    task.defer(function() fontPicked = true end)
     fontTab:Dropdown({
         Title = "Font", Items = fontOptions, Default = startFont, Flag = "__ui_font",
         Callback = function(name)
-            if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) end
+            local changed = name ~= UIFont.current
+            if not UIFont.set(name) then window:Notify({ Title = "Font", Content = name .. " is not available here", Color = RED }) return end
+            local size = UIFont.DefaultSize[name]
+            if changed and fontPicked and size and textSize and (window.Config.applying or 0) == 0 then textSize:Set(size) end
         end,
     })
     UIFont.set(startFont)
@@ -12727,8 +12733,8 @@ return function(window, cfg)
     if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont) end
     -- text size: every text a bit smaller / larger, the menu itself stays the same size
     local TEXT_SIZES = { Small = 0.9, Normal = 1, Large = 1.1 }
-    fontTab:Segment({
-        Title = "Text size", Flag = "__ui_textsize", Items = { "Small", "Normal", "Large" }, Default = "Normal",
+    textSize = fontTab:Segment({
+        Title = "Text size", Flag = "__ui_textsize", Items = { "Small", "Normal", "Large" }, Default = UIFont.DefaultSize[startFont] or "Normal",
         Callback = function(choice) UIFont.setTextScale(TEXT_SIZES[choice] or 1) end,
     })
     if not simple then fontTab:Toggle({

@@ -909,7 +909,9 @@ if element._initReset then pcall(element._initReset,element,self.Defaults[flag])
 local value=self.pending[flag]
 if value~=nil then
 self.pending[flag]=nil
+self.applying=(self.applying or 0)+1
 pcall(element._load,element,value)
+self.applying=self.applying-1
 end
 end
 function Config:SetData(key,value)self.Custom[tostring(key)]=value end
@@ -1128,8 +1130,10 @@ if ok and current~=nil then self.Defaults[flag]=current end
 end
 if not element then
 self.pending[flag]=value
-elseif not pcall(element._load,element,value)then
-failed=failed+1
+else
+self.applying=(self.applying or 0)+1
+if not pcall(element._load,element,value)then failed=failed+1 end
+self.applying=self.applying-1
 end
 end
 return failed
@@ -8255,16 +8259,10 @@ end
 end
 __modules["font"]=function()
 local Util=require("util")
-local UIFont={current="Montserrat",guis={}}
-UIFont.order={
-"Montserrat","Ubuntu","Work Sans","Josefin Sans","Michroma",
-"Builder Sans","Gotham SSm","Roboto","Roboto Condensed","Nunito","Source Sans Pro","Titillium Web","Arimo","Jura","Oswald",
-}
-UIFont.Families={
-Montserrat="Montserrat",Ubuntu="Ubuntu",["Josefin Sans"]="JosefinSans",Michroma="Michroma",["Work Sans"]=12187373327,
-["Builder Sans"]="BuilderSans",["Gotham SSm"]="GothamSSm",Roboto="Roboto",["Roboto Condensed"]="RobotoCondensed",
-Nunito="Nunito",["Source Sans Pro"]="SourceSansPro",["Titillium Web"]="TitilliumWeb",Arimo="Arimo",Jura="Jura",Oswald="Oswald",
-}
+local UIFont={current="Ubuntu",guis={}}
+UIFont.order={"Ubuntu","Jura","Roboto","Michroma","Josefin Sans"}
+UIFont.Families={Ubuntu="Ubuntu",Jura="Jura",Roboto="Roboto",Michroma="Michroma",["Josefin Sans"]="JosefinSans"}
+UIFont.DefaultSize={Ubuntu="Normal",Jura="Large",Roboto="Normal",Michroma="Normal",["Josefin Sans"]="Small"}
 UIFont.Fit={Michroma=1.12,["Josefin Sans"]=0.96}
 UIFont.code="RobotoMono"
 UIFont.textScale=1
@@ -8413,7 +8411,7 @@ UIFont.measureGlyphs(UIFont.current)
 changed()
 end
 function UIFont.set(name)
-name=tostring(name or"Montserrat")
+name=tostring(name or"Ubuntu")
 if not table.find(UIFont.order,name)or not familyOf(name)then return false end
 UIFont.current=name
 UIFont.refresh()
@@ -11159,21 +11157,27 @@ local fonts=UIFont.available()
 local wanted=type(window.cfg.Font)=="table"and window.cfg.Font or{window.cfg.Font}
 local usable={}
 for _,name in ipairs(wanted)do if table.find(fonts,tostring(name))then usable[#usable+1]=tostring(name)end end
-local startFont=usable[1]or"Montserrat"
+local startFont=usable[1]or"Ubuntu"
 local fontOptions={}
 for _,name in ipairs(fonts)do fontOptions[#fontOptions+1]={Title=name,Font=UIFont.family(name)}end
 local fontTab=appearanceTabs and appearanceTabs.Text or interface:Card({Title="Text",Side="Left",Icon="type"})
+local textSize
+local fontPicked=false
+task.defer(function()fontPicked=true end)
 fontTab:Dropdown({
 Title="Font",Items=fontOptions,Default=startFont,Flag="__ui_font",
 Callback=function(name)
-if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not available here",Color=RED})end
+local changed=name~=UIFont.current
+if not UIFont.set(name)then window:Notify({Title="Font",Content=name.." is not available here",Color=RED})return end
+local size=UIFont.DefaultSize[name]
+if changed and fontPicked and size and textSize and(window.Config.applying or 0)==0 then textSize:Set(size)end
 end,
 })
 UIFont.set(startFont)
 if window.cfg.CodeFont then UIFont.setCode(window.cfg.CodeFont)end
 local TEXT_SIZES={Small=0.9,Normal=1,Large=1.1}
-fontTab:Segment({
-Title="Text size",Flag="__ui_textsize",Items={"Small","Normal","Large"},Default="Normal",
+textSize=fontTab:Segment({
+Title="Text size",Flag="__ui_textsize",Items={"Small","Normal","Large"},Default=UIFont.DefaultSize[startFont]or"Normal",
 Callback=function(choice)UIFont.setTextScale(TEXT_SIZES[choice]or 1)end,
 })
 if not simple then fontTab:Toggle({
