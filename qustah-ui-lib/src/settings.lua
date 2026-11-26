@@ -73,7 +73,7 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- the downloaded fonts (font.lua). CreateWindow({ Font = "Ubuntu" }) starts with one;
+    -- the fonts (font.lua: Roblox's own families). CreateWindow({ Font = "Ubuntu" }) starts with one;
     -- a list ({ "Ubuntu", "Work Sans" }) starts with the first known name
     local fonts = UIFont.available()
     local wanted = type(window.cfg.Font) == "table" and window.cfg.Font or { window.cfg.Font }

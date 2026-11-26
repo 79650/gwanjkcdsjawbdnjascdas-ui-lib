@@ -7372,8 +7372,15 @@ end
 __modules["font"]=function()
 local Util=require("util")
 local UIFont={current="Montserrat",guis={}}
-UIFont.order={"Montserrat","Ubuntu","Work Sans","Josefin Sans","Michroma"}
-UIFont.Families={Montserrat="Montserrat",Ubuntu="Ubuntu",["Josefin Sans"]="JosefinSans",Michroma="Michroma",["Work Sans"]=12187373327}
+UIFont.order={
+"Montserrat","Ubuntu","Work Sans","Josefin Sans","Michroma",
+"Builder Sans","Gotham SSm","Roboto","Roboto Condensed","Nunito","Source Sans Pro","Titillium Web","Arimo","Jura","Oswald",
+}
+UIFont.Families={
+Montserrat="Montserrat",Ubuntu="Ubuntu",["Josefin Sans"]="JosefinSans",Michroma="Michroma",["Work Sans"]=12187373327,
+["Builder Sans"]="BuilderSans",["Gotham SSm"]="GothamSSm",Roboto="Roboto",["Roboto Condensed"]="RobotoCondensed",
+Nunito="Nunito",["Source Sans Pro"]="SourceSansPro",["Titillium Web"]="TitilliumWeb",Arimo="Arimo",Jura="Jura",Oswald="Oswald",
+}
 UIFont.Fit={Michroma=1.12,["Josefin Sans"]=0.96}
 UIFont.code="RobotoMono"
 UIFont.textScale=1

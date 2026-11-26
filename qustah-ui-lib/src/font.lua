@@ -5,10 +5,18 @@ local Util = require("util")
 
 local UIFont = { current = "Montserrat", guis = {} }
 
-UIFont.order = { "Montserrat", "Ubuntu", "Work Sans", "Josefin Sans", "Michroma" }
+UIFont.order = {
+    "Montserrat", "Ubuntu", "Work Sans", "Josefin Sans", "Michroma",
+    -- (being tried out)
+    "Builder Sans", "Gotham SSm", "Roboto", "Roboto Condensed", "Nunito", "Source Sans Pro", "Titillium Web", "Arimo", "Jura", "Oswald",
+}
 -- name -> its Roblox font family: a built-in family's name for Font.fromName (letters only, no spaces) or a font
 -- library asset id for Font.fromId
-UIFont.Families = { Montserrat = "Montserrat", Ubuntu = "Ubuntu", ["Josefin Sans"] = "JosefinSans", Michroma = "Michroma", ["Work Sans"] = 12187373327 }
+UIFont.Families = {
+    Montserrat = "Montserrat", Ubuntu = "Ubuntu", ["Josefin Sans"] = "JosefinSans", Michroma = "Michroma", ["Work Sans"] = 12187373327,
+    ["Builder Sans"] = "BuilderSans", ["Gotham SSm"] = "GothamSSm", Roboto = "Roboto", ["Roboto Condensed"] = "RobotoCondensed",
+    Nunito = "Nunito", ["Source Sans Pro"] = "SourceSansPro", ["Titillium Web"] = "TitilliumWeb", Arimo = "Arimo", Jura = "Jura", Oswald = "Oswald",
+}
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
 -- doesn't push labels out of their rows. Code text has its own font.
 UIFont.Fit = { Michroma = 1.12, ["Josefin Sans"] = 0.96 }
