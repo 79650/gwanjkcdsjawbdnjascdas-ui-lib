@@ -8257,11 +8257,6 @@ local UIFont={current="Montserrat",guis={}}
 UIFont.order={"Montserrat","Ubuntu","Work Sans","Josefin Sans","Michroma"}
 UIFont.Families={Montserrat="Montserrat",Ubuntu="Ubuntu",["Josefin Sans"]="JosefinSans",Michroma="Michroma",["Work Sans"]=12187373327}
 UIFont.Fit={Michroma=1.12,["Josefin Sans"]=0.96}
-UIFont.Width={
-Montserrat={regular=1.08,heavy=1.08},Ubuntu={regular=0.97,heavy=0.98},["Work Sans"]={regular=1.0,heavy=1.01},
-["Josefin Sans"]={regular=0.9,heavy=0.92},Michroma={regular=1.32,heavy=1.32},
-}
-UIFont.measured={}
 UIFont.code="RobotoMono"
 UIFont.textScale=1
 function UIFont.available()return table.clone(UIFont.order)end
@@ -8341,39 +8336,9 @@ for fn in pairs(listeners)do Util.safe(fn)end
 end)
 end
 UIFont._changed=changed
-function UIFont.widthFactor(font,size)
-local ratio=UIFont.Width[UIFont.current]
+function UIFont.drawnScale(size)
 size=tonumber(size)or 10
-local drawn=UIFont.drawnSize(size)
-local heavy=drawn<=UIFont.MediumBelow or(font~=Enum.Font.Gotham and font~=Enum.Font.GothamLight and font~=Enum.Font.SourceSans)
-local factor=ratio and(heavy and ratio.heavy or ratio.regular)or 1
-return factor*drawn/size
-end
-local SAMPLE="The quick brown fox jumps over 1234567890 lazy dogs"
-function UIFont.measure(name)
-name=tostring(name or UIFont.current)
-local family=familyOf(name)
-local key=name.."\0"..tostring(family)
-if not family or UIFont.measured[key]then return end
-UIFont.measured[key]=true
-task.spawn(function()
-local TextService=Util.Services.TextService
-local function width(face)
-local params=Instance.new("GetTextBoundsParams")
-params.Text,params.Font,params.Size,params.Width=SAMPLE,face,100,100000
-return TextService:GetTextBoundsAsync(params).X
-end
-local gotham=Font.fromEnum(Enum.Font.Gotham).Family
-local ok,result=pcall(function()
-local regular=width(Font.new(family,Enum.FontWeight.Regular))/width(Font.new(gotham,Enum.FontWeight.Regular))
-local heavy=width(Font.new(family,Enum.FontWeight.SemiBold))/width(Font.new(gotham,Enum.FontWeight.Medium))
-return{regular=regular,heavy=heavy}
-end)
-if ok and result.regular>0.3 and result.regular<3 and result.heavy>0.3 and result.heavy<3 then
-UIFont.Width[name]=result
-changed()
-end
-end)
+return UIFont.drawnSize(size)/size
 end
 local glyphs={}
 local GLYPH_WEIGHTS={"Regular","Medium","Bold"}
@@ -8435,7 +8400,6 @@ else
 UIFont.guis[gui]=nil
 end
 end
-UIFont.measure(UIFont.current)
 UIFont.measureGlyphs(UIFont.current)
 changed()
 end
@@ -10388,7 +10352,8 @@ Theme.bind(icon,"ImageColor3",tint)
 icon.Parent=toast
 textX=36
 end
-local closeRoom=cfg.CanClose~=false and 22 or 0
+local actions=type(cfg.Actions)=="table"and cfg.Actions or{}
+local closeRoom=(cfg.CanClose~=false and 22 or 0)+#actions*20
 local contentLabel
 local title=label(toast,tostring(cfg.Title or""),11,{Position=UDim2.fromOffset(textX,hasContent and 8 or 0),Size=UDim2.new(1,-textX-9-closeRoom,0,hasContent and 17 or textHeight),Font=Enum.Font.GothamBold})
 Theme.bind(title,"TextColor3","heading")
@@ -10436,6 +10401,30 @@ local bar=create("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromSc
 Theme.bind(bar,"BackgroundColor3","muted")
 end
 close.Activated:Connect(dismiss)
+end
+for index,spec in ipairs(actions)do
+local right=(cfg.CanClose~=false and 22 or 0)+6+(index-1)*20
+local button=create("ImageButton",{
+Name=tostring(spec.Tooltip or("Action"..index)),Image="",AutoButtonColor=false,BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),
+Position=UDim2.new(1,-right,0,6),Size=UDim2.fromOffset(18,18),Parent=toast,
+})
+local icon=Icons.themed(button,spec.Icon or"copy",12,"muted",{Name="Icon",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5)})
+local busy=false
+button.MouseEnter:Connect(function()if icon and not busy then Theme.tweenTo(icon,"ImageColor3","heading",0.1)end end)
+button.MouseLeave:Connect(function()if icon and not busy then Theme.tweenTo(icon,"ImageColor3","muted",0.1)end end)
+button.Activated:Connect(function()
+local fine,result=pcall(spec.Callback or function()end)
+if not fine then Util.log("[qustah-ui-lib] callback error: "..tostring(result))end
+local ok=fine and result~=false
+if not icon then return end
+busy=true
+Icons.Apply(icon,ok and"check"or"x")
+Theme.bind(icon,"ImageColor3",ok and"success"or"danger")
+task.delay(1.4,function()
+busy=false
+if button.Parent then Icons.Apply(icon,spec.Icon or"copy")Theme.bind(icon,"ImageColor3","muted")end
+end)
+end)
 end
 if buttons then
 local row=create("Frame",{Name="Buttons",BackgroundTransparency=1,Position=UDim2.new(0,textX,0,textHeight-4),Size=UDim2.new(1,-textX-10,0,24),Parent=toast})
@@ -11266,7 +11255,7 @@ end})end
 local windowCard=menuTabs and menuTabs.Window or interface:Card({Title="Window",Side="Right",Icon="app-window"})
 local windowTabs=not simple and windowCard:Tabs({"Look","Background","Overlays"})or nil
 local look2=windowTabs and windowTabs.Look or windowCard
-look2:Slider({Title="Transparency",Flag="__ui_transparency",Min=0,Max=60,Default=0,Suffix="%",
+look2:Slider({Title="Transparency",Flag="__ui_transparency",Min=0,Max=25,Default=0,Suffix="%",
 Callback=function(value)window:SetBackgroundTransparency(value/100)end})
 if not simple then look2:Segment({Title="Dock",Items={"Right","Bottom","Sidebar"},Default=window.dockSide=="Side"and"Sidebar"or window.dockSide,
 Flag="__ui_dock",Callback=function(side)window:SetDockSide(side=="Sidebar"and"Side"or side)end})end
@@ -11734,9 +11723,9 @@ if self.debug and self.Notify then
 local short=(message:match("[^\r\n]+")or message):gsub("^.-:%d+: ","")
 self:Notify({
 Title="Error · "..source,Content=short,Icon="triangle-alert",Color=RED,Duration=6,
-Buttons={{Title="Copy",Callback=function()
+Actions={{Icon="copy",Tooltip="Copy",Callback=function()
 local clipboard=setclipboard or toclipboard
-if clipboard then pcall(clipboard,source..": "..message)end
+return clipboard~=nil and pcall(clipboard,source..": "..message)
 end}},
 })
 end
@@ -12472,7 +12461,8 @@ function Theme.bind(object,property,role)
 local entry=bound[object]or track(object)
 entry[property]=role
 object[property]=Theme.get(role)
-if property=="BackgroundColor3"and(Theme.alpha[role]or entry.__alpha~=nil)then
+if(property=="BackgroundColor3"or(property=="Color"and object:IsA("UIStroke")))
+and(Theme.alpha[role]or(Theme.glass>0 and Theme.glassRoles[role])or entry.__alpha~=nil or entry.__strokeAlpha~=nil)then
 if object.Parent then Theme._alphaOf(object,entry)else task.defer(function()if object.Parent then pcall(Theme._alphaOf,object,entry)end end)end
 end
 if property=="TextColor3"and entry.PlaceholderColor3==nil and object:IsA("TextBox")then
@@ -12629,15 +12619,42 @@ parent=parent.Parent
 end
 return false
 end
+Theme.glass=0
+Theme.glassRoles={
+base=true,footer=true,dock=true,card=true,input=true,hover=true,selected=true,dockSelected=true,
+line=true,edge=true,buttonEdge=true,
+}
+local function see(own,role)
+local glass=Theme.glassRoles[role]and Theme.glass or 0
+local wanted=Theme.alpha[role]or own
+if glass>0 then wanted=1-(1-wanted)*(1-glass)end
+return wanted
+end
 local function alphaOf(object,entry)
+if object:IsA("UIStroke")then
+local role=entry.Color
+local active=role and(Theme.alpha[role]or(Theme.glass>0 and Theme.glassRoles[role]))and inGlass(object)
+if active then
+if entry.__strokeAlpha==nil then
+if object.Transparency>=1 then return end
+entry.__strokeAlpha=object.Transparency
+end
+local wanted=see(entry.__strokeAlpha,role)
+if object.Transparency~=wanted then object.Transparency=wanted end
+elseif entry.__strokeAlpha~=nil then
+object.Transparency=entry.__strokeAlpha
+entry.__strokeAlpha=nil
+end
+return
+end
 local role=entry.BackgroundColor3
-local wanted=role and Theme.alpha[role]
-if wanted and not inGlass(object)then wanted=nil end
-if wanted then
+local active=role and(Theme.alpha[role]or(Theme.glass>0 and Theme.glassRoles[role]))and inGlass(object)
+if active then
 if entry.__alpha==nil then
 if object.BackgroundTransparency>=1 then return end
 entry.__alpha=object.BackgroundTransparency
 end
+local wanted=see(entry.__alpha,role)
 if object.BackgroundTransparency~=wanted then object.BackgroundTransparency=wanted end
 elseif entry.__alpha~=nil then
 object.BackgroundTransparency=entry.__alpha
@@ -12647,8 +12664,12 @@ end
 Theme._alphaOf=alphaOf
 local function applyAlpha()
 for object,entry in pairs(Theme._bound())do
-if object.Parent and entry.BackgroundColor3 then pcall(alphaOf,object,entry)end
+if object.Parent and(entry.BackgroundColor3 or entry.Color)then pcall(alphaOf,object,entry)end
 end
+end
+function Theme.setGlass(value)
+Theme.glass=math.clamp(tonumber(value)or 0,0,0.9)
+applyAlpha()
 end
 Theme.extras={}
 local extrasListeners={}
@@ -13230,19 +13251,25 @@ local fontModule
 function Util.textWidth(text,size,font)
 text=tostring(text)
 if typeof(font)~="EnumItem"or font==Enum.Font.Unknown then font=Enum.Font.Gotham end
-if font~=Enum.Font.Code and font~=Enum.Font.RobotoMono then
-if fontModule==nil then Util._fontFactor(font,size)end
-local measured=fontModule and fontModule.textWidth and fontModule.textWidth(text,size,font)
+if fontModule==nil then
+local ok,module=pcall(require,"font")
+fontModule=ok and module or false
+end
+local code=font==Enum.Font.Code or font==Enum.Font.RobotoMono
+if fontModule and not code then
+local measured=fontModule.textWidth(text,size,font)
 if measured then return measured end
 end
 local key=text.."\0"..tostring(size).."\0"..tostring(font)
 local width=widthCache[key]
-if width then return width*Util._fontFactor(font,size)end
+if not width then
 local ok,bounds=pcall(function()return Services.TextService:GetTextSize(text,size,font,Vector2.new(10000,100))end)
 width=ok and bounds.X or#text*(tonumber(size)or 10)*0.55
 if widthCount>=1000 then widthCache,widthCount={},0 end
 widthCache[key],widthCount=width,widthCount+1
-return width*Util._fontFactor(font,size)
+end
+if fontModule and not code then width=width*fontModule.drawnScale(size)end
+return width
 end
 function Util.onTextMetrics(object,fn)
 local ok,font=pcall(require,"font")
@@ -13250,15 +13277,6 @@ if not ok or type(font)~="table"or not font.onChange then return function()end e
 local stop=font.onChange(function()if object.Parent then fn()end end)
 object.Destroying:Connect(stop)
 return stop
-end
-function Util._fontFactor(font,size)
-if fontModule==nil then
-local ok,module=pcall(require,"font")
-fontModule=ok and module or false
-end
-if not fontModule then return 1 end
-local ok,factor=pcall(fontModule.widthFactor,font,size)
-return ok and factor or 1
 end
 function Util.shown(object)
 while object do
@@ -15061,9 +15079,7 @@ if not Icons.Apply(picture,image)then picture.Image=tostring(image)end
 picture.ImageColor3=Color3.new(1,1,1)
 end
 function Window:SetBackgroundTransparency(value)
-value=math.clamp(tonumber(value)or 0,0,0.9)
-self.main.BackgroundTransparency=value
-self.dock.BackgroundTransparency=math.max(0.03,value)
+Theme.setGlass(value)
 end
 function Window:SetAnonymous(on)
 self.anonymous=on==true

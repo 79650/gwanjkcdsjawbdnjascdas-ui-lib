@@ -197,7 +197,7 @@ return function(window, cfg)
     -- (Simple: one plain card, no Background / Overlays tabs)
     local windowTabs = not simple and windowCard:Tabs({ "Look", "Background", "Overlays" }) or nil
     local look2 = windowTabs and windowTabs.Look or windowCard
-    look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
+    look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 25, Default = 0, Suffix = "%",
         Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
     -- Right / Bottom: the dock outside the window; Sidebar: the tabs with their names inside it (DockSide "Side")
     -- (Simple: no dock choice - the dock stays where the script put it)

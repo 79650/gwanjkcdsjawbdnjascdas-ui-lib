@@ -1,7 +1,7 @@
 -- Window extras:
 --   Window:HeaderButton({ Icon = "refresh-cw", Tooltip = "Rejoin", Callback })   your own buttons in the header
 --   Window:SetFullscreen(bool) / :ToggleFullscreen()   also the maximize button and a double click on the header
---   Window:SetBackgroundImage(image, transparency)      rbxassetid / url / nil; :SetBackgroundTransparency(0-0.9)
+--   Window:SetBackgroundImage(image, transparency)      rbxassetid / url / nil; :SetBackgroundTransparency(0-0.9): every surface
 --   Window:SetAnonymous(bool)                           hides your name / avatar everywhere (dock profile button)
 -- CreateWindow({ FullscreenButton = true, Profile = false, Anonymous = true, Background = "...", BackgroundTransparency })
 local Util = require("util")
@@ -80,10 +80,9 @@ return function(Window)
         if not Icons.Apply(picture, image) then picture.Image = tostring(image) end
         picture.ImageColor3 = Color3.new(1, 1, 1)
     end
+    -- the whole window: every surface in it and their outlines (Theme.setGlass), not just the window's own back
     function Window:SetBackgroundTransparency(value)
-        value = math.clamp(tonumber(value) or 0, 0, 0.9)
-        self.main.BackgroundTransparency = value
-        self.dock.BackgroundTransparency = math.max(0.03, value)
+        Theme.setGlass(value)
     end
 
     ------------------------------------------------------------------ profile button in the dock + anonymous mode

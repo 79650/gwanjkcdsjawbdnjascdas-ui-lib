@@ -12,14 +12,6 @@ UIFont.Families = { Montserrat = "Montserrat", Ubuntu = "Ubuntu", ["Josefin Sans
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
 -- doesn't push labels out of their rows. Code text has its own font.
 UIFont.Fit = { Michroma = 1.12, ["Josefin Sans"] = 0.96 }
--- How wide each font's text is next to Gotham's at the same size (regular / medium-and-heavier text): the lib
--- measures its labels with Gotham (Util.textWidth) and scales by this. These are estimates; the real ratios are
--- measured once a font is in use (UIFont.measure), and every listener (UIFont.onChange) lays out again then.
-UIFont.Width = {
-    Montserrat = { regular = 1.08, heavy = 1.08 }, Ubuntu = { regular = 0.97, heavy = 0.98 }, ["Work Sans"] = { regular = 1.0, heavy = 1.01 },
-    ["Josefin Sans"] = { regular = 0.9, heavy = 0.92 }, Michroma = { regular = 1.32, heavy = 1.32 },
-}
-UIFont.measured = {}
 -- Code text (Code, Console, Log; marked with the QCode attribute) uses Roblox's monospace RobotoMono unless
 -- CreateWindow({ CodeFont = "..." }) names another Enum.Font. Text marked QFixedFont keeps whatever font it has
 -- (the font list draws each name in its own font).
@@ -122,49 +114,17 @@ local function changed()
     end)
 end
 UIFont._changed = changed
--- How much wider than Gotham a text of this Enum font and size is drawn now: the font's width ratio for its weight
--- class, and the text size setting / wide-font fit the same way scaleText applies them (9 px and under keep size).
-function UIFont.widthFactor(font, size)
-    local ratio = UIFont.Width[UIFont.current]
+-- How much bigger than written a text of this size is drawn now (the text size setting, the wide-font fit; 9 px
+-- and under keep their size), the same way scaleText applies it.
+function UIFont.drawnScale(size)
     size = tonumber(size) or 10
-    local drawn = UIFont.drawnSize(size)
-    local heavy = drawn <= UIFont.MediumBelow or (font ~= Enum.Font.Gotham and font ~= Enum.Font.GothamLight and font ~= Enum.Font.SourceSans)
-    local factor = ratio and (heavy and ratio.heavy or ratio.regular) or 1
-    return factor * drawn / size
-end
-
--- Measures a font's real width next to Gotham (TextService:GetTextBoundsAsync can wait while the font loads, so this
--- runs on its own thread, once per font) and lays everything out again with it.
-local SAMPLE = "The quick brown fox jumps over 1234567890 lazy dogs"
-function UIFont.measure(name)
-    name = tostring(name or UIFont.current)
-    local family = familyOf(name)
-    local key = name .. "\0" .. tostring(family)
-    if not family or UIFont.measured[key] then return end
-    UIFont.measured[key] = true
-    task.spawn(function()
-        local TextService = Util.Services.TextService
-        local function width(face)
-            local params = Instance.new("GetTextBoundsParams")
-            params.Text, params.Font, params.Size, params.Width = SAMPLE, face, 100, 100000
-            return TextService:GetTextBoundsAsync(params).X
-        end
-        local gotham = Font.fromEnum(Enum.Font.Gotham).Family
-        local ok, result = pcall(function()
-            local regular = width(Font.new(family, Enum.FontWeight.Regular)) / width(Font.new(gotham, Enum.FontWeight.Regular))
-            local heavy = width(Font.new(family, Enum.FontWeight.SemiBold)) / width(Font.new(gotham, Enum.FontWeight.Medium))
-            return { regular = regular, heavy = heavy }
-        end)
-        if ok and result.regular > 0.3 and result.regular < 3 and result.heavy > 0.3 and result.heavy < 3 then
-            UIFont.Width[name] = result
-            changed()
-        end
-    end)
+    return UIFont.drawnSize(size) / size
 end
 
 -- Real text widths: every printable ASCII character of the font in use measured once per weight (Regular, Medium,
 -- Bold) with TextService:GetTextBoundsAsync, in that font itself. Until a font's table is there (it is measured on
--- its own thread: the call yields) widths are Gotham's times the font's ratio (UIFont.Width).
+-- its own thread: the call yields, a moment after start) Util.textWidth uses Roblox's Gotham width at the drawn size;
+-- every listener (UIFont.onChange) lays out again when it arrives.
 local glyphs = {} -- family .. "\0" .. weight -> { [codepoint] = width at size 100 } (false while measuring)
 local GLYPH_WEIGHTS = { "Regular", "Medium", "Bold" }
 function UIFont.measureGlyphs(name)
@@ -230,7 +190,6 @@ function UIFont.refresh()
             UIFont.guis[gui] = nil
         end
     end
-    UIFont.measure(UIFont.current)
     UIFont.measureGlyphs(UIFont.current)
     changed()
 end

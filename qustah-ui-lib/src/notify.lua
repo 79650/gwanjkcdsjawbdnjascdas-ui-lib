@@ -1,4 +1,5 @@
 -- Toast notifications, bottom-right: Lib:Notify({ Title, Content, Duration }).
+-- Actions = { { Icon, Tooltip, Callback } }: icons in the corner (a Callback returning false shows a cross).
 -- Without Duration the time follows the text length (3-10 s). Hovering a toast pauses its timer
 -- (PauseOnHover = false turns that off). At most Lib.MaxNotifications (6) are shown; the oldest makes room.
 -- Lib:Toast("Saved") / Lib:Toast({ Text, Icon, Image, Color, Position = "Top" | "Bottom", Duration }): a small pill
@@ -95,7 +96,10 @@ function Notify.show(Lib, cfg)
         icon.Parent = toast
         textX = 36
     end
-    local closeRoom = cfg.CanClose ~= false and 22 or 0
+    -- Actions = { { Icon = "copy", Tooltip, Callback } }: small icons in the top-right corner (left of the x); a click
+    -- runs it and the icon turns into a tick for a moment (the toast stays)
+    local actions = type(cfg.Actions) == "table" and cfg.Actions or {}
+    local closeRoom = (cfg.CanClose ~= false and 22 or 0) + #actions * 20
     local contentLabel
     local title = label(toast, tostring(cfg.Title or ""), 11, { Position = UDim2.fromOffset(textX, hasContent and 8 or 0), Size = UDim2.new(1, -textX - 9 - closeRoom, 0, hasContent and 17 or textHeight), Font = Enum.Font.GothamBold })
     Theme.bind(title, "TextColor3", "heading")
@@ -146,6 +150,30 @@ function Notify.show(Lib, cfg)
             Theme.bind(bar, "BackgroundColor3", "muted")
         end
         close.Activated:Connect(dismiss)
+    end
+    for index, spec in ipairs(actions) do
+        local right = (cfg.CanClose ~= false and 22 or 0) + 6 + (index - 1) * 20
+        local button = create("ImageButton", {
+            Name = tostring(spec.Tooltip or ("Action" .. index)), Image = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -right, 0, 6), Size = UDim2.fromOffset(18, 18), Parent = toast,
+        })
+        local icon = Icons.themed(button, spec.Icon or "copy", 12, "muted", { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+        local busy = false
+        button.MouseEnter:Connect(function() if icon and not busy then Theme.tweenTo(icon, "ImageColor3", "heading", 0.1) end end)
+        button.MouseLeave:Connect(function() if icon and not busy then Theme.tweenTo(icon, "ImageColor3", "muted", 0.1) end end)
+        button.Activated:Connect(function()
+            local fine, result = pcall(spec.Callback or function() end)
+            if not fine then Util.log("[qustah-ui-lib] callback error: " .. tostring(result)) end
+            local ok = fine and result ~= false
+            if not icon then return end
+            busy = true
+            Icons.Apply(icon, ok and "check" or "x")
+            Theme.bind(icon, "ImageColor3", ok and "success" or "danger")
+            task.delay(1.4, function()
+                busy = false
+                if button.Parent then Icons.Apply(icon, spec.Icon or "copy") Theme.bind(icon, "ImageColor3", "muted") end
+            end)
+        end)
     end
     -- Buttons = { { Title = "Undo", Callback = fn, Style = "Primary" } }: a row under the text; a click closes the toast
     if buttons then

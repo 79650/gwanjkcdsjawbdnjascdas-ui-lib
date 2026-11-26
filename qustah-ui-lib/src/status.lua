@@ -79,9 +79,9 @@ return function(Window)
                 local short = (message:match("[^\r\n]+") or message):gsub("^.-:%d+: ", "")
                 self:Notify({
                     Title = "Error · " .. source, Content = short, Icon = "triangle-alert", Color = RED, Duration = 6,
-                    Buttons = { { Title = "Copy", Callback = function()
+                    Actions = { { Icon = "copy", Tooltip = "Copy", Callback = function()
                         local clipboard = setclipboard or toclipboard
-                        if clipboard then pcall(clipboard, source .. ": " .. message) end
+                        return clipboard ~= nil and pcall(clipboard, source .. ": " .. message)
                     end } },
                 })
             end

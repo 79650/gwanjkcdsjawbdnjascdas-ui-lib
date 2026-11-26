@@ -276,20 +276,27 @@ local fontModule -- (the font module, found on first use: it requires util itsel
 function Util.textWidth(text, size, font)
     text = tostring(text)
     if typeof(font) ~= "EnumItem" or font == Enum.Font.Unknown then font = Enum.Font.Gotham end
-    -- the UI font's own measured widths when they are there (code fonts keep their Enum.Font size)
-    if font ~= Enum.Font.Code and font ~= Enum.Font.RobotoMono then
-        if fontModule == nil then Util._fontFactor(font, size) end
-        local measured = fontModule and fontModule.textWidth and fontModule.textWidth(text, size, font)
+    if fontModule == nil then
+        local ok, module = pcall(require, "font")
+        fontModule = ok and module or false
+    end
+    local code = font == Enum.Font.Code or font == Enum.Font.RobotoMono
+    -- the UI font's own measured character widths (code fonts keep their Enum.Font size)
+    if fontModule and not code then
+        local measured = fontModule.textWidth(text, size, font)
         if measured then return measured end
     end
+    -- until then (or a code font): Roblox's width for the Enum font, at the size it is drawn
     local key = text .. "\0" .. tostring(size) .. "\0" .. tostring(font)
     local width = widthCache[key]
-    if width then return width * Util._fontFactor(font, size) end
-    local ok, bounds = pcall(function() return Services.TextService:GetTextSize(text, size, font, Vector2.new(10000, 100)) end)
-    width = ok and bounds.X or #text * (tonumber(size) or 10) * 0.55
-    if widthCount >= 1000 then widthCache, widthCount = {}, 0 end
-    widthCache[key], widthCount = width, widthCount + 1
-    return width * Util._fontFactor(font, size)
+    if not width then
+        local ok, bounds = pcall(function() return Services.TextService:GetTextSize(text, size, font, Vector2.new(10000, 100)) end)
+        width = ok and bounds.X or #text * (tonumber(size) or 10) * 0.55
+        if widthCount >= 1000 then widthCache, widthCount = {}, 0 end
+        widthCache[key], widthCount = width, widthCount + 1
+    end
+    if fontModule and not code then width = width * fontModule.drawnScale(size) end
+    return width
 end
 -- Util.onTextMetrics(object, fn): fn runs whenever text widths change (another font, text size, a measured font)
 -- while `object` is alive, so something laid out by Util.textWidth can size itself again.
@@ -299,16 +306,6 @@ function Util.onTextMetrics(object, fn)
     local stop = font.onChange(function() if object.Parent then fn() end end)
     object.Destroying:Connect(stop)
     return stop
-end
--- (the UI font's width next to Gotham, set by the font module; 1 until it loads)
-function Util._fontFactor(font, size)
-    if fontModule == nil then
-        local ok, module = pcall(require, "font")
-        fontModule = ok and module or false
-    end
-    if not fontModule then return 1 end
-    local ok, factor = pcall(fontModule.widthFactor, font, size)
-    return ok and factor or 1
 end
 -- true while the object can actually be seen: it and every parent Visible, the ScreenGui enabled
 function Util.shown(object)

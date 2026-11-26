@@ -131,7 +131,8 @@ function Theme.bind(object, property, role)
     local entry = bound[object] or track(object)
     entry[property] = role
     object[property] = Theme.get(role)
-    if property == "BackgroundColor3" and (Theme.alpha[role] or entry.__alpha ~= nil) then
+    if (property == "BackgroundColor3" or (property == "Color" and object:IsA("UIStroke")))
+        and (Theme.alpha[role] or (Theme.glass > 0 and Theme.glassRoles[role]) or entry.__alpha ~= nil or entry.__strokeAlpha ~= nil) then
         -- (not in its place yet: once it is)
         if object.Parent then Theme._alphaOf(object, entry) else task.defer(function() if object.Parent then pcall(Theme._alphaOf, object, entry) end end) end
     end
@@ -320,15 +321,45 @@ local function inGlass(object)
     end
     return false
 end
+-- Window transparency (the Transparency slider): every surface inside the window - the window, the dock, cards,
+-- fields, rows, the footer - and their outlines let Theme.glass of the game through, on top of what they let through
+-- already (a half-clear hover stays half as solid). Text, icons and the accent stay as they are.
+Theme.glass = 0
+Theme.glassRoles = {
+    base = true, footer = true, dock = true, card = true, input = true, hover = true, selected = true, dockSelected = true,
+    line = true, edge = true, buttonEdge = true,
+}
+local function see(own, role)
+    local glass = Theme.glassRoles[role] and Theme.glass or 0
+    local wanted = Theme.alpha[role] or own
+    if glass > 0 then wanted = 1 - (1 - wanted) * (1 - glass) end
+    return wanted
+end
 local function alphaOf(object, entry)
+    if object:IsA("UIStroke") then
+        local role = entry.Color
+        local active = role and (Theme.alpha[role] or (Theme.glass > 0 and Theme.glassRoles[role])) and inGlass(object)
+        if active then
+            if entry.__strokeAlpha == nil then
+                if object.Transparency >= 1 then return end
+                entry.__strokeAlpha = object.Transparency
+            end
+            local wanted = see(entry.__strokeAlpha, role)
+            if object.Transparency ~= wanted then object.Transparency = wanted end
+        elseif entry.__strokeAlpha ~= nil then
+            object.Transparency = entry.__strokeAlpha
+            entry.__strokeAlpha = nil
+        end
+        return
+    end
     local role = entry.BackgroundColor3
-    local wanted = role and Theme.alpha[role]
-    if wanted and not inGlass(object) then wanted = nil end
-    if wanted then
+    local active = role and (Theme.alpha[role] or (Theme.glass > 0 and Theme.glassRoles[role])) and inGlass(object)
+    if active then
         if entry.__alpha == nil then
             if object.BackgroundTransparency >= 1 then return end
             entry.__alpha = object.BackgroundTransparency
         end
+        local wanted = see(entry.__alpha, role)
         if object.BackgroundTransparency ~= wanted then object.BackgroundTransparency = wanted end
     elseif entry.__alpha ~= nil then
         object.BackgroundTransparency = entry.__alpha
@@ -338,8 +369,14 @@ end
 Theme._alphaOf = alphaOf
 local function applyAlpha()
     for object, entry in pairs(Theme._bound()) do
-        if object.Parent and entry.BackgroundColor3 then pcall(alphaOf, object, entry) end
+        if object.Parent and (entry.BackgroundColor3 or entry.Color) then pcall(alphaOf, object, entry) end
     end
+end
+
+-- Theme.setGlass(0 - 0.9): see Theme.glass
+function Theme.setGlass(value)
+    Theme.glass = math.clamp(tonumber(value) or 0, 0, 0.9)
+    applyAlpha()
 end
 
 -- What the pack brings besides colours: { alpha = { role = transparency }, blur = true }. Windows listen with

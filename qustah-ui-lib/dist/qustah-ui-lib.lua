@@ -9368,14 +9368,6 @@ UIFont.Families = { Montserrat = "Montserrat", Ubuntu = "Ubuntu", ["Josefin Sans
 -- How big a font draws next to Gotham at the same size: its text is sized by 1 / this, so a wide font (Michroma)
 -- doesn't push labels out of their rows. Code text has its own font.
 UIFont.Fit = { Michroma = 1.12, ["Josefin Sans"] = 0.96 }
--- How wide each font's text is next to Gotham's at the same size (regular / medium-and-heavier text): the lib
--- measures its labels with Gotham (Util.textWidth) and scales by this. These are estimates; the real ratios are
--- measured once a font is in use (UIFont.measure), and every listener (UIFont.onChange) lays out again then.
-UIFont.Width = {
-    Montserrat = { regular = 1.08, heavy = 1.08 }, Ubuntu = { regular = 0.97, heavy = 0.98 }, ["Work Sans"] = { regular = 1.0, heavy = 1.01 },
-    ["Josefin Sans"] = { regular = 0.9, heavy = 0.92 }, Michroma = { regular = 1.32, heavy = 1.32 },
-}
-UIFont.measured = {}
 -- Code text (Code, Console, Log; marked with the QCode attribute) uses Roblox's monospace RobotoMono unless
 -- CreateWindow({ CodeFont = "..." }) names another Enum.Font. Text marked QFixedFont keeps whatever font it has
 -- (the font list draws each name in its own font).
@@ -9478,49 +9470,17 @@ local function changed()
     end)
 end
 UIFont._changed = changed
--- How much wider than Gotham a text of this Enum font and size is drawn now: the font's width ratio for its weight
--- class, and the text size setting / wide-font fit the same way scaleText applies them (9 px and under keep size).
-function UIFont.widthFactor(font, size)
-    local ratio = UIFont.Width[UIFont.current]
+-- How much bigger than written a text of this size is drawn now (the text size setting, the wide-font fit; 9 px
+-- and under keep their size), the same way scaleText applies it.
+function UIFont.drawnScale(size)
     size = tonumber(size) or 10
-    local drawn = UIFont.drawnSize(size)
-    local heavy = drawn <= UIFont.MediumBelow or (font ~= Enum.Font.Gotham and font ~= Enum.Font.GothamLight and font ~= Enum.Font.SourceSans)
-    local factor = ratio and (heavy and ratio.heavy or ratio.regular) or 1
-    return factor * drawn / size
-end
-
--- Measures a font's real width next to Gotham (TextService:GetTextBoundsAsync can wait while the font loads, so this
--- runs on its own thread, once per font) and lays everything out again with it.
-local SAMPLE = "The quick brown fox jumps over 1234567890 lazy dogs"
-function UIFont.measure(name)
-    name = tostring(name or UIFont.current)
-    local family = familyOf(name)
-    local key = name .. "\0" .. tostring(family)
-    if not family or UIFont.measured[key] then return end
-    UIFont.measured[key] = true
-    task.spawn(function()
-        local TextService = Util.Services.TextService
-        local function width(face)
-            local params = Instance.new("GetTextBoundsParams")
-            params.Text, params.Font, params.Size, params.Width = SAMPLE, face, 100, 100000
-            return TextService:GetTextBoundsAsync(params).X
-        end
-        local gotham = Font.fromEnum(Enum.Font.Gotham).Family
-        local ok, result = pcall(function()
-            local regular = width(Font.new(family, Enum.FontWeight.Regular)) / width(Font.new(gotham, Enum.FontWeight.Regular))
-            local heavy = width(Font.new(family, Enum.FontWeight.SemiBold)) / width(Font.new(gotham, Enum.FontWeight.Medium))
-            return { regular = regular, heavy = heavy }
-        end)
-        if ok and result.regular > 0.3 and result.regular < 3 and result.heavy > 0.3 and result.heavy < 3 then
-            UIFont.Width[name] = result
-            changed()
-        end
-    end)
+    return UIFont.drawnSize(size) / size
 end
 
 -- Real text widths: every printable ASCII character of the font in use measured once per weight (Regular, Medium,
 -- Bold) with TextService:GetTextBoundsAsync, in that font itself. Until a font's table is there (it is measured on
--- its own thread: the call yields) widths are Gotham's times the font's ratio (UIFont.Width).
+-- its own thread: the call yields, a moment after start) Util.textWidth uses Roblox's Gotham width at the drawn size;
+-- every listener (UIFont.onChange) lays out again when it arrives.
 local glyphs = {} -- family .. "\0" .. weight -> { [codepoint] = width at size 100 } (false while measuring)
 local GLYPH_WEIGHTS = { "Regular", "Medium", "Bold" }
 function UIFont.measureGlyphs(name)
@@ -9586,7 +9546,6 @@ function UIFont.refresh()
             UIFont.guis[gui] = nil
         end
     end
-    UIFont.measure(UIFont.current)
     UIFont.measureGlyphs(UIFont.current)
     changed()
 end
@@ -11744,6 +11703,7 @@ end
 
 __modules["notify"] = function()
 -- Toast notifications, bottom-right: Lib:Notify({ Title, Content, Duration }).
+-- Actions = { { Icon, Tooltip, Callback } }: icons in the corner (a Callback returning false shows a cross).
 -- Without Duration the time follows the text length (3-10 s). Hovering a toast pauses its timer
 -- (PauseOnHover = false turns that off). At most Lib.MaxNotifications (6) are shown; the oldest makes room.
 -- Lib:Toast("Saved") / Lib:Toast({ Text, Icon, Image, Color, Position = "Top" | "Bottom", Duration }): a small pill
@@ -11840,7 +11800,10 @@ function Notify.show(Lib, cfg)
         icon.Parent = toast
         textX = 36
     end
-    local closeRoom = cfg.CanClose ~= false and 22 or 0
+    -- Actions = { { Icon = "copy", Tooltip, Callback } }: small icons in the top-right corner (left of the x); a click
+    -- runs it and the icon turns into a tick for a moment (the toast stays)
+    local actions = type(cfg.Actions) == "table" and cfg.Actions or {}
+    local closeRoom = (cfg.CanClose ~= false and 22 or 0) + #actions * 20
     local contentLabel
     local title = label(toast, tostring(cfg.Title or ""), 11, { Position = UDim2.fromOffset(textX, hasContent and 8 or 0), Size = UDim2.new(1, -textX - 9 - closeRoom, 0, hasContent and 17 or textHeight), Font = Enum.Font.GothamBold })
     Theme.bind(title, "TextColor3", "heading")
@@ -11891,6 +11854,30 @@ function Notify.show(Lib, cfg)
             Theme.bind(bar, "BackgroundColor3", "muted")
         end
         close.Activated:Connect(dismiss)
+    end
+    for index, spec in ipairs(actions) do
+        local right = (cfg.CanClose ~= false and 22 or 0) + 6 + (index - 1) * 20
+        local button = create("ImageButton", {
+            Name = tostring(spec.Tooltip or ("Action" .. index)), Image = "", AutoButtonColor = false, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -right, 0, 6), Size = UDim2.fromOffset(18, 18), Parent = toast,
+        })
+        local icon = Icons.themed(button, spec.Icon or "copy", 12, "muted", { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) })
+        local busy = false
+        button.MouseEnter:Connect(function() if icon and not busy then Theme.tweenTo(icon, "ImageColor3", "heading", 0.1) end end)
+        button.MouseLeave:Connect(function() if icon and not busy then Theme.tweenTo(icon, "ImageColor3", "muted", 0.1) end end)
+        button.Activated:Connect(function()
+            local fine, result = pcall(spec.Callback or function() end)
+            if not fine then Util.log("[qustah-ui-lib] callback error: " .. tostring(result)) end
+            local ok = fine and result ~= false
+            if not icon then return end
+            busy = true
+            Icons.Apply(icon, ok and "check" or "x")
+            Theme.bind(icon, "ImageColor3", ok and "success" or "danger")
+            task.delay(1.4, function()
+                busy = false
+                if button.Parent then Icons.Apply(icon, spec.Icon or "copy") Theme.bind(icon, "ImageColor3", "muted") end
+            end)
+        end)
     end
     -- Buttons = { { Title = "Undo", Callback = fn, Style = "Primary" } }: a row under the text; a click closes the toast
     if buttons then
@@ -12830,7 +12817,7 @@ return function(window, cfg)
     -- (Simple: one plain card, no Background / Overlays tabs)
     local windowTabs = not simple and windowCard:Tabs({ "Look", "Background", "Overlays" }) or nil
     local look2 = windowTabs and windowTabs.Look or windowCard
-    look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 60, Default = 0, Suffix = "%",
+    look2:Slider({ Title = "Transparency", Flag = "__ui_transparency", Min = 0, Max = 25, Default = 0, Suffix = "%",
         Callback = function(value) window:SetBackgroundTransparency(value / 100) end })
     -- Right / Bottom: the dock outside the window; Sidebar: the tabs with their names inside it (DockSide "Side")
     -- (Simple: no dock choice - the dock stays where the script put it)
@@ -13383,9 +13370,9 @@ return function(Window)
                 local short = (message:match("[^\r\n]+") or message):gsub("^.-:%d+: ", "")
                 self:Notify({
                     Title = "Error · " .. source, Content = short, Icon = "triangle-alert", Color = RED, Duration = 6,
-                    Buttons = { { Title = "Copy", Callback = function()
+                    Actions = { { Icon = "copy", Tooltip = "Copy", Callback = function()
                         local clipboard = setclipboard or toclipboard
-                        if clipboard then pcall(clipboard, source .. ": " .. message) end
+                        return clipboard ~= nil and pcall(clipboard, source .. ": " .. message)
                     end } },
                 })
             end
@@ -14242,7 +14229,8 @@ function Theme.bind(object, property, role)
     local entry = bound[object] or track(object)
     entry[property] = role
     object[property] = Theme.get(role)
-    if property == "BackgroundColor3" and (Theme.alpha[role] or entry.__alpha ~= nil) then
+    if (property == "BackgroundColor3" or (property == "Color" and object:IsA("UIStroke")))
+        and (Theme.alpha[role] or (Theme.glass > 0 and Theme.glassRoles[role]) or entry.__alpha ~= nil or entry.__strokeAlpha ~= nil) then
         -- (not in its place yet: once it is)
         if object.Parent then Theme._alphaOf(object, entry) else task.defer(function() if object.Parent then pcall(Theme._alphaOf, object, entry) end end) end
     end
@@ -14431,15 +14419,45 @@ local function inGlass(object)
     end
     return false
 end
+-- Window transparency (the Transparency slider): every surface inside the window - the window, the dock, cards,
+-- fields, rows, the footer - and their outlines let Theme.glass of the game through, on top of what they let through
+-- already (a half-clear hover stays half as solid). Text, icons and the accent stay as they are.
+Theme.glass = 0
+Theme.glassRoles = {
+    base = true, footer = true, dock = true, card = true, input = true, hover = true, selected = true, dockSelected = true,
+    line = true, edge = true, buttonEdge = true,
+}
+local function see(own, role)
+    local glass = Theme.glassRoles[role] and Theme.glass or 0
+    local wanted = Theme.alpha[role] or own
+    if glass > 0 then wanted = 1 - (1 - wanted) * (1 - glass) end
+    return wanted
+end
 local function alphaOf(object, entry)
+    if object:IsA("UIStroke") then
+        local role = entry.Color
+        local active = role and (Theme.alpha[role] or (Theme.glass > 0 and Theme.glassRoles[role])) and inGlass(object)
+        if active then
+            if entry.__strokeAlpha == nil then
+                if object.Transparency >= 1 then return end
+                entry.__strokeAlpha = object.Transparency
+            end
+            local wanted = see(entry.__strokeAlpha, role)
+            if object.Transparency ~= wanted then object.Transparency = wanted end
+        elseif entry.__strokeAlpha ~= nil then
+            object.Transparency = entry.__strokeAlpha
+            entry.__strokeAlpha = nil
+        end
+        return
+    end
     local role = entry.BackgroundColor3
-    local wanted = role and Theme.alpha[role]
-    if wanted and not inGlass(object) then wanted = nil end
-    if wanted then
+    local active = role and (Theme.alpha[role] or (Theme.glass > 0 and Theme.glassRoles[role])) and inGlass(object)
+    if active then
         if entry.__alpha == nil then
             if object.BackgroundTransparency >= 1 then return end
             entry.__alpha = object.BackgroundTransparency
         end
+        local wanted = see(entry.__alpha, role)
         if object.BackgroundTransparency ~= wanted then object.BackgroundTransparency = wanted end
     elseif entry.__alpha ~= nil then
         object.BackgroundTransparency = entry.__alpha
@@ -14449,8 +14467,14 @@ end
 Theme._alphaOf = alphaOf
 local function applyAlpha()
     for object, entry in pairs(Theme._bound()) do
-        if object.Parent and entry.BackgroundColor3 then pcall(alphaOf, object, entry) end
+        if object.Parent and (entry.BackgroundColor3 or entry.Color) then pcall(alphaOf, object, entry) end
     end
+end
+
+-- Theme.setGlass(0 - 0.9): see Theme.glass
+function Theme.setGlass(value)
+    Theme.glass = math.clamp(tonumber(value) or 0, 0, 0.9)
+    applyAlpha()
 end
 
 -- What the pack brings besides colours: { alpha = { role = transparency }, blur = true }. Windows listen with
@@ -15133,20 +15157,27 @@ local fontModule -- (the font module, found on first use: it requires util itsel
 function Util.textWidth(text, size, font)
     text = tostring(text)
     if typeof(font) ~= "EnumItem" or font == Enum.Font.Unknown then font = Enum.Font.Gotham end
-    -- the UI font's own measured widths when they are there (code fonts keep their Enum.Font size)
-    if font ~= Enum.Font.Code and font ~= Enum.Font.RobotoMono then
-        if fontModule == nil then Util._fontFactor(font, size) end
-        local measured = fontModule and fontModule.textWidth and fontModule.textWidth(text, size, font)
+    if fontModule == nil then
+        local ok, module = pcall(require, "font")
+        fontModule = ok and module or false
+    end
+    local code = font == Enum.Font.Code or font == Enum.Font.RobotoMono
+    -- the UI font's own measured character widths (code fonts keep their Enum.Font size)
+    if fontModule and not code then
+        local measured = fontModule.textWidth(text, size, font)
         if measured then return measured end
     end
+    -- until then (or a code font): Roblox's width for the Enum font, at the size it is drawn
     local key = text .. "\0" .. tostring(size) .. "\0" .. tostring(font)
     local width = widthCache[key]
-    if width then return width * Util._fontFactor(font, size) end
-    local ok, bounds = pcall(function() return Services.TextService:GetTextSize(text, size, font, Vector2.new(10000, 100)) end)
-    width = ok and bounds.X or #text * (tonumber(size) or 10) * 0.55
-    if widthCount >= 1000 then widthCache, widthCount = {}, 0 end
-    widthCache[key], widthCount = width, widthCount + 1
-    return width * Util._fontFactor(font, size)
+    if not width then
+        local ok, bounds = pcall(function() return Services.TextService:GetTextSize(text, size, font, Vector2.new(10000, 100)) end)
+        width = ok and bounds.X or #text * (tonumber(size) or 10) * 0.55
+        if widthCount >= 1000 then widthCache, widthCount = {}, 0 end
+        widthCache[key], widthCount = width, widthCount + 1
+    end
+    if fontModule and not code then width = width * fontModule.drawnScale(size) end
+    return width
 end
 -- Util.onTextMetrics(object, fn): fn runs whenever text widths change (another font, text size, a measured font)
 -- while `object` is alive, so something laid out by Util.textWidth can size itself again.
@@ -15156,16 +15187,6 @@ function Util.onTextMetrics(object, fn)
     local stop = font.onChange(function() if object.Parent then fn() end end)
     object.Destroying:Connect(stop)
     return stop
-end
--- (the UI font's width next to Gotham, set by the font module; 1 until it loads)
-function Util._fontFactor(font, size)
-    if fontModule == nil then
-        local ok, module = pcall(require, "font")
-        fontModule = ok and module or false
-    end
-    if not fontModule then return 1 end
-    local ok, factor = pcall(fontModule.widthFactor, font, size)
-    return ok and factor or 1
 end
 -- true while the object can actually be seen: it and every parent Visible, the ScreenGui enabled
 function Util.shown(object)
@@ -17155,7 +17176,7 @@ __modules["windowx"] = function()
 -- Window extras:
 --   Window:HeaderButton({ Icon = "refresh-cw", Tooltip = "Rejoin", Callback })   your own buttons in the header
 --   Window:SetFullscreen(bool) / :ToggleFullscreen()   also the maximize button and a double click on the header
---   Window:SetBackgroundImage(image, transparency)      rbxassetid / url / nil; :SetBackgroundTransparency(0-0.9)
+--   Window:SetBackgroundImage(image, transparency)      rbxassetid / url / nil; :SetBackgroundTransparency(0-0.9): every surface
 --   Window:SetAnonymous(bool)                           hides your name / avatar everywhere (dock profile button)
 -- CreateWindow({ FullscreenButton = true, Profile = false, Anonymous = true, Background = "...", BackgroundTransparency })
 local Util = require("util")
@@ -17234,10 +17255,9 @@ return function(Window)
         if not Icons.Apply(picture, image) then picture.Image = tostring(image) end
         picture.ImageColor3 = Color3.new(1, 1, 1)
     end
+    -- the whole window: every surface in it and their outlines (Theme.setGlass), not just the window's own back
     function Window:SetBackgroundTransparency(value)
-        value = math.clamp(tonumber(value) or 0, 0, 0.9)
-        self.main.BackgroundTransparency = value
-        self.dock.BackgroundTransparency = math.max(0.03, value)
+        Theme.setGlass(value)
     end
 
     ------------------------------------------------------------------ profile button in the dock + anonymous mode

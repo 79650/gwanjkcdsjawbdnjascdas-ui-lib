@@ -652,6 +652,7 @@ t:SetStep(2, "Quest 2")             -- closes itself at the end
 | `Duration` | without it, 3–10 s depending on the text length; hovering pauses the timer (`PauseOnHover = false`) |
 | `Color` | a `Color3` or a role: `"success"`, `"warning"`, `"danger"` |
 | `Icon`, `Buttons`, `CanClose` | icon, a row of buttons, X in the corner |
+| `Actions` | `{ { Icon = "copy", Tooltip, Callback } }`: small icons left of the X; a click turns the icon into a tick (a cross when the callback returns `false`), the notification stays |
 | `Progress`, `Steps`, `Step`, `Persist` | progress notification (`:SetProgress`, `:SetStep`, `:Close`) |
 | `Sound`, `Volume` | `true` (a short ping) or a sound id |
 | `History` | `false`: kept out of the bell history |
@@ -813,7 +814,7 @@ In the font list every name is drawn in its own font. Code, Console and Log text
 
 **Profile files.** A profile keeps only the settings that differ from the defaults, named in words (`"ui accent"`, `"sa enabled"`) and written as indented JSON. Loading one puts every setting it doesn't list back to its default; files with every setting or the old names load the same way.
 
-**Text widths follow the font.** `Lib.Util.textWidth(text, size, font)` adds up the chosen font's own character widths (each printable character measured once per weight with `TextService:GetTextBoundsAsync` in that font, in the background) at the size the text is really drawn, so buttons, tabs and pills fit their words in every font. Until a font is measured, Gotham's width times the font's ratio stands in. Something you lay out by text width can size itself again when the font or text size changes: `Lib.Util.onTextMetrics(frame, function() ... end)` (stops when `frame` is destroyed).
+**Text widths follow the font.** `Lib.Util.textWidth(text, size, font)` adds up the chosen font's own character widths (each printable character measured once per weight with `TextService:GetTextBoundsAsync` in that font, in the background) at the size the text is really drawn, so buttons, tabs and pills fit their words in every font. Until a font is measured (a moment after start), Roblox's Gotham width at the drawn size stands in. Something you lay out by text width can size itself again when the font or text size changes: `Lib.Util.onTextMetrics(frame, function() ... end)` (stops when `frame` is destroyed).
 
 **Icons.** The lib's own icons (and Qustah's) come from its sheet in `qustah/icons`: filled icons (Solar Bold, a few Material Design Icons where Solar has none) drawn at 14, 16, 20, 24, 28 and 30 px, every pixel on or off (no grey edges), downloaded once into `QustahUI/icons` and shown through `getcustomasset` with nearest-pixel sampling. `src/icons_qustah.lua` says where each one is; `tools/qustah_icons.json` which icon is drawn for which lucide name. Any other lucide icon comes from the 16 / 32 px lucide sheets, and without `getcustomasset` from its asset id.
 
@@ -903,7 +904,7 @@ Window:AddTag("NEW", { Color = "warning", Style = "Solid" | "Soft" })   -- text 
 
 Window:SetFullscreen(true)                      -- or Window:ToggleFullscreen(); a double click on the header does the same
 Window:SetBackgroundImage("rbxassetid://123", 0.85)
-Window:SetBackgroundTransparency(0.2)
+Window:SetBackgroundTransparency(0.2)            -- the whole window: every surface and outline (the Settings slider goes to 25 %)
 Window:SetLiveBackground(true)                  -- slow accent light drifting behind the content
 Window:SetAccentGlow(true)                      -- the window edge pulses in the accent colour
 
