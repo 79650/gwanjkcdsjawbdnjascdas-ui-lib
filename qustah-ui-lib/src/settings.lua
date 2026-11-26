@@ -76,13 +76,13 @@ return function(window, cfg)
     })
     picker.Row.Visible = false -- (only its colour panel shows, under the dots)
     syncSwatches()
-    -- the fonts (font.lua: Roblox's own families). CreateWindow({ Font = "Ubuntu" }) starts with one (else Jura);
+    -- the fonts (font.lua: Roblox's own families). CreateWindow({ Font = "Jura" }) starts with one (else Ubuntu);
     -- a list ({ "Jura", "Roboto" }) starts with the first known name
     local fonts = UIFont.available()
     local wanted = type(window.cfg.Font) == "table" and window.cfg.Font or { window.cfg.Font }
     local usable = {}
     for _, name in ipairs(wanted) do if table.find(fonts, tostring(name)) then usable[#usable + 1] = tostring(name) end end
-    local startFont = usable[1] or "Jura"
+    local startFont = usable[1] or "Ubuntu"
     -- each name drawn in its own font
     local fontOptions = {}
     for _, name in ipairs(fonts) do fontOptions[#fontOptions + 1] = { Title = name, Font = UIFont.family(name) } end

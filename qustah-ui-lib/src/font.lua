@@ -3,9 +3,9 @@
 -- The fonts are Roblox's own font families (UIFont.Families: built in or an rbxassetid), so nothing is downloaded.
 local Util = require("util")
 
-local UIFont = { current = "Jura", guis = {} }
+local UIFont = { current = "Ubuntu", guis = {} }
 
-UIFont.order = { "Jura", "Ubuntu", "Roboto", "Michroma", "Josefin Sans" }
+UIFont.order = { "Ubuntu", "Jura", "Roboto", "Michroma", "Josefin Sans" }
 -- name -> its Roblox font family: a built-in family's name for Font.fromName (letters only, no spaces) or a font
 -- library asset id for Font.fromId
 UIFont.Families = { Ubuntu = "Ubuntu", Jura = "Jura", Roboto = "Roboto", Michroma = "Michroma", ["Josefin Sans"] = "JosefinSans" }
@@ -197,7 +197,7 @@ function UIFont.refresh()
 end
 
 function UIFont.set(name)
-    name = tostring(name or "Jura")
+    name = tostring(name or "Ubuntu")
     if not table.find(UIFont.order, name) or not familyOf(name) then return false end
     UIFont.current = name
     UIFont.refresh()
