@@ -14427,10 +14427,11 @@ Theme.glassRoles = {
     base = true, footer = true, dock = true, card = true, input = true, hover = true, selected = true, dockSelected = true,
     line = true, edge = true, buttonEdge = true,
 }
--- A band that lies on the window's own back and covers it edge to edge (the footer, a side dock: GlassLayer
--- attribute) would let through only a fraction of what the window around it does - two see-through layers - and
--- stand out as a darker strip. Its own fill fades much further, so the band lets about as much through as the rest
--- of the window and keeps only a hint of its own shade.
+-- Everything that lies on the window's own back (cards, the footer, a side dock, the selected tab, fields...) would
+-- let through only a fraction of what the window around it does - see-through layers on top of each other - and
+-- stand out as a darker patch. So only the window's back (and a floating dock's) takes Theme.glass as it is; a fill
+-- on top of it fades much further and keeps a hint of its own shade, so about as much of the game shows through
+-- everywhere. Outlines keep the plain amount: they still draw the cards.
 local function see(own, role, layer)
     local glass = Theme.glassRoles[role] and Theme.glass or 0
     local wanted = Theme.alpha[role] or own
@@ -14461,7 +14462,9 @@ local function alphaOf(object, entry)
             if object.BackgroundTransparency >= 1 then return end
             entry.__alpha = object.BackgroundTransparency
         end
-        local wanted = see(entry.__alpha, role, object:GetAttribute("GlassLayer") == true)
+        -- (the back: a frame marked ThemeGlass itself - the window, a floating dock - unless it lies on the window)
+        local back = object:GetAttribute("ThemeGlass") == true and object:GetAttribute("GlassLayer") ~= true
+        local wanted = see(entry.__alpha, role, not back)
         if object.BackgroundTransparency ~= wanted then object.BackgroundTransparency = wanted end
     elseif entry.__alpha ~= nil then
         object.BackgroundTransparency = entry.__alpha

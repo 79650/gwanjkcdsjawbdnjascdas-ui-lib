@@ -12654,7 +12654,8 @@ if entry.__alpha==nil then
 if object.BackgroundTransparency>=1 then return end
 entry.__alpha=object.BackgroundTransparency
 end
-local wanted=see(entry.__alpha,role,object:GetAttribute("GlassLayer")==true)
+local back=object:GetAttribute("ThemeGlass")==true and object:GetAttribute("GlassLayer")~=true
+local wanted=see(entry.__alpha,role,not back)
 if object.BackgroundTransparency~=wanted then object.BackgroundTransparency=wanted end
 elseif entry.__alpha~=nil then
 object.BackgroundTransparency=entry.__alpha
