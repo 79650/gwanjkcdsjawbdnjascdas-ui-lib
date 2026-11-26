@@ -6353,7 +6353,7 @@ corner(button,6)
 outlines[index]=stroke(button)
 elseif style=="Pills"then
 corner(button,12)
-button.Size=UDim2.fromOffset(Util.textWidth(option,10,Enum.Font.GothamMedium)+26,24)
+button.Size=UDim2.new(1/count,-6*(count-1)/count,0,24)
 else
 button.BackgroundTransparency=1
 if style=="Capsule"then
@@ -6374,6 +6374,7 @@ button.MouseEnter:Connect(function()if option~=element.Value and not element.Loc
 button.MouseLeave:Connect(function()if option~=element.Value then Theme.tweenTo(button,"TextColor3","muted",0.08)end end)
 end
 end
+local pillsMin=style=="Pills"and create("UISizeConstraint",{Parent=strip})or nil
 local function sizeWords()
 if style=="Capsule"then
 local x=3
@@ -6385,7 +6386,9 @@ x=x+width+2
 end
 strip.Size=UDim2.fromOffset(x+1,26)
 elseif style=="Pills"then
-for index,button in ipairs(buttons)do button.Size=UDim2.fromOffset(Util.textWidth(options[index],10,Enum.Font.GothamMedium)+26,24)end
+local widest=0
+for _,option in ipairs(options)do widest=math.max(widest,Util.textWidth(option,10,Enum.Font.GothamMedium)+26)end
+pillsMin.MinSize=Vector2.new(widest*count+6*(count-1),0)
 end
 end
 sizeWords()
@@ -6401,7 +6404,9 @@ local stacked=row.AbsoluteSize.X>0 and row.AbsoluteSize.X<300
 row.Size=UDim2.new(1,0,0,stacked and 70 or(cfg.Desc and baseHeight+6 or baseHeight))
 strip.AnchorPoint=stacked and Vector2.new(0,0)or Vector2.new(0,0.5)
 strip.Position=stacked and UDim2.fromOffset(0,cfg.Desc and 40 or 30)or UDim2.new(0,120,0.5,0)
-if style=="Capsule"then
+if style=="Pills"and not stacked then
+strip.AnchorPoint,strip.Position,strip.Size=Vector2.new(1,0.5),UDim2.new(1,0,0.5,0),UDim2.new(0.45,0,0,28)
+elseif style=="Capsule"then
 strip.Size=UDim2.fromOffset(strip.Size.X.Offset,26)
 else
 strip.Size=stacked and UDim2.new(1,0,0,28)or UDim2.new(1,-120,0,28)

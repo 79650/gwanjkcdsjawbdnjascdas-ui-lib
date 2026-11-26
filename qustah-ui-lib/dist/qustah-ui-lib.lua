@@ -7063,7 +7063,8 @@ __modules["elements/segment"] = function()
 -- under the title. Style (or CreateWindow({ SegmentStyle })): "Underline" (plain words, a line under the chosen
 -- one, the default), "Boxed" (a framed button each), "Track" (one rounded track, a thumb slides under the chosen one), "Line" (a short line under the chosen word only), "Dot" (a dot under it), "Divided" (words split
 -- by thin bars, the chosen one bright), "Ghost" (a thin outline round the chosen word) or "Pills" (small pills as
--- wide as their word, the chosen one filled). "Tab" is Underline with a fainter base line and a word-wide
+-- wide as their word, the chosen one filled; beside the title they fill the same right-hand column as a dropdown,
+-- split evenly, never narrower than their words). "Tab" is Underline with a fainter base line and a word-wide
 -- line; "Capsule" is Pills inside one rounded track, the filled part sliding to the chosen word.
 local Util = require("util")
 local Theme = require("theme")
@@ -7197,7 +7198,7 @@ return function(card, cfg)
             outlines[index] = stroke(button)
         elseif style == "Pills" then
             corner(button, 12)
-            button.Size = UDim2.fromOffset(Util.textWidth(option, 10, Enum.Font.GothamMedium) + 26, 24)
+            button.Size = UDim2.new(1 / count, -6 * (count - 1) / count, 0, 24)
         else
             button.BackgroundTransparency = 1
             if style == "Capsule" then
@@ -7219,6 +7220,7 @@ return function(card, cfg)
             button.MouseLeave:Connect(function() if option ~= element.Value then Theme.tweenTo(button, "TextColor3", "muted", 0.08) end end)
         end
     end
+    local pillsMin = style == "Pills" and create("UISizeConstraint", { Parent = strip }) or nil
     -- Capsule: each word as wide as itself, side by side from the left; the track fits around them
     local function sizeWords()
         if style == "Capsule" then
@@ -7231,7 +7233,10 @@ return function(card, cfg)
             end
             strip.Size = UDim2.fromOffset(x + 1, 26)
         elseif style == "Pills" then
-            for index, button in ipairs(buttons) do button.Size = UDim2.fromOffset(Util.textWidth(options[index], 10, Enum.Font.GothamMedium) + 26, 24) end
+            -- (even pills: the strip is never so narrow that the longest word would not fit in its pill)
+            local widest = 0
+            for _, option in ipairs(options) do widest = math.max(widest, Util.textWidth(option, 10, Enum.Font.GothamMedium) + 26) end
+            pillsMin.MinSize = Vector2.new(widest * count + 6 * (count - 1), 0)
         end
     end
     sizeWords()
@@ -7250,7 +7255,10 @@ return function(card, cfg)
         row.Size = UDim2.new(1, 0, 0, stacked and 70 or (cfg.Desc and baseHeight + 6 or baseHeight))
         strip.AnchorPoint = stacked and Vector2.new(0, 0) or Vector2.new(0, 0.5)
         strip.Position = stacked and UDim2.fromOffset(0, cfg.Desc and 40 or 30) or UDim2.new(0, 120, 0.5, 0)
-        if style == "Capsule" then
+        if style == "Pills" and not stacked then
+            -- (the dropdown's column: the right 45 %)
+            strip.AnchorPoint, strip.Position, strip.Size = Vector2.new(1, 0.5), UDim2.new(1, 0, 0.5, 0), UDim2.new(0.45, 0, 0, 28)
+        elseif style == "Capsule" then
             strip.Size = UDim2.fromOffset(strip.Size.X.Offset, 26) -- (as wide as its words)
         else
             strip.Size = stacked and UDim2.new(1, 0, 0, 28) or UDim2.new(1, -120, 0, 28)
